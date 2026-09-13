@@ -10,6 +10,20 @@ const distDir = path.join(rootDir, "dist");
 fs.rmSync(distDir, { recursive: true, force: true });
 fs.mkdirSync(distDir, { recursive: true });
 
+// Baked into the bundle as literal strings (src/lib/config.ts, env.d.ts) - a browser
+// extension has no runtime env to read at load time, unlike apps/web's Vite build.
+// Defaults point at the real deployed stack (this is the build the Dockerfile and the
+// "Download extension" link both produce); override for a local-dev-stack build via
+// these two environment variables when running this script directly.
+const define = {
+  __API_BASE_URL__: JSON.stringify(
+    process.env.BACKLINE_API_BASE_URL ?? "https://app-production-f121.up.railway.app",
+  ),
+  __DASHBOARD_BASE_URL__: JSON.stringify(
+    process.env.BACKLINE_DASHBOARD_BASE_URL ?? "https://backline-qa.vercel.app",
+  ),
+};
+
 // MV3 service workers may declare "type": "module" in the manifest, so background.js
 // can stay a real ES module - but content scripts have no such option (Chrome always
 // loads a manifest content script as a classic script), so content-script.js has to be
@@ -22,6 +36,7 @@ await esbuild.build({
   format: "esm",
   outfile: path.join(distDir, "background.js"),
   target: "chrome110",
+  define,
 });
 
 await esbuild.build({
@@ -30,6 +45,7 @@ await esbuild.build({
   format: "iife",
   outfile: path.join(distDir, "content-script.js"),
   target: "chrome110",
+  define,
 });
 
 await esbuild.build({
@@ -38,6 +54,7 @@ await esbuild.build({
   format: "iife",
   outfile: path.join(distDir, "popup.js"),
   target: "chrome110",
+  define,
 });
 
 fs.copyFileSync(path.join(rootDir, "manifest.json"), path.join(distDir, "manifest.json"));
