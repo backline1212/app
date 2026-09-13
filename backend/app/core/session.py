@@ -5,14 +5,23 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.errors import AuthenticationError, PermissionDeniedError
 from app.core.events import ActorType
-from app.core.security import InvalidTokenError, decode_access_token, decode_guest_token
+from app.core.security import (
+    InvalidTokenError,
+    decode_access_token,
+    decode_guest_token,
+    hash_secret,
+)
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
 @dataclass(frozen=True)
 class Session:
-    """Resolved from a member's access JWT (13-Authentication.md §13.3)."""
+    """Resolved from either a member's access JWT (13-Authentication.md §13.3) or a
+    long-lived "Connect Extension" token (extension_tokens module) - the latter has
+    no login family, so `sid` stays None and its own `revoked_at` check in
+    _resolve_extension_session substitutes for validate_member_session's
+    family_is_active check below."""
 
     user_id: str
     workspace_id: str | None
@@ -38,14 +47,42 @@ async def get_current_session(
         raise AuthenticationError("Authentication required.")
     try:
         claims = decode_access_token(credentials.credentials)
-    except InvalidTokenError as exc:
-        raise AuthenticationError("Invalid or expired token.") from exc
+    except InvalidTokenError:
+        # Not a member access JWT - falls through to the extension-token path rather
+        # than failing immediately, since both share the same Authorization: Bearer
+        # header (there's no separate header to route on, unlike X-Guest-Session).
+        # This keeps every existing member-only endpoint (comments, pages, projects)
+        # working unchanged for a "Connect Extension" token with zero per-route edits.
+        return await _resolve_extension_session(credentials.credentials)
 
     session = Session(
         user_id=claims.sub, workspace_id=claims.workspace_id, role=claims.role, sid=claims.sid
     )
     await validate_member_session(session)
     return session
+
+
+async def _resolve_extension_session(token: str) -> Session:
+    from app.core.db import get_db
+    from app.modules.extension_tokens.repository import ExtensionTokenRepository
+    from app.modules.workspaces.repository import MembershipRepository
+
+    doc = await ExtensionTokenRepository(get_db()).find_by_hash(hash_secret(token))
+    if doc is None or doc["revoked_at"] is not None:
+        raise AuthenticationError("Invalid or expired token.")
+
+    user_id = str(doc["user_id"])
+    # Same role-drift guard validate_member_session applies to JWTs (below): a token
+    # minted while the member was, say, an admin must stop authorizing the instant
+    # they're demoted or removed, not just once the token itself expires.
+    member = await MembershipRepository(get_db()).find(
+        workspace_id=doc["workspace_id"], user_id=user_id
+    )
+    if member is None or member["role"] != doc["role"]:
+        raise PermissionDeniedError("Workspace access changed. Reconnect the extension.")
+
+    await ExtensionTokenRepository(get_db()).touch_last_used(doc["_id"])
+    return Session(user_id=user_id, workspace_id=doc["workspace_id"], role=doc["role"], sid=None)
 
 
 async def get_guest_session(

@@ -52,6 +52,25 @@ class ProjectCreate(BaseModel):
         return value.strip()
 
 
+class ProjectResolve(BaseModel):
+    """Used by the browser extension's "auto-detect current site" flow: finds an
+    existing website project for this origin, or creates one, instead of the caller
+    having to know whether a project already exists."""
+
+    target_origin: str = Field(min_length=1, max_length=500)
+    name: str | None = Field(default=None, max_length=200)
+
+    @field_validator("target_origin")
+    @classmethod
+    def clean_origin(cls, value: str) -> str:
+        return normalize_origin(value)
+
+    @field_validator("name")
+    @classmethod
+    def clean_name(cls, value: str | None) -> str | None:
+        return value.strip() if value and value.strip() else None
+
+
 class ProjectUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     target_origin: str | None = Field(default=None, min_length=1, max_length=500)

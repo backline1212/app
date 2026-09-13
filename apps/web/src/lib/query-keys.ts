@@ -19,6 +19,7 @@ export const qk = {
   activity: (id: string) => ["workspace", id, "activity"] as const,
   activityList: (id: string, offset: number, filter: string) => ["workspace", id, "activity", offset, filter] as const,
   integrations: (workspaceId: string) => ["workspace", workspaceId, "integrations"] as const,
+  extensionTokens: (workspaceId: string) => ["workspace", workspaceId, "extension-tokens"] as const,
   project: (projectId: string) => ["project", projectId] as const,
   projectPages: (projectId: string) => ["project", projectId, "pages"] as const,
   projectComments: (projectId: string) => ["project", projectId, "comments"] as const,

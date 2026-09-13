@@ -193,6 +193,7 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         [("workspace_id", 1), ("archived_at", 1), ("created_at", -1), ("_id", -1)]
     )
     await db.projects.create_index([("workspace_id", 1), ("client_id", 1)])
+    await db.projects.create_index([("workspace_id", 1), ("target_origin", 1), ("archived_at", 1)])
     # Bounded, workspace-first regex search (FD-AUD-049); replace only after selecting
     # a text-search provider and migration plan.
     await db.projects.create_index([("workspace_id", 1), ("name", 1)])
@@ -239,6 +240,11 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
     await db.recovery_logs.create_index([("comment_id", 1), ("created_at", -1)])
 
     await db.integrations.create_index([("workspace_id", 1), ("type", 1)])
+
+    await db.extension_tokens.create_index("token_hash", unique=True)
+    await db.extension_tokens.create_index(
+        [("workspace_id", 1), ("user_id", 1), ("created_at", -1)]
+    )
 
     # notifications: shape/indexes documented in docs/tdr/0009 (11-Database.md never
     # gave this collection an explicit schema, unlike every other one).

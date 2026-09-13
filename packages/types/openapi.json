@@ -1075,6 +1075,64 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_id}/projects/resolve": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Resolve Project",
+        "description": "Browser-extension \"auto-detect current site\" flow: finds the existing website\nproject for this origin, or creates one - so the extension never has to already\nknow whether a project exists before it can register a page/comment against it.",
+        "operationId": "resolve_project_api_v1_workspaces__workspace_id__projects_resolve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectResolve"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}": {
       "get": {
         "tags": [
@@ -4122,6 +4180,339 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/pages/{page_id}/render": {
+      "post": {
+        "tags": [
+          "browser-render"
+        ],
+        "summary": "Request Render",
+        "operationId": "request_render_api_v1_projects__project_id__pages__page_id__render_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Page Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "browser-render"
+        ],
+        "summary": "Render Status",
+        "operationId": "render_status_api_v1_projects__project_id__pages__page_id__render_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Page Id"
+            }
+          },
+          {
+            "name": "browser",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "Chrome",
+                "Safari",
+                "Firefox",
+                "Edge"
+              ],
+              "type": "string",
+              "title": "Browser"
+            }
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 3840,
+              "minimum": 200,
+              "title": "Width"
+            }
+          },
+          {
+            "name": "height",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 3840,
+              "minimum": 200,
+              "title": "Height"
+            }
+          },
+          {
+            "name": "orientation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "portrait",
+                "landscape"
+              ],
+              "type": "string",
+              "default": "portrait",
+              "title": "Orientation"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspace_id}/projects/{project_id}/comments/{comment_id}/ai/summarize": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Summarize Thread",
+        "operationId": "summarize_thread_api_workspaces__workspace_id__projects__project_id__comments__comment_id__ai_summarize_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Comment Id"
+            }
+          },
+          {
+            "name": "x-guest-session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummarizeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspace_id}/projects/{project_id}/comments/{comment_id}/ai/suggest-reply": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Suggest Reply",
+        "operationId": "suggest_reply_api_workspaces__workspace_id__projects__project_id__comments__comment_id__ai_suggest_reply_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Comment Id"
+            }
+          },
+          {
+            "name": "x-guest-session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestReplyResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/integrations": {
       "get": {
         "tags": [
@@ -4385,6 +4776,179 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extension-tokens/whoami": {
+      "get": {
+        "tags": [
+          "extension-tokens"
+        ],
+        "summary": "Extension Whoami",
+        "description": "Lets the extension's popup resolve a freshly-pasted token's workspace, name,\nand role - deliberately not under /auth (see ExtensionWhoAmIOut's docstring).",
+        "operationId": "extension_whoami_api_v1_extension_tokens_whoami_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionWhoAmIOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/extension-tokens": {
+      "get": {
+        "tags": [
+          "extension-tokens"
+        ],
+        "summary": "List Extension Tokens",
+        "operationId": "list_extension_tokens_api_v1_workspaces__workspace_id__extension_tokens_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExtensionTokenOut"
+                  },
+                  "title": "Response List Extension Tokens Api V1 Workspaces  Workspace Id  Extension Tokens Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "extension-tokens"
+        ],
+        "summary": "Create Extension Token",
+        "operationId": "create_extension_token_api_v1_workspaces__workspace_id__extension_tokens_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionTokenCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionTokenIssued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extension-tokens/{token_id}": {
+      "delete": {
+        "tags": [
+          "extension-tokens"
+        ],
+        "summary": "Revoke Extension Token",
+        "operationId": "revoke_extension_token_api_v1_extension_tokens__token_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -4873,12 +5437,6 @@
             "const": 1,
             "title": "Tier"
           },
-          "dom_fingerprint": {
-            "$ref": "#/components/schemas/DomFingerprintIn"
-          },
-          "text_fingerprint": {
-            "$ref": "#/components/schemas/TextFingerprintIn"
-          },
           "type": {
             "type": "string",
             "enum": [
@@ -4887,6 +5445,12 @@
             ],
             "title": "Type",
             "default": "point"
+          },
+          "dom_fingerprint": {
+            "$ref": "#/components/schemas/DomFingerprintIn"
+          },
+          "text_fingerprint": {
+            "$ref": "#/components/schemas/TextFingerprintIn"
           }
         },
         "type": "object",
@@ -4896,7 +5460,7 @@
           "text_fingerprint"
         ],
         "title": "AnchorIn",
-        "description": "Tier 1 only in Milestone 4/5 (08-Anchor-Engine.md §8.1/§8.2)."
+        "description": "Tier 1 only in Milestone 4/5 (08-Anchor-Engine.md \u00a78.1/\u00a78.2)."
       },
       "AssetCommentCreate": {
         "properties": {
@@ -5087,14 +5651,14 @@
         "properties": {
           "x": {
             "type": "number",
-            "maximum": 1,
-            "minimum": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "X"
           },
           "y": {
             "type": "number",
-            "maximum": 1,
-            "minimum": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "Y"
           }
         },
@@ -5952,8 +6516,7 @@
               {
                 "type": "null"
               }
-            ],
-            "title": "Region Box Pct"
+            ]
           }
         },
         "type": "object",
@@ -5965,7 +6528,130 @@
           "ancestor_path_hash"
         ],
         "title": "DomFingerprintIn",
-        "description": "node_hash/ancestor_path_hash use the same hash scheme as a snapshot's NodeRecord\n(09-Snapshot-Engine.md §9.6) - required for modules/anchor_engine to compare an\nanchor against a snapshot's nodes_index at all\n(docs/tdr/0004-anchor-snapshot-shared-hash-scheme.md)."
+        "description": "node_hash/ancestor_path_hash use the same hash scheme as a snapshot's NodeRecord\n(09-Snapshot-Engine.md \u00a79.6) - required for modules/anchor_engine to compare an\nanchor against a snapshot's nodes_index at all\n(docs/tdr/0004-anchor-snapshot-shared-hash-scheme.md)."
+      },
+      "ExtensionTokenCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ExtensionTokenCreate"
+      },
+      "ExtensionTokenIssued": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "token",
+          "name",
+          "created_at"
+        ],
+        "title": "ExtensionTokenIssued",
+        "description": "Returned exactly once, at creation time - the raw token is never retrievable\nagain afterward (ExtensionTokenOut never includes it, matching how a refresh\ntoken's own opaque value is only ever returned in its issuing response)."
+      },
+      "ExtensionTokenOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "workspace_id",
+          "created_at",
+          "last_used_at",
+          "revoked_at"
+        ],
+        "title": "ExtensionTokenOut"
+      },
+      "ExtensionWhoAmIOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "user_email": {
+            "type": "string",
+            "title": "User Email"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/WorkspaceOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "user_email",
+          "workspace"
+        ],
+        "title": "ExtensionWhoAmIOut",
+        "description": "Lets the extension's popup learn which workspace a pasted token belongs to.\n\nDeliberately not under /auth (unlike PATCH /auth/me) - AuthOriginMiddleware only\nallows the dashboard's own origin there, which a chrome-extension:// origin isn't\non that allowlist for. Works for either an extension token or an ordinary member\nJWT, since both resolve to the same Session shape via get_current_session."
       },
       "GoogleCallbackRequest": {
         "properties": {
@@ -6549,8 +7235,8 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 10000,
-                "minimum": 0
+                "maximum": 10000.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"
@@ -7025,6 +7711,34 @@
         ],
         "title": "ProjectOut"
       },
+      "ProjectResolve": {
+        "properties": {
+          "target_origin": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Target Origin"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_origin"
+        ],
+        "title": "ProjectResolve",
+        "description": "Used by the browser extension's \"auto-detect current site\" flow: finds an\nexisting website project for this origin, or creates one, instead of the caller\nhaving to know whether a project already exists."
+      },
       "ProjectSettingsOut": {
         "properties": {
           "proxy_mode": {
@@ -7144,7 +7858,7 @@
         },
         "type": "object",
         "title": "ProjectSettingsUpdate",
-        "description": "Partial update for project review settings — omitted fields are unchanged."
+        "description": "Partial update for project review settings \u2014 omitted fields are unchanged."
       },
       "ProjectStatsOut": {
         "properties": {
@@ -7279,34 +7993,34 @@
         "properties": {
           "x": {
             "type": "number",
-            "maximum": 1,
-            "minimum": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "X"
           },
           "y": {
             "type": "number",
-            "maximum": 1,
-            "minimum": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "Y"
           },
           "width": {
             "type": "number",
-            "maximum": 1,
-            "minimum": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "Width",
             "default": 0
           },
           "height": {
             "type": "number",
-            "maximum": 1,
-            "minimum": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "Height",
             "default": 0
           },
           "page_number": {
             "type": "integer",
-            "maximum": 200,
-            "minimum": 1,
+            "maximum": 200.0,
+            "minimum": 1.0,
             "title": "Page Number",
             "default": 1
           }
@@ -7317,6 +8031,156 @@
           "y"
         ],
         "title": "Region"
+      },
+      "RegionBoxPct": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Y"
+          },
+          "width": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Width"
+          },
+          "height": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "title": "RegionBoxPct"
+      },
+      "RenderRequest": {
+        "properties": {
+          "browser": {
+            "type": "string",
+            "enum": [
+              "Chrome",
+              "Safari",
+              "Firefox",
+              "Edge"
+            ],
+            "title": "Browser"
+          },
+          "viewport": {
+            "$ref": "#/components/schemas/ViewportIn"
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "portrait",
+              "landscape"
+            ],
+            "title": "Orientation",
+            "default": "portrait"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "browser",
+          "viewport"
+        ],
+        "title": "RenderRequest"
+      },
+      "RenderStatusOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "rendering",
+              "ready",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "browser": {
+            "type": "string",
+            "enum": [
+              "Chrome",
+              "Safari",
+              "Firefox",
+              "Edge"
+            ],
+            "title": "Browser"
+          },
+          "viewport": {
+            "$ref": "#/components/schemas/ViewportIn"
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "portrait",
+              "landscape"
+            ],
+            "title": "Orientation"
+          },
+          "screenshot_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screenshot Url"
+          },
+          "rendered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendered At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "browser",
+          "viewport",
+          "orientation"
+        ],
+        "title": "RenderStatusOut"
       },
       "ReplyCreate": {
         "properties": {
@@ -7853,6 +8717,35 @@
         ],
         "title": "SnapshotSubmit"
       },
+      "SuggestReplyResult": {
+        "properties": {
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggestions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "suggestions"
+        ],
+        "title": "SuggestReplyResult"
+      },
+      "SummarizeResult": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "title": "SummarizeResult"
+      },
       "SwitchWorkspaceRequest": {
         "properties": {
           "workspace_id": {
@@ -8239,7 +9132,7 @@
           "user"
         ],
         "title": "TokenPairOut",
-        "description": "The refresh token itself never appears in a JSON body - it's set as an\nhttpOnly cookie by the router (13-Authentication.md §13.6)."
+        "description": "The refresh token itself never appears in a JSON body - it's set as an\nhttpOnly cookie by the router (13-Authentication.md \u00a713.6)."
       },
       "TrelloIntegrationCreate": {
         "properties": {
@@ -8448,6 +9341,28 @@
         ],
         "title": "ValidationError"
       },
+      "ViewportIn": {
+        "properties": {
+          "width": {
+            "type": "integer",
+            "maximum": 3840.0,
+            "minimum": 200.0,
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "maximum": 3840.0,
+            "minimum": 200.0,
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "width",
+          "height"
+        ],
+        "title": "ViewportIn"
+      },
       "WorkspaceCreate": {
         "properties": {
           "name": {
@@ -8622,43 +9537,7 @@
           "last_active_at"
         ],
         "title": "SessionOut",
-        "description": "FD-AUD-011: Represents an active refresh token family for the user.\nM-05: created_at/last_active_at are typed datetimes (Pydantic serializes to a real\nISO-8601 string with timezone on the wire) rather than hand-formatted str fields -\nAPI contracts stay generated/typed end-to-end per 06-Backend-Architecture.md §2.3,\nand the frontend gets a real Date-parseable value instead of an ad hoc string."
-      },
-      "RegionBoxPct": {
-        "properties": {
-          "x": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1,
-            "title": "X"
-          },
-          "y": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1,
-            "title": "Y"
-          },
-          "width": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1,
-            "title": "Width"
-          },
-          "height": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1,
-            "title": "Height"
-          }
-        },
-        "type": "object",
-        "required": [
-          "x",
-          "y",
-          "width",
-          "height"
-        ],
-        "title": "RegionBoxPct"
+        "description": "FD-AUD-011: Represents an active refresh token family for the user.\nM-05: created_at/last_active_at are typed datetimes (Pydantic serializes to a real\nISO-8601 string with timezone on the wire) rather than hand-formatted str fields -\nAPI contracts stay generated/typed end-to-end per 06-Backend-Architecture.md \u00a72.3,\nand the frontend gets a real Date-parseable value instead of an ad hoc string."
       }
     },
     "securitySchemes": {

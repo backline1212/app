@@ -70,7 +70,7 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
       <p className="bl-eyebrow">Projects</p>
       <NavLink onClick={onNavigate} to={`${base}?archived=true`} className={location.pathname === base && query.get("archived") === "true" ? "is-on" : ""}><i className="bl-dot" /><span>Archived</span><b className="bl-count">{data?.archived_projects ?? 0}</b></NavLink>
       <p className="bl-eyebrow">Workspace</p>
-      {[['members', 'Members'], ['integrations', 'Integrations'], ['settings', 'Settings']].map(([path, label]) => <NavLink key={path} onClick={onNavigate} to={`${base}/${path}`} className={({ isActive }) => isActive ? "is-on" : ""}>{label}</NavLink>)}
+      {[['members', 'Members'], ['integrations', 'Integrations'], ['extension', 'Browser Extension'], ['settings', 'Settings']].map(([path, label]) => <NavLink key={path} onClick={onNavigate} to={`${base}/${path}`} className={({ isActive }) => isActive ? "is-on" : ""}>{label}</NavLink>)}
     </nav>
     <footer className="bl-rail-footer">
       <div className="bl-plan"><strong className="capitalize">{workspace.plan} plan</strong><span className="bl-mono">{data?.projects ?? "—"} active projects</span><p>One place for your team's client reviews.</p><NavLink onClick={onNavigate} className="bl-button mint" to={`${base}/billing`}>Compare plans</NavLink></div>

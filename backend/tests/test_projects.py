@@ -116,3 +116,85 @@ async def test_update_project(client: AsyncClient, monkeypatch: pytest.MonkeyPat
     assert updated.status_code == 200
     assert updated.json()["name"] == "Final Name"
     assert updated.json()["target_origin"] == "https://draft.example.com"
+
+
+async def test_resolve_project_creates_once_and_is_idempotent_per_origin(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Browser-extension "auto-detect current site" flow (POST .../projects/resolve):
+    the first visit to a new origin creates a project, and a second visit to the same
+    origin reuses it rather than creating a duplicate."""
+    workspace_id, owner_token = await create_workspace_and_get_owner_token(
+        client, monkeypatch, email="proj-owner6@example.com", code="200006", workspace_name="P6"
+    )
+    headers = {"Authorization": f"Bearer {owner_token}"}
+
+    first = await client.post(
+        f"/api/v1/workspaces/{workspace_id}/projects/resolve",
+        json={"target_origin": "https://newsite.example.com"},
+        headers=headers,
+    )
+    assert first.status_code == 200
+    first_body = first.json()
+    # No explicit name given - falls back to the origin's own hostname.
+    assert first_body["name"] == "newsite.example.com"
+    assert first_body["target_origin"] == "https://newsite.example.com"
+
+    second = await client.post(
+        f"/api/v1/workspaces/{workspace_id}/projects/resolve",
+        json={"target_origin": "https://newsite.example.com", "name": "Ignored on reuse"},
+        headers=headers,
+    )
+    assert second.status_code == 200
+    assert second.json()["id"] == first_body["id"]
+
+    other_origin = await client.post(
+        f"/api/v1/workspaces/{workspace_id}/projects/resolve",
+        json={"target_origin": "https://othersite.example.com"},
+        headers=headers,
+    )
+    assert other_origin.status_code == 200
+    assert other_origin.json()["id"] != first_body["id"]
+
+
+async def test_resolve_project_is_isolated_per_workspace(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace_a, token_a = await create_workspace_and_get_owner_token(
+        client, monkeypatch, email="proj-owner7a@example.com", code="200007", workspace_name="P7a"
+    )
+    workspace_b, token_b = await create_workspace_and_get_owner_token(
+        client, monkeypatch, email="proj-owner7b@example.com", code="200008", workspace_name="P7b"
+    )
+
+    resp_a = await client.post(
+        f"/api/v1/workspaces/{workspace_a}/projects/resolve",
+        json={"target_origin": "https://shared-domain.example.com"},
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    resp_b = await client.post(
+        f"/api/v1/workspaces/{workspace_b}/projects/resolve",
+        json={"target_origin": "https://shared-domain.example.com"},
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert resp_a.status_code == 200
+    assert resp_b.status_code == 200
+    assert resp_a.json()["id"] != resp_b.json()["id"]
+
+
+async def test_cannot_resolve_project_for_another_workspace(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace_a, token_a = await create_workspace_and_get_owner_token(
+        client, monkeypatch, email="proj-owner8a@example.com", code="200009", workspace_name="P8a"
+    )
+    _, token_b = await create_workspace_and_get_owner_token(
+        client, monkeypatch, email="proj-owner8b@example.com", code="200010", workspace_name="P8b"
+    )
+
+    resp = await client.post(
+        f"/api/v1/workspaces/{workspace_a}/projects/resolve",
+        json={"target_origin": "https://someorigin.example.com"},
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert resp.status_code == 403

@@ -7,14 +7,12 @@ interface UploadResponse {
 
 export async function uploadScreenshot(
   api: ReturnType<typeof createApiClient>,
-  guestToken: string,
   projectId: string,
   blob: Blob,
 ): Promise<string | null> {
   try {
     const { upload_url: uploadUrl, key } = await api.request<UploadResponse>("/api/v1/uploads", {
       method: "POST",
-      guestToken,
       body: JSON.stringify({ project_id: projectId, content_type: blob.type || "image/jpeg" }),
     });
     const putResponse = await fetch(uploadUrl, {
@@ -36,7 +34,6 @@ export async function uploadScreenshot(
 // caller removes the attachment's chip when this happens).
 export async function uploadAttachment(
   api: ReturnType<typeof createApiClient>,
-  guestToken: string,
   projectId: string,
   file: File,
 ): Promise<{ key: string; filename: string; content_type: string } | null> {
@@ -44,7 +41,6 @@ export async function uploadAttachment(
     const contentType = file.type || "application/octet-stream";
     const { upload_url: uploadUrl, key } = await api.request<UploadResponse>("/api/v1/uploads", {
       method: "POST",
-      guestToken,
       body: JSON.stringify({ project_id: projectId, content_type: contentType }),
     });
     const putResponse = await fetch(uploadUrl, {

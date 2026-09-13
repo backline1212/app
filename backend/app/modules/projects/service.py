@@ -1,6 +1,7 @@
 import csv
 import io
 from typing import Any
+from urllib.parse import urlsplit
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -111,6 +112,32 @@ async def create_project(
     )
 
     return _project_out(doc)
+
+
+async def find_or_create_project_for_origin(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    actor_user_id: str,
+    target_origin: str,
+    name: str | None = None,
+) -> ProjectOut:
+    """Browser-extension "auto-detect current site" flow: reuses the existing
+    website project for this origin if one exists, otherwise creates one - unlike
+    create_project(), the caller doesn't need to already know whether a project
+    exists for this site."""
+    existing = await ProjectRepository(db).find_by_origin(workspace_id, target_origin)
+    if existing is not None:
+        return _project_out(existing)
+
+    default_name = name or urlsplit(target_origin).hostname or target_origin
+    return await create_project(
+        db,
+        workspace_id=workspace_id,
+        actor_user_id=actor_user_id,
+        name=default_name,
+        target_origin=target_origin,
+    )
 
 
 async def list_projects(

@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Backline",
+  "version": "0.1.0",
+  "description": "Leave point and rectangle comments on any site, right from your browser, without opening the Backline dashboard first.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Backline"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage", "activeTab", "scripting"]
+}

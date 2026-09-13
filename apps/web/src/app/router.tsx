@@ -5,6 +5,7 @@ import { AuthCallbackPage } from "../features/auth/AuthCallbackPage";
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
 import { BoardPage } from "../features/board/BoardPage";
+import { ExtensionSettingsPage } from "../features/extension-tokens/ExtensionSettingsPage";
 import { ClickUpOAuthCallbackPage } from "../features/integrations/ClickUpOAuthCallbackPage";
 import { IntegrationsPage } from "../features/integrations/IntegrationsPage";
 import { ProjectOverviewPage } from "../features/projects/ProjectOverviewPage";
@@ -78,6 +79,7 @@ const router = createBrowserRouter([
           { path: "billing", element: <BillingPage /> },
           { path: "settings", element: <SettingsPage /> },
           { path: "integrations", element: <IntegrationsPage /> },
+          { path: "extension", element: <ExtensionSettingsPage /> },
         ],
       },
       {
