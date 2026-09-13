@@ -33,6 +33,36 @@ RUN pnpm install --frozen-lockfile --filter @backline/widget
 COPY apps/widget ./apps/widget
 RUN pnpm --filter @backline/widget build
 
+# --- Stage 1b: build the browser extension ------------------------------------------
+# Same "silently 404s, doesn't crash" trap as the widget stage above applies here too -
+# main.py's /extension mount is guarded by `if EXTENSION_DIST_DIR.exists()`. Needs
+# apps/widget's and packages/types' *source* copied in as well, not just apps/extension's
+# own: the extension's content script bundles @backline/widget directly via esbuild
+# resolving that package's package.json "main" (apps/widget/src/extension-api.ts, TS
+# source, not its built dist/sdk.js), and @backline/types' main likewise points at its
+# own src/index.ts (importing the committed, pre-generated src/openapi.ts - no codegen
+# step needs to run in this image).
+FROM node:20-slim AS extension
+
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+WORKDIR /repo
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/extension/package.json ./apps/extension/
+COPY apps/widget/package.json ./apps/widget/
+COPY apps/web/package.json ./apps/web/
+COPY apps/e2e/package.json ./apps/e2e/
+COPY packages/types/package.json ./packages/types/
+COPY packages/ui/package.json ./packages/ui/
+# ...: this package plus its workspace dependencies (@backline/widget, @backline/types) -
+# unlike the widget stage's plain `--filter @backline/widget`, which has none.
+RUN pnpm install --frozen-lockfile --filter @backline/extension...
+
+COPY apps/extension ./apps/extension
+COPY apps/widget ./apps/widget
+COPY packages/types ./packages/types
+RUN pnpm --filter @backline/extension build
+
 # --- Stage 2: the API ----------------------------------------------------------------
 FROM python:3.12-slim AS base
 
@@ -53,6 +83,7 @@ RUN uv sync --frozen --no-dev
 # so this absolute path is not arbitrary - it's exactly what that lookup expects inside
 # the container (locally the same expression resolves to <repo>/apps/widget/dist).
 COPY --from=widget /repo/apps/widget/dist /apps/widget/dist
+COPY --from=extension /repo/apps/extension/dist /apps/extension/dist
 
 ENV PATH="/app/.venv/bin:$PATH"
 
