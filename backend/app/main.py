@@ -16,6 +16,7 @@ from app.core.db import close_client, get_client, get_db
 from app.core.errors import register_exception_handlers
 from app.core.indexes import ensure_indexes
 from app.core.redis_client import close_redis, get_redis
+from app.modules.ai.router import router as ai_router
 from app.modules.assets.router import router as assets_router
 from app.modules.auth.account import router as account_router
 from app.modules.auth.router import router as auth_router
@@ -23,8 +24,8 @@ from app.modules.browser_render.router import router as browser_render_router
 from app.modules.clients.router import router as clients_router
 from app.modules.comments.router import router as comments_router
 from app.modules.dashboard.router import router as dashboard_router
+from app.modules.extension_tokens.router import router as extension_tokens_router
 from app.modules.integrations.router import router as integrations_router
-from app.modules.ai.router import router as ai_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.pages.router import router as pages_router
 from app.modules.projects.router import router as projects_router
@@ -99,6 +100,7 @@ app.include_router(comments_router, prefix="/api/v1")
 app.include_router(browser_render_router, prefix="/api/v1")
 app.include_router(ai_router)
 app.include_router(integrations_router, prefix="/api/v1")
+app.include_router(extension_tokens_router, prefix="/api/v1")
 app.include_router(notifications_router, prefix="/api/v1")
 # Deliberately not under /api/v1 - 12-API-WebSocket.md §12.6 specifies the connection URL
 # as `wss://api.backline.app/ws?...`, not `/api/v1/ws`.

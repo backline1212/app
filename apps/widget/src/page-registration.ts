@@ -28,13 +28,11 @@ export function realPageUrl(shareToken: string, targetOrigin: string): string {
 
 export async function registerCurrentPage(
   api: ReturnType<typeof createApiClient>,
-  guestToken: string,
   projectId: string,
   url: string,
 ): Promise<string> {
   const page = await api.request<RegisterPageResponse>("/api/v1/pages", {
     method: "POST",
-    guestToken,
     body: JSON.stringify({
       project_id: projectId,
       url,
@@ -46,13 +44,11 @@ export async function registerCurrentPage(
 
 export async function submitPageSnapshot(
   api: ReturnType<typeof createApiClient>,
-  guestToken: string,
   pageId: string,
 ): Promise<void> {
   const snapshot = await captureSnapshot();
   await api.request(`/api/v1/pages/${pageId}/snapshots`, {
     method: "POST",
-    guestToken,
     body: JSON.stringify(snapshot),
   });
 }

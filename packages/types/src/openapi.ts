@@ -341,6 +341,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/projects/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Project
+         * @description Browser-extension "auto-detect current site" flow: finds the existing website
+         *     project for this origin, or creates one - so the extension never has to already
+         *     know whether a project exists before it can register a page/comment against it.
+         */
+        post: operations["resolve_project_api_v1_workspaces__workspace_id__projects_resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}": {
         parameters: {
             query?: never;
@@ -1051,6 +1073,58 @@ export interface paths {
         patch: operations["reanchor_api_v1_comments__comment_id__reanchor_patch"];
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/pages/{page_id}/render": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Render Status */
+        get: operations["render_status_api_v1_projects__project_id__pages__page_id__render_get"];
+        put?: never;
+        /** Request Render */
+        post: operations["request_render_api_v1_projects__project_id__pages__page_id__render_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspace_id}/projects/{project_id}/comments/{comment_id}/ai/summarize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Summarize Thread */
+        post: operations["summarize_thread_api_workspaces__workspace_id__projects__project_id__comments__comment_id__ai_summarize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspace_id}/projects/{project_id}/comments/{comment_id}/ai/suggest-reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suggest Reply */
+        post: operations["suggest_reply_api_workspaces__workspace_id__projects__project_id__comments__comment_id__ai_suggest_reply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/integrations": {
         parameters: {
             query?: never;
@@ -1115,6 +1189,62 @@ export interface paths {
         /** Create Trello Card */
         post: operations["create_trello_card_api_v1_comments__comment_id__integrations_trello_create_card_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/extension-tokens/whoami": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Extension Whoami
+         * @description Lets the extension's popup resolve a freshly-pasted token's workspace, name,
+         *     and role - deliberately not under /auth (see ExtensionWhoAmIOut's docstring).
+         */
+        get: operations["extension_whoami_api_v1_extension_tokens_whoami_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/extension-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Extension Tokens */
+        get: operations["list_extension_tokens_api_v1_workspaces__workspace_id__extension_tokens_get"];
+        put?: never;
+        /** Create Extension Token */
+        post: operations["create_extension_token_api_v1_workspaces__workspace_id__extension_tokens_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/extension-tokens/{token_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Extension Token */
+        delete: operations["revoke_extension_token_api_v1_extension_tokens__token_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1313,14 +1443,14 @@ export interface components {
              * @enum {integer}
              */
             tier: 1;
-            dom_fingerprint: components["schemas"]["DomFingerprintIn"];
-            text_fingerprint: components["schemas"]["TextFingerprintIn"];
             /**
              * Type
              * @default point
              * @enum {string}
              */
             type: "point" | "region";
+            dom_fingerprint: components["schemas"]["DomFingerprintIn"];
+            text_fingerprint: components["schemas"]["TextFingerprintIn"];
         };
         /** AssetCommentCreate */
         AssetCommentCreate: {
@@ -1710,8 +1840,65 @@ export interface components {
             /** Ancestor Path Hash */
             ancestor_path_hash: string;
             click_offset_pct?: components["schemas"]["ClickOffsetPct"] | null;
-            /** Region Box Pct */
             region_box_pct?: components["schemas"]["RegionBoxPct"] | null;
+        };
+        /** ExtensionTokenCreate */
+        ExtensionTokenCreate: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * ExtensionTokenIssued
+         * @description Returned exactly once, at creation time - the raw token is never retrievable
+         *     again afterward (ExtensionTokenOut never includes it, matching how a refresh
+         *     token's own opaque value is only ever returned in its issuing response).
+         */
+        ExtensionTokenIssued: {
+            /** Id */
+            id: string;
+            /** Token */
+            token: string;
+            /** Name */
+            name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ExtensionTokenOut */
+        ExtensionTokenOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Workspace Id */
+            workspace_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+        };
+        /**
+         * ExtensionWhoAmIOut
+         * @description Lets the extension's popup learn which workspace a pasted token belongs to.
+         *
+         *     Deliberately not under /auth (unlike PATCH /auth/me) - AuthOriginMiddleware only
+         *     allows the dashboard's own origin there, which a chrome-extension:// origin isn't
+         *     on that allowlist for. Works for either an extension token or an ordinary member
+         *     JWT, since both resolve to the same Session shape via get_current_session.
+         */
+        ExtensionWhoAmIOut: {
+            /** User Id */
+            user_id: string;
+            /** User Email */
+            user_email: string;
+            workspace: components["schemas"]["WorkspaceOut"];
         };
         /** GoogleCallbackRequest */
         GoogleCallbackRequest: {
@@ -2199,6 +2386,18 @@ export interface components {
             /** Duplicated From Project Id */
             duplicated_from_project_id?: string | null;
         };
+        /**
+         * ProjectResolve
+         * @description Used by the browser extension's "auto-detect current site" flow: finds an
+         *     existing website project for this origin, or creates one, instead of the caller
+         *     having to know whether a project already exists.
+         */
+        ProjectResolve: {
+            /** Target Origin */
+            target_origin: string;
+            /** Name */
+            name?: string | null;
+        };
         /** ProjectSettingsOut */
         ProjectSettingsOut: {
             /** Proxy Mode */
@@ -2309,6 +2508,62 @@ export interface components {
              * @default 1
              */
             page_number: number;
+        };
+        /** RegionBoxPct */
+        RegionBoxPct: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        };
+        /** RenderRequest */
+        RenderRequest: {
+            /**
+             * Browser
+             * @enum {string}
+             */
+            browser: "Chrome" | "Safari" | "Firefox" | "Edge";
+            viewport: components["schemas"]["ViewportIn"];
+            /**
+             * Orientation
+             * @default portrait
+             * @enum {string}
+             */
+            orientation: "portrait" | "landscape";
+            /**
+             * Force
+             * @default false
+             */
+            force: boolean;
+        };
+        /** RenderStatusOut */
+        RenderStatusOut: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "rendering" | "ready" | "failed";
+            /**
+             * Browser
+             * @enum {string}
+             */
+            browser: "Chrome" | "Safari" | "Firefox" | "Edge";
+            viewport: components["schemas"]["ViewportIn"];
+            /**
+             * Orientation
+             * @enum {string}
+             */
+            orientation: "portrait" | "landscape";
+            /** Screenshot Url */
+            screenshot_url?: string | null;
+            /** Rendered At */
+            rendered_at?: string | null;
+            /** Error */
+            error?: string | null;
         };
         /** ReplyCreate */
         ReplyCreate: {
@@ -2565,6 +2820,16 @@ export interface components {
             /** Full Page Hash */
             full_page_hash: string;
         };
+        /** SuggestReplyResult */
+        SuggestReplyResult: {
+            /** Suggestions */
+            suggestions: string[];
+        };
+        /** SummarizeResult */
+        SummarizeResult: {
+            /** Summary */
+            summary: string;
+        };
         /** SwitchWorkspaceRequest */
         SwitchWorkspaceRequest: {
             /** Workspace Id */
@@ -2800,6 +3065,13 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** ViewportIn */
+        ViewportIn: {
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        };
         /** WorkspaceCreate */
         WorkspaceCreate: {
             /** Name */
@@ -2874,17 +3146,6 @@ export interface components {
              * Format: date-time
              */
             last_active_at: string;
-        };
-        /** RegionBoxPct */
-        RegionBoxPct: {
-            /** X */
-            x: number;
-            /** Y */
-            y: number;
-            /** Width */
-            width: number;
-            /** Height */
-            height: number;
         };
     };
     responses: never;
@@ -3597,6 +3858,41 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_project_api_v1_workspaces__workspace_id__projects_resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectResolve"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5315,6 +5611,149 @@ export interface operations {
             };
         };
     };
+    render_status_api_v1_projects__project_id__pages__page_id__render_get: {
+        parameters: {
+            query: {
+                browser: "Chrome" | "Safari" | "Firefox" | "Edge";
+                width: number;
+                height: number;
+                orientation?: "portrait" | "landscape";
+            };
+            header?: never;
+            path: {
+                project_id: string;
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_render_api_v1_projects__project_id__pages__page_id__render_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    summarize_thread_api_workspaces__workspace_id__projects__project_id__comments__comment_id__ai_summarize_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-guest-session"?: string | null;
+            };
+            path: {
+                workspace_id: string;
+                project_id: string;
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummarizeResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_reply_api_workspaces__workspace_id__projects__project_id__comments__comment_id__ai_suggest_reply_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-guest-session"?: string | null;
+            };
+            path: {
+                workspace_id: string;
+                project_id: string;
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestReplyResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_integrations_api_v1_workspaces__workspace_id__integrations_get: {
         parameters: {
             query?: never;
@@ -5464,6 +5903,121 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CreateTrelloCardResult"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    extension_whoami_api_v1_extension_tokens_whoami_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtensionWhoAmIOut"];
+                };
+            };
+        };
+    };
+    list_extension_tokens_api_v1_workspaces__workspace_id__extension_tokens_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtensionTokenOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_extension_token_api_v1_workspaces__workspace_id__extension_tokens_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExtensionTokenCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtensionTokenIssued"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_extension_token_api_v1_extension_tokens__token_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

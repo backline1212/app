@@ -19,7 +19,15 @@ import { parseUserAgent } from "./user-agent";
 import { setupRegionDrawer } from "./region-drawer";
 
 async function init(config: BacklineConfig): Promise<void> {
-  const api = createApiClient(config.apiBaseUrl);
+  // Set once ensureGuestSession resolves below - the api client is constructed first
+  // since ensureGuestSession itself needs it to call /guest-sessions, before any guest
+  // token exists yet. getAuthHeader reads this variable by closure reference on every
+  // request, not its value at construction time, so requests before/after that point
+  // pick up the right header automatically.
+  let guestToken: string | null = null;
+  const api = createApiClient(config.apiBaseUrl, () =>
+    guestToken ? { "X-Guest-Session": guestToken } : ({} as Record<string, string>),
+  );
   const shadow = createShadowRoot();
 
   // The dashboard's own canvas preview (ProjectOverviewPage) toggles between "Browse"
@@ -51,6 +59,7 @@ async function init(config: BacklineConfig): Promise<void> {
   const browserOverride = modeParams.get("blBrowser");
 
   const guest = await ensureGuestSession(api, config.shareToken, () => promptForName(shadow));
+  guestToken = guest.guestSessionToken;
 
   // We don't yet know the project - it's resolved from the share link server-side via
   // the guest token itself (every endpoint the guest calls checks their share link's
@@ -62,8 +71,8 @@ async function init(config: BacklineConfig): Promise<void> {
   const projectId = resolved.project_id;
 
   const pageUrl = realPageUrl(config.shareToken, resolved.target_origin);
-  const pageId = await registerCurrentPage(api, guest.guestSessionToken, projectId, pageUrl);
-  await submitPageSnapshot(api, guest.guestSessionToken, pageId);
+  const pageId = await registerCurrentPage(api, projectId, pageUrl);
+  await submitPageSnapshot(api, pageId);
 
   // Tells the dashboard (if it's embedding this in the canvas iframe) which page is
   // currently loaded, so its Comments panel can offer "show comments on current page
@@ -88,9 +97,8 @@ async function init(config: BacklineConfig): Promise<void> {
   const threadManager = createThreadManager({
     shadow,
     api,
-    guestSessionToken: guest.guestSessionToken,
     projectId,
-    myGuestId,
+    myActorId: myGuestId,
   });
   const { threadMessages, pinsByTopId, trackPinPosition, openThreadForComment, attachPinClickHandler } =
     threadManager;
@@ -102,7 +110,6 @@ async function init(config: BacklineConfig): Promise<void> {
   // untouched).
   const existingComments = await api.request<CommentRecord[]>(
     `/api/v1/pages/${pageId}/comments`,
-    { guestToken: guest.guestSessionToken },
   );
   const topLevelComments = existingComments.filter((c) => c.parent_id === null);
   for (const top of topLevelComments) {
@@ -179,7 +186,6 @@ async function init(config: BacklineConfig): Promise<void> {
     setupRegionDrawer({
       shadow,
       api,
-      guest,
       projectId,
       pageId,
       browserOverride,
@@ -246,7 +252,6 @@ async function init(config: BacklineConfig): Promise<void> {
           controls.setStatus("Uploading screenshot...");
           screenshotKey = await uploadScreenshot(
             api,
-            guest.guestSessionToken,
             projectId,
             screenshotBlob,
           );
@@ -259,7 +264,6 @@ async function init(config: BacklineConfig): Promise<void> {
         try {
           const created = await api.request<CommentRecord>(`/api/v1/pages/${pageId}/comments`, {
             method: "POST",
-            guestToken: guest.guestSessionToken,
             body: JSON.stringify({
               body,
               anchor,
@@ -290,7 +294,7 @@ async function init(config: BacklineConfig): Promise<void> {
         untrack();
         pin.remove();
       },
-      (file) => uploadAttachment(api, guest.guestSessionToken, projectId, file),
+      (file) => uploadAttachment(api, projectId, file),
     );
   });
 }

@@ -12,6 +12,7 @@ from app.modules.projects.schemas import (
     ProjectHardDeletePreviewOut,
     ProjectHardDeleteResult,
     ProjectOut,
+    ProjectResolve,
     ProjectSettingsOut,
     ProjectSettingsUpdate,
     ProjectUpdate,
@@ -49,6 +50,27 @@ async def create_project(
         environment=body.environment,
         client_id=body.client_id,
         hero_url=body.hero_url,
+    )
+
+
+@router.post(
+    "/workspaces/{workspace_id}/projects/resolve", response_model=ProjectOut, status_code=200
+)
+async def resolve_project(
+    workspace_id: str,
+    body: ProjectResolve,
+    session: Session = Depends(require_permission("project:manage")),
+) -> ProjectOut:
+    """Browser-extension "auto-detect current site" flow: finds the existing website
+    project for this origin, or creates one - so the extension never has to already
+    know whether a project exists before it can register a page/comment against it."""
+    require_workspace_match(session, workspace_id)
+    return await project_service.find_or_create_project_for_origin(
+        get_db(),
+        workspace_id=workspace_id,
+        actor_user_id=session.user_id,
+        target_origin=body.target_origin,
+        name=body.name,
     )
 
 

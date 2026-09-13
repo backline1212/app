@@ -7,9 +7,12 @@ import { openThreadView, type ThreadViewMessage } from "./ui";
 export interface ThreadManagerOptions {
   shadow: ShadowRoot;
   api: ReturnType<typeof createApiClient>;
-  guestSessionToken: string;
   projectId: string;
-  myGuestId: string | null;
+  // The current actor's own id - a guest_session_id for the guest widget, or a member
+  // user_id for the browser extension's content script (Phase 4, browser-extension
+  // plan). Compared against comment.author_id regardless of author_type: "did I create
+  // this" is the same question either way, and the two id spaces never collide.
+  myActorId: string | null;
 }
 
 /**
@@ -23,9 +26,8 @@ export interface ThreadManagerOptions {
 export function createThreadManager({
   shadow,
   api,
-  guestSessionToken,
   projectId,
-  myGuestId,
+  myActorId,
 }: ThreadManagerOptions) {
   // Every top-level comment id maps to [top, ...replies] (sorted oldest-first) - the
   // full flat list the backend returns per page, regrouped here since the widget is
@@ -70,12 +72,12 @@ export function createThreadManager({
   }
 
   function authorLabel(comment: CommentRecord): string {
-    if (comment.author_type === "guest" && comment.author_id === myGuestId) return "You";
+    if (comment.author_id === myActorId) return "You";
     return comment.author_type === "member" ? "Team" : "Guest";
   }
 
   function canDeleteComment(comment: CommentRecord): boolean {
-    return comment.author_type === "guest" && comment.author_id === myGuestId;
+    return comment.author_id === myActorId;
   }
 
   function buildMessages(topId: string): ThreadViewMessage[] {
@@ -127,7 +129,6 @@ export function createThreadManager({
         const clientRequestId = crypto.randomUUID();
         const created = await api.request<CommentRecord>(`/api/v1/comments/${topId}/replies`, {
           method: "POST",
-          guestToken: guestSessionToken,
           body: JSON.stringify({ body, layer: "client", attachments, client_request_id: clientRequestId }),
         });
         threadMessages.set(topId, [...(threadMessages.get(topId) ?? []), created]);
@@ -136,7 +137,6 @@ export function createThreadManager({
       onEditMessage: async (id, body) => {
         const updated = await api.request<CommentRecord>(`/api/v1/comments/${id}/body`, {
           method: "PATCH",
-          guestToken: guestSessionToken,
           body: JSON.stringify({ body }),
         });
         threadMessages.set(
@@ -148,7 +148,6 @@ export function createThreadManager({
       onDeleteMessage: async (id) => {
         await api.request(`/api/v1/comments/${id}`, {
           method: "DELETE",
-          guestToken: guestSessionToken,
         });
         threadMessages.set(topId, (threadMessages.get(topId) ?? []).filter((c) => c.id !== id));
         if (id === topId) {
@@ -162,14 +161,13 @@ export function createThreadManager({
       onDeleteThread: async () => {
         await api.request(`/api/v1/comments/${topId}/thread`, {
           method: "DELETE",
-          guestToken: guestSessionToken,
         });
         threadMessages.delete(topId);
         removeThreadPin(topId);
         controls.close();
         openThread = null;
       },
-    }, (file) => uploadAttachment(api, guestSessionToken, projectId, file));
+    }, (file) => uploadAttachment(api, projectId, file));
     openThread = { topId, controls };
   }
 

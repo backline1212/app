@@ -5,13 +5,11 @@ import { renderPin, openComposer } from "./ui";
 import { captureScreenshot } from "./screenshot";
 import { uploadScreenshot, uploadAttachment } from "./attachment-upload";
 import { parseUserAgent } from "./user-agent";
-import type { StoredGuestSession } from "./guest-session";
 import type { createThreadManager } from "./thread-manager";
 
 export function setupRegionDrawer({
   shadow,
   api,
-  guest,
   projectId,
   pageId,
   browserOverride,
@@ -21,7 +19,6 @@ export function setupRegionDrawer({
 }: {
   shadow: ShadowRoot;
   api: ApiClient;
-  guest: StoredGuestSession;
   projectId: string;
   pageId: string;
   browserOverride: string | null;
@@ -123,7 +120,6 @@ export function setupRegionDrawer({
           controls.setStatus("Uploading screenshot...");
           screenshotKey = await uploadScreenshot(
             api,
-            guest.guestSessionToken,
             projectId,
             screenshotBlob,
           );
@@ -136,7 +132,6 @@ export function setupRegionDrawer({
         try {
           const created = await api.request<CommentRecord>(`/api/v1/pages/${pageId}/comments`, {
             method: "POST",
-            guestToken: guest.guestSessionToken,
             body: JSON.stringify({
               body,
               anchor,
@@ -168,7 +163,7 @@ export function setupRegionDrawer({
         pin.remove();
         activeOverlay.remove();
       },
-      (file: File) => uploadAttachment(api, guest.guestSessionToken, projectId, file),
+      (file: File) => uploadAttachment(api, projectId, file),
     );
   }
 
