@@ -1,3 +1,4 @@
+import archiver from "archiver";
 import * as esbuild from "esbuild";
 import fs from "node:fs";
 import path from "node:path";
@@ -41,5 +42,20 @@ await esbuild.build({
 
 fs.copyFileSync(path.join(rootDir, "manifest.json"), path.join(distDir, "manifest.json"));
 fs.copyFileSync(path.join(rootDir, "src/popup.html"), path.join(distDir, "popup.html"));
+
+// Zipped for direct download from Settings > Browser Extension (backend/app/main.py
+// mounts this dist dir at /extension) ahead of a Chrome Web Store listing existing -
+// a member unzips it and loads it unpacked via chrome://extensions. Built from the
+// already-built dist/ files, so this must run after everything above it, and the zip
+// itself is excluded from its own contents.
+await new Promise((resolve, reject) => {
+  const output = fs.createWriteStream(path.join(distDir, "backline-extension.zip"));
+  const archive = archiver("zip", { zlib: { level: 9 } });
+  output.on("close", resolve);
+  archive.on("error", reject);
+  archive.pipe(output);
+  archive.glob("**/*", { cwd: distDir, ignore: ["backline-extension.zip"] });
+  void archive.finalize();
+});
 
 console.log(`Built extension to ${distDir}`);
