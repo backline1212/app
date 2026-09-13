@@ -40,6 +40,7 @@ from app.modules.storage.router import router as storage_router
 from app.modules.workspaces.router import router as workspaces_router
 
 WIDGET_DIST_DIR = Path(__file__).resolve().parents[2] / "apps" / "widget" / "dist"
+EXTENSION_DIST_DIR = Path(__file__).resolve().parents[2] / "apps" / "extension" / "dist"
 
 
 @asynccontextmanager
@@ -111,6 +112,11 @@ app.include_router(realtime_router)
 app.include_router(proxy_router)
 if WIDGET_DIST_DIR.exists():
     app.mount("/widget", StaticFiles(directory=WIDGET_DIST_DIR), name="widget")
+# Serves the built browser extension for direct download (Settings > Browser Extension)
+# ahead of a Chrome Web Store listing existing - same "raw content, browser navigates
+# to it directly" reasoning as the widget mount above, just a .zip instead of a .js file.
+if EXTENSION_DIST_DIR.exists():
+    app.mount("/extension", StaticFiles(directory=EXTENSION_DIST_DIR), name="extension")
 
 
 @app.get("/health")

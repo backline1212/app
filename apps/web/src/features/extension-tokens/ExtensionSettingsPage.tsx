@@ -3,6 +3,7 @@ import { type FormEvent, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { API_BASE_URL } from "../../lib/api-client";
 import { formatRelativeTime } from "../../lib/date-format";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
@@ -121,6 +122,32 @@ export function ExtensionSettingsPage() {
           </div>
         </section>
       )}
+
+      <section className="bl-attention bl-settings-section">
+        <header>
+          <h2>Get the extension</h2>
+        </header>
+        <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <p className="bl-mono">
+            Not yet on the Chrome Web Store - download it and load it manually for now:
+          </p>
+          <ol className="bl-mono" style={{ margin: 0, paddingLeft: "18px" }}>
+            <li>Download and unzip the file below.</li>
+            <li>
+              In Chrome, go to <code>chrome://extensions</code> and turn on Developer mode
+              (top right).
+            </li>
+            <li>Click "Load unpacked" and select the unzipped folder.</li>
+          </ol>
+          <a
+            href={`${API_BASE_URL}/extension/backline-extension.zip`}
+            className="bl-button"
+            style={{ display: "inline-block", width: "fit-content", textDecoration: "none" }}
+          >
+            Download extension (.zip)
+          </a>
+        </div>
+      </section>
 
       <section className="bl-attention bl-settings-section">
         <header>
