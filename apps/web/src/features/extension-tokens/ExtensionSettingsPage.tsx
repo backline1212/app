@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
@@ -32,6 +32,10 @@ export function ExtensionSettingsPage() {
   const [revealedToken, setRevealedToken] = useState<extensionTokensApi.ExtensionTokenIssued | null>(
     null,
   );
+  // The reveal box renders right where the "Generate token" button is (below), but a
+  // long "Connected" list can still push it out of view on a short window - scrolled
+  // into view explicitly rather than relying on it simply being on-screen already.
+  const revealRef = useRef<HTMLDivElement>(null);
 
   const createMutation = useMutation({
     mutationFn: () => extensionTokensApi.createExtensionToken(workspace.id, name.trim()),
@@ -41,6 +45,7 @@ export function ExtensionSettingsPage() {
       setRevealedToken(issued);
       setCopied(false);
       invalidate();
+      requestAnimationFrame(() => revealRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
     },
     onError: (err: unknown) =>
       setError(err instanceof Error ? err.message : "Could not create a token."),
@@ -89,43 +94,9 @@ export function ExtensionSettingsPage() {
       )}
       {isLoading && <LoadingScreen />}
 
-      {revealedToken && (
-        <section className="bl-attention bl-settings-section">
-          <header>
-            <h2>Copy your token</h2>
-          </header>
-          <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
-            <p className="bl-mono">
-              Paste this into the Backline extension's popup to connect it. For your security,
-              it won't be shown again after you leave this page.
-            </p>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <input
-                readOnly
-                value={revealedToken.token}
-                onFocus={(event) => event.target.select()}
-                className="bl-input"
-                style={{ flex: 1, fontFamily: "monospace" }}
-              />
-              <button type="button" className="bl-button" onClick={copyToken}>
-                {copied ? "Copied" : "Copy"}
-              </button>
-            </div>
-            <button
-              type="button"
-              className="bl-quiet"
-              style={{ alignSelf: "flex-start" }}
-              onClick={() => setRevealedToken(null)}
-            >
-              Done
-            </button>
-          </div>
-        </section>
-      )}
-
       <section className="bl-attention bl-settings-section">
         <header>
-          <h2>Get the extension</h2>
+          <h2>Step 1 - Get the extension</h2>
         </header>
         <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
           <p className="bl-mono">
@@ -151,11 +122,12 @@ export function ExtensionSettingsPage() {
 
       <section className="bl-attention bl-settings-section">
         <header>
-          <h2>Connect a new extension</h2>
+          <h2>Step 2 - Connect it</h2>
         </header>
         <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
           <p className="bl-mono">
-            Give it a name you'll recognize later, like "Work laptop - Chrome".
+            Generate a token below, then paste it into the extension's popup (click its
+            icon in Chrome's toolbar after installing it).
           </p>
           <form onSubmit={handleCreate} style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
             <input
@@ -170,6 +142,46 @@ export function ExtensionSettingsPage() {
               Generate token
             </button>
           </form>
+
+          {revealedToken && (
+            <div
+              ref={revealRef}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                padding: "16px",
+                border: "1px solid var(--bl-line)",
+                borderRadius: "3px",
+                background: "var(--bl-surface)",
+              }}
+            >
+              <p className="bl-mono">
+                Copy this now - for your security, it won't be shown again after you leave
+                this page.
+              </p>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <input
+                  readOnly
+                  value={revealedToken.token}
+                  onFocus={(event) => event.target.select()}
+                  className="bl-input"
+                  style={{ flex: 1, fontFamily: "monospace" }}
+                />
+                <button type="button" className="bl-button" onClick={copyToken}>
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <button
+                type="button"
+                className="bl-quiet"
+                style={{ alignSelf: "flex-start" }}
+                onClick={() => setRevealedToken(null)}
+              >
+                Done
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
