@@ -10,6 +10,7 @@ import * as integrationsApi from "./api";
 import { buildAsanaAuthUrl } from "./asana-oauth-url";
 import { buildClickUpAuthUrl } from "./clickup-oauth-url";
 import { buildJiraAuthUrl } from "./jira-oauth-url";
+import { generateOAuthState } from "./oauth-state";
 
 import clickupLogo from "../../assets/icons/clickup-svgrepo-com.svg";
 import slackLogo from "../../assets/icons/slack-svgrepo-com.svg";
@@ -99,41 +100,47 @@ export function IntegrationsPage() {
 
   function handleConnectClickUp(event: FormEvent) {
     event.preventDefault();
+    const state = generateOAuthState();
     sessionStorage.setItem(
       CLICKUP_PENDING_KEY,
       JSON.stringify({
         workspaceId: workspace.id,
         workspaceSlug: workspace.slug,
         listId: clickupListId,
+        state,
       }),
     );
-    window.location.href = buildClickUpAuthUrl();
+    window.location.href = buildClickUpAuthUrl(state);
   }
 
   function handleConnectJira(event: FormEvent) {
     event.preventDefault();
+    const state = generateOAuthState();
     sessionStorage.setItem(
       JIRA_PENDING_KEY,
       JSON.stringify({
         workspaceId: workspace.id,
         workspaceSlug: workspace.slug,
         projectKey: jiraProjectKey,
+        state,
       }),
     );
-    window.location.href = buildJiraAuthUrl();
+    window.location.href = buildJiraAuthUrl(state);
   }
 
   function handleConnectAsana(event: FormEvent) {
     event.preventDefault();
+    const state = generateOAuthState();
     sessionStorage.setItem(
       ASANA_PENDING_KEY,
       JSON.stringify({
         workspaceId: workspace.id,
         workspaceSlug: workspace.slug,
         projectGid: asanaProjectGid,
+        state,
       }),
     );
-    window.location.href = buildAsanaAuthUrl();
+    window.location.href = buildAsanaAuthUrl(state);
   }
 
   return (

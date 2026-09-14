@@ -31,7 +31,15 @@ export function ClickUpOAuthCallbackPage() {
       workspaceId: string;
       workspaceSlug: string;
       listId: string;
+      state: string;
     };
+    // CSRF guard: the state this browser generated before redirecting must match what
+    // ClickUp echoes back - otherwise this could be a code an attacker obtained for
+    // their own account, not the one this session actually started the flow for.
+    if (searchParams.get("state") !== pending.state) {
+      setError("This connection request could not be verified. Please try connecting again.");
+      return;
+    }
 
     integrationsApi
       .connectClickUp(pending.workspaceId, { oauthCode: code, listId: pending.listId })

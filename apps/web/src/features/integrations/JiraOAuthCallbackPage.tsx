@@ -29,7 +29,13 @@ export function JiraOAuthCallbackPage() {
       workspaceId: string;
       workspaceSlug: string;
       projectKey: string;
+      state: string;
     };
+    // CSRF guard: see ClickUpOAuthCallbackPage.tsx's identical check.
+    if (searchParams.get("state") !== pending.state) {
+      setError("This connection request could not be verified. Please try connecting again.");
+      return;
+    }
 
     integrationsApi
       .connectJira(pending.workspaceId, { oauthCode: code, projectKey: pending.projectKey })

@@ -6,6 +6,7 @@ from app.core.config import get_settings
 from app.core.encryption import decrypt_secret
 from app.core.errors import ExternalServiceError
 from app.modules.comments.schemas import CommentOut
+from app.modules.integrations.base import http_error_detail
 
 ASANA_AUTH_BASE = "https://app.asana.com/-/oauth_token"
 ASANA_API_BASE = "https://app.asana.com/api/1.0"
@@ -30,7 +31,9 @@ async def exchange_code_for_refresh_token(code: str) -> str:
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            raise ExternalServiceError(f"Asana token exchange failed: {exc}") from exc
+            raise ExternalServiceError(
+                f"Asana token exchange failed: {http_error_detail(exc)}"
+            ) from exc
     refresh_token: str = response.json()["refresh_token"]
     return refresh_token
 
@@ -50,7 +53,9 @@ async def _refresh_access_token(refresh_token: str) -> str:
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            raise ExternalServiceError(f"Asana token refresh failed: {exc}") from exc
+            raise ExternalServiceError(
+                f"Asana token refresh failed: {http_error_detail(exc)}"
+            ) from exc
     access_token: str = response.json()["access_token"]
     return access_token
 

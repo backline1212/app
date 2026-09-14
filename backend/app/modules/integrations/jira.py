@@ -6,6 +6,7 @@ from app.core.config import get_settings
 from app.core.encryption import decrypt_secret, encrypt_secret
 from app.core.errors import ExternalServiceError
 from app.modules.comments.schemas import CommentOut
+from app.modules.integrations.base import http_error_detail
 
 JIRA_AUTH_BASE = "https://auth.atlassian.com"
 JIRA_API_BASE = "https://api.atlassian.com"
@@ -31,7 +32,9 @@ async def exchange_code_for_tokens(code: str) -> tuple[str, str]:
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            raise ExternalServiceError(f"Jira token exchange failed: {exc}") from exc
+            raise ExternalServiceError(
+                f"Jira token exchange failed: {http_error_detail(exc)}"
+            ) from exc
     body = response.json()
     return body["access_token"], body["refresh_token"]
 
@@ -53,7 +56,9 @@ async def _refresh_access_token(refresh_token: str) -> tuple[str, str]:
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            raise ExternalServiceError(f"Jira token refresh failed: {exc}") from exc
+            raise ExternalServiceError(
+                f"Jira token refresh failed: {http_error_detail(exc)}"
+            ) from exc
     body = response.json()
     return body["access_token"], body["refresh_token"]
 
@@ -70,20 +75,42 @@ async def fetch_accessible_site(access_token: str) -> tuple[str, str]:
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            raise ExternalServiceError(f"Jira site lookup failed: {exc}") from exc
+            raise ExternalServiceError(
+                f"Jira site lookup failed: {http_error_detail(exc)}"
+            ) from exc
     resources = response.json()
     if not resources:
         raise ExternalServiceError("This Jira account has no accessible sites.")
     return resources[0]["id"], resources[0]["url"]
 
 
-async def _get_fresh_access_token(config: dict[str, Any], *, on_rotate: Any) -> str:
+async def _get_fresh_access_token(
+    config: dict[str, Any], *, on_rotate: Any, refetch_config: Any = None
+) -> str:
     """Always refreshes rather than trusting a stored access token - create_issue is a
     manual, infrequent action (17-Notifications-Integrations.md's ClickUp/Trello
     pattern), so a stored access token is more likely stale than not by the time it's
-    used. `on_rotate` persists the rotated refresh_token back to the integration doc."""
+    used. `on_rotate` persists the rotated refresh_token back to the integration doc.
+
+    Atlassian invalidates a refresh token the instant it's used, so two concurrent
+    create_issue calls for the same integration (two members clicking "Create Jira
+    issue" close together) race: whichever refreshes first invalidates the token the
+    other just read. Rather than fail the loser outright, `refetch_config` (when given)
+    re-reads the integration's current config_json and retries once with whatever
+    refresh_token is there now - by the time the loser's Atlassian round trip has
+    failed and it retries, the winner's rotated token has almost always already been
+    persisted."""
     refresh_token = decrypt_secret(config["refresh_token_encrypted"])
-    access_token, new_refresh_token = await _refresh_access_token(refresh_token)
+    try:
+        access_token, new_refresh_token = await _refresh_access_token(refresh_token)
+    except ExternalServiceError:
+        if refetch_config is None:
+            raise
+        fresh_config = await refetch_config()
+        if fresh_config is None:
+            raise
+        refresh_token = decrypt_secret(fresh_config["refresh_token_encrypted"])
+        access_token, new_refresh_token = await _refresh_access_token(refresh_token)
     await on_rotate(encrypt_secret(new_refresh_token))
     return access_token
 
@@ -119,10 +146,13 @@ class JiraIntegration:
         *,
         backlink_url: str,
         on_rotate: Any,
+        refetch_config: Any = None,
     ) -> tuple[str, str]:
         """Returns (issue_key, issue_url). Manual, member-triggered - not part of the
         automatic Integration Protocol, same as ClickUp's create_task."""
-        access_token = await _get_fresh_access_token(config, on_rotate=on_rotate)
+        access_token = await _get_fresh_access_token(
+            config, on_rotate=on_rotate, refetch_config=refetch_config
+        )
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(

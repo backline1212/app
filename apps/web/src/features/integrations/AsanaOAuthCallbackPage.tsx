@@ -29,7 +29,13 @@ export function AsanaOAuthCallbackPage() {
       workspaceId: string;
       workspaceSlug: string;
       projectGid: string;
+      state: string;
     };
+    // CSRF guard: see ClickUpOAuthCallbackPage.tsx's identical check.
+    if (searchParams.get("state") !== pending.state) {
+      setError("This connection request could not be verified. Please try connecting again.");
+      return;
+    }
 
     integrationsApi
       .connectAsana(pending.workspaceId, { oauthCode: code, projectGid: pending.projectGid })
