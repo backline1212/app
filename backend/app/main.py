@@ -26,6 +26,8 @@ from app.modules.comments.router import router as comments_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.modules.extension_tokens.router import router as extension_tokens_router
 from app.modules.integrations.router import router as integrations_router
+from app.modules.mcp.router import router as mcp_router
+from app.modules.mcp.server import mcp as mcp_server
 from app.modules.notifications.router import router as notifications_router
 from app.modules.pages.router import router as pages_router
 from app.modules.projects.router import router as projects_router
@@ -42,13 +44,23 @@ from app.modules.workspaces.router import router as workspaces_router
 WIDGET_DIST_DIR = Path(__file__).resolve().parents[2] / "apps" / "widget" / "dist"
 EXTENSION_DIST_DIR = Path(__file__).resolve().parents[2] / "apps" / "extension" / "dist"
 
+# streamable_http_app() lazily creates the FastMCP session manager (raises if accessed
+# before this call) - built once here so both the mount below and the lifespan's
+# session_manager.run() reference the same instance.
+mcp_asgi_app = mcp_server.streamable_http_app()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await ensure_indexes(get_db())
     await ensure_bucket_exists()
     subscriber_task = asyncio.create_task(run_subscriber())
-    yield
+    # FastMCP's own session manager background task - mounting its Starlette app
+    # below does not automatically run its lifespan, so it has to be entered here
+    # (the SDK's own documented pattern for "mounting a FastMCP server inside an
+    # existing FastAPI app").
+    async with mcp_server.session_manager.run():
+        yield
     subscriber_task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await subscriber_task
@@ -101,6 +113,7 @@ app.include_router(comments_router, prefix="/api/v1")
 app.include_router(browser_render_router, prefix="/api/v1")
 app.include_router(ai_router)
 app.include_router(integrations_router, prefix="/api/v1")
+app.include_router(mcp_router, prefix="/api/v1")
 app.include_router(extension_tokens_router, prefix="/api/v1")
 app.include_router(notifications_router, prefix="/api/v1")
 # Deliberately not under /api/v1 - 12-API-WebSocket.md §12.6 specifies the connection URL
@@ -110,6 +123,10 @@ app.include_router(realtime_router)
 # directly, or loads them as a <script src>), not JSON API calls
 # (03-System-Architecture.md §3.3, Milestone 9).
 app.include_router(proxy_router)
+# The Backline-hosted MCP server (modules/mcp/server.py) - a user's own agent tooling
+# (Claude Code, Cursor, ...) points its MCP client config at this URL with a personal
+# access token (modules/mcp/router.py) in the Authorization header.
+app.mount("/mcp", mcp_asgi_app)
 if WIDGET_DIST_DIR.exists():
     app.mount("/widget", StaticFiles(directory=WIDGET_DIST_DIR), name="widget")
 # Serves the built browser extension for direct download (Settings > Browser Extension)

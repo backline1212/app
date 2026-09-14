@@ -113,7 +113,9 @@ export function ProjectSidePanel({
                 onSelectComment={onSelectComment}
               />
             )}
-            {activeTab === "mcp" && <McpTab />}
+            {activeTab === "mcp" && (
+              <McpTab workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
+            )}
             {activeTab === "integrations" && (
               <IntegrationsTab workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
             )}

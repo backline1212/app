@@ -37,6 +37,10 @@ dependencies = [
   # binaries* (`playwright install chromium firefox webkit`) must still be present
   # wherever render_browser_snapshot_job actually runs (see backend/Dockerfile).
   "playwright==1.49.1",
+  # Official Model Context Protocol SDK - powers the Backline-hosted MCP server that
+  # wraps the personal-access-token-authenticated generate-prompt endpoint
+  # (docs/implementation/slack-ai-mcp-architecture.md §2).
+  "mcp==1.12.4",
 ]
 
 [dependency-groups]

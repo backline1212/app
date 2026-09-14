@@ -267,6 +267,11 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         [("workspace_id", 1), ("user_id", 1), ("created_at", -1)]
     )
 
+    await db.mcp_personal_tokens.create_index("token_hash", unique=True)
+    await db.mcp_personal_tokens.create_index(
+        [("workspace_id", 1), ("user_id", 1), ("created_at", -1)]
+    )
+
     # notifications: shape/indexes documented in docs/tdr/0009 (11-Database.md never
     # gave this collection an explicit schema, unlike every other one).
     await db.notifications.create_index([("workspace_id", 1), ("user_id", 1), ("created_at", -1)])

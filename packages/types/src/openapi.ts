@@ -1194,6 +1194,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/comments/{comment_id}/integrations/jira/create-issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Jira Issue */
+        post: operations["create_jira_issue_api_v1_comments__comment_id__integrations_jira_create_issue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/comments/{comment_id}/integrations/asana/create-task": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Asana Task */
+        post: operations["create_asana_task_api_v1_comments__comment_id__integrations_asana_create_task_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/mcp/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Mcp Tokens */
+        get: operations["list_mcp_tokens_api_v1_workspaces__workspace_id__mcp_tokens_get"];
+        put?: never;
+        /** Create Mcp Token */
+        post: operations["create_mcp_token_api_v1_workspaces__workspace_id__mcp_tokens_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/tokens/{token_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Mcp Token */
+        delete: operations["revoke_mcp_token_api_v1_mcp_tokens__token_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/comments/{comment_id}/mcp/generate-prompt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Prompt
+         * @description The dashboard's own "Generate implementation prompt" action (copy-paste flow) -
+         *     session-authenticated, distinct from the PAT-authenticated MCP tool in
+         *     modules/mcp/server.py that an already-connected agent calls directly.
+         */
+        post: operations["generate_prompt_api_v1_comments__comment_id__mcp_generate_prompt_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/extension-tokens/whoami": {
         parameters: {
             query?: never;
@@ -1451,6 +1542,18 @@ export interface components {
             type: "point" | "region";
             dom_fingerprint: components["schemas"]["DomFingerprintIn"];
             text_fingerprint: components["schemas"]["TextFingerprintIn"];
+        };
+        /** AsanaIntegrationCreate */
+        AsanaIntegrationCreate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "asana";
+            /** Oauth Code */
+            oauth_code: string;
+            /** Project Gid */
+            project_gid: string;
         };
         /** AssetCommentCreate */
         AssetCommentCreate: {
@@ -1782,12 +1885,26 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** CreateAsanaTaskResult */
+        CreateAsanaTaskResult: {
+            /** Task Url */
+            task_url: string;
+            /** Task Id */
+            task_id: string;
+        };
         /** CreateClickUpTaskResult */
         CreateClickUpTaskResult: {
             /** Task Url */
             task_url: string;
             /** Task Id */
             task_id: string;
+        };
+        /** CreateJiraIssueResult */
+        CreateJiraIssueResult: {
+            /** Issue Url */
+            issue_url: string;
+            /** Issue Key */
+            issue_key: string;
         };
         /** CreateTrelloCardResult */
         CreateTrelloCardResult: {
@@ -1900,6 +2017,34 @@ export interface components {
             user_email: string;
             workspace: components["schemas"]["WorkspaceOut"];
         };
+        /**
+         * GeneratePromptRequest
+         * @description `agent` is which tool the prompt is headed for - accepted for parity with the
+         *     architecture doc's response shape and so the UI can label the copy target, but MVP
+         *     doesn't vary prompt phrasing per agent (all four consume the same plain-text
+         *     implementation prompt).
+         */
+        GeneratePromptRequest: {
+            /**
+             * Agent
+             * @default other
+             * @enum {string}
+             */
+            agent: "claude" | "cursor" | "codex" | "antigravity" | "other";
+        };
+        /** GeneratePromptResult */
+        GeneratePromptResult: {
+            /**
+             * Agent
+             * @enum {string}
+             */
+            agent: "claude" | "cursor" | "codex" | "antigravity" | "other";
+            /** Implementation Prompt */
+            implementation_prompt: string;
+            /** Suggested Files */
+            suggested_files?: string[] | null;
+            structured_plan?: components["schemas"]["StructuredPlan"] | null;
+        };
         /** GoogleCallbackRequest */
         GoogleCallbackRequest: {
             /** Code */
@@ -1984,7 +2129,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "slack" | "clickup" | "trello";
+            type: "slack" | "clickup" | "trello" | "jira" | "asana";
             /** Config Summary */
             config_summary: Record<string, never>;
             /** Connected By */
@@ -2009,6 +2154,18 @@ export interface components {
              */
             role: "admin" | "member";
         };
+        /** JiraIntegrationCreate */
+        JiraIntegrationCreate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "jira";
+            /** Oauth Code */
+            oauth_code: string;
+            /** Project Key */
+            project_key: string;
+        };
         /** LayerToggleRequest */
         LayerToggleRequest: {
             /**
@@ -2018,6 +2175,54 @@ export interface components {
             layer: "client" | "team";
             /** Confirm */
             confirm: boolean;
+        };
+        /** McpTokenCreate */
+        McpTokenCreate: {
+            /** Label */
+            label: string;
+            /** Agent Hint */
+            agent_hint?: ("claude" | "cursor" | "codex" | "antigravity" | "other") | null;
+        };
+        /**
+         * McpTokenIssued
+         * @description Returned exactly once, at creation time - mirrors ExtensionTokenIssued
+         *     (modules/extension_tokens/schemas.py): the raw token is never retrievable again,
+         *     McpTokenOut never includes it.
+         */
+        McpTokenIssued: {
+            /** Id */
+            id: string;
+            /** Token */
+            token: string;
+            /** Label */
+            label: string;
+            /** Agent Hint */
+            agent_hint: ("claude" | "cursor" | "codex" | "antigravity" | "other") | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** McpTokenOut */
+        McpTokenOut: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Agent Hint */
+            agent_hint: ("claude" | "cursor" | "codex" | "antigravity" | "other") | null;
+            /** Workspace Id */
+            workspace_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
         };
         /** MemberOut */
         MemberOut: {
@@ -2819,6 +3024,11 @@ export interface components {
             nodes_index: Record<string, never>;
             /** Full Page Hash */
             full_page_hash: string;
+        };
+        /** StructuredPlan */
+        StructuredPlan: {
+            /** Steps */
+            steps: string[];
         };
         /** SuggestReplyResult */
         SuggestReplyResult: {
@@ -5687,9 +5897,7 @@ export interface operations {
     summarize_thread_api_workspaces__workspace_id__projects__project_id__comments__comment_id__ai_summarize_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-guest-session"?: string | null;
-            };
+            header?: never;
             path: {
                 workspace_id: string;
                 project_id: string;
@@ -5722,9 +5930,7 @@ export interface operations {
     suggest_reply_api_workspaces__workspace_id__projects__project_id__comments__comment_id__ai_suggest_reply_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-guest-session"?: string | null;
-            };
+            header?: never;
             path: {
                 workspace_id: string;
                 project_id: string;
@@ -5796,7 +6002,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SlackIntegrationCreate"] | components["schemas"]["TrelloIntegrationCreate"] | components["schemas"]["ClickUpIntegrationCreate"];
+                "application/json": components["schemas"]["SlackIntegrationCreate"] | components["schemas"]["TrelloIntegrationCreate"] | components["schemas"]["ClickUpIntegrationCreate"] | components["schemas"]["JiraIntegrationCreate"] | components["schemas"]["AsanaIntegrationCreate"];
             };
         };
         responses: {
@@ -5902,6 +6108,202 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateTrelloCardResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_jira_issue_api_v1_comments__comment_id__integrations_jira_create_issue_post: {
+        parameters: {
+            query: {
+                integration_id: string;
+            };
+            header?: never;
+            path: {
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateJiraIssueResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_asana_task_api_v1_comments__comment_id__integrations_asana_create_task_post: {
+        parameters: {
+            query: {
+                integration_id: string;
+            };
+            header?: never;
+            path: {
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateAsanaTaskResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_mcp_tokens_api_v1_workspaces__workspace_id__mcp_tokens_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpTokenOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_mcp_token_api_v1_workspaces__workspace_id__mcp_tokens_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpTokenCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpTokenIssued"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_mcp_token_api_v1_mcp_tokens__token_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_prompt_api_v1_comments__comment_id__mcp_generate_prompt_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GeneratePromptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeneratePromptResult"];
                 };
             };
             /** @description Validation Error */
