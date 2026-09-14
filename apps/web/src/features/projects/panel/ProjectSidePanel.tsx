@@ -117,7 +117,11 @@ export function ProjectSidePanel({
               <McpTab workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
             )}
             {activeTab === "integrations" && (
-              <IntegrationsTab workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
+              <IntegrationsTab
+                project={project}
+                workspaceId={workspaceId}
+                workspaceSlug={workspaceSlug}
+              />
             )}
             {activeTab === "ai" && <AiTab />}
           </div>

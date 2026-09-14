@@ -8,7 +8,7 @@ from app.core.errors import NotFoundError
 from app.core.events import append_event
 from app.core.security import generate_opaque_token, hash_secret
 from app.modules.ai.service import _get_thread_context
-from app.modules.comments.service import get_comment_out
+from app.modules.comments.service import get_comment_out_for_workspace
 from app.modules.mcp.repository import McpTokenRepository
 from app.modules.mcp.schemas import (
     AgentHint,
@@ -158,14 +158,10 @@ async def generate_implementation_prompt(
     full thread via ai/service.py's existing _get_thread_context - this is deliberately
     not an LLM call: the receiving agent (Claude/Cursor/Codex/Antigravity) does its own
     reasoning over the prompt, this endpoint's job is only to assemble real data."""
-    comment = await get_comment_out(db, comment_id)
+    comment = await get_comment_out_for_workspace(
+        db, comment_id=comment_id, workspace_id=workspace_id
+    )
     if comment is None:
-        raise NotFoundError("Comment not found.")
-
-    from app.modules.comments.repository import CommentRepository
-
-    comment_doc = await CommentRepository(db).find_by_id(comment_id)
-    if comment_doc is None or comment_doc["workspace_id"] != workspace_id:
         raise NotFoundError("Comment not found.")
 
     thread = await _get_thread_context(db, workspace_id, comment_id)

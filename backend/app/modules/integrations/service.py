@@ -6,10 +6,14 @@ from app.core.arq_pool import get_arq_pool
 from app.core.encryption import encrypt_secret
 from app.core.errors import NotFoundError, ValidationError
 from app.core.events import append_event
-from app.modules.comments.service import get_comment_out
+from app.modules.comments.repository import CommentRepository
+from app.modules.comments.schemas import CommentOut
+from app.modules.comments.service import get_comment_out_for_workspace
 from app.modules.integrations import asana as asana_module
 from app.modules.integrations import clickup as clickup_module
 from app.modules.integrations import jira as jira_module
+from app.modules.integrations import trello as trello_module
+from app.modules.integrations.base import IntegrationDeliveryError
 from app.modules.integrations.factory import get_integration
 from app.modules.integrations.repository import IntegrationRepository
 from app.modules.integrations.schemas import (
@@ -26,6 +30,7 @@ from app.modules.integrations.schemas import (
     TrelloIntegrationCreate,
 )
 from app.modules.pages.repository import PageRepository
+from app.modules.projects.repository import ProjectRepository
 
 # Automatic dispatch (comment.created/comment.status_changed, §17.1's
 # on_comment_created/on_status_changed) only applies to integrations that actually do
@@ -142,6 +147,27 @@ async def disconnect_integration(
     )
 
 
+def _project_slack_enabled(project_doc: dict[str, Any]) -> bool:
+    # docs/implementation/slack-ai-mcp-architecture.md §1's project_notification_prefs,
+    # folded into the project's existing settings_json blob (ProjectSettingsOut/
+    # ProjectSettingsUpdate) instead of a new collection - defaults True (on unless
+    # explicitly muted), matching the pre-existing always-on behavior.
+    settings_json = project_doc.get("settings_json", {})
+    return bool(settings_json.get("slack_notifications_enabled", True))
+
+
+async def _comment_project_doc(
+    db: AsyncIOMotorDatabase[dict[str, Any]], comment_id: str
+) -> dict[str, Any] | None:
+    comment_doc = await CommentRepository(db).find_by_id(comment_id)
+    if comment_doc is None:
+        return None
+    page = await PageRepository(db).find_by_id(comment_doc["page_id"])
+    if page is None:
+        return None
+    return await ProjectRepository(db).find_by_id(page["project_id"])
+
+
 async def dispatch_comment_event(
     db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, event_type: str, comment_id: str
 ) -> None:
@@ -153,6 +179,16 @@ async def dispatch_comment_event(
         integrations = await IntegrationRepository(db).list_for_workspace_by_type(
             workspace_id, integration_type
         )
+        if not integrations:
+            continue
+        # A muted project's comment activity never reaches Slack - checked once per
+        # event rather than per-integration, and only when there's at least one
+        # integration to dispatch to at all, so an unconnected workspace never pays
+        # this lookup.
+        if integration_type == "slack":
+            project_doc = await _comment_project_doc(db, comment_id)
+            if project_doc is not None and not _project_slack_enabled(project_doc):
+                continue
         for integration_doc in integrations:
             await pool.enqueue_job(
                 "dispatch_integration_event_job",
@@ -160,6 +196,32 @@ async def dispatch_comment_event(
                 event_type=event_type,
                 comment_id=comment_id,
             )
+
+
+async def dispatch_project_updated_event(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, project_id: str
+) -> None:
+    """The "project updated" Slack event the architecture doc flagged as unwired -
+    posts inline rather than through the Arq retry job (unlike comment events, this
+    isn't triggered by a request a reviewer is waiting on, and there's no per-comment
+    payload worth a dead-letter/retry job for a single low-frequency admin action)."""
+    project = await ProjectRepository(db).find_by_id(project_id)
+    if project is None or not _project_slack_enabled(project):
+        return
+    integrations = await IntegrationRepository(db).list_for_workspace_by_type(workspace_id, "slack")
+    if not integrations:
+        return
+    from app.modules.integrations.slack import SlackIntegration
+
+    slack = SlackIntegration()
+    for integration_doc in integrations:
+        try:
+            await slack.on_project_updated(project, integration_doc["config_json"])
+        except IntegrationDeliveryError:
+            # Best-effort, matching every other automatic (non-retry-job) notification
+            # path in this module - a failed post here doesn't block the project update
+            # itself, which has already committed by the time this runs.
+            pass
 
 
 async def _backlink_url(
@@ -175,6 +237,41 @@ async def _backlink_url(
     return f"{base_url}/p/{project_id}/board"
 
 
+async def _load_comment_for_workspace(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, comment_id: str, workspace_id: str
+) -> CommentOut:
+    comment = await get_comment_out_for_workspace(
+        db, comment_id=comment_id, workspace_id=workspace_id
+    )
+    if comment is None:
+        raise NotFoundError("Comment not found.")
+    return comment
+
+
+_TYPE_DISPLAY_NAME = {
+    "clickup": "a ClickUp",
+    "trello": "a Trello",
+    "jira": "a Jira",
+    "asana": "an Asana",
+}
+
+
+async def _load_integration_for_workspace(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    integration_id: str,
+    workspace_id: str,
+    expected_type: str,
+) -> dict[str, Any]:
+    integration_doc = await IntegrationRepository(db).find_by_id(integration_id)
+    if integration_doc is None or integration_doc["workspace_id"] != workspace_id:
+        raise NotFoundError("Integration not found.")
+    if integration_doc["type"] != expected_type:
+        display = _TYPE_DISPLAY_NAME[expected_type]
+        raise ValidationError(f"That integration isn't {display} connection.")
+    return integration_doc
+
+
 async def create_clickup_task(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
@@ -183,21 +280,12 @@ async def create_clickup_task(
     integration_id: str,
     dashboard_base_url: str,
 ) -> CreateClickUpTaskResult:
-    comment = await get_comment_out(db, comment_id)
-    if comment is None:
-        raise NotFoundError("Comment not found.")
-
-    from app.modules.comments.repository import CommentRepository
-
-    comment_doc = await CommentRepository(db).find_by_id(comment_id)
-    if comment_doc is None or comment_doc["workspace_id"] != workspace_id:
-        raise NotFoundError("Comment not found.")
-
-    integration_doc = await IntegrationRepository(db).find_by_id(integration_id)
-    if integration_doc is None or integration_doc["workspace_id"] != workspace_id:
-        raise NotFoundError("Integration not found.")
-    if integration_doc["type"] != "clickup":
-        raise ValidationError("That integration isn't a ClickUp connection.")
+    comment = await _load_comment_for_workspace(
+        db, comment_id=comment_id, workspace_id=workspace_id
+    )
+    integration_doc = await _load_integration_for_workspace(
+        db, integration_id=integration_id, workspace_id=workspace_id, expected_type="clickup"
+    )
 
     backlink = await _backlink_url(db, base_url=dashboard_base_url, page_id=comment.page_id)
     task_id, task_url = await clickup_module.ClickUpIntegration().create_task(
@@ -214,26 +302,15 @@ async def create_trello_card(
     integration_id: str,
     dashboard_base_url: str,
 ) -> CreateTrelloCardResult:
-    from app.modules.integrations.trello import TrelloIntegration
-
-    comment = await get_comment_out(db, comment_id)
-    if comment is None:
-        raise NotFoundError("Comment not found.")
-
-    from app.modules.comments.repository import CommentRepository
-
-    comment_doc = await CommentRepository(db).find_by_id(comment_id)
-    if comment_doc is None or comment_doc["workspace_id"] != workspace_id:
-        raise NotFoundError("Comment not found.")
-
-    integration_doc = await IntegrationRepository(db).find_by_id(integration_id)
-    if integration_doc is None or integration_doc["workspace_id"] != workspace_id:
-        raise NotFoundError("Integration not found.")
-    if integration_doc["type"] != "trello":
-        raise ValidationError("That integration isn't a Trello connection.")
+    comment = await _load_comment_for_workspace(
+        db, comment_id=comment_id, workspace_id=workspace_id
+    )
+    integration_doc = await _load_integration_for_workspace(
+        db, integration_id=integration_id, workspace_id=workspace_id, expected_type="trello"
+    )
 
     backlink = await _backlink_url(db, base_url=dashboard_base_url, page_id=comment.page_id)
-    card_id, card_url = await TrelloIntegration().create_card(
+    card_id, card_url = await trello_module.TrelloIntegration().create_card(
         comment, integration_doc["config_json"], backlink_url=backlink
     )
     return CreateTrelloCardResult(card_id=card_id, card_url=card_url)
@@ -247,32 +324,33 @@ async def create_jira_issue(
     integration_id: str,
     dashboard_base_url: str,
 ) -> CreateJiraIssueResult:
-    comment = await get_comment_out(db, comment_id)
-    if comment is None:
-        raise NotFoundError("Comment not found.")
-
-    from app.modules.comments.repository import CommentRepository
-
-    comment_doc = await CommentRepository(db).find_by_id(comment_id)
-    if comment_doc is None or comment_doc["workspace_id"] != workspace_id:
-        raise NotFoundError("Comment not found.")
+    comment = await _load_comment_for_workspace(
+        db, comment_id=comment_id, workspace_id=workspace_id
+    )
+    integration_doc = await _load_integration_for_workspace(
+        db, integration_id=integration_id, workspace_id=workspace_id, expected_type="jira"
+    )
 
     repo = IntegrationRepository(db)
-    integration_doc = await repo.find_by_id(integration_id)
-    if integration_doc is None or integration_doc["workspace_id"] != workspace_id:
-        raise NotFoundError("Integration not found.")
-    if integration_doc["type"] != "jira":
-        raise ValidationError("That integration isn't a Jira connection.")
-
     config = dict(integration_doc["config_json"])
 
     async def persist_rotated_token(new_refresh_token_encrypted: str) -> None:
         config["refresh_token_encrypted"] = new_refresh_token_encrypted
         await repo.update_config(integration_id, config)
 
+    async def refetch_config() -> dict[str, Any] | None:
+        fresh_doc = await repo.find_by_id(integration_id)
+        if fresh_doc is None or fresh_doc["workspace_id"] != workspace_id:
+            return None
+        return dict(fresh_doc["config_json"])
+
     backlink = await _backlink_url(db, base_url=dashboard_base_url, page_id=comment.page_id)
     issue_key, issue_url = await jira_module.JiraIntegration().create_issue(
-        comment, config, backlink_url=backlink, on_rotate=persist_rotated_token
+        comment,
+        config,
+        backlink_url=backlink,
+        on_rotate=persist_rotated_token,
+        refetch_config=refetch_config,
     )
     return CreateJiraIssueResult(issue_key=issue_key, issue_url=issue_url)
 
@@ -285,21 +363,12 @@ async def create_asana_task(
     integration_id: str,
     dashboard_base_url: str,
 ) -> CreateAsanaTaskResult:
-    comment = await get_comment_out(db, comment_id)
-    if comment is None:
-        raise NotFoundError("Comment not found.")
-
-    from app.modules.comments.repository import CommentRepository
-
-    comment_doc = await CommentRepository(db).find_by_id(comment_id)
-    if comment_doc is None or comment_doc["workspace_id"] != workspace_id:
-        raise NotFoundError("Comment not found.")
-
-    integration_doc = await IntegrationRepository(db).find_by_id(integration_id)
-    if integration_doc is None or integration_doc["workspace_id"] != workspace_id:
-        raise NotFoundError("Integration not found.")
-    if integration_doc["type"] != "asana":
-        raise ValidationError("That integration isn't an Asana connection.")
+    comment = await _load_comment_for_workspace(
+        db, comment_id=comment_id, workspace_id=workspace_id
+    )
+    integration_doc = await _load_integration_for_workspace(
+        db, integration_id=integration_id, workspace_id=workspace_id, expected_type="asana"
+    )
 
     backlink = await _backlink_url(db, base_url=dashboard_base_url, page_id=comment.page_id)
     task_id, task_url = await asana_module.AsanaIntegration().create_task(

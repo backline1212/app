@@ -8390,6 +8390,11 @@
             "type": "boolean",
             "title": "Enable Cross Browser Render",
             "default": false
+          },
+          "slack_notifications_enabled": {
+            "type": "boolean",
+            "title": "Slack Notifications Enabled",
+            "default": true
           }
         },
         "type": "object",
@@ -8466,6 +8471,17 @@
               }
             ],
             "title": "Enable Cross Browser Render"
+          },
+          "slack_notifications_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slack Notifications Enabled"
           }
         },
         "type": "object",

@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 
 import { qk } from "../../../lib/query-keys";
 import * as integrationsApi from "../../integrations/api";
+import * as projectsApi from "../api";
+import type { ProjectOut } from "../api";
 import { ChevronIcon } from "./icons";
 
 const REAL_INTEGRATIONS: {
@@ -19,6 +21,7 @@ const REAL_INTEGRATIONS: {
 ];
 
 interface IntegrationsTabProps {
+  project: ProjectOut;
   workspaceId: string;
   workspaceSlug: string;
 }
@@ -28,7 +31,7 @@ interface IntegrationsTabProps {
 // in place, but connecting requires credentials (a webhook URL, an API key/token, an
 // OAuth code) this compact panel has no room to collect, so turning a not-yet-connected
 // provider "on" opens the full settings page instead of faking a local toggle.
-export function IntegrationsTab({ workspaceId, workspaceSlug }: IntegrationsTabProps) {
+export function IntegrationsTab({ project, workspaceId, workspaceSlug }: IntegrationsTabProps) {
   const [expanded, setExpanded] = useState(true);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -43,7 +46,16 @@ export function IntegrationsTab({ workspaceId, workspaceSlug }: IntegrationsTabP
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
+  const muteSlack = useMutation({
+    mutationFn: (slackNotificationsEnabled: boolean) =>
+      projectsApi.updateProjectSettings(project.id, {
+        slack_notifications_enabled: slackNotificationsEnabled,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.project(project.id) }),
+  });
+
   const connectedByType = new Map((integrations ?? []).map((integration) => [integration.type, integration]));
+  const slackConnected = connectedByType.has("slack");
 
   return (
     <div className="flex flex-col gap-3 p-4">
@@ -93,6 +105,24 @@ export function IntegrationsTab({ workspaceId, workspaceSlug }: IntegrationsTabP
               </div>
             );
           })}
+        </div>
+      )}
+      {slackConnected && (
+        <div className="bl-connector-row">
+          <span className="bl-connector-name">Slack notifications for this project</span>
+          <label style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              className="bl-switch-input"
+              checked={project.settings.slack_notifications_enabled}
+              disabled={muteSlack.isPending}
+              onChange={(event) => muteSlack.mutate(event.target.checked)}
+              aria-label="Slack notifications for this project"
+            />
+            <span className="bl-switch" aria-hidden="true">
+              <i />
+            </span>
+          </label>
         </div>
       )}
       <p className="bl-inline-note">

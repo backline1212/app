@@ -2639,6 +2639,11 @@ export interface components {
              * @default false
              */
             enable_cross_browser_render: boolean;
+            /**
+             * Slack Notifications Enabled
+             * @default true
+             */
+            slack_notifications_enabled: boolean;
         };
         /**
          * ProjectSettingsUpdate
@@ -2657,6 +2662,8 @@ export interface components {
             client_digest_enabled?: boolean | null;
             /** Enable Cross Browser Render */
             enable_cross_browser_render?: boolean | null;
+            /** Slack Notifications Enabled */
+            slack_notifications_enabled?: boolean | null;
         };
         /** ProjectStatsOut */
         ProjectStatsOut: {

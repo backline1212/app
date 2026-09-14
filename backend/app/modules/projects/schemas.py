@@ -103,6 +103,12 @@ class ProjectSettingsOut(BaseModel):
     # screenshots are real compute cost per render, so this stays an explicit opt-in
     # like the flags above rather than on by default.
     enable_cross_browser_render: bool = False
+    # docs/implementation/slack-ai-mcp-architecture.md §1's project_notification_prefs,
+    # folded into the existing settings_json blob instead of a new collection - unlike
+    # the flags above, this defaults True (every project's Slack notifications are on
+    # unless explicitly muted, matching the pre-existing always-on behavior this flag
+    # is retrofitted in front of).
+    slack_notifications_enabled: bool = True
 
 
 class ProjectSettingsUpdate(BaseModel):
@@ -114,6 +120,7 @@ class ProjectSettingsUpdate(BaseModel):
     show_board_to_client: bool | None = None
     client_digest_enabled: bool | None = None
     enable_cross_browser_render: bool | None = None
+    slack_notifications_enabled: bool | None = None
 
 
 class ProjectOut(BaseModel):

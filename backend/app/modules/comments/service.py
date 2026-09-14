@@ -227,6 +227,20 @@ async def get_comment_out(
     return await _comment_out(db, doc)
 
 
+async def get_comment_out_for_workspace(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, comment_id: str, workspace_id: str
+) -> CommentOut | None:
+    """Same as get_comment_out, but also enforces the comment belongs to workspace_id -
+    CommentOut itself has no workspace_id field to check post-hoc, so every caller that
+    needs this scoping (integrations/service.py's manual create-task/create-card/
+    create-issue triggers, mcp/service.py's generate_implementation_prompt) previously
+    had to fetch the raw doc a second time just to check it. One fetch instead of two."""
+    doc = await CommentRepository(db).find_by_id(comment_id)
+    if doc is None or doc["workspace_id"] != workspace_id:
+        return None
+    return await _comment_out(db, doc)
+
+
 async def _resolve_page_and_access(
     db: AsyncIOMotorDatabase[dict[str, Any]], actor: Actor, page_id: str
 ) -> dict[str, Any]:

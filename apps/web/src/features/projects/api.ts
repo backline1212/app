@@ -104,6 +104,7 @@ export interface ProjectSettingsUpdate {
   show_board_to_client?: boolean;
   client_digest_enabled?: boolean;
   enable_cross_browser_render?: boolean;
+  slack_notifications_enabled?: boolean;
 }
 
 export function updateProjectSettings(projectId: string, settings: ProjectSettingsUpdate) {
