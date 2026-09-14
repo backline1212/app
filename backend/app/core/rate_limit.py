@@ -14,11 +14,20 @@ class RateLimitedError(BacklineError):
 
 
 def get_client_ip(request: Request) -> str:
-    """Prefers X-Forwarded-For (set by Railway's proxy in production) over the raw
-    socket peer, falling back to the latter for local dev where there's no proxy."""
+    """Prefers X-Forwarded-For (set by Railway's edge proxy in production) over the raw
+    socket peer, falling back to the latter for local dev where there's no proxy.
+
+    Takes the LAST entry, not the first: a proxy appends the peer IP it actually saw to
+    the end of the header rather than replacing it, so a client that sends its own
+    `X-Forwarded-For` before reaching Railway can freely control every entry except the
+    one Railway itself appends last. Trusting the first (client-controlled) entry let
+    anyone rotate this header to get an unlimited number of rate-limit buckets, e.g. to
+    brute-force an OTP or a guest passcode. Only the rightmost hop is ours to trust."""
     forwarded_for = request.headers.get("x-forwarded-for")
     if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+        parts = [p.strip() for p in forwarded_for.split(",") if p.strip()]
+        if parts:
+            return parts[-1]
     return request.client.host if request.client else "unknown"
 
 

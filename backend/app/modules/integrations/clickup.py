@@ -70,16 +70,30 @@ class ClickUpIntegration:
                 task = response.json()
 
                 if comment.screenshot_url:
-                    screenshot_bytes = (await client.get(comment.screenshot_url)).content
-                    await client.post(
-                        f"{CLICKUP_API_BASE}/task/{task['id']}/attachment",
-                        headers={"Authorization": token},
-                        files={"attachment": ("screenshot.png", screenshot_bytes, "image/png")},
-                    )
+                    try:
+                        screenshot_bytes = (await client.get(comment.screenshot_url)).content
+                        await client.post(
+                            f"{CLICKUP_API_BASE}/task/{task['id']}/attachment",
+                            headers={"Authorization": token},
+                            files={"attachment": ("screenshot.png", screenshot_bytes, "image/png")},
+                        )
+                    except httpx.HTTPError as exc:
+                        # Best-effort cleanup: the task already exists server-side, so
+                        # without this a failed attachment upload leaves an orphaned task
+                        # and a retry would create a duplicate.
+                        try:
+                            await client.delete(
+                                f"{CLICKUP_API_BASE}/task/{task['id']}",
+                                headers={"Authorization": token},
+                            )
+                        except httpx.HTTPError:
+                            pass
+                        raise ExternalServiceError(f"ClickUp task creation failed: {exc}") from exc
+                return task["id"], task["url"]
         except httpx.HTTPError as exc:
             raise ExternalServiceError(f"ClickUp task creation failed: {exc}") from exc
-
-        return task["id"], task["url"]
+        except KeyError as exc:
+            raise ExternalServiceError(f"ClickUp returned an unexpected response: {exc}") from exc
 
     async def on_comment_created(self, comment: CommentOut, config: dict[str, Any]) -> None:
         # ClickUp is manual-trigger only in MVP (§17.3) - no automatic event posting.

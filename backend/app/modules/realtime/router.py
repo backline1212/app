@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from app.core.db import get_db
 from app.core.security import InvalidTokenError, decode_access_token, decode_guest_token
 from app.core.session import Actor, GuestSession, Session
+from app.modules.pages.repository import PageRepository
 from app.modules.realtime import presence
 from app.modules.realtime.manager import manager
 from app.modules.realtime.pubsub import publish
@@ -50,6 +51,7 @@ async def websocket_endpoint(
 
     db = get_db()
 
+    guest_project_id: str | None = None
     if isinstance(actor, Session):
         if actor.workspace_id is None:
             await websocket.close(code=4403)
@@ -64,6 +66,7 @@ async def websocket_endpoint(
             return
         channel = f"project:{link['project_id']}:client"
         workspace_id = link["workspace_id"]
+        guest_project_id = link["project_id"]
         guest_repo = GuestSessionRepository(db)
         guest_doc = await guest_repo.find_by_id(actor.guest_session_id)
         if (
@@ -77,6 +80,20 @@ async def websocket_endpoint(
             workspace_id=workspace_id, guest_session_id=actor.guest_session_id
         )
         presence_display_name = guest_doc["display_name"]
+
+    # A caller-supplied page_id isn't otherwise validated as belonging to this actor's
+    # workspace/project before being used to key presence and broadcast on the
+    # workspace's own channel - without this, a member or guest could spoof
+    # presence for a foreign page_id into their own workspace's presence feed.
+    if page_id is not None:
+        page = await PageRepository(db).find_by_id(page_id)
+        page_valid = (
+            page is not None
+            and page["workspace_id"] == workspace_id
+            and (guest_project_id is None or page["project_id"] == guest_project_id)
+        )
+        if not page_valid:
+            page_id = None
 
     await manager.connect(channel, websocket)
 

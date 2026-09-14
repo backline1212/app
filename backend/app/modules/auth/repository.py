@@ -2,8 +2,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from bson import ObjectId
-from bson.errors import InvalidId
 from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from app.core.mongo_utils import to_object_id
 
 
 class UserRepository:
@@ -17,7 +18,21 @@ class UserRepository:
         return await self.db.users.find_one({"email": email})
 
     async def find_by_id(self, user_id: str) -> dict[str, Any] | None:
-        return await self.db.users.find_one({"_id": ObjectId(user_id)})
+        oid = to_object_id(user_id)
+        if oid is None:
+            return None
+        return await self.db.users.find_one({"_id": oid})
+
+    async def find_many_by_ids(self, user_ids: list[str]) -> dict[str, dict[str, Any]]:
+        """Batched form of find_by_id, keyed by the original string id - avoids an N+1
+        round-trip per member in callers that resolve a whole workspace's membership
+        list at once (e.g. notifications/digest.py)."""
+        oids = {uid: oid for uid in user_ids if (oid := to_object_id(uid)) is not None}
+        if not oids:
+            return {}
+        cursor = self.db.users.find({"_id": {"$in": list(oids.values())}})
+        by_oid = {doc["_id"]: doc async for doc in cursor}
+        return {uid: by_oid[oid] for uid, oid in oids.items() if oid in by_oid}
 
     async def create(
         self, *, email: str, name: str, avatar_url: str | None, auth_provider: str
@@ -102,9 +117,8 @@ class RefreshTokenRepository:
         )
 
     async def family_is_active(self, user_id: str, family_id: str) -> bool:
-        try:
-            user_object_id = ObjectId(user_id)
-        except InvalidId:
+        user_object_id = to_object_id(user_id)
+        if user_object_id is None:
             return False
         return (
             await self.db.refresh_tokens.find_one(

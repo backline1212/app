@@ -59,6 +59,24 @@ class WorkspaceRepository:
             {"_id": to_object_id(workspace_id)}, {"$set": {"last_digest_sent_at": when}}
         )
 
+    async def claim_digest_window(
+        self,
+        workspace_id: str,
+        *,
+        expected_last_sent_at: datetime | None,
+        new_last_sent_at: datetime,
+    ) -> bool:
+        """Atomic compare-and-swap on `last_digest_sent_at`: only one caller can
+        successfully advance it past `expected_last_sent_at` at a time. Used to claim
+        the digest window BEFORE sending any email (notifications/digest.py), so a
+        crashed/retried run or two overlapping schedule fires for the same workspace
+        can't both send the same batch of comments twice."""
+        result = await self.db.workspaces.update_one(
+            {"_id": to_object_id(workspace_id), "last_digest_sent_at": expected_last_sent_at},
+            {"$set": {"last_digest_sent_at": new_last_sent_at}},
+        )
+        return result.modified_count == 1
+
 
 class MembershipRepository:
     """`memberships` - 11-Database.md §11.3. `workspace_id`/`user_id` are stored as

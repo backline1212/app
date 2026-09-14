@@ -3,7 +3,8 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.session import Actor, get_current_actor
+from app.core.session import Session, require_workspace_context
+from app.core.permissions import require_permission
 from app.core.db import get_db
 from app.modules.ai import service
 from app.modules.ai.schemas import SummarizeResult, SuggestReplyResult
@@ -19,10 +20,12 @@ async def summarize_thread(
     project_id: str,
     comment_id: str,
     db: AsyncIOMotorDatabase[dict[str, Any]] = Depends(get_db),
-    actor: Actor = Depends(get_current_actor),
+    session: Session = Depends(require_permission("comment:view_team")),
 ) -> SummarizeResult:
-    # Basic auth check: just verify user is authenticated for MVP.
-    return await service.summarize_thread(db, workspace_id, comment_id)
+    # workspace_id is taken from the caller's own session, never the path param -
+    # the path param is untrusted and must not be used to scope the lookup (it
+    # previously allowed reading any other workspace's comment threads).
+    return await service.summarize_thread(db, require_workspace_context(session), comment_id)
 
 @router.post(
     "/api/workspaces/{workspace_id}/projects/{project_id}/comments/{comment_id}/ai/suggest-reply",
@@ -33,6 +36,6 @@ async def suggest_reply(
     project_id: str,
     comment_id: str,
     db: AsyncIOMotorDatabase[dict[str, Any]] = Depends(get_db),
-    actor: Actor = Depends(get_current_actor),
+    session: Session = Depends(require_permission("comment:view_team")),
 ) -> SuggestReplyResult:
-    return await service.suggest_reply(db, workspace_id, comment_id)
+    return await service.suggest_reply(db, require_workspace_context(session), comment_id)

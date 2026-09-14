@@ -92,6 +92,27 @@ AUDIT_BATCH_03_INDEXES: tuple[AdditiveIndex, ...] = (
 )
 
 
+# Production-readiness audit 2026-09-13 (docs/implementation/production-readiness-
+# master-plan-2026-09-13.md Parts C5/C6): DB-level enforcement backing the app-level
+# race fixes in snapshot_engine/service.py and recovery_engine/service.py - a retry
+# loop alone only reduces the race window, these indexes make the invariant impossible
+# to violate even under real concurrent writers.
+AUDIT_BATCH_14_INDEXES: tuple[AdditiveIndex, ...] = (
+    AdditiveIndex(
+        "revisions",
+        (("page_id", 1), ("is_current", 1)),
+        "revisions_page_current_unique",
+        {"unique": True, "partialFilterExpression": {"is_current": True}},
+    ),
+    AdditiveIndex(
+        "revision_diffs",
+        (("page_id", 1), ("to_revision_id", 1)),
+        "revision_diffs_page_to_revision_unique",
+        {"unique": True},
+    ),
+)
+
+
 BROWSER_RENDER_INDEXES: tuple[AdditiveIndex, ...] = (
     # One cache/job-status document per (page, browser, viewport, orientation)
     # combination - modules/browser_render's repository upserts against exactly this
@@ -257,3 +278,4 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
     await ensure_additive_indexes(db, DELETION_SUPPORT_INDEXES)
     await ensure_additive_indexes(db, AUDIT_BATCH_03_INDEXES)
     await ensure_additive_indexes(db, BROWSER_RENDER_INDEXES)
+    await ensure_additive_indexes(db, AUDIT_BATCH_14_INDEXES)

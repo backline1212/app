@@ -36,7 +36,12 @@ export function TicketBoard({
             e.preventDefault();
             e.currentTarget.removeAttribute('data-dragover');
             const id = e.dataTransfer.getData("text/plain");
-            if (id && id !== draggedId) {
+            // Guard against a second drop firing while the first status-change mutation
+            // is still in flight - StatusSelect already disables itself the same way
+            // (line ~92); without this, two quick mutate() calls can reset() away the
+            // first call's error state right as the second succeeds, flashing the error
+            // banner in TicketsPage for one frame.
+            if (id && id !== draggedId && !update.isPending) {
               const ticket = tickets.find(t => t.id === id);
               if (ticket && ticket.status !== s) {
                 update.mutate({ id, patch: { status: s } });

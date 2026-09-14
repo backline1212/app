@@ -56,14 +56,21 @@ async def run_digest_for_workspace(
     now = datetime.now(UTC)
     workspace_repo = WorkspaceRepository(db)
 
+    # Claim the digest window atomically BEFORE fetching/sending anything: a second
+    # overlapping run for this workspace (duplicate schedule fire) or a retry after a
+    # partial crash will lose this compare-and-swap and skip, rather than both runs
+    # emailing the same batch of comments to every member.
+    if not await workspace_repo.claim_digest_window(
+        workspace_id, expected_last_sent_at=since, new_last_sent_at=now
+    ):
+        return 0
+
     if since is None:
-        await workspace_repo.set_last_digest_sent_at(workspace_id, now)
         return 0
 
     comments = await CommentRepository(db).list_since_for_workspace(workspace_id, since)
 
     if not comments:
-        await workspace_repo.set_last_digest_sent_at(workspace_id, now)
         return 0
 
     project_name_cache: dict[str, str] = {}
@@ -78,13 +85,13 @@ async def run_digest_for_workspace(
     )
 
     members = await MembershipRepository(db).list_for_workspace(workspace_id)
+    users_by_id = await UserRepository(db).find_many_by_ids([m["user_id"] for m in members])
     for membership in members:
-        user_doc = await UserRepository(db).find_by_id(membership["user_id"])
+        user_doc = users_by_id.get(membership["user_id"])
         if user_doc is None or not user_doc.get("preferences", {}).get("daily_digest", True):
             continue
         await send_email(to=user_doc["email"], subject=subject, html=html)
 
-    await workspace_repo.set_last_digest_sent_at(workspace_id, now)
     return len(comments)
 
 

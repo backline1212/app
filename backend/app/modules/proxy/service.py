@@ -8,6 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.config import get_settings
 from app.core.errors import ConflictError, ExternalServiceError, NotFoundError
+from app.core.ssrf_guard import MAX_REDIRECTS, assert_safe_to_fetch
 from app.modules.projects.repository import ProjectRepository
 from app.modules.proxy.rewriter import rewrite_html
 from app.modules.share_links.repository import ShareLinkRepository
@@ -77,11 +78,34 @@ async def fetch_proxied_resource(
     if query_string:
         upstream_url += f"?{query_string}"
 
+    # SSRF guard (target_origin is validated as a non-private IP literal at save time,
+    # but a hostname's DNS can still resolve internally, and a redirect can repoint to
+    # an internal address mid-request) - resolve and reject before every hop, following
+    # redirects manually instead of letting httpx auto-follow them unchecked.
+    try:
+        assert_safe_to_fetch(upstream_url)
+    except ValueError as exc:
+        raise ExternalServiceError(str(exc)) from exc
+
     try:
         async with httpx.AsyncClient(
-            timeout=15.0, follow_redirects=True, headers={"User-Agent": "BacklineProxy/1.0"}
+            timeout=15.0, follow_redirects=False, headers={"User-Agent": "BacklineProxy/1.0"}
         ) as client:
-            upstream = await client.get(upstream_url)
+            next_url = upstream_url
+            for _ in range(MAX_REDIRECTS + 1):
+                upstream = await client.get(next_url)
+                if upstream.status_code not in (301, 302, 303, 307, 308):
+                    break
+                location = upstream.headers.get("location")
+                if not location:
+                    break
+                next_url = str(httpx.URL(next_url).join(location))
+                try:
+                    assert_safe_to_fetch(next_url)
+                except ValueError as exc:
+                    raise ExternalServiceError(str(exc)) from exc
+            else:
+                raise ExternalServiceError("Too many redirects while reaching the reviewed site.")
     except httpx.HTTPError as exc:
         raise ExternalServiceError(f"Could not reach the reviewed site: {exc}") from exc
 

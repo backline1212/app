@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 IntegrationType = Literal["slack", "clickup", "trello"]
 
@@ -10,6 +11,18 @@ class SlackIntegrationCreate(BaseModel):
     type: Literal["slack"] = "slack"
     webhook_url: str = Field(min_length=1)
     notify_status_changes: bool = True
+
+    @field_validator("webhook_url")
+    @classmethod
+    def webhook_must_be_slack(cls, value: str) -> str:
+        # SSRF guard: without this, the backend will POST to any URL an admin (or
+        # anyone with integration:manage) supplies, both at connect-test time and on
+        # every future comment/status event - this is a real outbound request the
+        # server makes, not something the browser makes on the user's behalf.
+        parsed = urlsplit(value)
+        if parsed.scheme != "https" or parsed.hostname != "hooks.slack.com":
+            raise ValueError("Webhook URL must be a real https://hooks.slack.com/... URL.")
+        return value
     # 17.2: "team-only comments never post to a shared Slack channel unless the admin
     # explicitly configures a private channel" - there's no way to detect from a webhook
     # URL alone whether the channel behind it is private, so this is an explicit opt-in

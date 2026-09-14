@@ -1,6 +1,7 @@
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 from app.core.actor_access import resolve_actor_project_access
 from app.core.errors import ConflictError, NotFoundError, ValidationError
@@ -44,12 +45,22 @@ async def register_page(
     if existing is not None:
         return _page_out(existing)
 
-    doc = await repo.create(
-        project_id=project_id,
-        workspace_id=workspace_id,
-        url_normalized=url_normalized,
-        title=title,
-    )
+    try:
+        doc = await repo.create(
+            project_id=project_id,
+            workspace_id=workspace_id,
+            url_normalized=url_normalized,
+            title=title,
+        )
+    except DuplicateKeyError:
+        # Concurrent registration of the same URL (realistic for a widget loading on a
+        # busy page) races past the find_by_normalized_url check above - fall back to
+        # the doc the other request just created, keeping this genuinely idempotent
+        # instead of 500ing.
+        existing = await repo.find_by_normalized_url(workspace_id, project_id, url_normalized)
+        if existing is not None:
+            return _page_out(existing)
+        raise
     actor_type, actor_id = actor_identity(actor)
     await append_event(
         db,
@@ -82,13 +93,16 @@ async def create_page(
     if await repo.find_by_normalized_url(workspace_id, project_id, url_normalized):
         raise ConflictError("That page is already registered for this project.")
     existing = await repo.list_for_project(workspace_id, project_id)
-    doc = await repo.create(
-        project_id=project_id,
-        workspace_id=workspace_id,
-        url_normalized=url_normalized,
-        title=title.strip() if title and title.strip() else None,
-        sort_order=len(existing),
-    )
+    try:
+        doc = await repo.create(
+            project_id=project_id,
+            workspace_id=workspace_id,
+            url_normalized=url_normalized,
+            title=title.strip() if title and title.strip() else None,
+            sort_order=len(existing),
+        )
+    except DuplicateKeyError as exc:
+        raise ConflictError("That page is already registered for this project.") from exc
     await append_event(
         db,
         workspace_id=workspace_id,

@@ -238,8 +238,8 @@ export function AssetReview({
                   bottom: -5,
                   width: 10,
                   height: 10,
-                  background: 'white',
-                  border: '1px solid black',
+                  background: 'var(--bl-surface)',
+                  border: '1px solid var(--bl-ink)',
                   cursor: 'nwse-resize',
                   zIndex: 10
                 }}

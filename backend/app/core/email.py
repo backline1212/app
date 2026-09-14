@@ -36,29 +36,34 @@ async def send_email(*, to: str, subject: str, html: str) -> None:
                 logger.info("Successfully sent email via Google Apps Script to %s", to)
                 return
         except Exception as e:
-            logger.exception("Failed to send email via Google Apps Script to %s: %s", to, e)
-            raise
+            # Fall through to Resend (Priority 2) instead of re-raising - previously a
+            # Google Apps Script outage took down all email (OTP codes, invites) even
+            # when Resend was also configured, silently defeating the intended fallback
+            # chain the "Priority 1/2/3" comments here describe.
+            logger.exception(
+                "Failed to send email via Google Apps Script to %s, falling back: %s", to, e
+            )
 
     # Priority 2: Resend (Production standard)
     if settings.resend_api_key:
 
         def _send() -> None:
-            try:
-                resend.api_key = settings.resend_api_key
-                resend.Emails.send(
-                    {
-                        "from": settings.resend_from_address,
-                        "to": [to],
-                        "subject": subject,
-                        "html": html,
-                    }
-                )
-            except Exception as e:
-                logger.exception("Failed to send email via Resend to %s: %s", to, e)
-                raise
+            resend.api_key = settings.resend_api_key
+            resend.Emails.send(
+                {
+                    "from": settings.resend_from_address,
+                    "to": [to],
+                    "subject": subject,
+                    "html": html,
+                }
+            )
 
-        await asyncio.to_thread(_send)
-        return
+        try:
+            await asyncio.to_thread(_send)
+            return
+        except Exception as e:
+            logger.exception("Failed to send email via Resend to %s: %s", to, e)
+            raise
 
     # Fallback: Local logging
     logger.warning(

@@ -3,6 +3,7 @@ import re
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 from app.core.email import send_email
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
@@ -54,16 +55,36 @@ async def create_workspace(
     base_slug = _slugify(name)
     slug = base_slug
     suffix = 1
-    while await workspace_repo.find_by_slug(slug) is not None:
-        suffix += 1
-        slug = f"{base_slug}-{suffix}"
-
-    workspace_doc = await workspace_repo.create(name=name, slug=slug)
+    # Check-then-act against the unique `slug` index is inherently racy (two identical-
+    # name creates can both pass find_by_slug before either inserts) - retry on the
+    # resulting DuplicateKeyError with the next candidate slug instead of surfacing an
+    # unhandled 500.
+    workspace_doc: dict[str, Any] | None = None
+    for _ in range(10):
+        if await workspace_repo.find_by_slug(slug) is not None:
+            suffix += 1
+            slug = f"{base_slug}-{suffix}"
+            continue
+        try:
+            workspace_doc = await workspace_repo.create(name=name, slug=slug)
+            break
+        except DuplicateKeyError:
+            suffix += 1
+            slug = f"{base_slug}-{suffix}"
+    if workspace_doc is None:
+        raise ConflictError("Could not create a unique workspace slug. Try a different name.")
     workspace_id = str(workspace_doc["_id"])
 
-    await membership_repo.create(
-        workspace_id=workspace_id, user_id=user_id, role="owner", invited_by=None
-    )
+    try:
+        await membership_repo.create(
+            workspace_id=workspace_id, user_id=user_id, role="owner", invited_by=None
+        )
+    except Exception:
+        # The workspace insert already succeeded; without this, a failure here (e.g. a
+        # transient Mongo error) orphans a workspace with no owner and no repair path -
+        # list_my_workspaces can never surface it for this user again.
+        await workspace_repo.db.workspaces.delete_one({"_id": workspace_doc["_id"]})
+        raise
     await append_event(
         db,
         workspace_id=workspace_id,
@@ -168,9 +189,15 @@ async def invite_member(
     if await membership_repo.find(workspace_id=workspace_id, user_id=user_id) is not None:
         raise ConflictError("User is already a member of this workspace.")
 
-    membership = await membership_repo.create(
-        workspace_id=workspace_id, user_id=user_id, role=role, invited_by=inviter_user_id
-    )
+    try:
+        membership = await membership_repo.create(
+            workspace_id=workspace_id, user_id=user_id, role=role, invited_by=inviter_user_id
+        )
+    except DuplicateKeyError as exc:
+        # Same check-then-act race as create_workspace's slug above - a concurrent
+        # invite for the same (workspace_id, user_id) can pass the find() check before
+        # either insert lands.
+        raise ConflictError("User is already a member of this workspace.") from exc
     await append_event(
         db,
         workspace_id=workspace_id,

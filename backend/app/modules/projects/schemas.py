@@ -4,6 +4,8 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.core.ssrf_guard import is_public_hostname_literal
+
 ProjectType = Literal["website", "image", "pdf"]
 Environment = Literal["live", "staging"]
 
@@ -20,6 +22,8 @@ def normalize_origin(value: str) -> str:
         or parsed.password
     ):
         raise ValueError("Use a valid HTTP or HTTPS review URL without credentials.")
+    if not is_public_hostname_literal(parsed.hostname):
+        raise ValueError("This URL points to a private or internal address, which isn't allowed.")
     return value.rstrip("/")
 
 

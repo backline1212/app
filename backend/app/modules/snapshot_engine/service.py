@@ -3,10 +3,11 @@ import json
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 from app.core.actor_access import resolve_actor_project_access
 from app.core.arq_pool import get_arq_pool
-from app.core.errors import NotFoundError
+from app.core.errors import ConflictError, NotFoundError
 from app.core.events import append_event
 from app.core.session import Actor, actor_identity
 from app.modules.pages.repository import PageRepository
@@ -97,9 +98,27 @@ async def submit_snapshot(
         # 10-Revision-Recovery.md §10.2: identical hash -> discarded, no new revision.
         return _revision_out(current, created_new=False)
 
-    new_revision = await revision_repo.create(
-        page_id=page_id, workspace_id=page["workspace_id"], full_page_hash=full_page_hash
-    )
+    # Mark the previous current revision not-current BEFORE inserting the new one, and
+    # retry on a DuplicateKeyError from revisions_page_current_unique (a partial unique
+    # index on {page_id, is_current: true}) - without this ordering + guard, two
+    # concurrent submissions for the same page could both read the same `current`, both
+    # insert a new is_current:true revision, and each mark a different old doc
+    # not-current, leaving two revisions "current" at once.
+    new_revision: dict[str, Any] | None = None
+    for _ in range(3):
+        if current is not None:
+            await revision_repo.mark_not_current(page["workspace_id"], str(current["_id"]))
+        try:
+            new_revision = await revision_repo.create(
+                page_id=page_id, workspace_id=page["workspace_id"], full_page_hash=full_page_hash
+            )
+            break
+        except DuplicateKeyError:
+            current = await revision_repo.find_current(page["workspace_id"], page_id)
+            if current is not None and current["full_page_hash"] == full_page_hash:
+                return _revision_out(current, created_new=False)
+    if new_revision is None:
+        raise ConflictError("Could not save this snapshot right now - try again.")
     revision_id = str(new_revision["_id"])
 
     snapshot_payload = {
@@ -114,9 +133,6 @@ async def submit_snapshot(
     snapshot_key = f"snapshots/{page['project_id']}/{revision_id}/snapshot.json.gz"
     await upload_bytes(snapshot_key, compressed, "application/gzip")
     await revision_repo.set_snapshot_key(page["workspace_id"], revision_id, snapshot_key)
-
-    if current is not None:
-        await revision_repo.mark_not_current(page["workspace_id"], str(current["_id"]))
 
     await page_repo.update_latest_revision(page["workspace_id"], page_id, revision_id)
 

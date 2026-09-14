@@ -114,7 +114,9 @@ export function ProjectSidePanel({
               />
             )}
             {activeTab === "mcp" && <McpTab />}
-            {activeTab === "integrations" && <IntegrationsTab />}
+            {activeTab === "integrations" && (
+              <IntegrationsTab workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
+            )}
             {activeTab === "ai" && <AiTab />}
           </div>
         </div>

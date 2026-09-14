@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import secrets
 import time
 
@@ -107,9 +108,20 @@ def generate_share_token() -> str:
 
 def hash_secret(value: str) -> str:
     """One-way hash for values we only ever need to compare, never recover
-    (refresh tokens, OTP codes) - 13-Authentication.md §13.1/§13.2, 11-Database.md §11.14/§11.15."""
+    (refresh tokens, OTP codes) - 13-Authentication.md §13.1/§13.2, 11-Database.md §11.14/§11.15.
+    Real HMAC (not a plain `sha256(key:value)` concatenation) so the digest doesn't
+    inherit sha256's length-extension weakness."""
     settings = get_settings()
-    return hashlib.sha256(f"{settings.jwt_signing_key}:{value}".encode()).hexdigest()
+    return hmac.new(
+        settings.jwt_signing_key.encode(), value.encode(), hashlib.sha256
+    ).hexdigest()
+
+
+def secrets_match(a: str, b: str) -> bool:
+    """Constant-time comparison for anything derived from hash_secret/a stored secret -
+    use this instead of `==`/`!=`, which short-circuits on the first differing byte and
+    leaks a timing signal proportional to how much of the guess was correct."""
+    return hmac.compare_digest(a, b)
 
 
 def generate_otp_code() -> str:
