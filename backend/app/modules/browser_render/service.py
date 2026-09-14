@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.arq_pool import get_arq_pool
 from app.core.errors import NotFoundError, ValidationError
+from app.core.ssrf_guard import assert_safe_to_fetch
 from app.modules.browser_render.repository import BrowserRenderRepository
 from app.modules.browser_render.schemas import (
     ENGINE_BY_BROWSER,
@@ -165,6 +166,16 @@ async def run_render(
     )
     if doc is None:
         return  # the queued record was superseded/removed; nothing left to report into
+
+    # SSRF guard: a page's URL isn't otherwise tied to its project's target_origin, and
+    # this worker navigates a real headless browser to it - reject anything resolving to
+    # a private/internal address before launching Playwright at all.
+    try:
+        assert_safe_to_fetch(url)
+    except ValueError as exc:
+        await repo.mark_failed(doc_id=doc["_id"], error=str(exc)[:500])
+        return
+
     await repo.mark_rendering(doc_id=doc["_id"])
 
     # Portrait keeps the viewport as selected; landscape swaps width/height - the same

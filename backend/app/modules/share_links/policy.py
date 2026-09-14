@@ -55,7 +55,14 @@ def check_domain_restriction(link: dict[str, Any], origin: str | None, referer: 
     hostname = hostname.lower()
 
     for allowed in restrictions:
-        allowed_host = allowed.strip().lower().lstrip("*.")
+        allowed_host = allowed.strip().lower()
+        # str.lstrip("*.") strips any leading run of '*'/'.' characters, not the
+        # literal prefix "*." - coincidentally correct for the common single-leading-
+        # wildcard case but silently over-strips an operator-entered value that starts
+        # with repeated '.'/'*' (e.g. "..foo.com"), weakening the allowlist beyond what
+        # was actually configured. A real prefix check instead.
+        if allowed_host.startswith("*."):
+            allowed_host = allowed_host[2:]
         if not allowed_host:
             continue
         if hostname == allowed_host or hostname.endswith("." + allowed_host):

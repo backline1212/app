@@ -7,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.errors import ValidationError
 from app.core.events import append_event
 from app.core.session import Session
+from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.service import _broadcast_comment_event, _comment_out
@@ -110,9 +111,21 @@ async def list_tickets(
     filters: TicketFilters,
 ) -> TicketListOut:
     result = await DashboardRepository(db).tickets(workspace_id, user_id, filters)
+
+    # Batch-resolve author names instead of one UserRepository lookup per ticket
+    # (_comment_out's default behavior) - a ticket page can be up to `filters.limit`
+    # rows, and this was previously a sequential DB round-trip per row.
+    member_ids = list(
+        {doc["author_member_id"] for doc in result["items"] if doc["author_type"] == "member"}
+    )
+    member_docs = await UserRepository(db).find_many_by_ids(member_ids)
+    member_name_cache = {
+        uid: (member_docs[uid]["name"] if uid in member_docs else "Unknown") for uid in member_ids
+    }
+
     items = []
     for doc in result["items"]:
-        comment = await _comment_out(db, doc)
+        comment = await _comment_out(db, doc, member_name_cache=member_name_cache)
         items.append(
             TicketOut(
                 **comment.model_dump(),

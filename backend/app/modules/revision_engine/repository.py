@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 from app.modules.revision_engine.diff import DiffResult
 
@@ -32,9 +33,27 @@ class RevisionDiffRepository:
             "added_node_ids": diff.added,
             "created_at": datetime.now(UTC),
         }
-        result = await self.db.revision_diffs.insert_one(doc)
+        try:
+            result = await self.db.revision_diffs.insert_one(doc)
+        except DuplicateKeyError:
+            # revision_diffs_page_to_revision_unique caught a race that slipped past the
+            # find_by_to_revision check in recovery_engine/service.py - fall back to
+            # whatever the other writer just inserted rather than erroring.
+            existing = await self.find_by_to_revision(workspace_id, page_id, to_revision_id)
+            assert existing is not None
+            return existing
         doc["_id"] = result.inserted_id
         return doc
+
+    async def find_by_to_revision(
+        self, workspace_id: str, page_id: str, to_revision_id: str
+    ) -> dict[str, Any] | None:
+        """Idempotency guard for run_recovery_pipeline: an Arq job retry/redelivery for
+        the same (page_id, revision_id) must not recompute the diff or re-run comment
+        recovery a second time - see the check in recovery_engine/service.py."""
+        return await self.db.revision_diffs.find_one(
+            {"workspace_id": workspace_id, "page_id": page_id, "to_revision_id": to_revision_id}
+        )
 
     async def summaries_for_revisions(
         self, workspace_id: str, revision_ids: list[str]

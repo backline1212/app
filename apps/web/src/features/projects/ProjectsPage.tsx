@@ -17,6 +17,7 @@ import * as api from "./api";
 import { ProjectForm } from "./ProjectForm";
 import { ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
+import { ComingSoonModal } from "../workspaces/ComingSoonModal";
 import { PlusIcon, SearchIcon } from "../../components/icons";
 
 const TYPE_LABELS: Record<string, string> = { website: "Website", image: "Images", pdf: "PDF" };
@@ -153,6 +154,7 @@ export function ProjectsPage() {
   const [edit, setEdit] = useState<api.ProjectOut | null>(null);
   const [managePages, setManagePages] = useState<api.ProjectOut | null>(null);
   const [showNewTicket, setShowNewTicket] = useState(false);
+  const [comingSoonFeature, setComingSoonFeature] = useState<string | null>(null);
   const archived = params.get("archived") === "true", search = params.get("search") ?? "", type = params.get("type") ?? "all", view = params.get("display") ?? "cards", sort = params.get("sort") ?? "activity";
   // Live clock (ticks every minute) so the greeting's time-of-day and the head's
   // date/time readout are never more than a minute stale - always the viewer's own
@@ -252,7 +254,7 @@ export function ProjectsPage() {
         </section>
       )}
 
-      <div className="bl-tabs" aria-label="Project types">{[['all', 'All projects'], ['website', 'Website'], ['image', 'Images'], ['pdf', 'PDF']].map(([key, label]) => <button key={key} aria-pressed={type === key} onClick={() => filter("type", key)}>{label}<span className="bl-count">{(projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (key === "all" || (p.project_type ?? "website") === key)).length}</span></button>)}<Link to={`/w/${workspace.slug}/apps`}>Web App <small>Soon</small></Link><Link to={`/w/${workspace.slug}/mobile`}>Mobile <small>Soon</small></Link></div>
+      <div className="bl-tabs" aria-label="Project types">{[['all', 'All projects'], ['website', 'Website'], ['image', 'Images'], ['pdf', 'PDF']].map(([key, label]) => <button key={key} aria-pressed={type === key} onClick={() => filter("type", key)}>{label}<span className="bl-count">{(projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (key === "all" || (p.project_type ?? "website") === key)).length}</span></button>)}<button type="button" onClick={() => setComingSoonFeature("Web App projects")}>Web App <small>Soon</small></button><button type="button" onClick={() => setComingSoonFeature("Mobile projects")}>Mobile <small>Soon</small></button></div>
 
       {/* One search-styled control on this screen, not two: this is the "filter the
           visible grid" input; the omnisearch in the persistent topbar (⌘K) is the
@@ -302,6 +304,7 @@ export function ProjectsPage() {
     {createType && <ProjectForm workspace={workspace} initialType={createType} onClose={() => setCreateType(null)} />}{edit && <ProjectForm workspace={workspace} project={edit} onClose={() => setEdit(null)} />}
     {share && <ShareProjectModal project={share} workspaceId={workspace.id} workspaceSlug={workspace.slug} workspaceName={workspace.name} onClose={() => setShare(null)} />}
     {managePages && <ProjectPagesModal project={managePages} activePageId={null} onOpenPage={(pageId) => navigate(`/w/${workspace.slug}/p/${managePages.id}${pageId ? `?page=${encodeURIComponent(pageId)}` : ""}`)} onClose={() => setManagePages(null)} />}
+    {comingSoonFeature && <ComingSoonModal feature={comingSoonFeature} onClose={() => setComingSoonFeature(null)} />}
     {showNewTicket && <NewTicket workspace={workspace} members={members.data ?? []} onClose={() => setShowNewTicket(false)} />}
   </>;
 }

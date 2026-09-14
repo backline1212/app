@@ -61,7 +61,11 @@ async def create_integration(
             "notify_team_layer": body.notify_team_layer,
         }
     elif isinstance(body, TrelloIntegrationCreate):
-        config_json = {"api_key": body.api_key, "token": body.token, "list_id": body.list_id}
+        config_json = {
+            "api_key_encrypted": encrypt_secret(body.api_key),
+            "token_encrypted": encrypt_secret(body.token),
+            "list_id": body.list_id,
+        }
     elif isinstance(body, ClickUpIntegrationCreate):
         token = await clickup_module.exchange_code_for_token(body.oauth_code)
         config_json = {

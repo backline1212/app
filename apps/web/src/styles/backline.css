@@ -554,13 +554,8 @@ body.lg-on .app,body.lg-on .toast{visibility:hidden}
 .bl-live-dot{width:5px;height:5px;border-radius:50%;background:var(--mint-deep);display:inline-block;animation:bl-live-pulse 1.8s ease-in-out infinite}
 @keyframes bl-live-pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* Per-project health bar. The "resolved" segment is real (ProjectStatsOut.resolved
-   of .total); the open count is split across todo/in-progress/in-review/blocked
-   segments using a fixed placeholder ratio (see PLACEHOLDER_OPEN_SPLIT in
-   ProjectsPage) until the dashboard endpoint returns a real per-project status
-   breakdown - today it only aggregates that by status workspace-wide. Swapping in
-   real numbers later is a one-line change to how the segments are computed, not
-   to this markup/CSS. */
+/* Per-project health bar - every segment (resolved, todo, in-progress, in-review,
+   blocked) is real, from ProjectStatsOut.status_counts. */
 .bl-project-bar{display:flex;height:4px;border-radius:3px;overflow:hidden;gap:1.5px;margin-top:12px}
 .bl-project-bar i{display:block;height:100%}
 .bl-legend{display:flex;flex-wrap:wrap;gap:13px;margin:2px 0 16px;font:10px var(--bl-mono);color:var(--bl-muted)}

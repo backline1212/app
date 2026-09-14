@@ -10,6 +10,7 @@ from app.modules.comments.repository import CommentRepository
 from app.modules.pages.repository import PageRepository
 from app.modules.realtime.pubsub import publish as publish_realtime_event
 from app.modules.recovery_engine.repository import RecoveryLogRepository
+from app.modules.revision_engine.repository import RevisionDiffRepository
 from app.modules.revision_engine.service import compute_and_store_diff, load_snapshot_payload
 from app.modules.snapshot_engine.repository import RevisionRepository
 
@@ -114,6 +115,15 @@ async def run_recovery_pipeline(
     if previous_revision is None or previous_revision.get("snapshot_key") is None:
         # This new revision is the page's first ever - nothing existed before it for
         # any comment to have been anchored against.
+        return {"skipped": 1}
+
+    diff_repo = RevisionDiffRepository(db)
+    if await diff_repo.find_by_to_revision(page["workspace_id"], page_id, revision_id) is not None:
+        # Idempotency guard: an Arq job retry/redelivery for this same (page_id,
+        # revision_id) must not run twice - without this, a retry both duplicates the
+        # revision_diffs row (doubling the change count in list_project_revisions) and
+        # re-increments consecutive_orphaned_revisions for every still-orphaned comment,
+        # causing premature permanently_orphaned status.
         return {"skipped": 1}
 
     old_payload = await load_snapshot_payload(previous_revision["snapshot_key"])

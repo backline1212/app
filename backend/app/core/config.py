@@ -1,6 +1,12 @@
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Dev-only default secrets. Must never be reachable outside `environment == "local"` -
+# see Settings.check_production_secrets below.
+_DEV_JWT_SIGNING_KEY = "dev-only-change-me"
+_DEV_INTEGRATIONS_ENCRYPTION_KEY = "3BlglP1BAPCTRMmqdD-QptnHVoxDjZpU0p6dhbXEVmg="
 
 
 class Settings(BaseSettings):
@@ -19,7 +25,7 @@ class Settings(BaseSettings):
     r2_endpoint_url: str = "http://localhost:9000"
     r2_region: str = "auto"
 
-    jwt_signing_key: str = "dev-only-change-me"
+    jwt_signing_key: str = _DEV_JWT_SIGNING_KEY
     jwt_access_ttl_minutes: int = 15
     jwt_refresh_ttl_days: int = 30
 
@@ -43,7 +49,7 @@ class Settings(BaseSettings):
     # Fernet key (32 url-safe base64-encoded bytes) for encrypting OAuth tokens at the
     # application layer before they reach Mongo (Rule 6, §17.3's "encrypted at the
     # application layer" requirement) - `Fernet.generate_key()` for a real one.
-    integrations_encryption_key: str = "3BlglP1BAPCTRMmqdD-QptnHVoxDjZpU0p6dhbXEVmg="
+    integrations_encryption_key: str = _DEV_INTEGRATIONS_ENCRYPTION_KEY
 
     cors_allow_origins: list[str] = ["http://localhost:5173"]
 
@@ -81,6 +87,22 @@ class Settings(BaseSettings):
     # (RESEND_API_KEY, GOOGLE_OAUTH_CLIENT_ID, ...), since no real Sentry project exists
     # for this build.
     sentry_dsn: str = ""
+
+    @model_validator(mode="after")
+    def check_production_secrets(self) -> "Settings":
+        if self.environment != "local":
+            if self.jwt_signing_key == _DEV_JWT_SIGNING_KEY:
+                raise ValueError(
+                    "JWT_SIGNING_KEY is unset (using the dev-only default) outside a "
+                    "local environment. Set a real, secret value before starting the app."
+                )
+            if self.integrations_encryption_key == _DEV_INTEGRATIONS_ENCRYPTION_KEY:
+                raise ValueError(
+                    "INTEGRATIONS_ENCRYPTION_KEY is unset (using the committed dev-only "
+                    "default) outside a local environment. Set a real, secret Fernet key "
+                    "before starting the app - `Fernet.generate_key()` to generate one."
+                )
+        return self
 
 
 @lru_cache

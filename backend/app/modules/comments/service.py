@@ -105,16 +105,26 @@ async def _dispatch_integration_event(
 
 
 async def _resolve_author_name(
-    db: AsyncIOMotorDatabase[dict[str, Any]], doc: dict[str, Any]
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    doc: dict[str, Any],
+    *,
+    member_name_cache: dict[str, str] | None = None,
 ) -> str:
     """CommentOut's author_name - resolved live from the users/guest_sessions
     collections rather than persisted on the comment doc at creation time, so a later
     profile name change is reflected retroactively (16-Dashboard.md's Comments panel
     needs a real display name, not just author_type/author_id - a guest reviewer's
     name was previously only visible on their own guest_session doc, never surfaced
-    through CommentOut at all)."""
+    through CommentOut at all).
+
+    `member_name_cache` is an opt-in batching hook for callers rendering many comments
+    at once (dashboard/service.py's list_tickets) - when supplied and pre-populated, this
+    skips the per-comment user lookup entirely instead of doing one query per row."""
     if doc["author_type"] == "member":
-        user = await UserRepository(db).find_by_id(doc["author_member_id"])
+        member_id = doc["author_member_id"]
+        if member_name_cache is not None and member_id in member_name_cache:
+            return member_name_cache[member_id]
+        user = await UserRepository(db).find_by_id(member_id)
         return user["name"] if user else "Unknown"
 
     # Deferred import: share_links.service already imports from comments in some
@@ -140,12 +150,17 @@ async def _resolve_attachments(doc: dict[str, Any]) -> list[AttachmentOut]:
     ]
 
 
-async def _comment_out(db: AsyncIOMotorDatabase[dict[str, Any]], doc: dict[str, Any]) -> CommentOut:
+async def _comment_out(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    doc: dict[str, Any],
+    *,
+    member_name_cache: dict[str, str] | None = None,
+) -> CommentOut:
     screenshot_url = None
     if doc.get("screenshot_key"):
         screenshot_url = await generate_presigned_get(doc["screenshot_key"])
     attachments = await _resolve_attachments(doc)
-    author_name = await _resolve_author_name(db, doc)
+    author_name = await _resolve_author_name(db, doc, member_name_cache=member_name_cache)
 
     # DB-02: a reply created after the anchor/context_json de-duplication (see
     # create_reply) has none of its own - it's the same visual pin as its parent, so
@@ -773,12 +788,17 @@ async def update_comment(
         patch["waiting_on_ids"] = list(dict.fromkeys(patch["waiting_on_ids"]))
     from app.modules.workspaces.repository import MembershipRepository
 
-    # Keep the legacy singular assignee_id contract backward-compatible. The new
-    # multi-user fields are workspace-scoped and must reference actual members.
-    member_list_fields = {"assignee_ids", "waiting_on_ids"}
-    if changes is not None:
-        member_list_fields &= set(changes.model_dump(exclude_unset=True))
-    recipients = set(value for field in member_list_fields for value in patch.get(field, []))
+    # Validate every member reference that ended up in `patch`, regardless of whether
+    # it arrived via the new `assignee_ids`/`waiting_on_ids` fields or was derived from
+    # the legacy singular `assignee_id` above (line ~768) - deriving membership scope
+    # from only the fields `changes` explicitly supplied let a caller who sends just
+    # `assignee_id` skip validation entirely, since the derived `assignee_ids` was
+    # never itself in that supplied-keys set.
+    recipients: set[str] = set()
+    if "assignee_ids" in patch:
+        recipients.update(patch["assignee_ids"])
+    if "waiting_on_ids" in patch:
+        recipients.update(patch["waiting_on_ids"])
     for user_id in recipients:
         if not await MembershipRepository(db).find(workspace_id=workspace_id, user_id=user_id):
             raise ValidationError("Assignees and waiting-on people must belong to this workspace.")

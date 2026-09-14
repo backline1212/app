@@ -100,6 +100,22 @@ export function WorkspaceLayout() {
   useWSEvent("comment.deleted", refreshTicketSurfaces);
 
   const connStatus = useConnectionStore((s) => s.status);
+  const [showConnBanner, setShowConnBanner] = useState(false);
+
+  useEffect(() => {
+    if (connStatus === "connected") {
+      setShowConnBanner(false);
+      return;
+    }
+    // Debounced on purpose: on every login, page refresh, and workspace switch,
+    // connStatus starts at "disconnected" and briefly passes through "connecting"
+    // before the socket actually opens (usually well under a second). Without this
+    // delay the red banner below flashed on screen for that one frame every single
+    // time, even on a normal, fast connection - it should only appear once a
+    // connection attempt has genuinely been stuck for a moment.
+    const timer = setTimeout(() => setShowConnBanner(true), 500);
+    return () => clearTimeout(timer);
+  }, [connStatus]);
 
   useEffect(() => {
     setMobileNavigationOpen(false);
@@ -174,7 +190,7 @@ export function WorkspaceLayout() {
             <AccountButton />
           </div>
         </header>
-        {connStatus !== "connected" && (
+        {showConnBanner && connStatus !== "connected" && (
           <div
             className={`bl-conn-banner ${connStatus === "reconnecting" ? "reconnecting" : "offline"}`}
             aria-live="polite"

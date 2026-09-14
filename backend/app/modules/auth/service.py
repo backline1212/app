@@ -17,6 +17,7 @@ from app.core.security import (
     generate_opaque_token,
     generate_otp_code,
     hash_secret,
+    secrets_match,
 )
 from app.modules.auth.google_oauth import exchange_code_for_user_info
 from app.modules.auth.repository import OtpRepository, RefreshTokenRepository, UserRepository
@@ -162,7 +163,7 @@ async def verify_otp(
     if otp_doc["attempts"] >= settings.otp_max_attempts:
         raise ValidationError("Too many attempts. Request a new code.")
 
-    if otp_doc["code_hash"] != hash_secret(code):
+    if not secrets_match(otp_doc["code_hash"], hash_secret(code)):
         await otp_repo.increment_attempts(otp_doc["_id"])
         raise ValidationError("Incorrect code.")
 
