@@ -111,6 +111,8 @@ export function BoardPage() {
   });
   const clickupIntegration = (integrations ?? []).find((i) => i.type === "clickup");
   const trelloIntegration = (integrations ?? []).find((i) => i.type === "trello");
+  const jiraIntegration = (integrations ?? []).find((i) => i.type === "jira");
+  const asanaIntegration = (integrations ?? []).find((i) => i.type === "asana");
   const [taskLinks, setTaskLinks] = useState<Record<string, string>>({});
 
   const createClickUpTaskMutation = useMutation({
@@ -124,6 +126,18 @@ export function BoardPage() {
       integrationsApi.createTrelloCard(commentId, trelloIntegration!.id),
     onSuccess: (result, commentId) =>
       setTaskLinks((prev) => ({ ...prev, [commentId]: result.card_url })),
+  });
+  const createJiraIssueMutation = useMutation({
+    mutationFn: (commentId: string) =>
+      integrationsApi.createJiraIssue(commentId, jiraIntegration!.id),
+    onSuccess: (result, commentId) =>
+      setTaskLinks((prev) => ({ ...prev, [commentId]: result.issue_url })),
+  });
+  const createAsanaTaskMutation = useMutation({
+    mutationFn: (commentId: string) =>
+      integrationsApi.createAsanaTask(commentId, asanaIntegration!.id),
+    onSuccess: (result, commentId) =>
+      setTaskLinks((prev) => ({ ...prev, [commentId]: result.task_url })),
   });
 
   const memberName = useMemo(() => {
@@ -307,8 +321,12 @@ export function BoardPage() {
           taskLinks={taskLinks}
           clickupIntegration={clickupIntegration}
           trelloIntegration={trelloIntegration}
+          jiraIntegration={jiraIntegration}
+          asanaIntegration={asanaIntegration}
           createClickUpTaskMutation={createClickUpTaskMutation}
           createTrelloCardMutation={createTrelloCardMutation}
+          createJiraIssueMutation={createJiraIssueMutation}
+          createAsanaTaskMutation={createAsanaTaskMutation}
         />
       ) : (
         <ListTable

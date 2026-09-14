@@ -3,7 +3,9 @@ import type { UseMutationResult } from "@tanstack/react-query";
 
 import { WORKFLOW_STATUSES as STATUSES, STATUS_COLORS, STATUS_LABELS } from "../../../lib/workflow";
 import type {
+  CreateAsanaTaskResult,
   CreateClickUpTaskResult,
+  CreateJiraIssueResult,
   CreateTrelloCardResult,
   IntegrationOut,
 } from "../../integrations/api";
@@ -23,8 +25,12 @@ interface KanbanBoardProps {
   taskLinks: Record<string, string>;
   clickupIntegration: IntegrationOut | undefined;
   trelloIntegration: IntegrationOut | undefined;
+  jiraIntegration: IntegrationOut | undefined;
+  asanaIntegration: IntegrationOut | undefined;
   createClickUpTaskMutation: UseMutationResult<CreateClickUpTaskResult, Error, string>;
   createTrelloCardMutation: UseMutationResult<CreateTrelloCardResult, Error, string>;
+  createJiraIssueMutation: UseMutationResult<CreateJiraIssueResult, Error, string>;
+  createAsanaTaskMutation: UseMutationResult<CreateAsanaTaskResult, Error, string>;
 }
 
 export function KanbanBoard({
@@ -36,8 +42,12 @@ export function KanbanBoard({
   taskLinks,
   clickupIntegration,
   trelloIntegration,
+  jiraIntegration,
+  asanaIntegration,
   createClickUpTaskMutation,
   createTrelloCardMutation,
+  createJiraIssueMutation,
+  createAsanaTaskMutation,
 }: KanbanBoardProps) {
   return (
     <div className="bl-kanban-grid">
@@ -125,6 +135,24 @@ export function KanbanBoard({
                           className="bl-text-link muted"
                         >
                           Send to Trello
+                        </button>
+                      )}
+                      {jiraIntegration && (
+                        <button
+                          onClick={() => createJiraIssueMutation.mutate(comment.id)}
+                          disabled={createJiraIssueMutation.isPending}
+                          className="bl-text-link muted"
+                        >
+                          Send to Jira
+                        </button>
+                      )}
+                      {asanaIntegration && (
+                        <button
+                          onClick={() => createAsanaTaskMutation.mutate(comment.id)}
+                          disabled={createAsanaTaskMutation.isPending}
+                          className="bl-text-link muted"
+                        >
+                          Send to Asana
                         </button>
                       )}
                     </div>

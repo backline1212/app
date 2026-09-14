@@ -4390,22 +4390,6 @@
               "type": "string",
               "title": "Comment Id"
             }
-          },
-          {
-            "name": "x-guest-session",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Guest-Session"
-            }
           }
         ],
         "responses": {
@@ -4470,22 +4454,6 @@
             "schema": {
               "type": "string",
               "title": "Comment Id"
-            }
-          },
-          {
-            "name": "x-guest-session",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Guest-Session"
             }
           }
         ],
@@ -4599,6 +4567,12 @@
                   },
                   {
                     "$ref": "#/components/schemas/ClickUpIntegrationCreate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/JiraIntegrationCreate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AsanaIntegrationCreate"
                   }
                 ],
                 "discriminator": {
@@ -4606,7 +4580,9 @@
                   "mapping": {
                     "slack": "#/components/schemas/SlackIntegrationCreate",
                     "trello": "#/components/schemas/TrelloIntegrationCreate",
-                    "clickup": "#/components/schemas/ClickUpIntegrationCreate"
+                    "clickup": "#/components/schemas/ClickUpIntegrationCreate",
+                    "jira": "#/components/schemas/JiraIntegrationCreate",
+                    "asana": "#/components/schemas/AsanaIntegrationCreate"
                   }
                 },
                 "title": "Body"
@@ -4773,6 +4749,322 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateTrelloCardResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comments/{comment_id}/integrations/jira/create-issue": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Create Jira Issue",
+        "operationId": "create_jira_issue_api_v1_comments__comment_id__integrations_jira_create_issue_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Comment Id"
+            }
+          },
+          {
+            "name": "integration_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Integration Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateJiraIssueResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comments/{comment_id}/integrations/asana/create-task": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Create Asana Task",
+        "operationId": "create_asana_task_api_v1_comments__comment_id__integrations_asana_create_task_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Comment Id"
+            }
+          },
+          {
+            "name": "integration_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Integration Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAsanaTaskResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/mcp/tokens": {
+      "get": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "List Mcp Tokens",
+        "operationId": "list_mcp_tokens_api_v1_workspaces__workspace_id__mcp_tokens_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/McpTokenOut"
+                  },
+                  "title": "Response List Mcp Tokens Api V1 Workspaces  Workspace Id  Mcp Tokens Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Create Mcp Token",
+        "operationId": "create_mcp_token_api_v1_workspaces__workspace_id__mcp_tokens_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpTokenCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpTokenIssued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/tokens/{token_id}": {
+      "delete": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Revoke Mcp Token",
+        "operationId": "revoke_mcp_token_api_v1_mcp_tokens__token_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comments/{comment_id}/mcp/generate-prompt": {
+      "post": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Generate Prompt",
+        "description": "The dashboard's own \"Generate implementation prompt\" action (copy-paste flow) -\nsession-authenticated, distinct from the PAT-authenticated MCP tool in\nmodules/mcp/server.py that an already-connected agent calls directly.",
+        "operationId": "generate_prompt_api_v1_comments__comment_id__mcp_generate_prompt_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Comment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneratePromptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneratePromptResult"
                 }
               }
             }
@@ -5461,6 +5753,35 @@
         ],
         "title": "AnchorIn",
         "description": "Tier 1 only in Milestone 4/5 (08-Anchor-Engine.md \u00a78.1/\u00a78.2)."
+      },
+      "AsanaIntegrationCreate": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "asana"
+            ],
+            "const": "asana",
+            "title": "Type",
+            "default": "asana"
+          },
+          "oauth_code": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Oauth Code"
+          },
+          "project_gid": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Project Gid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "oauth_code",
+          "project_gid"
+        ],
+        "title": "AsanaIntegrationCreate"
       },
       "AssetCommentCreate": {
         "properties": {
@@ -6378,6 +6699,24 @@
         ],
         "title": "ContextIn"
       },
+      "CreateAsanaTaskResult": {
+        "properties": {
+          "task_url": {
+            "type": "string",
+            "title": "Task Url"
+          },
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_url",
+          "task_id"
+        ],
+        "title": "CreateAsanaTaskResult"
+      },
       "CreateClickUpTaskResult": {
         "properties": {
           "task_url": {
@@ -6395,6 +6734,24 @@
           "task_id"
         ],
         "title": "CreateClickUpTaskResult"
+      },
+      "CreateJiraIssueResult": {
+        "properties": {
+          "issue_url": {
+            "type": "string",
+            "title": "Issue Url"
+          },
+          "issue_key": {
+            "type": "string",
+            "title": "Issue Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "issue_url",
+          "issue_key"
+        ],
+        "title": "CreateJiraIssueResult"
       },
       "CreateTrelloCardResult": {
         "properties": {
@@ -6653,6 +7010,74 @@
         "title": "ExtensionWhoAmIOut",
         "description": "Lets the extension's popup learn which workspace a pasted token belongs to.\n\nDeliberately not under /auth (unlike PATCH /auth/me) - AuthOriginMiddleware only\nallows the dashboard's own origin there, which a chrome-extension:// origin isn't\non that allowlist for. Works for either an extension token or an ordinary member\nJWT, since both resolve to the same Session shape via get_current_session."
       },
+      "GeneratePromptRequest": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "cursor",
+              "codex",
+              "antigravity",
+              "other"
+            ],
+            "title": "Agent",
+            "default": "other"
+          }
+        },
+        "type": "object",
+        "title": "GeneratePromptRequest",
+        "description": "`agent` is which tool the prompt is headed for - accepted for parity with the\narchitecture doc's response shape and so the UI can label the copy target, but MVP\ndoesn't vary prompt phrasing per agent (all four consume the same plain-text\nimplementation prompt)."
+      },
+      "GeneratePromptResult": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "cursor",
+              "codex",
+              "antigravity",
+              "other"
+            ],
+            "title": "Agent"
+          },
+          "implementation_prompt": {
+            "type": "string",
+            "title": "Implementation Prompt"
+          },
+          "suggested_files": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Files"
+          },
+          "structured_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StructuredPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "implementation_prompt"
+        ],
+        "title": "GeneratePromptResult"
+      },
       "GoogleCallbackRequest": {
         "properties": {
           "code": {
@@ -6841,7 +7266,9 @@
             "enum": [
               "slack",
               "clickup",
-              "trello"
+              "trello",
+              "jira",
+              "asana"
             ],
             "title": "Type"
           },
@@ -6893,6 +7320,35 @@
         ],
         "title": "InviteMemberRequest"
       },
+      "JiraIntegrationCreate": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "jira"
+            ],
+            "const": "jira",
+            "title": "Type",
+            "default": "jira"
+          },
+          "oauth_code": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Oauth Code"
+          },
+          "project_key": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Project Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "oauth_code",
+          "project_key"
+        ],
+        "title": "JiraIntegrationCreate"
+      },
       "LayerToggleRequest": {
         "properties": {
           "layer": {
@@ -6914,6 +7370,162 @@
           "confirm"
         ],
         "title": "LayerToggleRequest"
+      },
+      "McpTokenCreate": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "agent_hint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "cursor",
+                  "codex",
+                  "antigravity",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "McpTokenCreate"
+      },
+      "McpTokenIssued": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "agent_hint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "cursor",
+                  "codex",
+                  "antigravity",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Hint"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "token",
+          "label",
+          "agent_hint",
+          "created_at"
+        ],
+        "title": "McpTokenIssued",
+        "description": "Returned exactly once, at creation time - mirrors ExtensionTokenIssued\n(modules/extension_tokens/schemas.py): the raw token is never retrievable again,\nMcpTokenOut never includes it."
+      },
+      "McpTokenOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "agent_hint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "cursor",
+                  "codex",
+                  "antigravity",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Hint"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "agent_hint",
+          "workspace_id",
+          "created_at",
+          "last_used_at",
+          "revoked_at"
+        ],
+        "title": "McpTokenOut"
       },
       "MemberOut": {
         "properties": {
@@ -7778,6 +8390,11 @@
             "type": "boolean",
             "title": "Enable Cross Browser Render",
             "default": false
+          },
+          "slack_notifications_enabled": {
+            "type": "boolean",
+            "title": "Slack Notifications Enabled",
+            "default": true
           }
         },
         "type": "object",
@@ -7854,6 +8471,17 @@
               }
             ],
             "title": "Enable Cross Browser Render"
+          },
+          "slack_notifications_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slack Notifications Enabled"
           }
         },
         "type": "object",
@@ -8716,6 +9344,22 @@
           "full_page_hash"
         ],
         "title": "SnapshotSubmit"
+      },
+      "StructuredPlan": {
+        "properties": {
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steps"
+        ],
+        "title": "StructuredPlan"
       },
       "SuggestReplyResult": {
         "properties": {

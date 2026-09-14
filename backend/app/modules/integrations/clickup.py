@@ -55,8 +55,8 @@ class ClickUpIntegration:
         interface only covers automatic on_comment_created/on_status_changed/
         test_connection) - this is the manual, member-triggered action
         (`POST /comments/{id}/integrations/clickup/create-task`)."""
-        token = decrypt_secret(config["oauth_token_encrypted"])
         try:
+            token = decrypt_secret(config["oauth_token_encrypted"])
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
                     f"{CLICKUP_API_BASE}/list/{config['list_id']}/task",

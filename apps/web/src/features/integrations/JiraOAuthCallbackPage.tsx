@@ -3,14 +3,12 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
 import * as integrationsApi from "./api";
-import { CLICKUP_PENDING_KEY } from "./IntegrationsPage";
+import { JIRA_PENDING_KEY } from "./IntegrationsPage";
 
-// Outside the dashboard shell entirely (same shape as features/auth/AuthCallbackPage) -
-// ClickUp's OAuth redirect lands here with just a `code`, so the workspace + list id
-// chosen before the redirect (IntegrationsPage) has to survive out-of-band, in
-// sessionStorage, the same way there's no other way to carry application state through
-// a third party's OAuth round trip.
-export function ClickUpOAuthCallbackPage() {
+// Mirrors ClickUpOAuthCallbackPage.tsx exactly - Jira's 3LO redirect lands here with
+// just a `code`, so the workspace + project key chosen before the redirect
+// (IntegrationsPage) has to survive out-of-band, in sessionStorage.
+export function JiraOAuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
@@ -21,31 +19,29 @@ export function ClickUpOAuthCallbackPage() {
     attempted.current = true;
 
     const code = searchParams.get("code");
-    const pendingRaw = sessionStorage.getItem(CLICKUP_PENDING_KEY);
+    const pendingRaw = sessionStorage.getItem(JIRA_PENDING_KEY);
     if (!code || !pendingRaw) {
       setError("Missing authorization code or pending connection details.");
       return;
     }
-    sessionStorage.removeItem(CLICKUP_PENDING_KEY);
+    sessionStorage.removeItem(JIRA_PENDING_KEY);
     const pending = JSON.parse(pendingRaw) as {
       workspaceId: string;
       workspaceSlug: string;
-      listId: string;
+      projectKey: string;
       state: string;
     };
-    // CSRF guard: the state this browser generated before redirecting must match what
-    // ClickUp echoes back - otherwise this could be a code an attacker obtained for
-    // their own account, not the one this session actually started the flow for.
+    // CSRF guard: see ClickUpOAuthCallbackPage.tsx's identical check.
     if (searchParams.get("state") !== pending.state) {
       setError("This connection request could not be verified. Please try connecting again.");
       return;
     }
 
     integrationsApi
-      .connectClickUp(pending.workspaceId, { oauthCode: code, listId: pending.listId })
+      .connectJira(pending.workspaceId, { oauthCode: code, projectKey: pending.projectKey })
       .then(() => navigate(`/w/${pending.workspaceSlug}/integrations`, { replace: true }))
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "ClickUp connection failed.");
+        setError(err instanceof Error ? err.message : "Jira connection failed.");
       });
   }, [searchParams, navigate]);
 
@@ -55,7 +51,7 @@ export function ClickUpOAuthCallbackPage() {
         <span className="bl-loading-mark" aria-hidden="true">B</span>
         <div className="bl-review-gate-copy">
           <span className="bl-review-eyebrow">Integrations</span>
-          <h1>Couldn't connect ClickUp</h1>
+          <h1>Couldn't connect Jira</h1>
           <p>{error}</p>
           <div className="bl-review-gate-actions">
             <Link className="bl-quiet" to="/">Back to dashboard</Link>
@@ -64,5 +60,5 @@ export function ClickUpOAuthCallbackPage() {
       </main>
     );
   }
-  return <LoadingScreen label="Connecting ClickUp" />;
+  return <LoadingScreen label="Connecting Jira" />;
 }

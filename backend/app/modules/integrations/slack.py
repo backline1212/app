@@ -33,6 +33,15 @@ class SlackIntegration:
         heading = f"Status changed to {comment.status.replace('_', ' ')}"
         await self._post(config["webhook_url"], _format_message(comment, heading))
 
+    async def on_project_updated(self, project: dict[str, Any], config: dict[str, Any]) -> None:
+        """Not part of the automatic Integration Protocol (base.py) - dispatched
+        directly from integrations/service.py's dispatch_project_updated_event, called
+        from projects/service.py's update_project. `project` is the raw project doc
+        (not a full ProjectOut - this only ever needs the name)."""
+        await self._post(
+            config["webhook_url"], f"*Project updated*\n{project.get('name', 'Untitled project')}"
+        )
+
     async def test_connection(self, config: dict[str, Any]) -> bool:
         try:
             await self._post(

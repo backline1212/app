@@ -1,6 +1,21 @@
 from typing import Any, Protocol
 
+import httpx
+
 from app.modules.comments.schemas import CommentOut
+
+
+def http_error_detail(exc: httpx.HTTPError) -> str:
+    """`str(exc)` on an `httpx.HTTPStatusError` is just the status line - the
+    provider's actual error reason (Atlassian's `invalid_grant`, Asana's validation
+    message, ...) lives in the response body, and without this an admin staring at
+    "Could not verify this connection" has no way to tell why a real, correctly-typed
+    credential is failing."""
+    response = getattr(exc, "response", None)
+    if response is None:
+        return str(exc)
+    body = response.text.strip()
+    return f"{exc} - {body[:300]}" if body else str(exc)
 
 
 class IntegrationDeliveryError(Exception):

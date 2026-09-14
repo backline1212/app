@@ -6,8 +6,10 @@ import { useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
 import { BoardPage } from "../features/board/BoardPage";
 import { ExtensionSettingsPage } from "../features/extension-tokens/ExtensionSettingsPage";
+import { AsanaOAuthCallbackPage } from "../features/integrations/AsanaOAuthCallbackPage";
 import { ClickUpOAuthCallbackPage } from "../features/integrations/ClickUpOAuthCallbackPage";
 import { IntegrationsPage } from "../features/integrations/IntegrationsPage";
+import { JiraOAuthCallbackPage } from "../features/integrations/JiraOAuthCallbackPage";
 import { ProjectOverviewPage } from "../features/projects/ProjectOverviewPage";
 import { ReviewEntryPage } from "../features/review/ReviewEntryPage";
 import { ShareLinksPage } from "../features/share-links/ShareLinksPage";
@@ -58,6 +60,8 @@ const router = createBrowserRouter([
       { path: "/login", element: <LoginPage /> },
       { path: "/auth/callback", element: <AuthCallbackPage /> },
       { path: "/integrations/clickup/callback", element: <ClickUpOAuthCallbackPage /> },
+      { path: "/integrations/jira/callback", element: <JiraOAuthCallbackPage /> },
+      { path: "/integrations/asana/callback", element: <AsanaOAuthCallbackPage /> },
       // Guest reviewer entry - no dashboard chrome, no member auth (05-Frontend-Architecture.md §5.2).
       { path: "/review/:shareToken", element: <ReviewEntryPage /> },
       {

@@ -55,3 +55,14 @@ class IntegrationRepository:
         # workspace-scope-exempt: disconnect_integration already verified
         # doc["workspace_id"] == workspace_id via find_by_id before calling this.
         await self.db.integrations.delete_one({"_id": to_object_id(integration_id)})
+
+    async def update_config(self, integration_id: str, config_json: dict[str, Any]) -> None:
+        """Jira rotates its OAuth refresh_token on every use (unlike Asana/ClickUp,
+        whose refresh/access tokens are stable) - without persisting the new one here,
+        the second create-issue call after a connect would fail with an invalidated
+        refresh_token."""
+        # workspace-scope-exempt: callers already verified doc["workspace_id"] ==
+        # workspace_id via find_by_id before calling this.
+        await self.db.integrations.update_one(
+            {"_id": to_object_id(integration_id)}, {"$set": {"config_json": config_json}}
+        )

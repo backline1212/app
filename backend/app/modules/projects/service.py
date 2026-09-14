@@ -201,6 +201,15 @@ async def update_project(
         payload={"project_id": project_id, **patch},
     )
 
+    # Deferred import: integrations/service.py imports ProjectRepository from this
+    # module's sibling (projects/repository.py), not from here, so this isn't a true
+    # cycle - deferred anyway to match the established convention every other
+    # cross-module integrations-dispatch call site in this codebase already uses
+    # (comments/service.py's _dispatch_integration_event).
+    from app.modules.integrations.service import dispatch_project_updated_event
+
+    await dispatch_project_updated_event(db, workspace_id=workspace_id, project_id=project_id)
+
     updated = await repo.find_by_id(project_id)
     assert updated is not None
     return _project_out(updated)

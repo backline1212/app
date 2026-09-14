@@ -7,18 +7,25 @@ import { qk } from "../../lib/query-keys";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import type { WorkspaceOut } from "../workspaces/api";
 import * as integrationsApi from "./api";
+import { buildAsanaAuthUrl } from "./asana-oauth-url";
 import { buildClickUpAuthUrl } from "./clickup-oauth-url";
+import { buildJiraAuthUrl } from "./jira-oauth-url";
+import { generateOAuthState } from "./oauth-state";
 
 import clickupLogo from "../../assets/icons/clickup-svgrepo-com.svg";
 import slackLogo from "../../assets/icons/slack-svgrepo-com.svg";
 import trelloLogo from "../../assets/icons/trello-color-svgrepo-com.svg";
 
 const CLICKUP_PENDING_KEY = "backline:clickup-oauth-pending";
+const JIRA_PENDING_KEY = "backline:jira-oauth-pending";
+const ASANA_PENDING_KEY = "backline:asana-oauth-pending";
 
 const TYPE_LABELS: Record<string, string> = {
   slack: "Slack",
   clickup: "ClickUp",
   trello: "Trello",
+  jira: "Jira",
+  asana: "Asana",
 };
 
 export function IntegrationsPage() {
@@ -74,6 +81,8 @@ export function IntegrationsPage() {
   });
 
   const [clickupListId, setClickupListId] = useState("");
+  const [jiraProjectKey, setJiraProjectKey] = useState("");
+  const [asanaProjectGid, setAsanaProjectGid] = useState("");
   const disconnectMutation = useMutation({
     mutationFn: (integrationId: string) => integrationsApi.disconnectIntegration(integrationId),
     onSuccess: invalidate,
@@ -91,15 +100,47 @@ export function IntegrationsPage() {
 
   function handleConnectClickUp(event: FormEvent) {
     event.preventDefault();
+    const state = generateOAuthState();
     sessionStorage.setItem(
       CLICKUP_PENDING_KEY,
       JSON.stringify({
         workspaceId: workspace.id,
         workspaceSlug: workspace.slug,
         listId: clickupListId,
+        state,
       }),
     );
-    window.location.href = buildClickUpAuthUrl();
+    window.location.href = buildClickUpAuthUrl(state);
+  }
+
+  function handleConnectJira(event: FormEvent) {
+    event.preventDefault();
+    const state = generateOAuthState();
+    sessionStorage.setItem(
+      JIRA_PENDING_KEY,
+      JSON.stringify({
+        workspaceId: workspace.id,
+        workspaceSlug: workspace.slug,
+        projectKey: jiraProjectKey,
+        state,
+      }),
+    );
+    window.location.href = buildJiraAuthUrl(state);
+  }
+
+  function handleConnectAsana(event: FormEvent) {
+    event.preventDefault();
+    const state = generateOAuthState();
+    sessionStorage.setItem(
+      ASANA_PENDING_KEY,
+      JSON.stringify({
+        workspaceId: workspace.id,
+        workspaceSlug: workspace.slug,
+        projectGid: asanaProjectGid,
+        state,
+      }),
+    );
+    window.location.href = buildAsanaAuthUrl(state);
   }
 
   return (
@@ -107,7 +148,7 @@ export function IntegrationsPage() {
       <header className="bl-head">
         <div>
           <h1>Integrations</h1>
-          <p>Connect Slack, ClickUp, or Trello (17-Notifications-Integrations.md).</p>
+          <p>Connect Slack, ClickUp, Trello, Jira, or Asana (17-Notifications-Integrations.md).</p>
         </div>
       </header>
 
@@ -222,6 +263,61 @@ export function IntegrationsPage() {
 
       <section className="bl-attention bl-settings-section">
         <header>
+          <h2>Jira</h2>
+        </header>
+        <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span className="bl-connector-id" style={{ background: "#0052CC" }}>J</span>
+            <p style={{ fontSize: "12px", fontWeight: 500 }}>Connect Jira</p>
+          </div>
+          <p className="bl-mono">
+            Enter the project key issues should be created in (e.g. "BUG"), then authorize with
+            Jira.
+          </p>
+          <form onSubmit={handleConnectJira} style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+            <input
+              required
+              placeholder="Project key"
+              value={jiraProjectKey}
+              onChange={(event) => setJiraProjectKey(event.target.value)}
+              className="bl-input"
+            />
+            <button type="submit" className="bl-button">
+              Continue
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section className="bl-attention bl-settings-section">
+        <header>
+          <h2>Asana</h2>
+        </header>
+        <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span className="bl-connector-id" style={{ background: "#F06A6A" }}>A</span>
+            <p style={{ fontSize: "12px", fontWeight: 500 }}>Connect Asana</p>
+          </div>
+          <p className="bl-mono">
+            Enter the project GID tasks should be created in, then authorize with Asana.
+          </p>
+          <form onSubmit={handleConnectAsana} style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+            <input
+              required
+              placeholder="Project GID"
+              value={asanaProjectGid}
+              onChange={(event) => setAsanaProjectGid(event.target.value)}
+              className="bl-input"
+            />
+            <button type="submit" className="bl-button">
+              Continue
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section className="bl-attention bl-settings-section">
+        <header>
           <h2>ClickUp</h2>
         </header>
         <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -250,4 +346,4 @@ export function IntegrationsPage() {
   );
 }
 
-export { CLICKUP_PENDING_KEY };
+export { CLICKUP_PENDING_KEY, JIRA_PENDING_KEY, ASANA_PENDING_KEY };

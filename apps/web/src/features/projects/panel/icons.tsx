@@ -226,6 +226,15 @@ export function LandscapeIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function ChartIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20V10M11 20V4M18 20v-7" />
+      <path d="M3 20h18" strokeLinecap="round" />
+    </Icon>
+  );
+}
+
 export function GlobeIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

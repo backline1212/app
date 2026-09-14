@@ -35,11 +35,11 @@ class TrelloIntegration:
     ) -> tuple[str, str]:
         """Returns (card_id, card_url). Manual, member-triggered - not part of the
         automatic Integration Protocol, same as ClickUp's create_task."""
-        auth = {
-            "key": decrypt_secret(config["api_key_encrypted"]),
-            "token": decrypt_secret(config["token_encrypted"]),
-        }
         try:
+            auth = {
+                "key": decrypt_secret(config["api_key_encrypted"]),
+                "token": decrypt_secret(config["token_encrypted"]),
+            }
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
                     f"{TRELLO_API_BASE}/cards",
