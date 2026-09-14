@@ -7,15 +7,21 @@ from app.core.encryption import encrypt_secret
 from app.core.errors import NotFoundError, ValidationError
 from app.core.events import append_event
 from app.modules.comments.service import get_comment_out
+from app.modules.integrations import asana as asana_module
 from app.modules.integrations import clickup as clickup_module
+from app.modules.integrations import jira as jira_module
 from app.modules.integrations.factory import get_integration
 from app.modules.integrations.repository import IntegrationRepository
 from app.modules.integrations.schemas import (
+    AsanaIntegrationCreate,
     ClickUpIntegrationCreate,
+    CreateAsanaTaskResult,
     CreateClickUpTaskResult,
+    CreateJiraIssueResult,
     CreateTrelloCardResult,
     IntegrationCreate,
     IntegrationOut,
+    JiraIntegrationCreate,
     SlackIntegrationCreate,
     TrelloIntegrationCreate,
 )
@@ -23,14 +29,16 @@ from app.modules.pages.repository import PageRepository
 
 # Automatic dispatch (comment.created/comment.status_changed, §17.1's
 # on_comment_created/on_status_changed) only applies to integrations that actually do
-# something with those hooks - ClickUp/Trello are manual-create-only in MVP (§17.3/§17.4),
-# so there's no reason to enqueue a job that's guaranteed to no-op.
+# something with those hooks - ClickUp/Trello/Jira/Asana are manual-create-only in MVP
+# (§17.3/§17.4), so there's no reason to enqueue a job that's guaranteed to no-op.
 AUTOMATIC_DISPATCH_TYPES = ("slack",)
 
 _NON_SECRET_CONFIG_KEYS = {
     "slack": ("notify_status_changes", "notify_team_layer"),
     "trello": ("list_id",),
     "clickup": ("list_id",),
+    "jira": ("project_key", "site_url"),
+    "asana": ("project_gid",),
 }
 
 
@@ -71,6 +79,21 @@ async def create_integration(
         config_json = {
             "oauth_token_encrypted": encrypt_secret(token),
             "list_id": body.list_id,
+        }
+    elif isinstance(body, JiraIntegrationCreate):
+        access_token, refresh_token = await jira_module.exchange_code_for_tokens(body.oauth_code)
+        cloud_id, site_url = await jira_module.fetch_accessible_site(access_token)
+        config_json = {
+            "refresh_token_encrypted": encrypt_secret(refresh_token),
+            "cloud_id": cloud_id,
+            "site_url": site_url,
+            "project_key": body.project_key,
+        }
+    elif isinstance(body, AsanaIntegrationCreate):
+        refresh_token = await asana_module.exchange_code_for_refresh_token(body.oauth_code)
+        config_json = {
+            "refresh_token_encrypted": encrypt_secret(refresh_token),
+            "project_gid": body.project_gid,
         }
     else:  # pragma: no cover - the discriminated union covers every case above
         raise ValidationError("Unknown integration type.")
@@ -214,3 +237,72 @@ async def create_trello_card(
         comment, integration_doc["config_json"], backlink_url=backlink
     )
     return CreateTrelloCardResult(card_id=card_id, card_url=card_url)
+
+
+async def create_jira_issue(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    comment_id: str,
+    workspace_id: str,
+    integration_id: str,
+    dashboard_base_url: str,
+) -> CreateJiraIssueResult:
+    comment = await get_comment_out(db, comment_id)
+    if comment is None:
+        raise NotFoundError("Comment not found.")
+
+    from app.modules.comments.repository import CommentRepository
+
+    comment_doc = await CommentRepository(db).find_by_id(comment_id)
+    if comment_doc is None or comment_doc["workspace_id"] != workspace_id:
+        raise NotFoundError("Comment not found.")
+
+    repo = IntegrationRepository(db)
+    integration_doc = await repo.find_by_id(integration_id)
+    if integration_doc is None or integration_doc["workspace_id"] != workspace_id:
+        raise NotFoundError("Integration not found.")
+    if integration_doc["type"] != "jira":
+        raise ValidationError("That integration isn't a Jira connection.")
+
+    config = dict(integration_doc["config_json"])
+
+    async def persist_rotated_token(new_refresh_token_encrypted: str) -> None:
+        config["refresh_token_encrypted"] = new_refresh_token_encrypted
+        await repo.update_config(integration_id, config)
+
+    backlink = await _backlink_url(db, base_url=dashboard_base_url, page_id=comment.page_id)
+    issue_key, issue_url = await jira_module.JiraIntegration().create_issue(
+        comment, config, backlink_url=backlink, on_rotate=persist_rotated_token
+    )
+    return CreateJiraIssueResult(issue_key=issue_key, issue_url=issue_url)
+
+
+async def create_asana_task(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    comment_id: str,
+    workspace_id: str,
+    integration_id: str,
+    dashboard_base_url: str,
+) -> CreateAsanaTaskResult:
+    comment = await get_comment_out(db, comment_id)
+    if comment is None:
+        raise NotFoundError("Comment not found.")
+
+    from app.modules.comments.repository import CommentRepository
+
+    comment_doc = await CommentRepository(db).find_by_id(comment_id)
+    if comment_doc is None or comment_doc["workspace_id"] != workspace_id:
+        raise NotFoundError("Comment not found.")
+
+    integration_doc = await IntegrationRepository(db).find_by_id(integration_id)
+    if integration_doc is None or integration_doc["workspace_id"] != workspace_id:
+        raise NotFoundError("Integration not found.")
+    if integration_doc["type"] != "asana":
+        raise ValidationError("That integration isn't an Asana connection.")
+
+    backlink = await _backlink_url(db, base_url=dashboard_base_url, page_id=comment.page_id)
+    task_id, task_url = await asana_module.AsanaIntegration().create_task(
+        comment, integration_doc["config_json"], backlink_url=backlink
+    )
+    return CreateAsanaTaskResult(task_id=task_id, task_url=task_url)

@@ -6,7 +6,9 @@ from app.core.permissions import require_permission
 from app.core.session import Session, require_workspace_context, require_workspace_match
 from app.modules.integrations import service as integration_service
 from app.modules.integrations.schemas import (
+    CreateAsanaTaskResult,
     CreateClickUpTaskResult,
+    CreateJiraIssueResult,
     CreateTrelloCardResult,
     IntegrationCreate,
     IntegrationOut,
@@ -79,6 +81,42 @@ async def create_trello_card(
     session: Session = Depends(require_permission("comment:create_integration_task")),
 ) -> CreateTrelloCardResult:
     return await integration_service.create_trello_card(
+        get_db(),
+        comment_id=comment_id,
+        workspace_id=require_workspace_context(session),
+        integration_id=integration_id,
+        dashboard_base_url=get_settings().public_dashboard_base_url,
+    )
+
+
+@router.post(
+    "/comments/{comment_id}/integrations/jira/create-issue",
+    response_model=CreateJiraIssueResult,
+)
+async def create_jira_issue(
+    comment_id: str,
+    integration_id: str,
+    session: Session = Depends(require_permission("comment:create_integration_task")),
+) -> CreateJiraIssueResult:
+    return await integration_service.create_jira_issue(
+        get_db(),
+        comment_id=comment_id,
+        workspace_id=require_workspace_context(session),
+        integration_id=integration_id,
+        dashboard_base_url=get_settings().public_dashboard_base_url,
+    )
+
+
+@router.post(
+    "/comments/{comment_id}/integrations/asana/create-task",
+    response_model=CreateAsanaTaskResult,
+)
+async def create_asana_task(
+    comment_id: str,
+    integration_id: str,
+    session: Session = Depends(require_permission("comment:create_integration_task")),
+) -> CreateAsanaTaskResult:
+    return await integration_service.create_asana_task(
         get_db(),
         comment_id=comment_id,
         workspace_id=require_workspace_context(session),

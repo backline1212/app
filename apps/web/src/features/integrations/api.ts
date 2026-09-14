@@ -5,6 +5,8 @@ import { apiFetch } from "../../lib/api-client";
 export type IntegrationOut = Schemas["IntegrationOut"];
 export type CreateClickUpTaskResult = Schemas["CreateClickUpTaskResult"];
 export type CreateTrelloCardResult = Schemas["CreateTrelloCardResult"];
+export type CreateJiraIssueResult = Schemas["CreateJiraIssueResult"];
+export type CreateAsanaTaskResult = Schemas["CreateAsanaTaskResult"];
 
 export function listIntegrations(workspaceId: string): Promise<IntegrationOut[]> {
   return apiFetch<IntegrationOut[]>(`/api/v1/workspaces/${workspaceId}/integrations`);
@@ -54,6 +56,34 @@ export function connectClickUp(
   });
 }
 
+export function connectJira(
+  workspaceId: string,
+  options: { oauthCode: string; projectKey: string },
+): Promise<IntegrationOut> {
+  return apiFetch<IntegrationOut>(`/api/v1/workspaces/${workspaceId}/integrations`, {
+    method: "POST",
+    body: JSON.stringify({
+      type: "jira",
+      oauth_code: options.oauthCode,
+      project_key: options.projectKey,
+    }),
+  });
+}
+
+export function connectAsana(
+  workspaceId: string,
+  options: { oauthCode: string; projectGid: string },
+): Promise<IntegrationOut> {
+  return apiFetch<IntegrationOut>(`/api/v1/workspaces/${workspaceId}/integrations`, {
+    method: "POST",
+    body: JSON.stringify({
+      type: "asana",
+      oauth_code: options.oauthCode,
+      project_gid: options.projectGid,
+    }),
+  });
+}
+
 export function disconnectIntegration(integrationId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/integrations/${integrationId}`, { method: "DELETE" });
 }
@@ -74,6 +104,26 @@ export function createTrelloCard(
 ): Promise<CreateTrelloCardResult> {
   return apiFetch<CreateTrelloCardResult>(
     `/api/v1/comments/${commentId}/integrations/trello/create-card?integration_id=${integrationId}`,
+    { method: "POST" },
+  );
+}
+
+export function createJiraIssue(
+  commentId: string,
+  integrationId: string,
+): Promise<CreateJiraIssueResult> {
+  return apiFetch<CreateJiraIssueResult>(
+    `/api/v1/comments/${commentId}/integrations/jira/create-issue?integration_id=${integrationId}`,
+    { method: "POST" },
+  );
+}
+
+export function createAsanaTask(
+  commentId: string,
+  integrationId: string,
+): Promise<CreateAsanaTaskResult> {
+  return apiFetch<CreateAsanaTaskResult>(
+    `/api/v1/comments/${commentId}/integrations/asana/create-task?integration_id=${integrationId}`,
     { method: "POST" },
   );
 }

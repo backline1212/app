@@ -1,5 +1,7 @@
+from app.modules.integrations.asana import AsanaIntegration
 from app.modules.integrations.base import Integration
 from app.modules.integrations.clickup import ClickUpIntegration
+from app.modules.integrations.jira import JiraIntegration
 from app.modules.integrations.slack import SlackIntegration
 from app.modules.integrations.trello import TrelloIntegration
 
@@ -7,6 +9,8 @@ _REGISTRY: dict[str, type[Integration]] = {
     "slack": SlackIntegration,
     "clickup": ClickUpIntegration,
     "trello": TrelloIntegration,
+    "jira": JiraIntegration,
+    "asana": AsanaIntegration,
 }
 
 

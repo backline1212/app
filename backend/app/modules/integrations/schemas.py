@@ -4,7 +4,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, field_validator
 
-IntegrationType = Literal["slack", "clickup", "trello"]
+IntegrationType = Literal["slack", "clickup", "trello", "jira", "asana"]
 
 
 class SlackIntegrationCreate(BaseModel):
@@ -23,6 +23,7 @@ class SlackIntegrationCreate(BaseModel):
         if parsed.scheme != "https" or parsed.hostname != "hooks.slack.com":
             raise ValueError("Webhook URL must be a real https://hooks.slack.com/... URL.")
         return value
+
     # 17.2: "team-only comments never post to a shared Slack channel unless the admin
     # explicitly configures a private channel" - there's no way to detect from a webhook
     # URL alone whether the channel behind it is private, so this is an explicit opt-in
@@ -43,8 +44,24 @@ class ClickUpIntegrationCreate(BaseModel):
     list_id: str = Field(min_length=1)
 
 
+class JiraIntegrationCreate(BaseModel):
+    type: Literal["jira"] = "jira"
+    oauth_code: str = Field(min_length=1)
+    project_key: str = Field(min_length=1)
+
+
+class AsanaIntegrationCreate(BaseModel):
+    type: Literal["asana"] = "asana"
+    oauth_code: str = Field(min_length=1)
+    project_gid: str = Field(min_length=1)
+
+
 IntegrationCreate = Annotated[
-    SlackIntegrationCreate | TrelloIntegrationCreate | ClickUpIntegrationCreate,
+    SlackIntegrationCreate
+    | TrelloIntegrationCreate
+    | ClickUpIntegrationCreate
+    | JiraIntegrationCreate
+    | AsanaIntegrationCreate,
     Field(discriminator="type"),
 ]
 
@@ -68,3 +85,13 @@ class CreateClickUpTaskResult(BaseModel):
 class CreateTrelloCardResult(BaseModel):
     card_url: str
     card_id: str
+
+
+class CreateJiraIssueResult(BaseModel):
+    issue_url: str
+    issue_key: str
+
+
+class CreateAsanaTaskResult(BaseModel):
+    task_url: str
+    task_id: str

@@ -46,6 +46,14 @@ class Settings(BaseSettings):
     clickup_oauth_client_secret: str = ""
     clickup_oauth_redirect_uri: str = "http://localhost:5173/integrations/clickup/callback"
 
+    jira_oauth_client_id: str = ""
+    jira_oauth_client_secret: str = ""
+    jira_oauth_redirect_uri: str = "http://localhost:5173/integrations/jira/callback"
+
+    asana_oauth_client_id: str = ""
+    asana_oauth_client_secret: str = ""
+    asana_oauth_redirect_uri: str = "http://localhost:5173/integrations/asana/callback"
+
     # Fernet key (32 url-safe base64-encoded bytes) for encrypting OAuth tokens at the
     # application layer before they reach Mongo (Rule 6, §17.3's "encrypted at the
     # application layer" requirement) - `Fernet.generate_key()` for a real one.

@@ -6,19 +6,16 @@ import { qk } from "../../../lib/query-keys";
 import * as integrationsApi from "../../integrations/api";
 import { ChevronIcon } from "./icons";
 
-const REAL_INTEGRATIONS: { name: string; type: "slack" | "trello" | "clickup"; color: string }[] = [
+const REAL_INTEGRATIONS: {
+  name: string;
+  type: "slack" | "trello" | "clickup" | "jira" | "asana";
+  color: string;
+}[] = [
   { name: "Slack", type: "slack", color: "#4A154B" },
   { name: "Trello", type: "trello", color: "#0079BF" },
   { name: "ClickUp", type: "clickup", color: "#7B68EE" },
-];
-
-// Jira/Asana have no backend integration at all (unlike Slack/Trello/ClickUp below,
-// which are real, shipped connections) - kept as a visibly-disabled "coming soon" row
-// rather than a live-looking toggle, so this panel never implies a connection that
-// doesn't exist.
-const COMING_SOON_INTEGRATIONS = [
-  { name: "Jira", color: "#0052CC" },
-  { name: "Asana", color: "#F06A6A" },
+  { name: "Jira", type: "jira", color: "#0052CC" },
+  { name: "Asana", type: "asana", color: "#F06A6A" },
 ];
 
 interface IntegrationsTabProps {
@@ -57,7 +54,7 @@ export function IntegrationsTab({ workspaceId, workspaceSlug }: IntegrationsTabP
         className="flex items-center justify-between text-sm font-semibold"
         style={{ color: "var(--mint-deep)" }}
       >
-        <span>Available integrations ({REAL_INTEGRATIONS.length + COMING_SOON_INTEGRATIONS.length})</span>
+        <span>Available integrations ({REAL_INTEGRATIONS.length})</span>
         <span style={{ display: "inline-flex", transform: expanded ? "rotate(180deg)" : "none", transition: "transform .14s ease" }}>
           <ChevronIcon width={14} height={14} />
         </span>
@@ -96,22 +93,12 @@ export function IntegrationsTab({ workspaceId, workspaceSlug }: IntegrationsTabP
               </div>
             );
           })}
-          {COMING_SOON_INTEGRATIONS.map((integration) => (
-            <div key={integration.name} className="bl-connector-row">
-              <span className="bl-connector-name">
-                <span className="bl-connector-id" style={{ background: integration.color }}>
-                  {integration.name[0]}
-                </span>
-                {integration.name}
-              </span>
-              <span className="bl-scope-badge">Coming soon</span>
-            </div>
-          ))}
         </div>
       )}
       <p className="bl-inline-note">
-        Slack, Trello, and ClickUp reflect your real workspace connection - toggle off to
-        disconnect, or turn on to open full connect settings. Jira and Asana aren't available yet.
+        Reflects your real workspace connection - toggle off to disconnect, or turn on to open
+        full connect settings (Jira/Asana need a project key/GID this compact panel has no room
+        to collect).
       </p>
     </div>
   );
