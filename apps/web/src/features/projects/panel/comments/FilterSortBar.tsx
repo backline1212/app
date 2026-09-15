@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import type { CommentOut } from "../../../board/api";
 import type { MemberOut } from "../../../workspaces/api";
+import { useFloatingPosition } from "../../../../lib/use-floating-position";
+import { useOnClickOutside } from "../../../../lib/use-click-outside";
 import { FilterIcon, SortIcon } from "../icons";
 import { COMMENT_TAGS, DEVICE_TYPE_LABELS, commentBrowser, commentDeviceType } from "./types";
 import type { LayerFilter, SortOrder } from "./types";
@@ -64,21 +67,23 @@ export function FilterSortBar({
 }: FilterSortBarProps) {
   const [openMenu, setOpenMenu] = useState<"sort" | "filter" | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sortTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterTriggerRef = useRef<HTMLButtonElement>(null);
+  // Only one of the two popovers is ever open at a time, so one ref covers whichever
+  // is currently portaled (see the render below - escaped to <body> so the review
+  // drawer's overflow-y:auto can't clip it and it can't overflow the viewport edge).
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const activeTriggerRef = openMenu === "sort" ? sortTriggerRef : filterTriggerRef;
+  const popoverPos = useFloatingPosition(activeTriggerRef, popoverRef, openMenu !== null);
+  useOnClickOutside([containerRef, popoverRef], () => setOpenMenu(null));
 
   useEffect(() => {
     if (!openMenu) return;
-    function onClickOutside(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) setOpenMenu(null);
-    }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setOpenMenu(null);
     }
-    document.addEventListener("click", onClickOutside);
     document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("click", onClickOutside);
-      document.removeEventListener("keydown", onKeyDown);
-    };
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [openMenu]);
 
   const deviceTypes = Array.from(
@@ -110,6 +115,7 @@ export function FilterSortBar({
     <div ref={containerRef} className="flex items-center gap-2 border-b pb-3" style={{ borderColor: "var(--line-soft)" }}>
       <div className="bl-comment-popover-anchor">
         <button
+          ref={sortTriggerRef}
           type="button"
           className="bl-review-control"
           onClick={() => setOpenMenu((menu) => (menu === "sort" ? null : "sort"))}
@@ -119,8 +125,13 @@ export function FilterSortBar({
           <SortIcon width={13} height={13} />
           Sort
         </button>
-        {openMenu === "sort" && (
-          <div className="bl-comment-popover" role="menu">
+        {openMenu === "sort" && createPortal(
+          <div
+            ref={popoverRef}
+            className="bl-comment-popover"
+            role="menu"
+            style={{ position: "fixed", top: popoverPos?.top ?? -9999, left: popoverPos?.left ?? -9999, visibility: popoverPos ? "visible" : "hidden" }}
+          >
             <div className="bl-review-popover-label">Sort by</div>
             {SORT_OPTIONS.map((option) => (
               <button
@@ -138,12 +149,14 @@ export function FilterSortBar({
                 {sortOrder === option.id && <Tick />}
               </button>
             ))}
-          </div>
+          </div>,
+          document.body
         )}
       </div>
 
       <div className="bl-comment-popover-anchor">
         <button
+          ref={filterTriggerRef}
           type="button"
           className="bl-review-control"
           onClick={() => setOpenMenu((menu) => (menu === "filter" ? null : "filter"))}
@@ -154,8 +167,13 @@ export function FilterSortBar({
           Filter
           {filterCount > 0 && <span className="bl-count">{filterCount}</span>}
         </button>
-        {openMenu === "filter" && (
-          <div className="bl-comment-popover is-wide" role="menu">
+        {openMenu === "filter" && createPortal(
+          <div
+            ref={popoverRef}
+            className="bl-comment-popover is-wide"
+            role="menu"
+            style={{ position: "fixed", top: popoverPos?.top ?? -9999, left: popoverPos?.left ?? -9999, visibility: popoverPos ? "visible" : "hidden" }}
+          >
             <div className="bl-review-popover-label">Layer</div>
             {LAYER_OPTIONS.map((option) => (
               <button
@@ -250,7 +268,8 @@ export function FilterSortBar({
                 </button>
               </div>
             )}
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>

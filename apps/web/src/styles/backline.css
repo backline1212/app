@@ -1230,7 +1230,7 @@ button{letter-spacing:inherit}
 .bl-review-coming-soon em,.bl-review-optional-control em{padding:2px 4px;border-radius:2px;background:var(--amber-tint);color:var(--amber-ink);font:10px var(--mono);font-style:normal;letter-spacing:.04em;text-transform:uppercase}
 
 .bl-review-popover-anchor{position:relative;flex:none}
-.bl-review-popover{position:absolute;bottom:calc(100% + 8px);left:0;z-index:80;width:280px;max-height:min(430px,70vh);overflow-y:auto;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface);box-shadow:0 14px 42px rgba(11,11,11,.16)}
+.bl-review-popover{position:absolute;bottom:calc(100% + 8px);left:0;z-index:80;width:280px;max-width:calc(100vw - 32px);max-height:min(430px,70vh);overflow-y:auto;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface);box-shadow:0 14px 42px rgba(11,11,11,.16)}
 .bl-review-popover-label{padding:8px 10px 5px;color:var(--ink-4);font:10px var(--mono);letter-spacing:.07em;text-transform:uppercase}
 .bl-review-menu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:7px 10px;color:var(--ink-2);font-size:11px;text-align:left}
 .bl-review-menu-row>span:last-child{color:var(--ink-4);font:10px var(--mono);white-space:nowrap}
@@ -1280,7 +1280,7 @@ button{letter-spacing:inherit}
    review workspace's own .bl-review-popover opens upward, anchored to a bottom
    toolbar, which is wrong for a panel whose triggers sit near the top. */
 .bl-comment-popover-anchor{position:relative}
-.bl-comment-popover{position:absolute;top:calc(100% + 6px);left:0;z-index:40;width:240px;max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface);box-shadow:0 14px 42px rgba(11,11,11,.16)}
+.bl-comment-popover{position:absolute;top:calc(100% + 6px);left:0;z-index:40;width:240px;max-width:calc(100vw - 32px);max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface);box-shadow:0 14px 42px rgba(11,11,11,.16)}
 .bl-comment-popover.is-wide{width:280px}
 .bl-comment-popover-foot{display:flex;justify-content:flex-end;padding:7px 10px;border-top:1px solid var(--line-soft)}
 
@@ -1502,7 +1502,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .bl-account-identity{display:flex;align-items:center;gap:11px;min-width:0}
 .bl-account-identity>div{min-width:0}.bl-account-identity strong,.bl-account-identity p{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bl-account-identity strong{font-size:13.5px}.bl-account-identity p{margin-top:3px}
-.bl-account-content{padding:4px 22px 0;overflow-y:auto}
+/* Bounded independently of .bl-dialog's own max-height/overflow (shared by every
+   dialog in the app, so it can't assume a flex/grid height chain down to here) -
+   without a real cap, this pane's overflow-y:auto never triggers once the session
+   list grows, and the whole <dialog> scrolls instead, dragging .bl-account-summary
+   out of view with it. Grid's default align-items:stretch then matches the summary
+   sidebar to this pane's height, so it still reads as one deliberate panel. */
+.bl-account-content{padding:4px 22px 0;max-height:min(460px,55vh);overflow-y:auto}
 .bl-account-section{padding:20px 0;border-bottom:1px solid var(--line-soft)}
 .bl-account-section:last-child{border-bottom:0}.bl-account-section>.bl-eyebrow{margin:0 0 13px;color:var(--ink-3)}
 .bl-account-fields,.bl-account-checks,.bl-session-list{display:flex;flex-direction:column;gap:9px}
@@ -1556,10 +1562,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .bl-wrap{padding:24px 16px 56px}.bl-topbar{padding-inline:12px}.bl-topbar-create span{display:none}
   .bl-board-head{align-items:flex-start;flex-direction:column}.bl-board-head>.bl-segment{width:100%}.bl-board-head>.bl-segment button{flex:1}
   .bl-board-filterbar{display:grid;grid-template-columns:1fr 1fr}.bl-board-filterbar .bl-select{width:100%;max-width:none}
+  .bl-kanban-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .bl-account-layout{grid-template-columns:1fr}.bl-account-summary{border-right:0;border-bottom:1px solid var(--line-soft)}.bl-account-summary>p{display:none}
   .bl-account-content{padding-inline:16px}.bl-account-actions{align-items:stretch;flex-direction:column-reverse}.bl-account-actions>div,.bl-account-actions>button{width:100%}.bl-account-actions>div>*{flex:1}
 }
-@media(max-width:460px){.bl-board-filterbar{grid-template-columns:1fr}.bl-account-field{grid-template-columns:1fr;gap:7px}.bl-topbar-actions{gap:4px}.bl-topbar .bl-theme-toggle{display:none}}
+@media(max-width:460px){.bl-board-filterbar{grid-template-columns:1fr}.bl-kanban-grid{grid-template-columns:1fr}.bl-account-field{grid-template-columns:1fr;gap:7px}.bl-topbar-actions{gap:4px}.bl-topbar .bl-theme-toggle{display:none}}
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 .bl-quick-dock-wrapper {
@@ -1682,6 +1689,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   padding: 8px;
   box-shadow: var(--shadow-lg);
   min-width: 200px;
+  max-width: calc(100vw - 32px);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1731,6 +1739,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   bottom: calc(100% + 24px);
   right: 0;
   width: 320px;
+  max-width: calc(100vw - 32px);
   background: var(--bl-surface);
   border: 1px solid var(--line);
   border-radius: 12px;

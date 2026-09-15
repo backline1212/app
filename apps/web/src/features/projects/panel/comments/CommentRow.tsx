@@ -1,10 +1,13 @@
 import { Avatar, LayerBadge, RecoveryBadge } from "@backline/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import * as boardApi from "../../../board/api";
 import type { CommentOut, CommentStatus } from "../../../board/api";
 import { qk } from "../../../../lib/query-keys";
+import { useFloatingPosition } from "../../../../lib/use-floating-position";
+import { useOnClickOutside } from "../../../../lib/use-click-outside";
 import { renderWithMentions } from "../../../../lib/mentions";
 import { timeAgo } from "../../../../lib/time";
 import { isClosed } from "../../../../lib/workflow";
@@ -40,24 +43,25 @@ export function CommentRow({
 }: CommentRowProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId) });
 
+  // Portaled to <body> (see the render below) so it can escape the review drawer's
+  // own overflow-y:auto - a plain absolutely-positioned child gets clipped for any
+  // row that isn't near the bottom of the drawer's visible scroll area.
+  const popoverPos = useFloatingPosition(triggerRef, popoverRef, showMenu);
+  useOnClickOutside([menuRef, popoverRef], () => setShowMenu(false));
+
   useEffect(() => {
     if (!showMenu) return;
-    function onClickOutside(event: MouseEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) setShowMenu(false);
-    }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setShowMenu(false);
     }
-    document.addEventListener("click", onClickOutside);
     document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("click", onClickOutside);
-      document.removeEventListener("keydown", onKeyDown);
-    };
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [showMenu]);
 
   const resolveMutation = useMutation({
@@ -147,6 +151,7 @@ export function CommentRow({
           </button>
           <div className="bl-comment-popover-anchor" ref={menuRef} onClick={(event) => event.stopPropagation()}>
             <button
+              ref={triggerRef}
               type="button"
               onClick={() => setShowMenu((prev) => !prev)}
               aria-label="Comment options"
@@ -161,8 +166,18 @@ export function CommentRow({
                 <circle cx="13" cy="8" r="1.3" />
               </svg>
             </button>
-            {showMenu && (
-              <div className="bl-comment-popover bl-comment-menu" role="menu">
+            {showMenu && createPortal(
+              <div
+                ref={popoverRef}
+                className="bl-comment-popover bl-comment-menu"
+                role="menu"
+                style={{
+                  position: "fixed",
+                  top: popoverPos?.top ?? -9999,
+                  left: popoverPos?.left ?? -9999,
+                  visibility: popoverPos ? "visible" : "hidden",
+                }}
+              >
                 <div className="bl-review-popover-label">Move to</div>
                 {STATUS_ORDER.map((status) => (
                   <button
@@ -191,7 +206,8 @@ export function CommentRow({
                 >
                   Delete thread
                 </button>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>

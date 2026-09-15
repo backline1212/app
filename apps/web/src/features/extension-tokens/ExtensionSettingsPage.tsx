@@ -129,14 +129,14 @@ export function ExtensionSettingsPage() {
             Generate a token below, then paste it into the extension's popup (click its
             icon in Chrome's toolbar after installing it).
           </p>
-          <form onSubmit={handleCreate} style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+          <form onSubmit={handleCreate} style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "4px" }}>
             <input
               required
               placeholder="Work laptop - Chrome"
               value={name}
               onChange={(event) => setName(event.target.value)}
               className="bl-input"
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: "180px" }}
             />
             <button type="submit" className="bl-button" disabled={createMutation.isPending}>
               Generate token
@@ -160,13 +160,13 @@ export function ExtensionSettingsPage() {
                 Copy this now - for your security, it won't be shown again after you leave
                 this page.
               </p>
-              <div style={{ display: "flex", gap: "10px" }}>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                 <input
                   readOnly
                   value={revealedToken.token}
                   onFocus={(event) => event.target.select()}
                   className="bl-input"
-                  style={{ flex: 1, fontFamily: "monospace" }}
+                  style={{ flex: 1, minWidth: "180px", fontFamily: "monospace" }}
                 />
                 <button type="button" className="bl-button" onClick={copyToken}>
                   {copied ? "Copied" : "Copy"}

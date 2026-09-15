@@ -1,7 +1,10 @@
 import { Avatar } from "@backline/ui";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { FilterIcon, SortIcon } from "../../projects/panel/icons";
 import { PersonIcon } from "../../../components/icons";
+import { useFloatingPosition } from "../../../lib/use-floating-position";
+import { useOnClickOutside } from "../../../lib/use-click-outside";
 import type { MemberOut } from "../../workspaces/api";
 
 // Mirrors the root HTML's SORT BY / GROUP BY / SHOW WORK FOR popovers (tsortPop,
@@ -57,21 +60,25 @@ export function TicketToolbar({
 }: TicketToolbarProps) {
   const [open, setOpen] = useState<"sort" | "group" | "who" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const sortTriggerRef = useRef<HTMLButtonElement>(null);
+  const groupTriggerRef = useRef<HTMLButtonElement>(null);
+  const whoTriggerRef = useRef<HTMLButtonElement>(null);
+  // Only one of the three popovers is ever open at a time, so one ref covers whichever
+  // is currently portaled (see the render below - each is escaped to <body> so it can't
+  // be clipped/overflow the viewport the way a plain absolutely-positioned child inside
+  // this toolbar's row can).
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const activeTriggerRef = open === "sort" ? sortTriggerRef : open === "group" ? groupTriggerRef : whoTriggerRef;
+  const popoverPos = useFloatingPosition(activeTriggerRef, popoverRef, open !== null);
+  useOnClickOutside([ref, popoverRef], () => setOpen(null));
 
   useEffect(() => {
     if (!open) return;
-    function onClickOutside(event: MouseEvent) {
-      if (!ref.current?.contains(event.target as Node)) setOpen(null);
-    }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(null);
     }
-    document.addEventListener("click", onClickOutside);
     document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("click", onClickOutside);
-      document.removeEventListener("keydown", onKeyDown);
-    };
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
   // The dashboard ticket-list API takes a single assignee value (TicketFilters.assignee:
@@ -88,6 +95,7 @@ export function TicketToolbar({
     <div ref={ref} className="bl-ticket-toolbar">
       <div className="bl-comment-popover-anchor">
         <button
+          ref={sortTriggerRef}
           type="button"
           className="bl-review-control"
           aria-haspopup="true"
@@ -97,8 +105,13 @@ export function TicketToolbar({
           <SortIcon width={13} height={13} />
           {SORT_OPTIONS.find((o) => o.id === sort)?.label ?? "Sort"}
         </button>
-        {open === "sort" && (
-          <div className="bl-comment-popover" role="menu">
+        {open === "sort" && createPortal(
+          <div
+            ref={popoverRef}
+            className="bl-comment-popover"
+            role="menu"
+            style={{ position: "fixed", top: popoverPos?.top ?? -9999, left: popoverPos?.left ?? -9999, visibility: popoverPos ? "visible" : "hidden" }}
+          >
             <div className="bl-review-popover-label">Sort by</div>
             {SORT_OPTIONS.map((option) => (
               <button
@@ -116,13 +129,15 @@ export function TicketToolbar({
                 {sort === option.id && <Tick />}
               </button>
             ))}
-          </div>
+          </div>,
+          document.body
         )}
       </div>
 
       {showGroup && (
         <div className="bl-comment-popover-anchor">
           <button
+            ref={groupTriggerRef}
             type="button"
             className="bl-review-control"
             aria-haspopup="true"
@@ -132,8 +147,13 @@ export function TicketToolbar({
             <FilterIcon width={13} height={13} />
             {GROUP_OPTIONS.find((o) => o.id === group)?.label ?? "Group"}
           </button>
-          {open === "group" && (
-            <div className="bl-comment-popover" role="menu">
+          {open === "group" && createPortal(
+            <div
+              ref={popoverRef}
+              className="bl-comment-popover"
+              role="menu"
+              style={{ position: "fixed", top: popoverPos?.top ?? -9999, left: popoverPos?.left ?? -9999, visibility: popoverPos ? "visible" : "hidden" }}
+            >
               <div className="bl-review-popover-label">Group by</div>
               {GROUP_OPTIONS.map((option) => (
                 <button
@@ -151,13 +171,15 @@ export function TicketToolbar({
                   {group === option.id && <Tick />}
                 </button>
               ))}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       )}
 
       <div className="bl-comment-popover-anchor">
         <button
+          ref={whoTriggerRef}
           type="button"
           className="bl-review-control"
           aria-haspopup="true"
@@ -167,8 +189,13 @@ export function TicketToolbar({
           <PersonIcon width={13} height={13} />
           {whoLabel}
         </button>
-        {open === "who" && (
-          <div className="bl-comment-popover is-wide" role="menu">
+        {open === "who" && createPortal(
+          <div
+            ref={popoverRef}
+            className="bl-comment-popover is-wide"
+            role="menu"
+            style={{ position: "fixed", top: popoverPos?.top ?? -9999, left: popoverPos?.left ?? -9999, visibility: popoverPos ? "visible" : "hidden" }}
+          >
             <div className="bl-review-popover-label">Show work for</div>
             <button
               type="button"
@@ -217,7 +244,8 @@ export function TicketToolbar({
               Unassigned
               {assignees[0] === "unassigned" && <Tick />}
             </button>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>
