@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { qk } from "../../lib/query-keys";
+import { useOnClickOutside } from "../../lib/use-click-outside";
 import * as workspaceApi from "../workspaces/api";
 
 interface MentionsInputProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -24,8 +25,13 @@ export function MentionsInput({ onMentionedIdsChange, ...props }: MentionsInputP
   // pruned. Without this, deleting "@Bob" from the visible text would still silently
   // notify Bob on submit, since nothing else ever removes an id once added.
   const mentionedTextRef = useRef<Map<string, string>>(new Map());
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [mentionState, setMentionState] = useState<{ active: boolean; query: string; startIndex: number; top: number; left: number } | null>(null);
+  // Was only ever closed by Escape, picking a mention, or the "@query" text no longer
+  // matching - clicking anywhere else on the page (another field, a toolbar button)
+  // left it open indefinitely.
+  useOnClickOutside(containerRef, () => setMentionState(null));
 
   const workspaceQuery = useQuery({
     queryKey: qk.workspaces(),
@@ -125,7 +131,7 @@ export function MentionsInput({ onMentionedIdsChange, ...props }: MentionsInputP
   }
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full" ref={containerRef}>
       <textarea
         {...props}
         ref={textareaRef}

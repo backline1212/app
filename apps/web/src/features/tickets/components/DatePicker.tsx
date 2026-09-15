@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { useFocusTrap } from "../../../lib/use-focus-trap";
 import { useOnClickOutside } from "../../../lib/use-click-outside";
+import { useFloatingPosition } from "../../../lib/use-floating-position";
 
 // Generate locale-aware weekday names
 const getWeekdays = () => {
@@ -18,9 +20,14 @@ export function DatePicker({ value, onChange }: { value: string | null | undefin
   const rootRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  // The popover is portaled to <body> (see the render below) so it can escape any
+  // ancestor with `overflow:auto/hidden` (dialogs, table wrappers) instead of being
+  // clipped by it - so click-outside has to watch the portaled node too, since it no
+  // longer shares a DOM subtree with rootRef.
+  const popoverPos = useFloatingPosition(triggerRef, popoverRef, open);
 
   useFocusTrap(popoverRef, open);
-  useOnClickOutside(rootRef, () => setOpen(false));
+  useOnClickOutside([rootRef, popoverRef], () => setOpen(false));
 
   // We keep 'month' as a local Date representing the displayed month/year (ignoring its day)
   const [month, setMonth] = useState(() => {
@@ -126,13 +133,20 @@ export function DatePicker({ value, onChange }: { value: string | null | undefin
       >
         {displayValue}
       </button>
-      {open && (
+      {open && createPortal(
         <div
           ref={popoverRef}
           className="bl-popover"
           role="dialog"
           aria-label="Date picker"
-          style={{ position: 'absolute', zIndex: 10, top: '100%', left: 0, marginTop: '4px', padding: '1rem' }}
+          style={{
+            position: 'fixed',
+            zIndex: 1000,
+            top: popoverPos?.top ?? -9999,
+            left: popoverPos?.left ?? -9999,
+            visibility: popoverPos ? 'visible' : 'hidden',
+            padding: '1rem',
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Escape') closeAndRestoreFocus();
           }}
@@ -175,7 +189,8 @@ export function DatePicker({ value, onChange }: { value: string | null | undefin
             <button type="button" className="bl-quiet" onClick={handleClear}>Clear</button>
             <button type="button" className="bl-button" onClick={handleToday}>Today</button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

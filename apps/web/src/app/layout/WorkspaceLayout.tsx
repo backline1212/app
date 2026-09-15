@@ -46,24 +46,21 @@ function AccountButton() {
       </button>
       
       {popOpen && (
-        <div className="bl-ws-pop" style={{ right: 0, top: "100%", width: "200px" }} role="menu" aria-label="Account menu">
-          <div className="bl-ws-pop-list">
-            <button
-              className="bl-ws-item"
-              role="menuitem"
-              onClick={() => { setPopOpen(false); setSettingsOpen(true); }}
-            >
-              Profile &amp; Settings
-            </button>
-            <button
-              className="bl-ws-item"
-              role="menuitem"
-              onClick={() => { setPopOpen(false); void logout(); }}
-              style={{ color: "var(--bl-error)" }}
-            >
-              Log out
-            </button>
-          </div>
+        <div className="bl-dropdown-pop" role="menu" aria-label="Account menu">
+          <button
+            className="bl-dropdown-item"
+            role="menuitem"
+            onClick={() => { setPopOpen(false); setSettingsOpen(true); }}
+          >
+            Profile &amp; Settings
+          </button>
+          <button
+            className="bl-dropdown-item danger"
+            role="menuitem"
+            onClick={() => { setPopOpen(false); void logout(); }}
+          >
+            Log out
+          </button>
         </div>
       )}
       
