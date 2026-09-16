@@ -169,10 +169,10 @@ export function WorkspaceLayout() {
           <button
             type="button"
             className="bl-mobile-menu-button"
-            aria-label="Open workspace navigation"
+            aria-label={mobileNavigationOpen ? "Close workspace navigation" : "Open workspace navigation"}
             aria-controls="workspace-navigation"
             aria-expanded={mobileNavigationOpen}
-            onClick={() => setMobileNavigationOpen(true)}
+            onClick={() => setMobileNavigationOpen((open) => !open)}
           >
             {mobileNavigationOpen ? <CloseIcon /> : <MenuIcon />}
           </button>

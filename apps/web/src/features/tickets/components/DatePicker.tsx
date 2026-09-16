@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { useFocusTrap } from "../../../lib/use-focus-trap";
 import { useOnClickOutside } from "../../../lib/use-click-outside";
-import { useFloatingPosition } from "../../../lib/use-floating-position";
+import { closestPortalTarget, useFloatingPosition } from "../../../lib/use-floating-position";
 
 // Generate locale-aware weekday names
 const getWeekdays = () => {
@@ -190,7 +190,7 @@ export function DatePicker({ value, onChange }: { value: string | null | undefin
             <button type="button" className="bl-button" onClick={handleToday}>Today</button>
           </div>
         </div>,
-        document.body
+        closestPortalTarget(triggerRef)
       )}
     </div>
   );

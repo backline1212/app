@@ -4,8 +4,11 @@ import {
   useContext,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { getTopOpenDialog, subscribeOpenDialogs } from "../lib/dialog-stack";
 
 type ToastVariant = "success" | "error" | "warning" | "progress";
 
@@ -101,14 +104,24 @@ function ToastContainer({
   items: ToastItem[];
   onDismiss: (id: string) => void;
 }) {
+  // A native <dialog> opened via .showModal() renders in the browser's top layer,
+  // which paints above the entire regular document regardless of z-index - this
+  // fixed-position container is an ordinary document citizen, so without this it
+  // silently renders behind any currently-open dialog (AccountModal, ProjectPagesModal,
+  // ShareProjectModal all toast while staying open, including on error - a hidden
+  // error toast reads as a silent failure). Portal into the topmost open dialog and
+  // reposition to its own top-right corner instead of the viewport's when one exists.
+  const topDialog = useSyncExternalStore(subscribeOpenDialogs, getTopOpenDialog, () => null);
+
   if (items.length === 0) return null;
-  return (
-    <div className="bl-toasts" aria-label="Notifications">
+  const container = (
+    <div className={`bl-toasts${topDialog ? " in-dialog" : ""}`} aria-label="Notifications">
       {items.map((item) => (
         <ToastEntry key={item.id} item={item} onDismiss={onDismiss} />
       ))}
     </div>
   );
+  return topDialog ? createPortal(container, topDialog) : container;
 }
 
 function ToastEntry({

@@ -16,9 +16,11 @@ import type { WorkspaceOut } from "./api";
 function canManageMembers(role: string | null): boolean {
   return role === "owner" || role === "admin";
 }
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Dialog } from "../../components/Dialog";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { SearchIcon } from "../../components/icons";
+import type { MemberOut } from "./api";
 
 interface AddMemberModalProps {
   onInvite: (email: string, role: "admin" | "member") => Promise<void>;
@@ -92,6 +94,7 @@ export function MembersPage() {
 
   const [search, setSearch] = useState("");
   const [showAddMember, setShowAddMember] = useState(false);
+  const [removeCandidate, setRemoveCandidate] = useState<MemberOut | null>(null);
 
   const { data: members, isLoading, error: membersError } = useQuery({
     queryKey: qk.members(workspace.id),
@@ -120,7 +123,10 @@ export function MembersPage() {
 
   const removeMutation = useMutation({
     mutationFn: (memberId: string) => workspacesApi.removeMember(workspace.id, memberId),
-    onSuccess: invalidateMembers,
+    onSuccess: () => {
+      invalidateMembers();
+      setRemoveCandidate(null);
+    },
   });
 
   const canManage = canManageMembers(myRole);
@@ -228,7 +234,7 @@ export function MembersPage() {
                         <button
                           className="bl-quiet"
                           style={{ color: "var(--bl-error)", borderColor: "transparent" }}
-                          onClick={() => removeMutation.mutate(member.id)}
+                          onClick={() => setRemoveCandidate(member)}
                         >
                           Remove
                         </button>
@@ -251,6 +257,18 @@ export function MembersPage() {
             await inviteMutation.mutateAsync({ email, role });
           }}
           onClose={() => setShowAddMember(false)}
+        />
+      )}
+
+      {removeCandidate && (
+        <ConfirmDialog
+          title="Remove member?"
+          message={<>Remove <strong>{removeCandidate.name}</strong> from this workspace? They'll lose access to every project here.</>}
+          confirmLabel={removeMutation.isPending ? "Removing…" : "Remove member"}
+          destructive
+          pending={removeMutation.isPending}
+          onCancel={() => setRemoveCandidate(null)}
+          onConfirm={() => removeMutation.mutate(removeCandidate.id)}
         />
       )}
     </main>
