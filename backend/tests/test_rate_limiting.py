@@ -159,7 +159,11 @@ async def test_upload_rate_limited_per_guest_ip(
     for _ in range(limit + 3):
         resp = await client.post(
             "/api/v1/uploads",
-            json={"project_id": ctx["project_id"], "content_type": "image/jpeg"},
+            json={
+                "project_id": ctx["project_id"],
+                "content_type": "image/jpeg",
+                "content_length": 1024,
+            },
             headers=headers,
         )
         statuses.append(resp.status_code)

@@ -76,6 +76,14 @@ exclude = ["tests/"]
 module = "playwright.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# google-genai ships no py.typed marker/stubs - modules/ai/service.py's optional
+# `from google import genai` (behind a try/except ImportError, since the AI
+# summarizer is a credential-gated no-op like every other optional integration) has
+# no way to satisfy strict mode otherwise.
+module = "google.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

@@ -33,10 +33,18 @@ export function createReply(
   });
 }
 
-export function createUpload(projectId: string, contentType: string): Promise<Schemas["UploadOut"]> {
+export function createUpload(
+  projectId: string,
+  contentType: string,
+  contentLength: number,
+): Promise<Schemas["UploadOut"]> {
   return apiFetch<Schemas["UploadOut"]>("/api/v1/uploads", {
     method: "POST",
-    body: JSON.stringify({ project_id: projectId, content_type: contentType }),
+    body: JSON.stringify({
+      project_id: projectId,
+      content_type: contentType,
+      content_length: contentLength,
+    }),
   });
 }
 

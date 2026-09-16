@@ -12,6 +12,7 @@ from app.modules.integrations import events as integration_events
 from app.modules.integrations.base import IntegrationDeliveryError
 from app.modules.integrations.factory import get_integration
 from app.modules.integrations.repository import IntegrationRepository
+from app.modules.integrations.service import run_project_updated_dispatch
 from app.modules.notifications.service import notify_integration_disconnected
 
 # arq's job_try starts at 1 for the first attempt - {1: 5, 2: 30, 3: 300} means the retry
@@ -67,3 +68,16 @@ async def dispatch_integration_event_job(
             integration_type=integration_doc["type"],
             connected_by=integration_doc["connected_by"],
         )
+
+
+async def dispatch_project_updated_event_job(
+    ctx: dict[str, Any], workspace_id: str, project_id: str
+) -> None:
+    """Runs the "project updated" Slack notification off the request path - see
+    integrations/service.py's dispatch_project_updated_event/run_project_updated_dispatch.
+    Deliberately no retry/dead-letter handling here (unlike the job above): this event
+    is best-effort by design (a single low-frequency admin action, no per-comment
+    payload worth retrying) - only *where* it runs has changed, not its failure
+    handling, which run_project_updated_dispatch already does inline per-integration."""
+    del ctx
+    await run_project_updated_dispatch(get_db(), workspace_id=workspace_id, project_id=project_id)

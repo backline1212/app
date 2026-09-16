@@ -90,7 +90,11 @@ def test_element_with_no_stable_id_that_moved_matches_via_node_hash() -> None:
 
     result = match_anchor(anchor, nodes_index)
 
-    assert result.strategy_used == "stable_attribute"
+    # Tier 2b (matcher.py): no stable id/data-testid to key off (attributes={} above),
+    # so this is the node_hash-only "moved" fallback, not a genuine stable-attribute
+    # match - previously mislabeled identically to the Tier 2a case above, which made
+    # recovery_logs.strategy_used misreport why a match actually succeeded.
+    assert result.strategy_used == "moved"
     assert result.confidence == 0.9
 
 

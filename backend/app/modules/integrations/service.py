@@ -201,10 +201,25 @@ async def dispatch_comment_event(
 async def dispatch_project_updated_event(
     db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, project_id: str
 ) -> None:
-    """The "project updated" Slack event the architecture doc flagged as unwired -
-    posts inline rather than through the Arq retry job (unlike comment events, this
-    isn't triggered by a request a reviewer is waiting on, and there's no per-comment
-    payload worth a dead-letter/retry job for a single low-frequency admin action)."""
+    """Called from projects/service.py right after a project update commits - always
+    enqueues via Arq, never inline, same rule as dispatch_comment_event above: a
+    slow/unreachable Slack webhook must never add latency to the PATCH /projects/{id}
+    response it would otherwise block (this used to run inline and await the webhook
+    POST directly in the request path - up to a 10s httpx timeout per connected Slack
+    integration, sequentially, on every project save)."""
+    pool = await get_arq_pool()
+    await pool.enqueue_job(
+        "dispatch_project_updated_event_job", workspace_id=workspace_id, project_id=project_id
+    )
+
+
+async def run_project_updated_dispatch(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, project_id: str
+) -> None:
+    """The actual "project updated" Slack notification work - the architecture doc
+    flagged this event as unwired. Runs from dispatch_project_updated_event_job
+    (app/workers/integrations.py), never inline in the request path (see
+    dispatch_project_updated_event above)."""
     project = await ProjectRepository(db).find_by_id(project_id)
     if project is None or not _project_slack_enabled(project):
         return

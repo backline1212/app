@@ -23,7 +23,12 @@ _EXTENSION_BY_CONTENT_TYPE = {
 
 
 async def create_upload_url(
-    db: AsyncIOMotorDatabase[dict[str, Any]], *, actor: Actor, project_id: str, content_type: str
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    actor: Actor,
+    project_id: str,
+    content_type: str,
+    content_length: int,
 ) -> UploadOut:
     workspace_id = await resolve_actor_project_access(db, actor, project_id)
 
@@ -34,5 +39,5 @@ async def create_upload_url(
     # its attachments, so the key shouldn't imply it's only ever a screenshot.
     key = f"uploads/{workspace_id}/{project_id}/{uuid.uuid4()}.{extension}"
 
-    upload_url = await generate_presigned_put(key, content_type)
+    upload_url = await generate_presigned_put(key, content_type, content_length)
     return UploadOut(upload_url=upload_url, key=key)

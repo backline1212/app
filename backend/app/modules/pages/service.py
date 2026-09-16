@@ -221,15 +221,35 @@ async def delete_page(
     if not existing or existing["workspace_id"] != workspace_id:
         raise NotFoundError("Page not found.")
 
-    counts = await repo.reference_counts(workspace_id, page_id)
-    if any(counts.values()):
+    # The reference-count check (spanning comments/revisions/revision_diffs/
+    # project_assets) and the delete itself must be atomic against a concurrent
+    # comment/snapshot/asset creation for this same page landing in between them - two
+    # reviewers with the same page open, one deleting it as "empty" while the other
+    # comments on it at the same moment, would otherwise orphan that comment (pointing
+    # at a page that no longer exists, which several comment-service code paths then
+    # crash on with an AssertionError). A transaction is the only way to make a check
+    # spanning four other collections and this delete indivisible - re-verifying the
+    # counts a second time immediately before delete() would still leave a real gap,
+    # since the four count_documents calls themselves aren't atomic with each other.
+    counts_holder: dict[str, int] = {}
+
+    async def _check_and_delete(session: Any) -> bool:
+        counts = await repo.reference_counts(workspace_id, page_id, session=session)
+        if any(counts.values()):
+            counts_holder.update(counts)
+            return False
+        await repo.delete(workspace_id, page_id, session=session)
+        return True
+
+    async with await db.client.start_session() as session:
+        deleted: bool = await session.with_transaction(_check_and_delete)
+
+    if not deleted:
         raise ConflictError(
             "This page has review history and cannot be deleted. Archive or hard-delete "
             "the project through the retention workflow instead.",
-            details={"references": counts},
+            details={"references": counts_holder},
         )
-
-    await repo.delete(workspace_id, page_id)
     await append_event(
         db,
         workspace_id=workspace_id,

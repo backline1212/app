@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
 from app.core.mongo_utils import to_object_id
 
@@ -40,6 +40,7 @@ class PageRepository:
         url_normalized: str,
         title: str | None,
         sort_order: int = 0,
+        session: AsyncIOMotorClientSession | None = None,
     ) -> dict[str, Any]:
         now = datetime.now(UTC)
         doc = {
@@ -51,7 +52,7 @@ class PageRepository:
             "first_seen_at": now,
             "latest_revision_id": None,
         }
-        result = await self.db.pages.insert_one(doc)
+        result = await self.db.pages.insert_one(doc, session=session)
         doc["_id"] = result.inserted_id
         return doc
 
@@ -99,14 +100,32 @@ class PageRepository:
                 {"$set": {"sort_order": sort_order}},
             )
 
-    async def reference_counts(self, workspace_id: str, page_id: str) -> dict[str, int]:
+    async def reference_counts(
+        self,
+        workspace_id: str,
+        page_id: str,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> dict[str, int]:
         query = {"workspace_id": workspace_id, "page_id": page_id}
         return {
-            "comments": await self.db.comments.count_documents(query),
-            "revisions": await self.db.revisions.count_documents(query),
-            "revision_diffs": await self.db.revision_diffs.count_documents(query),
-            "project_assets": await self.db.project_assets.count_documents(query),
+            "comments": await self.db.comments.count_documents(query, session=session),
+            "revisions": await self.db.revisions.count_documents(query, session=session),
+            "revision_diffs": await self.db.revision_diffs.count_documents(
+                query, session=session
+            ),
+            "project_assets": await self.db.project_assets.count_documents(
+                query, session=session
+            ),
         }
 
-    async def delete(self, workspace_id: str, page_id: str) -> None:
-        await self.db.pages.delete_one({"_id": to_object_id(page_id), "workspace_id": workspace_id})
+    async def delete(
+        self,
+        workspace_id: str,
+        page_id: str,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> None:
+        await self.db.pages.delete_one(
+            {"_id": to_object_id(page_id), "workspace_id": workspace_id}, session=session
+        )

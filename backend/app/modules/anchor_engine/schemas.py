@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-StrategyUsed = Literal["exact_path", "stable_attribute", "text_fingerprint", "none"]
+StrategyUsed = Literal["exact_path", "stable_attribute", "moved", "text_fingerprint", "none"]
 RecoveryStatus = Literal["ok", "low_confidence", "orphaned"]
 
 

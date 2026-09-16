@@ -93,7 +93,7 @@ def match_anchor(
         node_id for node_id, node in nodes_index.items() if node["node_hash"] == anchor_node_hash
     ]
     if moved:
-        return _score("stable_attribute", 0.9, moved, revisions_since_last_confirmed)
+        return _score("moved", 0.9, moved, revisions_since_last_confirmed)
 
     # Tier 3: text fingerprint (SimHash similarity) - the element's visible label
     # persisted (exactly or approximately) even though everything else changed.

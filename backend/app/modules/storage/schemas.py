@@ -22,9 +22,17 @@ _CONTENT_TYPE_PATTERN = (
 )
 
 
+# Matches assets/service.py's MAX_ASSET_SIZE - this endpoint's presigned PUT is the
+# other upload path (comment screenshots/attachments, going straight from the client
+# to R2, never through this API's own body), which previously had no size limit at
+# all despite being reachable by an unauthenticated guest session.
+MAX_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024
+
+
 class UploadRequest(BaseModel):
     project_id: str
     content_type: str = Field(pattern=_CONTENT_TYPE_PATTERN)
+    content_length: int = Field(gt=0, le=MAX_UPLOAD_SIZE_BYTES)
 
 
 class UploadOut(BaseModel):

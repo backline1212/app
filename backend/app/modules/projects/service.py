@@ -415,7 +415,12 @@ async def export_project_comments(
 
     comments = await list_comments_for_project(db, project_id=project_id, workspace_id=workspace_id)
 
-    name_cache: dict[str, str] = {}
+    # Batched author-name resolution, same fix as D3 (dashboard/service.py's
+    # list_tickets) - one $in query for every distinct assignee across the whole
+    # export instead of a sequential find_by_id per assignee per comment.
+    all_assignee_ids = {user_id for comment in comments for user_id in comment.assignee_ids}
+    users_by_id = await UserRepository(db).find_many_by_ids(list(all_assignee_ids))
+
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(
@@ -432,12 +437,10 @@ async def export_project_comments(
         ]
     )
     for comment in comments:
-        assignee_names = []
-        for user_id in comment.assignee_ids:
-            if user_id not in name_cache:
-                user = await UserRepository(db).find_by_id(user_id)
-                name_cache[user_id] = user["name"] if user else "Former member"
-            assignee_names.append(name_cache[user_id])
+        assignee_names = [
+            users_by_id[user_id]["name"] if user_id in users_by_id else "Former member"
+            for user_id in comment.assignee_ids
+        ]
         writer.writerow(
             [
                 comment.id,

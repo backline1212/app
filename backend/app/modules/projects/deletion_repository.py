@@ -97,9 +97,16 @@ class ProjectDeletionRepository:
         project_integrations = await self.db.integrations.find(
             {"workspace_id": workspace_id, "project_scope": project_id}, {"_id": 1}
         ).to_list(length=None)
+        browser_renders = await self.db.browser_renders.find(
+            {"workspace_id": workspace_id, "project_id": project_id},
+            {"_id": 1, "screenshot_key": 1},
+        ).to_list(length=None)
 
         referenced_keys = {str(doc["snapshot_key"]) for doc in revisions if doc.get("snapshot_key")}
         referenced_keys.update(str(doc["key"]) for doc in assets if doc.get("key"))
+        referenced_keys.update(
+            str(doc["screenshot_key"]) for doc in browser_renders if doc.get("screenshot_key")
+        )
         for comment in comments:
             if comment.get("screenshot_key"):
                 referenced_keys.add(str(comment["screenshot_key"]))
@@ -123,6 +130,7 @@ class ProjectDeletionRepository:
             "guest_sessions": sorted(str(doc["_id"]) for doc in guest_sessions),
             "notifications": sorted(str(doc["_id"]) for doc in notifications),
             "project_integrations": sorted(str(doc["_id"]) for doc in project_integrations),
+            "browser_renders": sorted(str(doc["_id"]) for doc in browser_renders),
         }
         return ProjectGraph(
             ids=ids,
@@ -228,12 +236,6 @@ class ProjectDeletionRepository:
         )
         return result.modified_count == 1
 
-    async def unlock_project(self, workspace_id: str, project_id: str) -> None:
-        await self.db.projects.update_one(
-            {"_id": to_object_id(project_id), "workspace_id": workspace_id},
-            {"$unset": {"hard_delete_status": "", "hard_delete_started_at": ""}},
-        )
-
     async def delete_graph(self, workspace_id: str, project_id: str) -> None:
         """Dependency order is deliberate; every operation is retry-safe."""
         graph = await self.snapshot_graph(workspace_id, project_id)
@@ -256,6 +258,7 @@ class ProjectDeletionRepository:
             "guest_sessions",
             "share_links",
             "project_assets",
+            "browser_renders",
         ):
             await delete_ids(collection)
         if ids["project_integrations"]:

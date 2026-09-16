@@ -3,11 +3,11 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.session import Session, require_workspace_context
-from app.core.permissions import require_permission
 from app.core.db import get_db
+from app.core.permissions import require_permission
+from app.core.session import Session, require_workspace_context
 from app.modules.ai import service
-from app.modules.ai.schemas import SummarizeResult, SuggestReplyResult
+from app.modules.ai.schemas import SuggestReplyResult, SummarizeResult
 
 router = APIRouter(tags=["AI"])
 

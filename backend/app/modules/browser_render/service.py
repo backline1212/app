@@ -1,7 +1,11 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+
+if TYPE_CHECKING:
+    from playwright.async_api import Route
 
 from app.core.arq_pool import get_arq_pool
 from app.core.errors import NotFoundError, ValidationError
@@ -23,6 +27,33 @@ from app.modules.storage.r2_client import generate_presigned_get
 # active review rarely changes meaningfully minute-to-minute. "Refresh render" (force)
 # bypasses this deliberately, e.g. right after deploying a fix.
 _CACHE_FRESH_FOR = timedelta(minutes=15)
+
+
+async def _guard_document_navigation(route: "Route") -> None:
+    """Registered via page.route below, before every navigation. The initial
+    assert_safe_to_fetch(url) call in run_render only checks the URL as first typed -
+    Playwright's page.goto then follows any server redirect *inside the browser
+    engine*, with no hook to intercept it the way proxy/service.py's manual
+    httpx redirect loop does (A4's SSRF fix). route() is that hook: every request the
+    page makes - including each redirect hop of the top-level navigation, since a
+    redirect target is itself a new intercepted request - passes through here first.
+    Only "document" requests (the navigating frame, not subresources like images/XHR
+    the loaded page makes) are checked - the vulnerability is a page whose *own* URL
+    (or a redirect of it) resolves to an internal address once the browser actually
+    navigates there, not what that page subsequently fetches once safely loaded."""
+    request = route.request
+    if request.resource_type != "document":
+        await route.continue_()
+        return
+    try:
+        # assert_safe_to_fetch does a blocking DNS lookup (socket.getaddrinfo) - off
+        # the event loop so one render's redirect check can't stall every other
+        # concurrent job this worker process is running (max_jobs=3, main.py).
+        await asyncio.to_thread(assert_safe_to_fetch, request.url)
+    except ValueError:
+        await route.abort()
+        return
+    await route.continue_()
 
 
 async def _resolve_page(
@@ -193,6 +224,7 @@ async def run_render(
                 page = await browser_instance.new_page(
                     viewport={"width": render_width, "height": render_height}
                 )
+                await page.route("**/*", _guard_document_navigation)
                 await page.goto(url, wait_until="networkidle", timeout=20_000)
                 screenshot_bytes = await page.screenshot(full_page=True, type="png")
             finally:

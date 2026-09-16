@@ -40,16 +40,31 @@ async def ensure_bucket_exists() -> None:
     await asyncio.to_thread(_ensure)
 
 
-async def generate_presigned_put(key: str, content_type: str, expires_in: int = 300) -> str:
+async def generate_presigned_put(
+    key: str, content_type: str, content_length: int, expires_in: int = 300
+) -> str:
     """18-Storage-Deployment.md §18.2: short-lived (5 min), scoped to a single key -
-    the caller (SDK) never sees R2 credentials."""
+    the caller (SDK) never sees R2 credentials.
+
+    `ContentLength` is signed as part of the request, same as `ContentType` - S3/R2
+    reject a PUT whose actual Content-Length header doesn't match exactly what was
+    signed here. A plain presigned PUT (unlike a presigned POST policy) has no native
+    "maximum size" condition, but pinning it to the exact size the client declared
+    up front (and that storage/schemas.py's UploadRequest already caps at
+    MAX_UPLOAD_SIZE_BYTES) achieves the same effect: the client cannot upload more
+    bytes than it told the server about."""
     settings = get_settings()
 
     def _generate() -> str:
         client = _make_client()
         url: str = client.generate_presigned_url(
             "put_object",
-            Params={"Bucket": settings.r2_bucket_name, "Key": key, "ContentType": content_type},
+            Params={
+                "Bucket": settings.r2_bucket_name,
+                "Key": key,
+                "ContentType": content_type,
+                "ContentLength": content_length,
+            },
             ExpiresIn=expires_in,
         )
         return url

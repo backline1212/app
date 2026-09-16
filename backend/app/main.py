@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import sentry_sdk
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -18,7 +18,6 @@ from app.core.indexes import ensure_indexes
 from app.core.redis_client import close_redis, get_redis
 from app.modules.ai.router import router as ai_router
 from app.modules.assets.router import router as assets_router
-from app.modules.auth.account import router as account_router
 from app.modules.auth.router import router as auth_router
 from app.modules.browser_render.router import router as browser_render_router
 from app.modules.clients.router import router as clients_router
@@ -98,7 +97,6 @@ app.add_middleware(
 register_exception_handlers(app)
 
 app.add_middleware(AuthOriginMiddleware)
-app.include_router(account_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(workspaces_router, prefix="/api/v1")
 app.include_router(projects_router, prefix="/api/v1")
@@ -137,7 +135,7 @@ if EXTENSION_DIST_DIR.exists():
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
+async def health(response: Response) -> dict[str, str]:
     mongo_ok = "ok"
     try:
         await get_client().admin.command("ping")
@@ -150,7 +148,14 @@ async def health() -> dict[str, str]:
     except Exception:
         redis_ok = "unreachable"
 
-    return {"status": "ok", "mongo": mongo_ok, "redis": redis_ok}
+    # DEPLOYMENT.md tells operators to point an external uptime monitor at this
+    # endpoint - a monitor that (as most do, e.g. UptimeRobot's default HTTP check)
+    # only looks at the status code, never the JSON body, would never notice a real
+    # Mongo/Redis outage if this always returned 200. A degraded dependency must
+    # surface as a non-2xx response, not just a body field nothing is reading.
+    degraded = mongo_ok != "ok" or redis_ok != "ok"
+    response.status_code = 503 if degraded else 200
+    return {"status": "degraded" if degraded else "ok", "mongo": mongo_ok, "redis": redis_ok}
 
 
 # Registered last, deliberately: a true catch-all (`/{full_path:path}`) would swallow

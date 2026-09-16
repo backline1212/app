@@ -179,11 +179,9 @@ async def invite_member(
     user_repo = UserRepository(db)
     membership_repo = MembershipRepository(db)
 
-    user_doc = await user_repo.find_by_email(email)
-    if user_doc is None:
-        user_doc = await user_repo.create(
-            email=email, name=email.split("@")[0], avatar_url=None, auth_provider="invited"
-        )
+    user_doc = await user_repo.get_or_create(
+        email=email, name=email.split("@")[0], avatar_url=None, auth_provider="invited"
+    )
 
     user_id = str(user_doc["_id"])
     if await membership_repo.find(workspace_id=workspace_id, user_id=user_id) is not None:

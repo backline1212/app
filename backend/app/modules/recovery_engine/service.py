@@ -118,37 +118,54 @@ async def run_recovery_pipeline(
         return {"skipped": 1}
 
     diff_repo = RevisionDiffRepository(db)
-    if await diff_repo.find_by_to_revision(page["workspace_id"], page_id, revision_id) is not None:
-        # Idempotency guard: an Arq job retry/redelivery for this same (page_id,
-        # revision_id) must not run twice - without this, a retry both duplicates the
-        # revision_diffs row (doubling the change count in list_project_revisions) and
-        # re-increments consecutive_orphaned_revisions for every still-orphaned comment,
-        # causing premature permanently_orphaned status.
-        return {"skipped": 1}
+    # Idempotency guard for the diff computation only, not the whole job (see below):
+    # an Arq retry/redelivery for this same (page_id, revision_id) must not recompute
+    # a diff that already exists - compute_and_store_diff's own DuplicateKeyError
+    # fallback (revision_diffs_page_to_revision_unique) would catch this anyway, but
+    # checking first avoids the wasted snapshot re-fetch/diff computation.
+    diff_already_computed = (
+        await diff_repo.find_by_to_revision(page["workspace_id"], page_id, revision_id) is not None
+    )
 
     old_payload = await load_snapshot_payload(previous_revision["snapshot_key"])
     new_payload = await load_snapshot_payload(new_revision["snapshot_key"])
     old_nodes_index: dict[str, Any] = old_payload["nodes_index"]
     new_nodes_index: dict[str, Any] = new_payload["nodes_index"]
 
-    await compute_and_store_diff(
-        db,
-        page_id=page_id,
-        workspace_id=page["workspace_id"],
-        from_revision_id=str(previous_revision["_id"]),
-        to_revision_id=revision_id,
-        old_nodes_index=old_nodes_index,
-        new_nodes_index=new_nodes_index,
-    )
+    if not diff_already_computed:
+        await compute_and_store_diff(
+            db,
+            page_id=page_id,
+            workspace_id=page["workspace_id"],
+            from_revision_id=str(previous_revision["_id"]),
+            to_revision_id=revision_id,
+            old_nodes_index=old_nodes_index,
+            new_nodes_index=new_nodes_index,
+        )
 
     comment_repo = CommentRepository(db)
     log_repo = RecoveryLogRepository(db)
     comments = await comment_repo.list_recoverable_for_page(page["workspace_id"], page_id)
 
+    # Idempotency for the per-comment loop, at comment granularity rather than the
+    # whole-job granularity the diff-row guard used to enforce: the diff row above is
+    # written well before this loop finishes, so a job that crashes partway through
+    # (a Mongo write blip, a Redis pubsub error) used to be silently treated as fully
+    # done on retry - the diff row already existed, so the old guard returned
+    # "skipped" and every comment past the crash point stayed frozen at its prior
+    # recovery_status/anchor forever. A comment that already has a recovery_logs row
+    # for this exact to_revision_id was genuinely already processed; anything else
+    # (including every comment, on a first attempt) still needs to run.
+    already_processed = await log_repo.comment_ids_processed_for_revision(
+        workspace_id=page["workspace_id"], to_revision_id=revision_id
+    )
+
     summary: dict[str, int] = {}
 
     for comment in comments:
         comment_id = str(comment["_id"])
+        if comment_id in already_processed:
+            continue
         streak = comment.get("consecutive_orphaned_revisions", 0)
         result = match_anchor(
             comment["anchor"], new_nodes_index, revisions_since_last_confirmed=streak

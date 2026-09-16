@@ -29,6 +29,10 @@ async def test_create_and_list_projects(
         "reviewer_can_resolve": False,
         "show_board_to_client": False,
         "client_digest_enabled": False,
+        "enable_cross_browser_render": False,
+        # Defaults on (not muted) - matches the pre-existing always-on Slack behavior
+        # from before per-project mute existed (Part I, slack-ai-mcp-architecture.md).
+        "slack_notifications_enabled": True,
     }
     assert project["archived_at"] is None
     # Card attribution on the workspace dashboard needs to know who created it.
