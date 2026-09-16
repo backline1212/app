@@ -4,6 +4,7 @@ import pytest
 from httpx import AsyncClient
 
 from tests.helpers import create_project_with_guest_session
+from tests.test_notifications import _invite_and_login_member
 
 SAMPLE_ANCHOR = {
     "tier": 1,
@@ -375,6 +376,13 @@ async def test_member_can_update_status_and_assignee(
     ctx = await create_project_with_guest_session(
         client, monkeypatch, email="cm8@example.com", code="700008", workspace_name="C8"
     )
+    # B2 (production-readiness-master-plan-2026-09-13.md): assignee_id is now validated
+    # against real workspace membership, same as the plural assignee_ids field - an
+    # arbitrary string like the old "someone" fixture value is correctly rejected
+    # (422 ValidationError) rather than silently accepted.
+    member_user_id, _ = await _invite_and_login_member(
+        client, monkeypatch, ctx, email="cm8-member@example.com", code="700009"
+    )
     page_id = await _register_page(client, ctx)
     created = await client.post(
         f"/api/v1/pages/{page_id}/comments", json=_comment_payload(), headers=ctx["owner_headers"]
@@ -383,12 +391,12 @@ async def test_member_can_update_status_and_assignee(
 
     updated = await client.patch(
         f"/api/v1/comments/{comment_id}",
-        json={"status": "in_progress", "assignee_id": "someone"},
+        json={"status": "in_progress", "assignee_id": member_user_id},
         headers=ctx["owner_headers"],
     )
     assert updated.status_code == 200
     assert updated.json()["status"] == "in_progress"
-    assert updated.json()["assignee_id"] == "someone"
+    assert updated.json()["assignee_id"] == member_user_id
     assert updated.json()["edited_at"] is not None
 
 

@@ -71,9 +71,13 @@ class BrowserRenderRepository:
         return doc
 
     async def mark_rendering(self, *, doc_id: Any) -> None:
+        # workspace-scope-exempt: doc_id is the render record's own _id, obtained by
+        # run_render (service.py) from an earlier find() call it already scoped to a
+        # workspace/project-verified page_id.
         await self.db.browser_renders.update_one({"_id": doc_id}, {"$set": {"status": "rendering"}})
 
     async def mark_ready(self, *, doc_id: Any, screenshot_key: str) -> None:
+        # workspace-scope-exempt: same reasoning as mark_rendering above.
         await self.db.browser_renders.update_one(
             {"_id": doc_id},
             {
@@ -87,6 +91,7 @@ class BrowserRenderRepository:
         )
 
     async def mark_failed(self, *, doc_id: Any, error: str) -> None:
+        # workspace-scope-exempt: same reasoning as mark_rendering above.
         await self.db.browser_renders.update_one(
             {"_id": doc_id}, {"$set": {"status": "failed", "error": error}}
         )

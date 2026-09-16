@@ -2,7 +2,6 @@ import os
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from pydantic import BaseModel
 
 try:
     from google import genai
@@ -10,8 +9,9 @@ except ImportError:
     genai = None
 
 from app.core.errors import NotFoundError
+from app.modules.ai.schemas import SuggestReplyResult, SummarizeResult
 from app.modules.comments.repository import CommentRepository
-from app.modules.ai.schemas import SummarizeResult, SuggestReplyResult
+
 
 def get_gemini_client() -> Any | None:
     if genai is None:
@@ -21,7 +21,9 @@ def get_gemini_client() -> Any | None:
         return None
     return genai.Client(api_key=api_key)
 
-async def _get_thread_context(db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, comment_id: str) -> str:
+async def _get_thread_context(
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, comment_id: str
+) -> str:
     repo = CommentRepository(db)
     comment = await repo.find_by_id(comment_id)
     if not comment or comment["workspace_id"] != workspace_id:
@@ -50,8 +52,11 @@ async def summarize_thread(
     
     client = get_gemini_client()
     if not client:
-        return SummarizeResult(summary="[AI Disabled] Configure GEMINI_API_KEY to see real summaries. The thread context is ready.")
-        
+        return SummarizeResult(
+            summary="[AI Disabled] Configure GEMINI_API_KEY to see real summaries. "
+            "The thread context is ready."
+        )
+
     prompt = f"Summarize the following feedback thread in one concise paragraph:\n\n{context}"
     response = client.models.generate_content(
         model="gemini-2.5-flash",
@@ -68,16 +73,23 @@ async def suggest_reply(
     
     client = get_gemini_client()
     if not client:
-        return SuggestReplyResult(suggestions=["[AI] I agree.", "[AI] Can you clarify?", "[AI] Will fix."])
-        
-    prompt = f"Given the following feedback thread, suggest 3 short, helpful replies the team could send. Format each reply on a new line starting with '- ':\n\n{context}"
+        return SuggestReplyResult(
+            suggestions=["[AI] I agree.", "[AI] Can you clarify?", "[AI] Will fix."]
+        )
+
+    prompt = (
+        "Given the following feedback thread, suggest 3 short, helpful replies the "
+        f"team could send. Format each reply on a new line starting with '- ':\n\n{context}"
+    )
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt
     )
-    
+
     text = response.text or ""
-    suggestions = [line.strip("- *").strip() for line in text.split("\n") if line.strip().startswith("-")]
+    suggestions = [
+        line.strip("- *").strip() for line in text.split("\n") if line.strip().startswith("-")
+    ]
     if not suggestions:
         suggestions = ["I agree.", "Looking into it.", "Fixed!"]
     

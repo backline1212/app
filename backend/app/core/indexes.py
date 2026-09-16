@@ -232,7 +232,13 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
     await db.guest_sessions.create_index("share_link_id")
     await db.guest_sessions.create_index("last_seen_at", expireAfterSeconds=180 * 24 * 60 * 60)
 
-    await db.pages.create_index([("project_id", 1), ("url_normalized", 1)], unique=True)
+    # No separate (project_id, url_normalized) unique index here: AUDIT_BATCH_02_INDEXES'
+    # pages_workspace_project_url below is a strict superset (project_id already
+    # determines workspace_id, so the two constraints are equivalent) - this used to be
+    # declared as its own index too, which just doubled write overhead on every page
+    # insert for no added correctness. Not dropped from any database that already has
+    # it (this file only ever calls create_index, never drop_index, per TDR-0017) -
+    # simply never (re)created going forward, including on a fresh database.
 
     await db.revisions.create_index([("page_id", 1), ("captured_at", -1)])
     await db.revisions.create_index([("page_id", 1), ("is_current", 1)])

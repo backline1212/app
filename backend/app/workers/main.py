@@ -15,7 +15,10 @@ from arq.connections import RedisSettings
 
 from app.core.config import get_settings
 from app.workers.browser_render import render_browser_snapshot_job
-from app.workers.integrations import dispatch_integration_event_job
+from app.workers.integrations import (
+    dispatch_integration_event_job,
+    dispatch_project_updated_event_job,
+)
 from app.workers.notifications import send_daily_digests_job, send_guest_resolved_email_job
 from app.workers.recovery import run_recovery_pipeline_job
 from app.workers.storage_gc import resume_project_hard_delete_job
@@ -25,6 +28,7 @@ class WorkerSettings:
     functions = [
         run_recovery_pipeline_job,
         dispatch_integration_event_job,
+        dispatch_project_updated_event_job,
         send_guest_resolved_email_job,
         send_daily_digests_job,
         resume_project_hard_delete_job,

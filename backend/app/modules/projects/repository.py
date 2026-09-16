@@ -96,7 +96,14 @@ class ProjectRepository:
             {"$set": {**set_ops, "updated_at": datetime.now(UTC)}},
         )
 
-    async def update(self, project_id: str, *, name: str | None, target_origin: str | None, hero_url: str | None = None) -> None:
+    async def update(
+        self,
+        project_id: str,
+        *,
+        name: str | None,
+        target_origin: str | None,
+        hero_url: str | None = None,
+    ) -> None:
         patch: dict[str, Any] = {"updated_at": datetime.now(UTC)}
         if name is not None:
             patch["name"] = name

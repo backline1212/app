@@ -3,6 +3,7 @@ from typing import Any
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 from app.core.mongo_utils import to_object_id
 
@@ -55,6 +56,28 @@ class UserRepository:
         result = await self.db.users.insert_one(doc)
         doc["_id"] = result.inserted_id
         return doc
+
+    async def get_or_create(
+        self, *, email: str, name: str, avatar_url: str | None, auth_provider: str
+    ) -> dict[str, Any]:
+        """Check-then-act against the unique `email` index (core/indexes.py:194) is
+        racy - two concurrent first-time logins (double-tab OAuth/OTP completion) or
+        two concurrent invites for the same address can both pass find_by_email before
+        either insert lands. Retry as a lookup on DuplicateKeyError instead of letting
+        it surface as an unhandled 500, same pattern as workspaces/service.py's
+        slug/membership races."""
+        existing = await self.find_by_email(email)
+        if existing is not None:
+            return existing
+        try:
+            return await self.create(
+                email=email, name=name, avatar_url=avatar_url, auth_provider=auth_provider
+            )
+        except DuplicateKeyError:
+            existing = await self.find_by_email(email)
+            if existing is None:
+                raise
+            return existing
 
     async def update_profile(self, user_id: str, patch: dict[str, Any]) -> None:
         await self.db.users.update_one({"_id": ObjectId(user_id)}, {"$set": patch})
@@ -110,9 +133,21 @@ class RefreshTokenRepository:
     async def find_by_hash(self, token_hash: str) -> dict[str, Any] | None:
         return await self.db.refresh_tokens.find_one({"token_hash": token_hash})
 
-    async def rotate(self, *, old_token_hash: str, new_token_hash: str) -> None:
-        await self.db.refresh_tokens.update_one(
-            {"token_hash": old_token_hash},
+    async def rotate(
+        self, *, old_token_hash: str, new_token_hash: str
+    ) -> dict[str, Any] | None:
+        """Atomically claims the old token for rotation - only succeeds if it was
+        still unrevoked at the exact moment of this update. Without the `revoked_at:
+        None` filter here, two concurrent /auth/refresh calls carrying the same
+        still-valid cookie (double-tab, or a stolen token replayed at the same moment
+        as the legitimate user) can both read revoked_at=None in the caller's earlier
+        check-then-act read and both mint a child token from the same parent -
+        silently defeating the sequential-reuse theft detection above, which only
+        fires when a *second* read sees revoked_at already set. Returns the matched
+        (pre-update) document, or None if someone else already claimed/revoked it
+        first - the caller treats a None return exactly like reuse-of-a-revoked-token."""
+        return await self.db.refresh_tokens.find_one_and_update(
+            {"token_hash": old_token_hash, "revoked_at": None},
             {"$set": {"revoked_at": datetime.now(UTC), "replaced_by_token_hash": new_token_hash}},
         )
 

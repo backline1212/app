@@ -13,7 +13,11 @@ export async function uploadScreenshot(
   try {
     const { upload_url: uploadUrl, key } = await api.request<UploadResponse>("/api/v1/uploads", {
       method: "POST",
-      body: JSON.stringify({ project_id: projectId, content_type: blob.type || "image/jpeg" }),
+      body: JSON.stringify({
+        project_id: projectId,
+        content_type: blob.type || "image/jpeg",
+        content_length: blob.size,
+      }),
     });
     const putResponse = await fetch(uploadUrl, {
       method: "PUT",
@@ -41,7 +45,11 @@ export async function uploadAttachment(
     const contentType = file.type || "application/octet-stream";
     const { upload_url: uploadUrl, key } = await api.request<UploadResponse>("/api/v1/uploads", {
       method: "POST",
-      body: JSON.stringify({ project_id: projectId, content_type: contentType }),
+      body: JSON.stringify({
+        project_id: projectId,
+        content_type: contentType,
+        content_length: file.size,
+      }),
     });
     const putResponse = await fetch(uploadUrl, {
       method: "PUT",

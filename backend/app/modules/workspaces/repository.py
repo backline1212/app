@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.mongo_utils import to_object_id
@@ -42,10 +41,13 @@ class WorkspaceRepository:
         return await self.db.workspaces.find_one({"_id": oid})
 
     async def update(self, workspace_id: str, *, name: str | None) -> None:
+        oid = to_object_id(workspace_id)
+        if oid is None:
+            return
         patch: dict[str, Any] = {"updated_at": datetime.now(UTC)}
         if name is not None:
             patch["name"] = name
-        await self.db.workspaces.update_one({"_id": ObjectId(workspace_id)}, {"$set": patch})
+        await self.db.workspaces.update_one({"_id": oid}, {"$set": patch})
 
     async def list_all(self) -> list[dict[str, Any]]:
         """M-08: notifications/digest.py's run_daily_digests previously iterated
@@ -123,15 +125,19 @@ class MembershipRepository:
         return [doc async for doc in cursor]
 
     async def update_role(self, *, workspace_id: str, membership_id: str, role: str) -> None:
+        oid = to_object_id(membership_id)
+        if oid is None:
+            return
         await self.db.memberships.update_one(
-            {"workspace_id": workspace_id, "_id": ObjectId(membership_id)},
+            {"workspace_id": workspace_id, "_id": oid},
             {"$set": {"role": role}},
         )
 
     async def delete(self, *, workspace_id: str, membership_id: str) -> None:
-        await self.db.memberships.delete_one(
-            {"workspace_id": workspace_id, "_id": ObjectId(membership_id)}
-        )
+        oid = to_object_id(membership_id)
+        if oid is None:
+            return
+        await self.db.memberships.delete_one({"workspace_id": workspace_id, "_id": oid})
 
     async def count_by_role(self, *, workspace_id: str, role: str) -> int:
         return await self.db.memberships.count_documents(

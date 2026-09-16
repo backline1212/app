@@ -12,6 +12,7 @@ from app.core.errors import (
     PermissionDeniedError,
     ValidationError,
 )
+from app.core.mongo_utils import to_object_id
 from app.core.security import (
     create_access_token,
     generate_opaque_token,
@@ -118,16 +119,13 @@ async def login_with_google(
         raise ValidationError("Google account email is not verified.")
 
     user_repo = UserRepository(db)
-    existing = await user_repo.find_by_email(user_info.email)
-    if existing is None:
-        existing = await user_repo.create(
-            email=user_info.email,
-            name=user_info.name,
-            avatar_url=user_info.avatar_url,
-            auth_provider="google",
-        )
-    else:
-        await user_repo.touch_login(existing["_id"], "google")
+    existing = await user_repo.get_or_create(
+        email=user_info.email,
+        name=user_info.name,
+        avatar_url=user_info.avatar_url,
+        auth_provider="google",
+    )
+    await user_repo.touch_login(existing["_id"], "google")
 
     return await _issue_tokens(db, existing, ua=ua, ip=ip)
 
@@ -170,13 +168,10 @@ async def verify_otp(
     await otp_repo.mark_consumed(otp_doc["_id"])
 
     user_repo = UserRepository(db)
-    existing = await user_repo.find_by_email(email)
-    if existing is None:
-        existing = await user_repo.create(
-            email=email, name=email.split("@")[0], avatar_url=None, auth_provider="email_otp"
-        )
-    else:
-        await user_repo.touch_login(existing["_id"], "email_otp")
+    existing = await user_repo.get_or_create(
+        email=email, name=email.split("@")[0], avatar_url=None, auth_provider="email_otp"
+    )
+    await user_repo.touch_login(existing["_id"], "email_otp")
 
     return await _issue_tokens(db, existing, ua=ua, ip=ip)
 
@@ -209,6 +204,16 @@ async def refresh_tokens(
 
     new_raw = generate_opaque_token()
     new_hash = hash_secret(new_raw)
+
+    # Atomic compare-and-swap: claims the old token for rotation only if it's still
+    # unrevoked right now, closing the race between the revoked_at check above and
+    # this write (two concurrent refreshes of the same token could otherwise both
+    # pass that check and both mint a child, defeating reuse detection).
+    claimed = await refresh_repo.rotate(old_token_hash=token_hash, new_token_hash=new_hash)
+    if claimed is None:
+        await refresh_repo.revoke_family(token_doc["family_id"])
+        raise AuthenticationError("Refresh token has already been used. Session revoked.")
+
     settings = get_settings()
     browser, os = _parse_user_agent(ua)
     await refresh_repo.create(
@@ -220,7 +225,6 @@ async def refresh_tokens(
         os=os,
         ip_address=ip,
     )
-    await refresh_repo.rotate(old_token_hash=token_hash, new_token_hash=new_hash)
 
     access_token = create_access_token(str(user_doc["_id"]), sid=token_doc["family_id"])
     return IssuedTokens(access_token=access_token, refresh_token=new_raw, user=_user_out(user_doc))
@@ -250,16 +254,18 @@ async def switch_workspace(
 async def list_sessions(
     db: AsyncIOMotorDatabase[dict[str, Any]], user_id: str, current_refresh_token: str | None
 ) -> list[SessionOut]:
-    from bson import ObjectId
+    user_object_id = to_object_id(user_id)
+    if user_object_id is None:
+        raise AuthenticationError("Invalid session.")
 
     refresh_repo = RefreshTokenRepository(db)
-    families = await refresh_repo.list_active_families(ObjectId(user_id))
+    families = await refresh_repo.list_active_families(user_object_id)
 
     current_family_id = None
     if current_refresh_token:
         token_hash = hash_secret(current_refresh_token)
         current_token_doc = await refresh_repo.find_by_hash(token_hash)
-        if current_token_doc and current_token_doc.get("user_id") == ObjectId(user_id):
+        if current_token_doc and current_token_doc.get("user_id") == user_object_id:
             current_family_id = current_token_doc.get("family_id")
 
     return [
@@ -287,28 +293,33 @@ async def revoke_session_family(
     non-owned family_id 404s (not 403) so the response can't be used to enumerate
     which family ids exist (13-Authentication.md §13.6, mirrors require_workspace_match's
     no-leakage contract for cross-tenant resources)."""
-    from bson import ObjectId
+    user_object_id = to_object_id(user_id)
+    if user_object_id is None:
+        raise AuthenticationError("Invalid session.")
 
     refresh_repo = RefreshTokenRepository(db)
-    if not await refresh_repo.family_belongs_to_user(family_id, ObjectId(user_id)):
+    if not await refresh_repo.family_belongs_to_user(family_id, user_object_id):
         raise NotFoundError("Session not found.")
     await refresh_repo.revoke_family(family_id)
 
 
 async def revoke_all_sessions(db: AsyncIOMotorDatabase[dict[str, Any]], user_id: str) -> None:
-    from bson import ObjectId
-    from datetime import datetime, UTC
+    user_object_id = to_object_id(user_id)
+    if user_object_id is None:
+        raise AuthenticationError("Invalid session.")
 
     await db.refresh_tokens.update_many(
-        {"user_id": ObjectId(user_id), "revoked_at": None},
-        {"$set": {"revoked_at": datetime.now(UTC)}}
+        {"user_id": user_object_id, "revoked_at": None},
+        {"$set": {"revoked_at": datetime.now(UTC)}},
     )
 
 
 async def update_user(
     db: AsyncIOMotorDatabase[dict[str, Any]], user_id: str, updates: dict[str, Any]
 ) -> UserOut:
-    from bson import ObjectId
+    user_object_id = to_object_id(user_id)
+    if user_object_id is None:
+        raise AuthenticationError("Invalid session.")
 
     user_repo = UserRepository(db)
 
@@ -321,7 +332,7 @@ async def update_user(
         for k, v in updates["preferences"].items():
             patch[f"preferences.{k}"] = v
 
-    await user_repo.update(ObjectId(user_id), patch)
+    await user_repo.update(user_object_id, patch)
 
     updated_doc = await user_repo.find_by_id(user_id)
     if not updated_doc:

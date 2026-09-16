@@ -59,6 +59,8 @@ def mock_third_party_http(canned: dict[str, httpx.Response] | None = None):
         patch("app.modules.integrations.slack.httpx.AsyncClient", new=_FakeHttpClient),
         patch("app.modules.integrations.clickup.httpx.AsyncClient", new=_FakeHttpClient),
         patch("app.modules.integrations.trello.httpx.AsyncClient", new=_FakeHttpClient),
+        patch("app.modules.integrations.jira.httpx.AsyncClient", new=_FakeHttpClient),
+        patch("app.modules.integrations.asana.httpx.AsyncClient", new=_FakeHttpClient),
     ):
         yield _FakeHttpClient
 
@@ -523,3 +525,213 @@ async def test_trello_create_card_rejects_comment_from_another_workspace(
         headers=ctx_b["owner_headers"],
     )
     assert resp.status_code == 404
+
+
+# --- Jira/Asana: connect, manual create-issue/create-task, IDOR, token-rotation race --
+
+
+_JIRA_TOKEN_EXCHANGE = {"access_token": "jira-access-1", "refresh_token": "jira-refresh-1"}
+_JIRA_ACCESSIBLE_RESOURCES = [{"id": "cloud-1", "url": "https://backline.atlassian.net"}]
+
+
+async def _connect_jira(
+    client: AsyncClient, ctx: dict[str, Any], *, project_key: str = "BL"
+) -> str:
+    with mock_third_party_http(
+        {
+            "auth.atlassian.com/oauth/token": httpx.Response(200, json=_JIRA_TOKEN_EXCHANGE),
+            "accessible-resources": httpx.Response(200, json=_JIRA_ACCESSIBLE_RESOURCES),
+        }
+    ):
+        resp = await client.post(
+            f"/api/v1/workspaces/{ctx['workspace_id']}/integrations",
+            json={"type": "jira", "oauth_code": "abc", "project_key": project_key},
+            headers=ctx["owner_headers"],
+        )
+    assert resp.status_code == 201, resp.text
+    return str(resp.json()["id"])
+
+
+async def _connect_asana(
+    client: AsyncClient, ctx: dict[str, Any], *, project_gid: str = "12345"
+) -> str:
+    # Same URL (app.asana.com/-/oauth_token) serves both the initial code exchange
+    # (exchange_code_for_refresh_token, reads "refresh_token") and connect's own
+    # test_connection call (_refresh_access_token, reads "access_token") - both keys
+    # must be present in the one canned response.
+    with mock_third_party_http(
+        {
+            "app.asana.com/-/oauth_token": httpx.Response(
+                200, json={"refresh_token": "asana-rt-1", "access_token": "asana-at-1"}
+            )
+        }
+    ):
+        resp = await client.post(
+            f"/api/v1/workspaces/{ctx['workspace_id']}/integrations",
+            json={"type": "asana", "oauth_code": "abc", "project_gid": project_gid},
+            headers=ctx["owner_headers"],
+        )
+    assert resp.status_code == 201, resp.text
+    return str(resp.json()["id"])
+
+
+async def test_connect_jira_integration_success(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = await create_project_with_guest_session(
+        client, monkeypatch, email="int14@example.com", code="920019", workspace_name="INT14"
+    )
+    integration_id = await _connect_jira(client, ctx)
+
+    listing = await client.get(
+        f"/api/v1/workspaces/{ctx['workspace_id']}/integrations", headers=ctx["owner_headers"]
+    )
+    assert len(listing.json()) == 1
+    body = next(i for i in listing.json() if i["id"] == integration_id)
+    assert body["type"] == "jira"
+    # The encrypted refresh token must never appear in the API response.
+    assert "jira-refresh-1" not in listing.text
+
+
+async def test_connect_asana_integration_success(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = await create_project_with_guest_session(
+        client, monkeypatch, email="int15@example.com", code="920020", workspace_name="INT15"
+    )
+    await _connect_asana(client, ctx)
+
+    listing = await client.get(
+        f"/api/v1/workspaces/{ctx['workspace_id']}/integrations", headers=ctx["owner_headers"]
+    )
+    assert len(listing.json()) == 1
+    assert listing.json()[0]["type"] == "asana"
+    assert "asana-rt-1" not in listing.text
+
+
+async def test_jira_create_issue_round_trip_preserves_metadata_and_backlink(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = await create_project_with_guest_session(
+        client, monkeypatch, email="int16@example.com", code="920021", workspace_name="INT16"
+    )
+    integration_id = await _connect_jira(client, ctx, project_key="BL")
+    _, comment_id = await _register_page_and_comment(client, ctx, with_screenshot=True)
+
+    with mock_third_party_http(
+        {
+            "auth.atlassian.com/oauth/token": httpx.Response(200, json=_JIRA_TOKEN_EXCHANGE),
+            "rest/api/3/issue/ISSUE-1/attachments": httpx.Response(200, json={"id": "att-1"}),
+            "rest/api/3/issue": httpx.Response(
+                200, json={"key": "ISSUE-1", "id": "10001"}
+            ),
+        }
+    ) as fake:
+        resp = await client.post(
+            f"/api/v1/comments/{comment_id}/integrations/jira/create-issue"
+            f"?integration_id={integration_id}",
+            headers=ctx["owner_headers"],
+        )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["issue_key"] == "ISSUE-1"
+    assert body["issue_url"] == "https://backline.atlassian.net/browse/ISSUE-1"
+    called_paths = [url for _, url in fake.calls]
+    assert any(u.endswith("rest/api/3/issue") for u in called_paths)
+    assert any("attachments" in u for u in called_paths)
+
+
+async def test_asana_create_task_round_trip(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = await create_project_with_guest_session(
+        client, monkeypatch, email="int17@example.com", code="920022", workspace_name="INT17"
+    )
+    integration_id = await _connect_asana(client, ctx, project_gid="999")
+    _, comment_id = await _register_page_and_comment(client, ctx, with_screenshot=True)
+
+    with mock_third_party_http(
+        {
+            "app.asana.com/-/oauth_token": httpx.Response(200, json={"access_token": "at-1"}),
+            "tasks/task-1/attachments": httpx.Response(200, json={"data": {"gid": "att-1"}}),
+            "tasks": httpx.Response(
+                200,
+                json={"data": {"gid": "task-1", "permalink_url": "https://app.asana.com/0/task-1"}},
+            ),
+        }
+    ) as fake:
+        resp = await client.post(
+            f"/api/v1/comments/{comment_id}/integrations/asana/create-task"
+            f"?integration_id={integration_id}",
+            headers=ctx["owner_headers"],
+        )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["task_id"] == "task-1"
+    assert body["task_url"] == "https://app.asana.com/0/task-1"
+    called_paths = [url for _, url in fake.calls]
+    assert any(u.rstrip("/").endswith("/tasks") for u in called_paths)
+    assert any("attachments" in u for u in called_paths)
+
+
+async def test_jira_create_issue_rejects_comment_from_another_workspace(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx_a = await create_project_with_guest_session(
+        client, monkeypatch, email="int18a@example.com", code="920023", workspace_name="INT18a"
+    )
+    _, comment_id_a = await _register_page_and_comment(client, ctx_a)
+
+    ctx_b = await create_project_with_guest_session(
+        client, monkeypatch, email="int18b@example.com", code="920024", workspace_name="INT18b"
+    )
+    integration_id = await _connect_jira(client, ctx_b)
+
+    resp = await client.post(
+        f"/api/v1/comments/{comment_id_a}/integrations/jira/create-issue"
+        f"?integration_id={integration_id}",
+        headers=ctx_b["owner_headers"],
+    )
+    assert resp.status_code == 404
+
+
+async def test_jira_token_rotation_race_retries_with_refetched_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """B-class regression test for the race jira.py's _get_fresh_access_token itself
+    documents: two concurrent create_issue calls for the same integration both read the
+    same stored refresh_token, but Atlassian invalidates a refresh token the instant
+    either one uses it - so the loser's own refresh attempt fails, and it must retry
+    once against whatever refresh_token the winner has since persisted, rather than
+    fail the whole request."""
+    from app.core.encryption import encrypt_secret
+    from app.modules.integrations import jira as jira_module
+
+    calls: list[str] = []
+
+    async def fake_refresh_access_token(refresh_token: str) -> tuple[str, str]:
+        calls.append(refresh_token)
+        if refresh_token == "stale-token":
+            raise jira_module.ExternalServiceError("invalid_grant")
+        return "fresh-access-token", "rotated-token"
+
+    monkeypatch.setattr(jira_module, "_refresh_access_token", fake_refresh_access_token)
+
+    rotated: list[str] = []
+
+    async def on_rotate(new_refresh_token_encrypted: str) -> None:
+        rotated.append(new_refresh_token_encrypted)
+
+    async def refetch_config() -> dict[str, Any]:
+        # Simulates the concurrent winner having already persisted its own rotated
+        # token to the integration doc by the time the loser retries.
+        return {"refresh_token_encrypted": encrypt_secret("current-token")}
+
+    config = {"refresh_token_encrypted": encrypt_secret("stale-token")}
+    access_token = await jira_module._get_fresh_access_token(
+        config, on_rotate=on_rotate, refetch_config=refetch_config
+    )
+
+    assert access_token == "fresh-access-token"
+    assert calls == ["stale-token", "current-token"]
+    assert len(rotated) == 1

@@ -128,7 +128,7 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
       const newAttachments: Schemas["AttachmentIn"][] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const uploadInfo = await boardApi.createUpload(projectId, file.type);
+        const uploadInfo = await boardApi.createUpload(projectId, file.type, file.size);
         await fetch(uploadInfo.upload_url, {
           method: "PUT",
           body: file,

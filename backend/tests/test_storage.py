@@ -12,9 +12,14 @@ async def test_member_can_request_and_use_an_upload_url(
         client, monkeypatch, email="storage1@example.com", code="400001", workspace_name="S1"
     )
 
+    fake_bytes = b"fake-jpeg-bytes"
     resp = await client.post(
         "/api/v1/uploads",
-        json={"project_id": ctx["project_id"], "content_type": "image/jpeg"},
+        json={
+            "project_id": ctx["project_id"],
+            "content_type": "image/jpeg",
+            "content_length": len(fake_bytes),
+        },
         headers=ctx["owner_headers"],
     )
     assert resp.status_code == 201
@@ -25,7 +30,7 @@ async def test_member_can_request_and_use_an_upload_url(
     # The presigned URL is real - actually PUT a small "image" to it against local MinIO.
     async with httpx.AsyncClient() as raw_client:
         put_resp = await raw_client.put(
-            body["upload_url"], content=b"fake-jpeg-bytes", headers={"Content-Type": "image/jpeg"}
+            body["upload_url"], content=fake_bytes, headers={"Content-Type": "image/jpeg"}
         )
     assert put_resp.status_code == 200
 
@@ -39,7 +44,7 @@ async def test_guest_can_request_an_upload_url_for_their_project(
 
     resp = await client.post(
         "/api/v1/uploads",
-        json={"project_id": ctx["project_id"], "content_type": "image/png"},
+        json={"project_id": ctx["project_id"], "content_type": "image/png", "content_length": 1024},
         headers=ctx["guest_headers"],
     )
     assert resp.status_code == 201
@@ -65,7 +70,7 @@ async def test_guest_cannot_request_upload_for_another_projects(
 
     resp = await client.post(
         "/api/v1/uploads",
-        json={"project_id": other_project_id, "content_type": "image/jpeg"},
+        json={"project_id": other_project_id, "content_type": "image/jpeg", "content_length": 1024},
         headers=ctx["guest_headers"],
     )
     assert resp.status_code == 403
@@ -73,7 +78,8 @@ async def test_guest_cannot_request_upload_for_another_projects(
 
 async def test_upload_requires_auth(client: AsyncClient) -> None:
     resp = await client.post(
-        "/api/v1/uploads", json={"project_id": "irrelevant", "content_type": "image/jpeg"}
+        "/api/v1/uploads",
+        json={"project_id": "irrelevant", "content_type": "image/jpeg", "content_length": 1024},
     )
     assert resp.status_code == 401
 
@@ -88,7 +94,29 @@ async def test_upload_rejects_disallowed_content_type(
     # (images, PDF, Word/Excel docs, Markdown) - unlike PDF, this one still is.
     resp = await client.post(
         "/api/v1/uploads",
-        json={"project_id": ctx["project_id"], "content_type": "application/zip"},
+        json={
+            "project_id": ctx["project_id"],
+            "content_type": "application/zip",
+            "content_length": 1024,
+        },
+        headers=ctx["owner_headers"],
+    )
+    assert resp.status_code == 422
+
+
+async def test_upload_rejects_oversized_content_length(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = await create_project_with_guest_session(
+        client, monkeypatch, email="storage7@example.com", code="400008", workspace_name="S7"
+    )
+    resp = await client.post(
+        "/api/v1/uploads",
+        json={
+            "project_id": ctx["project_id"],
+            "content_type": "image/jpeg",
+            "content_length": 20 * 1024 * 1024 + 1,
+        },
         headers=ctx["owner_headers"],
     )
     assert resp.status_code == 422
@@ -117,7 +145,11 @@ async def test_upload_allows_comment_attachment_content_types(
     )
     resp = await client.post(
         "/api/v1/uploads",
-        json={"project_id": ctx["project_id"], "content_type": content_type},
+        json={
+            "project_id": ctx["project_id"],
+            "content_type": content_type,
+            "content_length": 1024,
+        },
         headers=ctx["owner_headers"],
     )
     assert resp.status_code == 201

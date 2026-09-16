@@ -47,6 +47,12 @@ def _allowed_object_prefixes(workspace_id: str, project_id: str) -> list[str]:
         f"uploads/{workspace_id}/{project_id}/",
         f"assets/{workspace_id}/{project_id}/",
         f"snapshots/{project_id}/",
+        # browser_render/service.py's run_render uploads cross-browser screenshots
+        # under this prefix - missing here meant a project hard-delete never
+        # enumerated or deleted them (nor the browser_renders Mongo docs, now added
+        # to ProjectDeletionRepository.snapshot_graph/delete_graph), leaking both the
+        # R2 objects and their rows forever.
+        f"renders/{workspace_id}/{project_id}/",
     ]
 
 

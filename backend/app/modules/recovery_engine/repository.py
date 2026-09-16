@@ -37,6 +37,20 @@ class RecoveryLogRepository:
         doc["_id"] = result.inserted_id
         return doc
 
+    async def comment_ids_processed_for_revision(
+        self, *, workspace_id: str, to_revision_id: str
+    ) -> set[str]:
+        """Retry-idempotency support for run_recovery_pipeline, at comment granularity
+        rather than whole-job granularity: a comment_id that already has a log row for
+        this exact to_revision_id was already fully processed (status updated + logged
+        + broadcast) by a prior attempt at this same job, so a retry must skip it
+        rather than re-run it and double-count consecutive_orphaned_revisions."""
+        cursor = self.db.recovery_logs.find(
+            {"workspace_id": workspace_id, "to_revision_id": to_revision_id},
+            projection={"comment_id": 1},
+        )
+        return {doc["comment_id"] async for doc in cursor}
+
     async def list_for_comment(
         self, *, workspace_id: str, comment_id: str, limit: int = 100
     ) -> list[dict[str, Any]]:

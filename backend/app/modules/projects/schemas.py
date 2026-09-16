@@ -151,6 +151,7 @@ class ProjectDeletionCounts(BaseModel):
     guest_sessions: int = 0
     notifications: int = 0
     project_integrations: int = 0
+    browser_renders: int = 0
     object_keys: int = 0
     retained_audit_events: int = 0
     unsafe_object_references: int = 0

@@ -1,3 +1,4 @@
+import contextlib
 from collections.abc import AsyncIterator
 from typing import Any
 from unittest.mock import patch
@@ -8,6 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
+import app.main as main_module
 from app.core.indexes import AUDIT_BATCH_03_INDEXES, ensure_indexes
 from app.main import app
 from app.modules.comments.repository import CommentRepository
@@ -27,6 +29,7 @@ async def index_db(
 
 async def test_startup_with_legacy_comments_serves_auth_preflights(
     index_db: AsyncIOMotorDatabase[dict[str, Any]],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     legacy = [
         {"workspace_id": "workspace-a", "body": "missing one"},
@@ -36,6 +39,22 @@ async def test_startup_with_legacy_comments_serves_auth_preflights(
     ]
     await index_db.comments.insert_many(legacy)
     before = await index_db.comments.find().to_list(length=None)
+
+    # The real MCP session manager (modules/mcp/server.py's FastMCP instance, mounted
+    # in main.py's lifespan) can only be entered via .run() once per process - by the
+    # SDK's own design, since a real restart always gets a fresh process and therefore
+    # a fresh instance. This test deliberately re-enters the *whole* app lifespan twice
+    # in the same process to exercise index creation against legacy data across a
+    # simulated "restart" - something the MCP singleton was never built to tolerate,
+    # but every assertion below is about comments/CORS, not MCP. Stub out just the
+    # session manager's run() for this test so the simulated restart doesn't trip over
+    # a real-world restriction that has nothing to do with what's under test here.
+    @contextlib.asynccontextmanager
+    async def _reentrant_noop_run() -> AsyncIterator[None]:
+        yield
+
+    monkeypatch.setattr(main_module.mcp_server.session_manager, "run", _reentrant_noop_run)
+
     # Reproduce the actual failing lifespan, including index creation on restart.
     with patch("app.main.get_db", return_value=index_db):
         for _ in range(2):

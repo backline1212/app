@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 from app.core.mongo_utils import to_object_id
 
@@ -13,7 +14,24 @@ class CommentRepository:
         self.db = db
 
     async def create(self, doc: dict[str, Any]) -> dict[str, Any]:
-        result = await self.db.comments.insert_one(doc)
+        try:
+            result = await self.db.comments.insert_one(doc)
+        except DuplicateKeyError:
+            # comments_workspace_client_request_id_strings caught a race that slipped
+            # past create_comment/create_reply's find_by_client_request_id
+            # check-before-create in comments/service.py (two concurrent retries of the
+            # same POST, e.g. a flaky mobile network firing the request twice) - fall
+            # back to whatever the other writer just inserted, same pattern as
+            # RevisionDiffRepository.create.
+            client_request_id = doc.get("client_request_id")
+            if client_request_id is None:
+                raise
+            existing = await self.find_by_client_request_id(
+                doc["workspace_id"], client_request_id
+            )
+            if existing is None:
+                raise
+            return existing
         doc["_id"] = result.inserted_id
         return doc
 

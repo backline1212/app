@@ -23,5 +23,9 @@ async def create_upload(
         window_seconds=60,
     )
     return await storage_service.create_upload_url(
-        get_db(), actor=actor, project_id=body.project_id, content_type=body.content_type
+        get_db(),
+        actor=actor,
+        project_id=body.project_id,
+        content_type=body.content_type,
+        content_length=body.content_length,
     )

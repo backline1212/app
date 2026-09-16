@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import PurePath
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from PIL import Image, UnidentifiedImageError
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
@@ -86,9 +86,7 @@ async def upload_asset(
     project = await get_project(db, project_id=project_id, workspace_id=workspace_id)
     if project.project_type == "website":
         raise ValidationError("Files belong in an Images or PDF project.")
-    existing = await AssetRepository(db).list(workspace_id, project_id)
-    if len(existing) >= (1 if project.project_type == "pdf" else 50):
-        raise ValidationError("This project has reached its file limit.")
+    limit = 1 if project.project_type == "pdf" else 50
     content_type, page_count, width, height = await asyncio.to_thread(
         inspect_asset, data, project.project_type
     )
@@ -102,27 +100,46 @@ async def upload_asset(
         Body=data,
         ContentType=content_type,
     )
-    page = await PageRepository(db).create(
-        project_id=project_id,
-        workspace_id=workspace_id,
-        url_normalized=f"backline://assets/{file_id}",
-        title=safe_name,
-    )
-    doc = await AssetRepository(db).create(
-        {
-            "workspace_id": workspace_id,
-            "project_id": project_id,
-            "page_id": str(page["_id"]),
-            "filename": safe_name,
-            "key": key,
-            "content_type": content_type,
-            "size": len(data),
-            "page_count": page_count,
-            "width": width,
-            "height": height,
-            "created_at": datetime.now(UTC),
-        }
-    )
+
+    # The count check and the page+asset inserts must be atomic against a concurrent
+    # upload to the same project - two uploads racing past a check-then-act count
+    # (read len(existing), then insert) can both pass it and leave a project over its
+    # file limit (e.g. 2 PDFs where exactly 1 is assumed everywhere else). The R2
+    # object above is uploaded before the transaction and stays orphaned if the
+    # transaction aborts on the limit check - an acceptable tradeoff (a stray object,
+    # not a stray/duplicate DB row), same as this codebase's other best-effort
+    # cleanup-on-failure paths.
+    async def _create_within_limit(session: AsyncIOMotorClientSession) -> dict[str, Any]:
+        count = await AssetRepository(db).count(workspace_id, project_id, session=session)
+        if count >= limit:
+            raise ValidationError("This project has reached its file limit.")
+        page = await PageRepository(db).create(
+            project_id=project_id,
+            workspace_id=workspace_id,
+            url_normalized=f"backline://assets/{file_id}",
+            title=safe_name,
+            session=session,
+        )
+        return await AssetRepository(db).create(
+            {
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "page_id": str(page["_id"]),
+                "filename": safe_name,
+                "key": key,
+                "content_type": content_type,
+                "size": len(data),
+                "page_count": page_count,
+                "width": width,
+                "height": height,
+                "created_at": datetime.now(UTC),
+            },
+            session=session,
+        )
+
+    async with await db.client.start_session() as session:
+        doc: dict[str, Any] = await session.with_transaction(_create_within_limit)
+
     await append_event(
         db,
         workspace_id=workspace_id,
