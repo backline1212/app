@@ -420,12 +420,7 @@ export function LoginPage() {
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
               </div>
               <h1>Check your email</h1>
-              <p className="lg-lede">The sign-in code is on its way to:</p>
               <p className="lg-mailbox">{email}</p>
-              <p className="lg-lede">
-                It works once. If nothing arrives in a few minutes, look in spam before
-                asking for another.
-              </p>
 
               <form className="lg-formel" onSubmit={handleVerifyOtp}>
                 <div className="lg-f" id="lgf-inCode">
