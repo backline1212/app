@@ -31,10 +31,10 @@ export async function uploadScreenshot(
   }
 }
 
-// Generic version of uploadScreenshot above, for comment/reply attachments - any
-// content type in the backend's allowlist (images, PDF, Word/Excel docs, Markdown),
-// not just the fixed image/jpeg a captured screenshot always is. Returns the shape
-// openComposer/openThreadView's uploadFile callback expects, or null on failure (the
+// Generic version of uploadScreenshot above, for comment attachments - any content
+// type in the backend's allowlist (images, PDF, Word/Excel docs, Markdown), not just
+// the fixed image/jpeg a captured screenshot always is. Returns the shape openComposer's
+// uploadFile callback expects, or null on failure (the
 // caller removes the attachment's chip when this happens).
 export async function uploadAttachment(
   api: ReturnType<typeof createApiClient>,

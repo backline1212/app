@@ -1,18 +1,12 @@
-import type { createApiClient } from "./api-client";
-import { uploadAttachment } from "./attachment-upload";
 import { trackAnchor } from "./position-tracker";
 import type { CommentRecord } from "./types";
-import { openThreadView, type ThreadViewMessage } from "./ui";
+import { openCommentView, type CommentViewControls } from "./ui";
 
 export interface ThreadManagerOptions {
   shadow: ShadowRoot;
-  api: ReturnType<typeof createApiClient>;
-  projectId: string;
-  // The current actor's own id - a guest_session_id for the guest widget, or a member
-  // user_id for the browser extension's content script (Phase 4, browser-extension
-  // plan). Compared against comment.author_id regardless of author_type: "did I create
-  // this" is the same question either way, and the two id spaces never collide.
-  myActorId: string | null;
+  // The page path shown in an opened comment's header pill - the real site's path, not
+  // the proxy's. Defaults to this document's own path.
+  pagePath?: () => string;
 }
 
 /**
@@ -25,9 +19,7 @@ export interface ThreadManagerOptions {
  */
 export function createThreadManager({
   shadow,
-  api,
-  projectId,
-  myActorId,
+  pagePath = () => window.location.pathname,
 }: ThreadManagerOptions) {
   // Every top-level comment id maps to [top, ...replies] (sorted oldest-first) - the
   // full flat list the backend returns per page, regrouped here since the widget is
@@ -37,7 +29,7 @@ export function createThreadManager({
     string,
     { pin: HTMLElement; untrack: () => void; regionOverlay?: HTMLElement }
   >();
-  let openThread: { topId: string; controls: ReturnType<typeof openThreadView> } | null = null;
+  let openThread: { topId: string; controls: CommentViewControls } | null = null;
 
   // Keeps a pin glued to its target element even while the element itself moves - a
   // CSS transform/animation-driven carousel or marquee, say - independent of page
@@ -71,26 +63,6 @@ export function createThreadManager({
     });
   }
 
-  function authorLabel(comment: CommentRecord): string {
-    if (comment.author_id === myActorId) return "You";
-    return comment.author_type === "member" ? "Team" : "Guest";
-  }
-
-  function canDeleteComment(comment: CommentRecord): boolean {
-    return comment.author_id === myActorId;
-  }
-
-  function buildMessages(topId: string): ThreadViewMessage[] {
-    return (threadMessages.get(topId) ?? []).map((comment) => ({
-      id: comment.id,
-      body: comment.body,
-      authorLabel: authorLabel(comment),
-      createdAt: comment.created_at,
-      canDelete: canDeleteComment(comment),
-      attachments: comment.attachments,
-    }));
-  }
-
   function removeThreadPin(topId: string): void {
     const entry = pinsByTopId.get(topId);
     if (!entry) return;
@@ -117,57 +89,23 @@ export function createThreadManager({
     }
 
     const topComment = threadMessages.get(topId)?.[0];
-    const canDeleteThread = topComment ? canDeleteComment(topComment) : false;
+    if (!topComment) return;
 
-    const controls = openThreadView(shadow, x, y, buildMessages(topId), canDeleteThread, {
-      onClose: () => {
+    const controls = openCommentView(
+      shadow,
+      x,
+      y,
+      {
+        authorName: topComment.author_name,
+        body: topComment.body,
+        tags: topComment.tags ?? [],
+        attachments: topComment.attachments,
+        pagePath: pagePath(),
+      },
+      () => {
         if (openThread?.topId === topId) openThread = null;
       },
-      onReply: async (body, attachments) => {
-        // M-08 idempotency: one key per reply attempt (each call here is a distinct
-        // logical reply, unlike the composer's one-key-per-pin case above).
-        const clientRequestId = crypto.randomUUID();
-        const created = await api.request<CommentRecord>(`/api/v1/comments/${topId}/replies`, {
-          method: "POST",
-          body: JSON.stringify({ body, layer: "client", attachments, client_request_id: clientRequestId }),
-        });
-        threadMessages.set(topId, [...(threadMessages.get(topId) ?? []), created]);
-        controls.setMessages(buildMessages(topId));
-      },
-      onEditMessage: async (id, body) => {
-        const updated = await api.request<CommentRecord>(`/api/v1/comments/${id}/body`, {
-          method: "PATCH",
-          body: JSON.stringify({ body }),
-        });
-        threadMessages.set(
-          topId,
-          (threadMessages.get(topId) ?? []).map((c) => (c.id === id ? updated : c)),
-        );
-        controls.setMessages(buildMessages(topId));
-      },
-      onDeleteMessage: async (id) => {
-        await api.request(`/api/v1/comments/${id}`, {
-          method: "DELETE",
-        });
-        threadMessages.set(topId, (threadMessages.get(topId) ?? []).filter((c) => c.id !== id));
-        if (id === topId) {
-          removeThreadPin(topId);
-          controls.close();
-          openThread = null;
-          return;
-        }
-        controls.setMessages(buildMessages(topId));
-      },
-      onDeleteThread: async () => {
-        await api.request(`/api/v1/comments/${topId}/thread`, {
-          method: "DELETE",
-        });
-        threadMessages.delete(topId);
-        removeThreadPin(topId);
-        controls.close();
-        openThread = null;
-      },
-    }, (file) => uploadAttachment(api, projectId, file));
+    );
     openThread = { topId, controls };
   }
 
@@ -189,6 +127,13 @@ export function createThreadManager({
       const x = parseFloat(pin.style.left);
       const y = parseFloat(pin.style.top);
       openThreadForComment(topId, x, y);
+      // Inside the dashboard's canvas iframe, tell the dashboard which comment was
+      // opened so its Comments drawer can select it (ProjectOverviewPage). "*" for the
+      // same reason as index.ts's backline:page-registered message - a comment id isn't
+      // sensitive, and this script has no fixed dashboard origin to address.
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: "backline:comment-opened", commentId: topId }, "*");
+      }
     });
     pin.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -199,9 +144,8 @@ export function createThreadManager({
   }
 
   // The comment.deleted branch of the realtime handler (realtime.ts) keeps this page's
-  // thread state - pins, and any currently-open thread panel - in sync with deletes
-  // made elsewhere (another tab, or the same delete cascading from a "delete thread"
-  // call).
+  // thread state - pins, and the open comment card if it's the one deleted - in sync
+  // with deletes made elsewhere (the dashboard, another tab).
   function handleCommentDeleted(commentId: string, topId: string): void {
     const list = threadMessages.get(topId);
     if (list) threadMessages.set(topId, list.filter((c) => c.id !== commentId));
@@ -212,8 +156,6 @@ export function createThreadManager({
         openThread.controls.close();
         openThread = null;
       }
-    } else if (openThread?.topId === topId) {
-      openThread.controls.setMessages(buildMessages(topId));
     }
   }
 
@@ -221,7 +163,6 @@ export function createThreadManager({
     threadMessages,
     pinsByTopId,
     trackPinPosition,
-    buildMessages,
     removeThreadPin,
     openThreadForComment,
     attachPinClickHandler,

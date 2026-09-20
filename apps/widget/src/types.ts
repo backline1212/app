@@ -72,15 +72,17 @@ export interface AttachmentRecord {
 }
 
 // Subset of the backend's CommentOut (packages/types/src/openapi.ts) - just the fields
-// the widget needs to render an existing thread and decide who may edit/delete what.
+// the widget needs to place a comment's pin and show it in its read-only card.
 export interface CommentRecord {
   id: string;
   page_id: string;
   parent_id: string | null;
   author_type: "member" | "guest";
   author_id: string;
+  author_name: string;
   body: string;
   created_at: string;
   anchor: AnchorPayload;
   attachments: AttachmentRecord[];
+  tags: string[];
 }

@@ -1,5 +1,119 @@
 # Delivery and verification ledger
 
+## 2026-09-20: Full-width review preview and draggable width (TDR-0022)
+
+- The responsive project-review preview ("Fit canvas") now fills its container instead
+  of being capped at `min(1180px,100%)` and centred. The stage is that container: a
+  single 40px gutter each side, with the right gutter also reserving the side-panel
+  rail and, while it is open, the comments drawer - so a full-width frame no longer
+  sits underneath the panel.
+- Added a Chrome DevTools-style width handle on the right edge of the responsive frame
+  (`CanvasResizer.tsx`). Dragging it narrows or widens the preview with the grabbed
+  edge tracking the pointer, double-click / `Home` / releasing near the container edge
+  returns it to full width, and `ArrowLeft`/`ArrowRight` (with `Shift` for a coarse
+  step) and `End` drive it from the keyboard. It exposes the window-splitter pattern
+  (`role="separator"`, `aria-valuenow`/`min`/`max`) and shows a live px readout while
+  dragging.
+- The width persists in the URL as `?stageWidth=<px>` (written once per drag, on
+  release) and is reflected in the footer status readout as `<width> × auto`. It
+  applies only without a `viewport` preset; picking any viewport clears it. No stored
+  record or API contract changed.
+- Switching the canvas between Comment, Browse and Draw no longer reloads the proxied
+  site (TDR-0023). `blMode` is now only the mode the canvas was loaded with, and each
+  switch is posted into the running widget as `backline:set-mode`; the widget applies
+  it in place (tooltip, region-drawer setup/teardown, a mode check in the click
+  handler) instead of being rebuilt. The dashboard re-sends the mode whenever the
+  canvas reports `page-registered`, which also keeps Browse mode from reverting to
+  Comment after a link click inside the canvas. Pins, open threads, an unsent composer
+  and the scroll position all survive a switch now.
+- Added the sign-in recovery affordance the login screen was missing (TDR-0024). The
+  design's `lg-forgot` control ("Trouble signing in?") now opens the design's `#lg-reset`
+  and `#lg-sent` panels, rebuilt against the real OTP flow rather than a password reset
+  the product has no backend for: the recovery panel sends the six-digit code, and the
+  code step became the "Check your email" panel (mail badge, address in `lg-mailbox`)
+  with the existing code field, expiry countdown, resend and change-email controls. The
+  three panels are now mutually exclusive, each with its own heading, as in the design.
+  Verified against `design/index.html` side by side in Chromium at 1440x900.
+- Added email + password signup and sign-in beside the existing OTP and Google flows
+  (TDR-0025, spec §13.2a). `POST /auth/signup` (201, signs straight in) and `POST
+  /auth/login`, scrypt hashing via the existing `cryptography` dependency
+  (`scrypt$n$r$p$salt$digest`, ~32 MiB/~175 ms, derived off the event loop), a nullable
+  `users.password_hash` so Google/OTP members are untouched, a 409 rather than a merge
+  when the address already exists, one identical failure message for every login failure
+  (with a dummy-digest verification so timing doesn't separate them), and per-IP plus
+  per-email rate limits. The login screen now carries all four design panels: sign-in
+  with a password and SHOW toggle, "Create your account" with the design's four-point
+  strength meter and terms gate, the recovery panel and the code panel.
+- Verified live against a local API (Mongo + Redis on this machine, test accounts
+  removed afterwards): signup 201 with the refresh cookie set, duplicate signup 409,
+  correct password 200, wrong password and unknown address both 401 with the same body,
+  a member with no password also 401, per-email login limit tripping to 429 after 10
+  tries, and the schema/service policy rejections (422 under 12 characters, repeated
+  characters, email inside the password, blank name). Driven through the real UI in
+  Chromium: strength meter Weak→Strong, SHOW/HIDE, the terms gate, signup landing
+  authenticated on `/`, and password sign-in doing the same.
+- Regenerating `packages/types` also cleared drift already on `main` - the deleted
+  `modules/auth/account` router was still in the checked-in `openapi.json`, so
+  `app__modules__auth__schemas__SessionOut` collapsed back to `SessionOut` and the one
+  frontend reference was updated.
+- The review proxy now carries a login form and the session behind it (TDR-0026, spec
+  §13.3a), so pages behind a client's own login can be reviewed. Added POST routes
+  beside the existing GET ones, request-body forwarding capped at 2 MiB, `Origin`/
+  `Referer` rewritten to the reviewed site's own address so its CSRF checks pass, and
+  cookie passthrough in both directions - re-emitted to the reviewer as
+  `blp_{share_token}_{name}` on `Path=/proxy/{share_token}` (`SameSite=None; Secure;
+  Partitioned` outside local, since the canvas is a cross-site iframe), and forwarded
+  upstream only when they carry that prefix. A form's redirect is returned to the
+  browser as a 303 at the proxied path rather than followed server-side, so the frame's
+  URL matches the page it shows. Nothing is stored server-side.
+- Verified live against a local site with a real login (form → Set-Cookie → redirect →
+  protected page), with the SSRF guard stubbed in a throwaway local process only, and
+  the seeded project/share links removed afterwards: signed out bounced to the login
+  page, the form action rewritten to the proxy, POST answered 303 to the proxied
+  dashboard with the namespaced HttpOnly cookie, the protected content then served, and
+  the widget still injected on it. Isolation checks: the site received only its own
+  `sid` cookie while `refresh_token` and another Backline cookie sent alongside were not
+  forwarded; `Origin`/`Referer` arrived as the site's own; a second share link to the
+  same site in the same browser saw no session and was bounced to the login page; wrong
+  credentials returned the site's own 401.
+- Comment boxes now grow with what's being typed instead of staying at their opening
+  size. The widget composer (`ui-composer.ts`) and the dashboard thread reply
+  (`MentionsInput`, via the new `lib/auto-grow.ts`) share one rule: fit the content up
+  to a 40vh cap declared in CSS, then scroll, and treat a height the person set by
+  dragging the corner as a floor so a keystroke never undoes their drag. Both keep
+  `resize: vertical`. The widget re-runs `placeCard` on each growth so a composer opened
+  near the bottom of the viewport rides up rather than growing off-screen. A short
+  message still looks exactly as it did.
+- Verified in Chromium against the running app, with the seeded fixtures removed
+  afterwards. Widget composer: 78px empty and for a one-liner, 164px for a seven-line
+  comment, capped at 304px (40vh of a 760px viewport) for 40 lines and scrolling from
+  there. Dashboard reply: 64px empty, 84px for a four-line reply, capped at 380px (40vh
+  of 950px), scrolling, and still reporting `resize: vertical`.
+- Fixed the comment composer navigating the reviewed page away on Enter. A shadow root
+  hides DOM, not events: keystrokes typed into the widget kept propagating out
+  (retargeted to the host) and reached the reviewed site's own document-level key
+  handlers - a search box, a nav, a carousel - so a plain Enter mid-comment ran the
+  site's handler and took the unsent comment with it. `createShadowRoot` now stops
+  `keydown`/`keypress`/`keyup` at the shadow boundary, which is the last point inside
+  the widget's own tree. Widget-internal handlers are unaffected: they sit on the
+  elements themselves (the composer's Cmd+Enter, a pin's Enter) or on document in the
+  capture phase (the comment card's Escape), both of which run first.
+- Reproduced and verified in Chromium against a proxied local site carrying
+  `document.addEventListener("keydown", e => e.key === "Enter" && (location.href = ...))`,
+  which is what the real symptom looked like. Before: Enter navigated to the other page
+  and the composer with its half-typed comment was gone. After: the page stays put, the
+  composer stays open and Enter inserts a newline. Regression pass on the widget's own
+  keys, all with no navigation: Enter submits the guest name prompt (implicit form
+  submission is a default action, which stopPropagation doesn't touch), Cmd+Enter still
+  posts a comment, and Escape still closes a pin's comment card.
+- Verification: `pnpm turbo run lint typecheck build --filter=@backline/web --filter=@backline/widget` passed
+  (6/6 tasks; 607 modules; the pre-existing >500 kB chunk warning and four pre-existing
+  react-refresh lint warnings remain). Stage geometry was measured in headless Chromium
+  against the built stylesheet: 40px left gutter and 94px right (40 + 54px rail) with
+  the drawer closed, 474px right with it open, the frame centred within that box at any
+  explicit width, and the handle hidden below the 760px breakpoint. No test suite,
+  database migration, or deployment is claimed.
+
 ## 2026-09-10: Brand, contrast, and light/dark UI hardening
 
 - Made Light the deterministic first-visit theme and retained Dark as an explicit user

@@ -30,7 +30,7 @@ test.describe("comment cancellation removes its pin", () => {
     await setUp(page);
 
     await page.click("h2:has-text('Pricing')");
-    await page.waitForSelector('textarea[placeholder="What\'s the issue here?"]', {
+    await page.waitForSelector('textarea[placeholder="What needs to change here?"]', {
       timeout: 10_000,
     });
     await expect(page.locator(".bl-pin")).toHaveCount(1);
@@ -47,7 +47,7 @@ test.describe("comment cancellation removes its pin", () => {
     await setUp(page);
 
     await page.click("h2:has-text('Pricing')");
-    await page.waitForSelector('textarea[placeholder="What\'s the issue here?"]', {
+    await page.waitForSelector('textarea[placeholder="What needs to change here?"]', {
       timeout: 10_000,
     });
     await expect(page.locator(".bl-pin")).toHaveCount(1);
@@ -56,7 +56,7 @@ test.describe("comment cancellation removes its pin", () => {
     // should cancel the first attempt (removing its pin) and start a fresh one, not
     // leave both pins on the page.
     await page.click("h2:has-text('Testimonials')");
-    await page.waitForSelector('textarea[placeholder="What\'s the issue here?"]', {
+    await page.waitForSelector('textarea[placeholder="What needs to change here?"]', {
       timeout: 10_000,
     });
 
@@ -68,11 +68,11 @@ test.describe("comment cancellation removes its pin", () => {
     await setUp(page);
 
     await page.click("h2:has-text('Pricing')");
-    await page.waitForSelector('textarea[placeholder="What\'s the issue here?"]', {
+    await page.waitForSelector('textarea[placeholder="What needs to change here?"]', {
       timeout: 10_000,
     });
-    await page.fill('textarea[placeholder="What\'s the issue here?"]', "Real feedback");
-    await page.click('button:has-text("Capture & prepare comment")');
+    await page.fill('textarea[placeholder="What needs to change here?"]', "Real feedback");
+    await page.click('button:has-text("Post comment")');
     await page.waitForSelector("text=Comment posted.", { timeout: 15_000 });
 
     // Click elsewhere - the now-stale composer (still showing "Comment posted.")

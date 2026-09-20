@@ -29,7 +29,7 @@ test("pin and composer stay attached to the clicked element across a scroll", as
   });
 
   await page.click("h2:has-text('Testimonials')");
-  await page.waitForSelector('textarea[placeholder="What\'s the issue here?"]', {
+  await page.waitForSelector('textarea[placeholder="What needs to change here?"]', {
     timeout: 10_000,
   });
 

@@ -97,6 +97,9 @@ class CommentCreate(BaseModel):
     screenshot_key: str | None = None
     capture_status: Literal["ok", "failed"] = "ok"
     attachments: list[AttachmentIn] = Field(default_factory=list, max_length=10)
+    # The composer's "Tag this as" picker - same vocabulary and cap as CommentUpdate.tags,
+    # just settable at creation time instead of only by a later edit.
+    tags: list[Tag] = Field(default_factory=list, max_length=6)
     # M-08 idempotency: optional caller-generated key so a retried POST (flaky mobile
     # network, per 16-Dashboard.md §16.2's device concerns) replays the original
     # comment instead of creating a duplicate. Uniqueness is per-workspace

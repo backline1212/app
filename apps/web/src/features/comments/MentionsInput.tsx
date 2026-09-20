@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { qk } from "../../lib/query-keys";
+import { useAutoGrow } from "../../lib/auto-grow";
 import { useOnClickOutside } from "../../lib/use-click-outside";
 import * as workspaceApi from "../workspaces/api";
 
@@ -19,6 +20,9 @@ interface MentionsInputProps extends React.TextareaHTMLAttributes<HTMLTextAreaEl
 export function MentionsInput({ onMentionedIdsChange, ...props }: MentionsInputProps) {
   const { workspaceSlug } = useParams();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Replies run long - the box grows with the reply instead of leaving someone typing
+  // into three lines, and stays draggable for anyone who wants it bigger still.
+  useAutoGrow(textareaRef, props.value);
   // Maps a mentioned member's id to the exact "@Name " text insertMention() wrote into
   // the draft - ids never appear in the draft's own text, so this is what lets a later
   // edit that deletes the mention (backspace, retyping, cutting a line) be detected and

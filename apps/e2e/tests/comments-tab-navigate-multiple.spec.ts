@@ -40,8 +40,8 @@ test("clicking through several comments in the Comments panel opens each thread 
         .waitFor({ timeout: 10_000 });
     }
     await frame.locator(selector).click();
-    await frame.locator('textarea[placeholder="What\'s the issue here?"]').fill(body);
-    await frame.locator('button:has-text("Capture & prepare comment")').click();
+    await frame.locator('textarea[placeholder="What needs to change here?"]').fill(body);
+    await frame.locator('button:has-text("Post comment")').click();
     await frame.locator("text=Comment posted.").waitFor({ timeout: 15_000 });
     // No explicit dismiss click needed: openComposer's outside-click handler
     // (apps/widget/src/ui.ts) is registered on the capture phase, so the *next*

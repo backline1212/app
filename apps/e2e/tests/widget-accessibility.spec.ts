@@ -38,7 +38,7 @@ test("widget (name prompt + composer) has no WCAG AA violations", async ({ page,
       timeout: 10_000,
     });
     await widgetPage.click("h2:has-text('Pricing')");
-    await widgetPage.waitForSelector('textarea[placeholder="What\'s the issue here?"]', {
+    await widgetPage.waitForSelector('textarea[placeholder="What needs to change here?"]', {
       timeout: 10_000,
     });
     const results = await new AxeBuilder({ page: widgetPage }).withTags(WCAG_TAGS).analyze();

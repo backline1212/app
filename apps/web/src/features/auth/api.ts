@@ -20,6 +20,20 @@ export function verifyOtp(email: string, code: string): Promise<TokenPairOut> {
   });
 }
 
+export function signup(name: string, email: string, password: string): Promise<TokenPairOut> {
+  return apiFetch<TokenPairOut>("/api/v1/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password }),
+  });
+}
+
+export function loginWithPassword(email: string, password: string): Promise<TokenPairOut> {
+  return apiFetch<TokenPairOut>("/api/v1/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
 export function exchangeGoogleCode(code: string): Promise<TokenPairOut> {
   return apiFetch<TokenPairOut>("/api/v1/auth/google/callback", {
     method: "POST",
@@ -53,7 +67,10 @@ export function updateProfile(updates: UserUpdateRequest): Promise<UserOutWithPr
   });
 }
 
-export type SessionOut = Schemas["app__modules__auth__schemas__SessionOut"];
+// Plain "SessionOut" again since the second, duplicate SessionOut (the removed
+// modules/auth/account router) stopped being part of the schema - openapi-typescript
+// only qualifies a name by its Python module path while two of them collide.
+export type SessionOut = Schemas["SessionOut"];
 
 export function listSessions(): Promise<SessionOut[]> {
   return apiFetch<SessionOut[]>("/api/v1/auth/sessions", { method: "GET" });

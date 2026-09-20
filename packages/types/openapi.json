@@ -5,42 +5,18 @@
     "version": "0.1.0"
   },
   "paths": {
-    "/api/v1/auth/account": {
-      "get": {
+    "/api/v1/auth/google/callback": {
+      "post": {
         "tags": [
-          "account"
+          "auth"
         ],
-        "summary": "Profile",
-        "operationId": "profile_api_v1_auth_account_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProfileOut"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      },
-      "patch": {
-        "tags": [
-          "account"
-        ],
-        "summary": "Update Profile",
-        "operationId": "update_profile_api_v1_auth_account_patch",
+        "summary": "Google Callback",
+        "operationId": "google_callback_api_v1_auth_google_callback_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileUpdate"
+                "$ref": "#/components/schemas/GoogleCallbackRequest"
               }
             }
           },
@@ -52,104 +28,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProfileOut"
+                  "$ref": "#/components/schemas/TokenPairOut"
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/auth/account/sessions": {
-      "get": {
-        "tags": [
-          "account"
-        ],
-        "summary": "Sessions",
-        "operationId": "sessions_api_v1_auth_account_sessions_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/app__modules__auth__account__SessionOut"
-                  },
-                  "type": "array",
-                  "title": "Response Sessions Api V1 Auth Account Sessions Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/auth/account/sessions/others": {
-      "delete": {
-        "tags": [
-          "account"
-        ],
-        "summary": "Revoke Other Sessions",
-        "operationId": "revoke_other_sessions_api_v1_auth_account_sessions_others_delete",
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/auth/account/sessions/{family_id}": {
-      "delete": {
-        "tags": [
-          "account"
-        ],
-        "summary": "Revoke Session",
-        "operationId": "revoke_session_api_v1_auth_account_sessions__family_id__delete",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "family_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Family Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -164,18 +46,60 @@
         }
       }
     },
-    "/api/v1/auth/google/callback": {
+    "/api/v1/auth/signup": {
       "post": {
         "tags": [
           "auth"
         ],
-        "summary": "Google Callback",
-        "operationId": "google_callback_api_v1_auth_google_callback_post",
+        "summary": "Signup",
+        "description": "Creates an account with a password and signs it straight in - the member never\nhas to go and log in again with credentials they just chose.",
+        "operationId": "signup_api_v1_auth_signup_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GoogleCallbackRequest"
+                "$ref": "#/components/schemas/SignupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPairOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLoginRequest"
               }
             }
           },
@@ -461,7 +385,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/app__modules__auth__schemas__SessionOut"
+                    "$ref": "#/components/schemas/SessionOut"
                   },
                   "title": "Response List Sessions Api V1 Auth Sessions Get"
                 }
@@ -5449,6 +5373,44 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Proxy Root Post",
+        "operationId": "proxy_root_post_proxy__share_token__post",
+        "parameters": [
+          {
+            "name": "share_token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Share Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/proxy/{share_token}/{path}": {
@@ -5458,6 +5420,53 @@
         ],
         "summary": "Proxy Path",
         "operationId": "proxy_path_proxy__share_token___path__get",
+        "parameters": [
+          {
+            "name": "share_token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Share Token"
+            }
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Proxy Path Post",
+        "operationId": "proxy_path_post_proxy__share_token___path__post",
         "parameters": [
           {
             "name": "share_token",
@@ -6280,6 +6289,22 @@
             "type": "array",
             "maxItems": 10,
             "title": "Attachments"
+          },
+          "tags": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Bug",
+                "Copy",
+                "Design",
+                "Responsive",
+                "Content",
+                "Accessibility"
+              ]
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Tags"
           },
           "client_request_id": {
             "anyOf": [
@@ -7860,114 +7885,26 @@
         "type": "object",
         "title": "PageUpdate"
       },
-      "Preferences": {
+      "PasswordLoginRequest": {
         "properties": {
-          "locale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "hi-IN"
-            ],
-            "title": "Locale",
-            "default": "en"
-          },
-          "timezone": {
-            "type": "string",
-            "title": "Timezone",
-            "default": "UTC"
-          },
-          "email_on_comment": {
-            "type": "boolean",
-            "title": "Email On Comment",
-            "default": true
-          },
-          "email_on_mention": {
-            "type": "boolean",
-            "title": "Email On Mention",
-            "default": true
-          },
-          "daily_digest": {
-            "type": "boolean",
-            "title": "Daily Digest",
-            "default": true
-          },
-          "weekly_summary": {
-            "type": "boolean",
-            "title": "Weekly Summary",
-            "default": false
-          }
-        },
-        "type": "object",
-        "title": "Preferences"
-      },
-      "ProfileOut": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name"
-          },
-          "professional_role": {
-            "type": "string",
-            "maxLength": 100,
-            "title": "Professional Role",
-            "default": ""
-          },
-          "preferences": {
-            "$ref": "#/components/schemas/Preferences"
-          },
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
           "email": {
             "type": "string",
+            "format": "email",
             "title": "Email"
           },
-          "avatar_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar Url"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "id",
-          "email"
-        ],
-        "title": "ProfileOut"
-      },
-      "ProfileUpdate": {
-        "properties": {
-          "name": {
+          "password": {
             "type": "string",
             "maxLength": 200,
             "minLength": 1,
-            "title": "Name"
-          },
-          "professional_role": {
-            "type": "string",
-            "maxLength": 100,
-            "title": "Professional Role",
-            "default": ""
-          },
-          "preferences": {
-            "$ref": "#/components/schemas/Preferences"
+            "title": "Password"
           }
         },
         "type": "object",
         "required": [
-          "name"
+          "email",
+          "password"
         ],
-        "title": "ProfileUpdate"
+        "title": "PasswordLoginRequest"
       },
       "ProjectCreate": {
         "properties": {
@@ -8081,6 +8018,11 @@
           "project_integrations": {
             "type": "integer",
             "title": "Project Integrations",
+            "default": 0
+          },
+          "browser_renders": {
+            "type": "integer",
+            "title": "Browser Renders",
             "default": 0
           },
           "object_keys": {
@@ -9138,6 +9080,73 @@
         ],
         "title": "SearchResultsOut"
       },
+      "SessionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "browser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser"
+          },
+          "os": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Os"
+          },
+          "ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip Address"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_active_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Active At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "current",
+          "browser",
+          "os",
+          "ip_address",
+          "created_at",
+          "last_active_at"
+        ],
+        "title": "SessionOut",
+        "description": "FD-AUD-011: Represents an active refresh token family for the user.\nM-05: created_at/last_active_at are typed datetimes (Pydantic serializes to a real\nISO-8601 string with timezone on the wire) rather than hand-formatted str fields -\nAPI contracts stay generated/typed end-to-end per 06-Backend-Architecture.md \u00a72.3,\nand the frontend gets a real Date-parseable value instead of an ad hoc string."
+      },
       "ShareLinkCreate": {
         "properties": {
           "mode": {
@@ -9280,6 +9289,35 @@
           "created_at"
         ],
         "title": "ShareLinkOut"
+      },
+      "SignupRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 12,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "title": "SignupRequest",
+        "description": "13-Authentication.md \u00a713.2a. The length bounds live here so an over-long or\nobviously too-short password is rejected before it ever reaches scrypt; the rest of\nthe policy (content, not shape) is service-side in _validate_new_password."
       },
       "SlackIntegrationCreate": {
         "properties": {
@@ -9841,12 +9879,19 @@
             "type": "string",
             "pattern": "^(image/jpeg$|image/png$|image/webp$|image/gif$|application/pdf$|application/msword$|application/vnd\\.openxmlformats-officedocument\\.wordprocessingml\\.document$|application/vnd\\.ms-excel$|application/vnd\\.openxmlformats-officedocument\\.spreadsheetml\\.sheet$|text/markdown$)",
             "title": "Content Type"
+          },
+          "content_length": {
+            "type": "integer",
+            "maximum": 20971520.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Content Length"
           }
         },
         "type": "object",
         "required": [
           "project_id",
-          "content_type"
+          "content_type",
+          "content_length"
         ],
         "title": "UploadRequest"
       },
@@ -10085,103 +10130,6 @@
         },
         "type": "object",
         "title": "WorkspaceUpdate"
-      },
-      "app__modules__auth__account__SessionOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "current": {
-            "type": "boolean",
-            "title": "Current"
-          },
-          "last_active_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Last Active At"
-          },
-          "expires_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Expires At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "current",
-          "last_active_at",
-          "expires_at"
-        ],
-        "title": "SessionOut"
-      },
-      "app__modules__auth__schemas__SessionOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "current": {
-            "type": "boolean",
-            "title": "Current"
-          },
-          "browser": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Browser"
-          },
-          "os": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Os"
-          },
-          "ip_address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ip Address"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "last_active_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Last Active At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "current",
-          "browser",
-          "os",
-          "ip_address",
-          "created_at",
-          "last_active_at"
-        ],
-        "title": "SessionOut",
-        "description": "FD-AUD-011: Represents an active refresh token family for the user.\nM-05: created_at/last_active_at are typed datetimes (Pydantic serializes to a real\nISO-8601 string with timezone on the wire) rather than hand-formatted str fields -\nAPI contracts stay generated/typed end-to-end per 06-Backend-Architecture.md \u00a72.3,\nand the frontend gets a real Date-parseable value instead of an ad hoc string."
       }
     },
     "securitySchemes": {

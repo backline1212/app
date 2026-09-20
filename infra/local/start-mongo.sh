@@ -19,6 +19,12 @@ fi
 # least a single-node replica set - this matches production instead of diverging from
 # it. Safe to add to a data directory from before this flag existed: MongoDB builds the
 # oplog on first start with --replSet, no migration needed.
+# macOS terminals default to 256 open files per process, and mongod keeps one open per
+# collection and per index - this app's indexes alone push it past that, and WiredTiger
+# aborts ("Too many open files") rather than degrading. 10240 = macOS's
+# kern.maxfilesperproc ceiling.
+ulimit -n 10240 2>/dev/null || true
+
 mongod --dbpath "$DATA_DIR" --port 27017 --bind_ip 127.0.0.1 --replSet rs0 \
   --logpath "$LOG_DIR/mongod.log" --fork --pidfilepath "$PID_FILE"
 

@@ -1,24 +1,31 @@
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+import anyio
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 from app.core.config import get_settings
 from app.core.email import send_email
 from app.core.errors import (
     AuthenticationError,
+    ConflictError,
     NotFoundError,
     PermissionDeniedError,
     ValidationError,
 )
 from app.core.mongo_utils import to_object_id
 from app.core.security import (
+    PASSWORD_MIN_LENGTH,
     create_access_token,
     generate_opaque_token,
     generate_otp_code,
+    hash_password,
     hash_secret,
     secrets_match,
+    verify_password,
 )
 from app.modules.auth.google_oauth import exchange_code_for_user_info
 from app.modules.auth.repository import OtpRepository, RefreshTokenRepository, UserRepository
@@ -128,6 +135,103 @@ async def login_with_google(
     await user_repo.touch_login(existing["_id"], "google")
 
     return await _issue_tokens(db, existing, ua=ua, ip=ip)
+
+
+# One real digest, derived once per process, to verify against when the email has no
+# account or has one with no password on it. Without it, those cases would return in
+# microseconds while a wrong password takes the full scrypt derivation - a timing
+# oracle for which addresses are registered. Built lazily so importing this module
+# doesn't cost a derivation.
+_absent_password_digest: str | None = None
+
+
+def _digest_for_absent_password() -> str:
+    global _absent_password_digest
+    if _absent_password_digest is None:
+        _absent_password_digest = hash_password(secrets.token_urlsafe(32))
+    return _absent_password_digest
+
+
+def _validate_new_password(password: str, email: str) -> None:
+    """Length is already enforced by the request schema; this is the part that has to
+    look at the password's content, which Pydantic can't express. Deliberately short -
+    a long list of composition rules pushes people towards predictable substitutions
+    rather than longer passwords."""
+    if len(password) < PASSWORD_MIN_LENGTH:
+        raise ValidationError(f"Use at least {PASSWORD_MIN_LENGTH} characters.")
+    if len(set(password)) < 4:
+        raise ValidationError("That password repeats too few characters. Mix it up.")
+    local_part = email.split("@")[0].lower()
+    if len(local_part) >= 4 and local_part in password.lower():
+        raise ValidationError("Leave your email address out of your password.")
+
+
+async def signup_with_password(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    name: str,
+    email: str,
+    password: str,
+    ua: str | None = None,
+    ip: str | None = None,
+) -> IssuedTokens:
+    """Creating an account with a password, the only flow that sets one. An address that
+    already exists is refused rather than having the password attached to it: a member
+    who signed in with Google or a code has a real account, and letting an unauthenticated
+    caller set a password on it just because they know the address would hand over the
+    account. They sign in the way they already do instead."""
+    name = name.strip()
+    if not name:
+        raise ValidationError("Tell us your name.")
+    _validate_new_password(password, email)
+
+    user_repo = UserRepository(db)
+    if await user_repo.find_by_email(email) is not None:
+        raise ConflictError("That email already has a Backline account. Sign in instead.")
+
+    # Blocking and memory-bound (~32 MiB, ~175 ms) - off the event loop, or every other
+    # request in this worker waits behind it.
+    password_hash = await anyio.to_thread.run_sync(hash_password, password)
+    try:
+        user_doc = await user_repo.create(
+            email=email,
+            name=name,
+            avatar_url=None,
+            auth_provider="password",
+            password_hash=password_hash,
+        )
+    except DuplicateKeyError:
+        # Same race the unique email index catches for get_or_create: two signups for
+        # one address in flight at once, both past the check above.
+        raise ConflictError("That email already has a Backline account. Sign in instead.") from None
+
+    return await _issue_tokens(db, user_doc, ua=ua, ip=ip)
+
+
+async def login_with_password(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    email: str,
+    password: str,
+    ua: str | None = None,
+    ip: str | None = None,
+) -> IssuedTokens:
+    user_repo = UserRepository(db)
+    user_doc = await user_repo.find_by_email(email)
+    stored = user_doc.get("password_hash") if user_doc else None
+
+    matched = await anyio.to_thread.run_sync(
+        verify_password, password, stored or _digest_for_absent_password()
+    )
+    # One message for all three cases (no account, account without a password, wrong
+    # password): which of them it is, is exactly what an attacker probing addresses
+    # wants to learn. The sign-in screen offers the code flow alongside, which is how a
+    # member with no password still gets in.
+    if user_doc is None or not stored or not matched:
+        raise AuthenticationError("Incorrect email or password.")
+
+    await user_repo.touch_login(user_doc["_id"], "password")
+    return await _issue_tokens(db, user_doc, ua=ua, ip=ip)
 
 
 async def request_otp(db: AsyncIOMotorDatabase[dict[str, Any]], email: str) -> None:

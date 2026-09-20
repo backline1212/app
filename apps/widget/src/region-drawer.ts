@@ -1,7 +1,7 @@
 import type { ApiClient } from "./api-client";
 import type { CommentRecord } from "./types";
 import { computeRegionAnchor } from "./anchor";
-import { renderPin, openComposer } from "./ui";
+import { renderPin, openComposer, type ComposerDetails } from "./ui";
 import { captureScreenshot } from "./screenshot";
 import { uploadScreenshot, uploadAttachment } from "./attachment-upload";
 import { parseUserAgent } from "./user-agent";
@@ -16,6 +16,7 @@ export function setupRegionDrawer({
   threadManager,
   ownCommentIds,
   tooltip,
+  composerDetails,
 }: {
   shadow: ShadowRoot;
   api: ApiClient;
@@ -25,6 +26,7 @@ export function setupRegionDrawer({
   threadManager: ReturnType<typeof createThreadManager>;
   ownCommentIds: Set<string>;
   tooltip: { dismiss: () => void };
+  composerDetails: (regionSize?: string) => ComposerDetails;
 }) {
   let startX = 0;
   let startY = 0;
@@ -94,6 +96,7 @@ export function setupRegionDrawer({
 
     // Create a pin at the top-left of the region
     const pin = renderPin(shadow, finalLeft, finalTop);
+    pin.classList.add("bl-pin-ghost");
     
     const targetRect = target.getBoundingClientRect();
     const offset = {
@@ -110,7 +113,7 @@ export function setupRegionDrawer({
       shadow,
       finalLeft,
       finalTop + finalHeight, // open below the region
-      async ({ body, attachments }) => {
+      async ({ body, attachments, tags }) => {
         controls.setStatus("Capturing region anchor + screenshot...");
         const anchor = await computeRegionAnchor(activeTarget, rect);
         const screenshotBlob = await captureScreenshot();
@@ -145,9 +148,11 @@ export function setupRegionDrawer({
               screenshot_key: screenshotKey,
               capture_status: screenshotKey ? "ok" : "failed",
               attachments,
+              tags,
               client_request_id: clientRequestId,
             }),
           });
+          pin.classList.remove("bl-pin-ghost");
           ownCommentIds.add(created.id);
           threadManager.threadMessages.set(created.id, [created]);
           threadManager.pinsByTopId.set(created.id, { pin, untrack, regionOverlay: activeOverlay });
@@ -164,6 +169,7 @@ export function setupRegionDrawer({
         activeOverlay.remove();
       },
       (file: File) => uploadAttachment(api, projectId, file),
+      composerDetails(`${Math.round(finalWidth)} \u00d7 ${Math.round(finalHeight)}`),
     );
   }
 

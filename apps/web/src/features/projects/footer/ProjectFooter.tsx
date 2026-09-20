@@ -30,6 +30,8 @@ interface ProjectFooterProps {
   onSelectPage: (pageId: string) => void;
   viewport: ViewportOption | null;
   onViewportChange: (viewport: ViewportOption | null) => void;
+  /** Width the responsive frame was dragged to, or null while it fills the canvas. */
+  fitWidth?: number | null;
   browser: BrowserOption;
   onBrowserChange: (browser: BrowserOption) => void;
   orientation: "portrait" | "landscape";
@@ -50,6 +52,7 @@ export function ProjectFooter({
   onSelectPage,
   viewport,
   onViewportChange,
+  fitWidth = null,
   browser,
   onBrowserChange,
   orientation,
@@ -133,7 +136,13 @@ export function ProjectFooter({
         <span className={`bl-review-source-dot is-${iframeStatus}`} aria-hidden="true" />
         <span>{statusLabel}</span>
         <span aria-hidden="true">·</span>
-        <span>{width && height ? `${width} × ${height}` : "Fit canvas"}</span>
+        <span>
+          {width && height
+            ? `${width} × ${height}`
+            : fitWidth
+              ? `${fitWidth} × auto`
+              : "Fit canvas"}
+        </span>
         <span aria-hidden="true">·</span>
         <BrowserMenu browser={browser} onChange={onBrowserChange} />
       </div>

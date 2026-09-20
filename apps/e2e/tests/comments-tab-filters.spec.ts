@@ -37,8 +37,8 @@ test("comments panel: status filters, sort, layer filter, current-page toggle, s
         .waitFor({ timeout: 10_000 });
     }
     await frame.locator(selector).click();
-    await frame.locator('textarea[placeholder="What\'s the issue here?"]').fill(body);
-    await frame.locator('button:has-text("Capture & prepare comment")').click();
+    await frame.locator('textarea[placeholder="What needs to change here?"]').fill(body);
+    await frame.locator('button:has-text("Post comment")').click();
     await frame.locator("text=Comment posted.").waitFor({ timeout: 15_000 });
     // Click a blank spot on the reviewed page itself (relative to the iframe, not an
     // absolute page coordinate) to dismiss the composer - the dashboard's sidebar now

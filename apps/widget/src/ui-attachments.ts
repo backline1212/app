@@ -34,15 +34,19 @@ export function attachmentIcon(): string {
  * later. `uploadFile` does the actual network work (index.ts owns the API client; ui.ts
  * doesn't import it, same separation as everywhere else in this file) and returns null
  * on failure, which removes the chip and never gets included in the submitted result.
+ * `onCountChange` reports how many chips are showing (pending uploads included) after
+ * every add/remove, for a caller whose attach button label depends on it.
  */
 export function setupAttachments(
   composer: HTMLElement,
   uploadFile: (file: File) => Promise<AttachmentResult | null>,
+  onCountChange?: (count: number) => void,
 ): { getAttachments: () => AttachmentResult[]; disable: () => void; reset: () => void } {
   const attachmentsEl = composer.querySelector<HTMLDivElement>(".bl-attachments")!;
   const fileInput = composer.querySelector<HTMLInputElement>(".bl-attach-input")!;
   const attachButton = composer.querySelector<HTMLButtonElement>(".bl-attach-button")!;
   const uploaded: AttachmentResult[] = [];
+  const reportCount = () => onCountChange?.(attachmentsEl.children.length);
 
   attachButton.addEventListener("click", () => fileInput.click());
 
@@ -57,11 +61,13 @@ export function setupAttachments(
       chip.innerHTML = `${attachmentIcon()}<span class="bl-attachment-name"></span><button type="button" class="bl-attachment-remove" aria-label="Remove attachment">&times;</button>`;
       chip.querySelector(".bl-attachment-name")!.textContent = file.name;
       attachmentsEl.appendChild(chip);
+      reportCount();
 
       const removeButton = chip.querySelector<HTMLButtonElement>(".bl-attachment-remove")!;
       let result: AttachmentResult | null = null;
       removeButton.addEventListener("click", () => {
         chip.remove();
+        reportCount();
         if (result) {
           const idx = uploaded.indexOf(result);
           if (idx !== -1) uploaded.splice(idx, 1);
@@ -71,6 +77,7 @@ export function setupAttachments(
       void uploadFile(file).then((uploadedResult) => {
         if (!uploadedResult) {
           chip.remove();
+          reportCount();
           return;
         }
         result = uploadedResult;
@@ -89,6 +96,7 @@ export function setupAttachments(
     reset: () => {
       uploaded.length = 0;
       attachmentsEl.innerHTML = "";
+      reportCount();
     },
   };
 }

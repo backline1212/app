@@ -4,75 +4,6 @@
  */
 
 export interface paths {
-    "/api/v1/auth/account": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Profile */
-        get: operations["profile_api_v1_auth_account_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Update Profile */
-        patch: operations["update_profile_api_v1_auth_account_patch"];
-        trace?: never;
-    };
-    "/api/v1/auth/account/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Sessions */
-        get: operations["sessions_api_v1_auth_account_sessions_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/account/sessions/others": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Revoke Other Sessions */
-        delete: operations["revoke_other_sessions_api_v1_auth_account_sessions_others_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/account/sessions/{family_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Revoke Session */
-        delete: operations["revoke_session_api_v1_auth_account_sessions__family_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/auth/google/callback": {
         parameters: {
             query?: never;
@@ -84,6 +15,44 @@ export interface paths {
         put?: never;
         /** Google Callback */
         post: operations["google_callback_api_v1_auth_google_callback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Signup
+         * @description Creates an account with a password and signs it straight in - the member never
+         *     has to go and log in again with credentials they just chose.
+         */
+        post: operations["signup_api_v1_auth_signup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login */
+        post: operations["login_api_v1_auth_login_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1419,7 +1388,8 @@ export interface paths {
         /** Proxy Root */
         get: operations["proxy_root_proxy__share_token__get"];
         put?: never;
-        post?: never;
+        /** Proxy Root Post */
+        post: operations["proxy_root_post_proxy__share_token__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1436,7 +1406,8 @@ export interface paths {
         /** Proxy Path */
         get: operations["proxy_path_proxy__share_token___path__get"];
         put?: never;
-        post?: never;
+        /** Proxy Path Post */
+        post: operations["proxy_path_post_proxy__share_token___path__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1765,6 +1736,8 @@ export interface components {
             capture_status: "ok" | "failed";
             /** Attachments */
             attachments?: components["schemas"]["AttachmentIn"][];
+            /** Tags */
+            tags?: ("Bug" | "Copy" | "Design" | "Responsive" | "Content" | "Accessibility")[];
             /** Client Request Id */
             client_request_id?: string | null;
         };
@@ -2347,67 +2320,15 @@ export interface components {
             /** Sort Order */
             sort_order?: number | null;
         };
-        /** Preferences */
-        Preferences: {
+        /** PasswordLoginRequest */
+        PasswordLoginRequest: {
             /**
-             * Locale
-             * @default en
-             * @enum {string}
+             * Email
+             * Format: email
              */
-            locale: "en" | "hi-IN";
-            /**
-             * Timezone
-             * @default UTC
-             */
-            timezone: string;
-            /**
-             * Email On Comment
-             * @default true
-             */
-            email_on_comment: boolean;
-            /**
-             * Email On Mention
-             * @default true
-             */
-            email_on_mention: boolean;
-            /**
-             * Daily Digest
-             * @default true
-             */
-            daily_digest: boolean;
-            /**
-             * Weekly Summary
-             * @default false
-             */
-            weekly_summary: boolean;
-        };
-        /** ProfileOut */
-        ProfileOut: {
-            /** Name */
-            name: string;
-            /**
-             * Professional Role
-             * @default
-             */
-            professional_role: string;
-            preferences?: components["schemas"]["Preferences"];
-            /** Id */
-            id: string;
-            /** Email */
             email: string;
-            /** Avatar Url */
-            avatar_url?: string | null;
-        };
-        /** ProfileUpdate */
-        ProfileUpdate: {
-            /** Name */
-            name: string;
-            /**
-             * Professional Role
-             * @default
-             */
-            professional_role: string;
-            preferences?: components["schemas"]["Preferences"];
+            /** Password */
+            password: string;
         };
         /** ProjectCreate */
         ProjectCreate: {
@@ -2487,6 +2408,11 @@ export interface components {
              * @default 0
              */
             project_integrations: number;
+            /**
+             * Browser Renders
+             * @default 0
+             */
+            browser_renders: number;
             /**
              * Object Keys
              * @default 0
@@ -2937,6 +2863,36 @@ export interface components {
             /** Items */
             items: components["schemas"]["SearchResultOut"][];
         };
+        /**
+         * SessionOut
+         * @description FD-AUD-011: Represents an active refresh token family for the user.
+         *     M-05: created_at/last_active_at are typed datetimes (Pydantic serializes to a real
+         *     ISO-8601 string with timezone on the wire) rather than hand-formatted str fields -
+         *     API contracts stay generated/typed end-to-end per 06-Backend-Architecture.md §2.3,
+         *     and the frontend gets a real Date-parseable value instead of an ad hoc string.
+         */
+        SessionOut: {
+            /** Id */
+            id: string;
+            /** Current */
+            current: boolean;
+            /** Browser */
+            browser: string | null;
+            /** Os */
+            os: string | null;
+            /** Ip Address */
+            ip_address: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Last Active At
+             * Format: date-time
+             */
+            last_active_at: string;
+        };
         /** ShareLinkCreate */
         ShareLinkCreate: {
             /**
@@ -2998,6 +2954,23 @@ export interface components {
              * @default false
              */
             comment_export_permission: boolean;
+        };
+        /**
+         * SignupRequest
+         * @description 13-Authentication.md §13.2a. The length bounds live here so an over-long or
+         *     obviously too-short password is rejected before it ever reaches scrypt; the rest of
+         *     the policy (content, not shape) is service-side in _validate_new_password.
+         */
+        SignupRequest: {
+            /** Name */
+            name: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Password */
+            password: string;
         };
         /** SlackIntegrationCreate */
         SlackIntegrationCreate: {
@@ -3217,6 +3190,8 @@ export interface components {
             project_id: string;
             /** Content Type */
             content_type: string;
+            /** Content Length */
+            content_length: number;
         };
         /** UserOut */
         UserOut: {
@@ -3317,53 +3292,6 @@ export interface components {
             /** Name */
             name?: string | null;
         };
-        /** SessionOut */
-        app__modules__auth__account__SessionOut: {
-            /** Id */
-            id: string;
-            /** Current */
-            current: boolean;
-            /**
-             * Last Active At
-             * Format: date-time
-             */
-            last_active_at: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-        };
-        /**
-         * SessionOut
-         * @description FD-AUD-011: Represents an active refresh token family for the user.
-         *     M-05: created_at/last_active_at are typed datetimes (Pydantic serializes to a real
-         *     ISO-8601 string with timezone on the wire) rather than hand-formatted str fields -
-         *     API contracts stay generated/typed end-to-end per 06-Backend-Architecture.md §2.3,
-         *     and the frontend gets a real Date-parseable value instead of an ad hoc string.
-         */
-        app__modules__auth__schemas__SessionOut: {
-            /** Id */
-            id: string;
-            /** Current */
-            current: boolean;
-            /** Browser */
-            browser: string | null;
-            /** Os */
-            os: string | null;
-            /** Ip Address */
-            ip_address: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Last Active At
-             * Format: date-time
-             */
-            last_active_at: string;
-        };
     };
     responses: never;
     parameters: never;
@@ -3373,126 +3301,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    profile_api_v1_auth_account_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileOut"];
-                };
-            };
-        };
-    };
-    update_profile_api_v1_auth_account_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProfileUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    sessions_api_v1_auth_account_sessions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["app__modules__auth__account__SessionOut"][];
-                };
-            };
-        };
-    };
-    revoke_other_sessions_api_v1_auth_account_sessions_others_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    revoke_session_api_v1_auth_account_sessions__family_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                family_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     google_callback_api_v1_auth_google_callback_post: {
         parameters: {
             query?: never;
@@ -3503,6 +3311,72 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["GoogleCallbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPairOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    signup_api_v1_auth_signup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPairOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_api_v1_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordLoginRequest"];
             };
         };
         responses: {
@@ -3700,7 +3574,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__modules__auth__schemas__SessionOut"][];
+                    "application/json": components["schemas"]["SessionOut"][];
                 };
             };
             /** @description Validation Error */
@@ -6569,7 +6443,70 @@ export interface operations {
             };
         };
     };
+    proxy_root_post_proxy__share_token__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     proxy_path_proxy__share_token___path__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_token: string;
+                path: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    proxy_path_post_proxy__share_token___path__post: {
         parameters: {
             query?: never;
             header?: never;
