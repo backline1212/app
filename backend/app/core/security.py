@@ -1,14 +1,41 @@
+import base64
+import binascii
 import hashlib
 import hmac
 import secrets
 import time
 
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from jose import JWTError, jwt
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import get_settings
 
 ALGORITHM = "HS256"
+
+# Password hashing (13-Authentication.md §13.2a). scrypt comes from `cryptography`,
+# already a direct dependency, rather than adding bcrypt/argon2 for one call site.
+# hash_secret() above is deliberately NOT reused here: it's a single-pass HMAC, which is
+# right for high-entropy tokens we generated ourselves but far too fast for a
+# human-chosen password.
+#
+# n=2**15 with r=8 costs ~32 MiB and ~175 ms per derivation on the current API image.
+# Both the parameters and the salt are stored in the digest, so raising them later only
+# affects passwords set or re-hashed after the change - existing ones keep verifying
+# against the parameters they were created with.
+_SCRYPT_N = 2**15
+_SCRYPT_R = 8
+_SCRYPT_P = 1
+_SCRYPT_LENGTH = 32
+_SCRYPT_SALT_BYTES = 16
+# A corrupted or hand-edited digest must not be able to ask for an unbounded
+# allocation on the next verify.
+_SCRYPT_MAX_N = 2**20
+
+PASSWORD_MIN_LENGTH = 12
+# Bounds the work an unauthenticated caller can buy with one request: scrypt's cost is
+# dominated by n/r, but there's no reason to hash a megabyte-long "password".
+PASSWORD_MAX_LENGTH = 200
 
 
 class InvalidTokenError(Exception):
@@ -126,3 +153,44 @@ def secrets_match(a: str, b: str) -> bool:
 
 def generate_otp_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _derive_password(password: str, salt: bytes, n: int, r: int, p: int, length: int) -> bytes:
+    return Scrypt(salt=salt, length=length, n=n, r=r, p=p).derive(password.encode("utf-8"))
+
+
+def hash_password(password: str) -> str:
+    """`scrypt$n$r$p$salt$digest`, all base64 - self-describing so the parameters can be
+    raised without invalidating stored passwords. Blocking and CPU/memory-bound by
+    design: call it off the event loop (anyio.to_thread.run_sync)."""
+    salt = secrets.token_bytes(_SCRYPT_SALT_BYTES)
+    digest = _derive_password(password, salt, _SCRYPT_N, _SCRYPT_R, _SCRYPT_P, _SCRYPT_LENGTH)
+    return "$".join(
+        [
+            "scrypt",
+            str(_SCRYPT_N),
+            str(_SCRYPT_R),
+            str(_SCRYPT_P),
+            base64.b64encode(salt).decode("ascii"),
+            base64.b64encode(digest).decode("ascii"),
+        ]
+    )
+
+
+def verify_password(password: str, stored: str) -> bool:
+    """False for anything unparseable rather than raising, so a malformed digest reads
+    as "wrong password" at the call site instead of a 500. Same blocking caveat as
+    hash_password."""
+    try:
+        scheme, raw_n, raw_r, raw_p, raw_salt, raw_digest = stored.split("$")
+        if scheme != "scrypt":
+            return False
+        n, r, p = int(raw_n), int(raw_r), int(raw_p)
+        if not 1 < n <= _SCRYPT_MAX_N or not 0 < r <= 32 or not 0 < p <= 16:
+            return False
+        salt = base64.b64decode(raw_salt, validate=True)
+        expected = base64.b64decode(raw_digest, validate=True)
+        derived = _derive_password(password, salt, n, r, p, len(expected))
+    except (ValueError, TypeError, binascii.Error):
+        return False
+    return hmac.compare_digest(derived, expected)

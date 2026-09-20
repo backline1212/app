@@ -16,6 +16,7 @@ import {
   uploadAttachment,
   uploadScreenshot,
   type CommentRecord,
+  type ComposerDetails,
 } from "@backline/widget";
 
 import { API_BASE_URL } from "./lib/config";
@@ -34,6 +35,7 @@ interface AnnotationContext {
   threadManager: ReturnType<typeof createThreadManager>;
   ownCommentIds: Set<string>;
   tooltip: { dismiss: () => void };
+  composerDetails: (regionSize?: string) => ComposerDetails;
 }
 
 // Resolved once per page load and reused across mode switches (below) - re-running the
@@ -71,12 +73,7 @@ async function buildContext(): Promise<AnnotationContext | null> {
   );
   const pageId = await registerCurrentPage(api, project.id, window.location.href);
 
-  const threadManager = createThreadManager({
-    shadow,
-    api,
-    projectId: project.id,
-    myActorId: connection.userId,
-  });
+  const threadManager = createThreadManager({ shadow });
   const { threadMessages, pinsByTopId, trackPinPosition, attachPinClickHandler } = threadManager;
 
   const existingComments = await api.request<CommentRecord[]>(
@@ -111,12 +108,20 @@ async function buildContext(): Promise<AnnotationContext | null> {
     threadManager,
     ownCommentIds: new Set<string>(),
     tooltip: showTooltip(shadow),
+    // The connection only carries the member's email, so the composer's avatar
+    // initials come from that.
+    composerDetails: (regionSize) => ({
+      authorName: connection.userEmail,
+      pagePath: window.location.pathname,
+      browser: parseUserAgent(navigator.userAgent).browser,
+      regionSize,
+    }),
   };
   return context;
 }
 
 function activatePointMode(ctx: AnnotationContext): () => void {
-  const { api, shadow, project, pageId, threadManager, ownCommentIds, tooltip } = ctx;
+  const { api, shadow, project, pageId, threadManager, ownCommentIds, tooltip, composerDetails } = ctx;
   const { threadMessages, pinsByTopId, trackPinPosition, attachPinClickHandler } = threadManager;
 
   const handleClick = (event: MouseEvent): void => {
@@ -131,6 +136,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
     const x = event.pageX;
     const y = event.pageY;
     const pin = renderPin(shadow, x, y);
+    pin.classList.add("bl-pin-ghost");
     const targetRect = target.getBoundingClientRect();
     const offset = {
       x: x - (targetRect.left + window.scrollX),
@@ -143,7 +149,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
       shadow,
       x,
       y,
-      async ({ body, attachments }) => {
+      async ({ body, attachments, tags }) => {
         controls.setStatus("Capturing anchor + screenshot...");
         const anchor = await computeAnchor(target, x, y);
         const screenshotBlob = await captureScreenshot();
@@ -173,9 +179,11 @@ function activatePointMode(ctx: AnnotationContext): () => void {
               screenshot_key: screenshotKey,
               capture_status: screenshotKey ? "ok" : "failed",
               attachments,
+              tags,
               client_request_id: clientRequestId,
             }),
           });
+          pin.classList.remove("bl-pin-ghost");
           ownCommentIds.add(created.id);
           threadMessages.set(created.id, [created]);
           pinsByTopId.set(created.id, { pin, untrack });
@@ -191,6 +199,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
         pin.remove();
       },
       (file) => uploadAttachment(api, project.id, file),
+      composerDetails(),
     );
   };
 
@@ -221,6 +230,7 @@ async function activate(mode: AnnotationMode): Promise<void> {
       threadManager: ctx.threadManager,
       ownCommentIds: ctx.ownCommentIds,
       tooltip: ctx.tooltip,
+      composerDetails: ctx.composerDetails,
     });
   } else {
     deactivateCurrentMode = activatePointMode(ctx);

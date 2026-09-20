@@ -15,6 +15,8 @@ interface AuthContextValue {
   workspaceId: string | null;
   role: string | null;
   featureFlags: Record<string, boolean>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
+  loginWithPassword: (email: string, password: string) => Promise<void>;
   requestOtp: (email: string) => Promise<void>;
   verifyOtp: (email: string, code: string) => Promise<void>;
   loginWithGoogleCode: (code: string) => Promise<void>;
@@ -73,6 +75,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     workspaceId: payload?.workspace_id ?? null,
     role: payload?.role ?? null,
     featureFlags,
+    async signup(name, email, password) {
+      const result = await authApi.signup(name, email, password);
+      setAccessToken(result.access_token);
+      setUser(result.user);
+      setStatus("authenticated");
+    },
+    async loginWithPassword(email, password) {
+      const result = await authApi.loginWithPassword(email, password);
+      setAccessToken(result.access_token);
+      setUser(result.user);
+      setStatus("authenticated");
+    },
     async requestOtp(email) {
       await authApi.requestOtp(email);
     },

@@ -1,10 +1,30 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
+
+from app.core.security import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
 
 
 class GoogleCallbackRequest(BaseModel):
     code: str
+
+
+class SignupRequest(BaseModel):
+    """13-Authentication.md §13.2a. The length bounds live here so an over-long or
+    obviously too-short password is rejected before it ever reaches scrypt; the rest of
+    the policy (content, not shape) is service-side in _validate_new_password."""
+
+    name: str = Field(min_length=1, max_length=120)
+    email: EmailStr
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+
+
+class PasswordLoginRequest(BaseModel):
+    email: EmailStr
+    # Not PASSWORD_MIN_LENGTH: an existing password is whatever it already is, and
+    # rejecting a short one here would answer "is this even a valid password format"
+    # differently from a wrong password.
+    password: str = Field(min_length=1, max_length=PASSWORD_MAX_LENGTH)
 
 
 class OtpRequestRequest(BaseModel):

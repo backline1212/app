@@ -42,6 +42,9 @@ interface ProjectSidePanelProps {
   currentPageId: string | null;
   selectedCommentId?: string | null;
   onSelectComment?: (commentId: string) => void;
+  /** Bumped each time a pin is clicked in the canvas - switches the drawer to the
+   * Comments tab so the comment that click selected is in view. */
+  revealCommentsSignal?: number;
 }
 
 // Collapsed by default (just the icon rail) - clicking a tab opens its panel; clicking
@@ -56,6 +59,7 @@ export function ProjectSidePanel({
   currentPageId,
   selectedCommentId,
   onSelectComment,
+  revealCommentsSignal,
 }: ProjectSidePanelProps) {
   // A shared `?thread=<id>` link (Comments tab's own URL-owned state, see
   // useCommentFilters.ts) must reopen this drawer on a fresh load - otherwise the id
@@ -66,6 +70,11 @@ export function ProjectSidePanel({
   const [activeTab, setActiveTab] = useState<TabId | null>(() =>
     searchParams.get("thread") ? "comments" : null,
   );
+
+  // Whatever tab (if any) was open before, a pin click brings up Comments.
+  useEffect(() => {
+    if (revealCommentsSignal) setActiveTab("comments");
+  }, [revealCommentsSignal]);
 
   function toggleTab(id: TabId) {
     setActiveTab((current) => (current === id ? null : id));

@@ -8,6 +8,18 @@ Standard Authorization Code flow. Backend exchanges the code server-side (client
 
 `POST /auth/otp/request` generates a 6-digit code, stores a hash + expiry (10 min) keyed to email, sends via Resend. `POST /auth/otp/verify` checks the hash, rate-limited to 5 attempts per code (Rule 6). On success, same JWT issuance as Google flow.
 
+## 13.2a Agency Member Auth: Email + Password
+
+`POST /auth/signup` creates an account from name/email/password and signs it in; `POST
+/auth/login` verifies an existing password. Both issue the same token pair as §13.1/§13.2.
+Passwords are stored as scrypt (`n=2**15, r=8, p=1`, 32 MiB) in a self-describing
+`scrypt$n$r$p$salt$digest` string on `users.password_hash`, derived off the event loop.
+The field is null for members created by Google or OTP, who continue to sign in that way;
+"Forgot password?" sends an OTP rather than a reset link. Signup refuses an address that
+already exists (409) instead of attaching a password to it. Login answers every failure
+identically and is rate-limited per IP and per email (Rule 6). Minimum 12 characters,
+at least 4 distinct characters, and the email's local part may not appear in it.
+
 ## 13.3 JWT Structure
 
 ```json
@@ -19,6 +31,15 @@ Standard Authorization Code flow. Backend exchanges the code server-side (client
 }
 ```
 A member with multiple workspace memberships gets a **separate token per active workspace context** (re-issued on workspace switch via `POST /auth/switch-workspace`), not a single token with an embedded list - this keeps every downstream permission check a single-field comparison (`workspace_id` in the token vs. `workspace_id` on the resource) instead of a membership lookup on every request.
+
+## 13.3a Reviewed-Site Sessions (Proxy Mode)
+
+Not Backline auth: the review proxy can now carry a login form to the site under review
+and keep the session it returns (TDR-0026), so members-area pages can be reviewed. The
+site's cookies are re-emitted to the reviewer as `blp_{share_token}_{name}` scoped to
+`Path=/proxy/{share_token}`, and only cookies with that prefix are forwarded upstream -
+so no Backline cookie can reach a third-party site and no share link sees another's
+session. Nothing is stored server-side; the session lives in the reviewer's browser.
 
 ## 13.4 Guest Auth: Share Links
 

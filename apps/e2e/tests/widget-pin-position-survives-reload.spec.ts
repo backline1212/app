@@ -41,8 +41,8 @@ test("a pin restored after reload keeps its position within the element, not its
   expect(paraBox.width).toBeGreaterThan(200);
   await paragraph.click({ position: { x: paraBox.width - 30, y: paraBox.height / 2 } });
 
-  await frame.locator('textarea[placeholder="What\'s the issue here?"]').fill("on the word here");
-  await frame.locator('button:has-text("Capture & prepare comment")').click();
+  await frame.locator('textarea[placeholder="What needs to change here?"]').fill("on the word here");
+  await frame.locator('button:has-text("Post comment")').click();
   await frame.locator("text=Comment posted.").waitFor({ timeout: 15_000 });
 
   const pinBefore = (await frame.locator(".bl-pin").boundingBox())!;

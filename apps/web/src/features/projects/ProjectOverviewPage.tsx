@@ -8,6 +8,7 @@ import { API_BASE_URL, apiFetch } from "../../lib/api-client";
 import { removeProjectComment, upsertProjectComment } from "../../lib/comment-cache";
 import { qk } from "../../lib/query-keys";
 import { AssetReview } from "../assets/AssetReview";
+import { useAuth } from "../auth/AuthContext";
 import * as boardApi from "../board/api";
 import type { CommentOut } from "../board/api";
 import * as shareLinksApi from "../share-links/api";
@@ -28,6 +29,7 @@ import {
   ShareIcon,
 } from "./panel/icons";
 import { ProjectSidePanel } from "./panel/ProjectSidePanel";
+import { CanvasResizer, type ResizePhase } from "./CanvasResizer";
 import { ProjectForm } from "./ProjectForm";
 import { ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
@@ -36,6 +38,10 @@ import { QuickToolsDock } from "./footer/QuickToolsDock";
 import { loadShortcuts, ShortcutsModal } from "./ShortcutsModal";
 
 type PageOut = Schemas["PageOut"];
+
+// The canvas iframe is served from the API's own origin (its /proxy route), so
+// messages sent into it are addressed there rather than to "*".
+const CANVAS_ORIGIN = new URL(API_BASE_URL, window.location.origin).origin;
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 1.5;
@@ -111,11 +117,22 @@ export function ProjectOverviewPage() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
+  const [commentsRevealSignal, setCommentsRevealSignal] = useState(0);
   const [iframeStatus, setIframeStatus] = useState<"loading" | "loaded" | "error">("loading");
   const [retryCount, setRetryCount] = useState(0);
   const canvasRef = useRef<HTMLIFrameElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const frameShellRef = useRef<HTMLDivElement>(null);
+  // Memoizes the canvas URL against the target it was built for - see where iframeSrc
+  // is assembled below for why the mode can't be part of that rebuild.
+  const frameSrcRef = useRef<{ target: string | null; src: string | null }>({ target: null, src: null });
   const pageTabsRef = useRef<HTMLDivElement>(null);
+  // Live width while the resize handle is held down. `undefined` means "not
+  // resizing" and defers to the URL-persisted width; `null` is a real value the
+  // drag can produce (snapped back to filling the container).
+  const [dragWidth, setDragWidth] = useState<number | null | undefined>(undefined);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleOpenShortcuts = () => setShowShortcuts(true);
@@ -141,6 +158,17 @@ export function ProjectOverviewPage() {
     }
     return VIEWPORTS.find((option) => option.name === name) ?? null;
   }, [searchParams]);
+  // Width the reviewer dragged the responsive ("Fit canvas") frame to. Only meaningful
+  // without a viewport preset: a preset owns both of its dimensions, so its frame is
+  // resized from ViewportMenu rather than by dragging, exactly like device mode in
+  // Chrome DevTools.
+  const stageWidth = useMemo<number | null>(() => {
+    const raw = Number(searchParams.get("stageWidth"));
+    if (!Number.isFinite(raw) || raw < 280 || raw > 4096) return null;
+    return Math.round(raw);
+  }, [searchParams]);
+  const fitWidth = dragWidth !== undefined ? dragWidth : stageWidth;
+  const isResizingFrame = dragWidth !== undefined;
   const browser = useMemo<BrowserOption>(() => {
     const name = searchParams.get("browser");
     if (!name) return BROWSERS[0];
@@ -307,6 +335,67 @@ export function ProjectOverviewPage() {
     return () => window.removeEventListener("message", onMessage);
   }, [setSearchParams]);
 
+  // Clicking an existing pin inside the canvas (widget thread-manager.ts) opens the
+  // Comments drawer with that comment selected - the reverse of clicking a comment in
+  // the drawer to find its pin.
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.source !== canvasRef.current?.contentWindow) return;
+      if (event.data?.type !== "backline:comment-opened") return;
+      const commentId: unknown = event.data.commentId;
+      if (typeof commentId !== "string") return;
+      setSelectedCommentId(commentId);
+      setCommentsRevealSignal((count) => count + 1);
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  // Answers the canvas widget's name request (widget guest-session.ts's
+  // requestDashboardDisplayName) with the signed-in member's own name, so the widget
+  // doesn't show its guest "Your name" prompt to someone who's already signed in.
+  const memberDisplayName = user?.name.trim() || user?.email || "";
+  useEffect(() => {
+    if (!memberDisplayName) return;
+    function onMessage(event: MessageEvent) {
+      const canvasWindow = canvasRef.current?.contentWindow;
+      if (!canvasWindow || event.source !== canvasWindow) return;
+      if (event.data?.type !== "backline:request-display-name") return;
+      canvasWindow.postMessage({ type: "backline:display-name", displayName: memberDisplayName }, event.origin);
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [memberDisplayName]);
+
+  // Switching Comment/Browse/Draw is driven into the already-loaded canvas rather than
+  // reloading it with a new blMode (the widget's own set-mode listener, index.ts): a
+  // reload discarded every pin, open thread, unsent composer and the reviewer's scroll
+  // position, and visibly re-fetched the whole site on each toggle. Only once the frame
+  // has actually loaded - postMessage to an origin the frame isn't on yet is dropped
+  // (and logged) by the browser, and a fresh load is covered by the handler below.
+  useEffect(() => {
+    if (iframeStatus !== "loaded") return;
+    canvasRef.current?.contentWindow?.postMessage({ type: "backline:set-mode", mode }, CANVAS_ORIGIN);
+  }, [iframeStatus, mode]);
+
+  // Every fresh widget instance announces itself with page-registered, including one
+  // from a link the reviewer followed inside the canvas - that navigation carries no
+  // blMode of its own, so this is what keeps Browse mode from quietly turning back
+  // into Comment mode one click into the site.
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      const canvasWindow = canvasRef.current?.contentWindow;
+      if (!canvasWindow || event.source !== canvasWindow) return;
+      if (event.data?.type !== "backline:page-registered") return;
+      canvasWindow.postMessage({ type: "backline:set-mode", mode }, CANVAS_ORIGIN);
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [mode]);
+
+  // Deliberately not keyed on `mode`: mode changes no longer reload the canvas, so a
+  // "loading" state entered here would have no load event left to clear it and would
+  // sit there until the timeout below called it an error.
   useEffect(() => {
     if (!hasProxyCandidate) return;
     setIframeStatus("loading");
@@ -314,7 +403,7 @@ export function ProjectOverviewPage() {
       setIframeStatus((current) => current === "loading" ? "error" : current);
     }, 30000);
     return () => window.clearTimeout(timer);
-  }, [activePageIdParam, hasProxyCandidate, mode, projectId, retryCount]);
+  }, [activePageIdParam, hasProxyCandidate, projectId, retryCount]);
 
   function updateViewParams(values: Record<string, string | null>) {
     setSearchParams(
@@ -346,7 +435,19 @@ export function ProjectOverviewPage() {
       viewportWidth: nextViewport?.name === "Custom" ? String(nextViewport.width) : null,
       viewportHeight: nextViewport?.name === "Custom" ? String(nextViewport.height) : null,
       orientation: nextViewport ? searchParams.get("orientation") : null,
+      // Picking any viewport - including "Fit canvas" - is an explicit size choice, so
+      // it clears a width left behind by an earlier drag instead of silently restoring it.
+      stageWidth: null,
     });
+  }
+
+  function onFrameResize(nextWidth: number | null, phase: ResizePhase) {
+    if (phase === "drag") {
+      setDragWidth(nextWidth);
+      return;
+    }
+    setDragWidth(undefined);
+    updateViewParams({ stageWidth: nextWidth === null ? null : String(nextWidth) });
   }
 
   function setZoom(nextZoom: number) {
@@ -442,13 +543,25 @@ export function ProjectOverviewPage() {
 
   const activePageRequest = proxyRequestFor(activePage);
   const iframeSearch = new URLSearchParams(activePageRequest?.search);
-  iframeSearch.set("blMode", mode);
   // Threads the footer's BrowserMenu selection into the widget so it's recorded on any
   // comment created from this canvas - see the widget's blBrowser handling in index.ts.
   iframeSearch.set("blBrowser", browser.name);
-  const iframeSrc = canvasUrl && activePageRequest
+  const canvasTarget = canvasUrl && activePageRequest
     ? `${API_BASE_URL}/proxy/${embedLink!.token}/${activePageRequest.path}?${iframeSearch.toString()}`
     : null;
+  // blMode is the mode the canvas is *loaded* with, so it's only rebuilt when the
+  // target itself changes (a different page, a different browser, a revoked link).
+  // Putting the live mode in here instead would change the iframe's src on every
+  // Comment/Browse/Draw toggle and reload the whole site; postCanvasMode above carries
+  // the switch into the running widget instead. The ref is a memo of the URL already
+  // handed to the iframe, not state - nothing renders off it but the iframe itself.
+  if (frameSrcRef.current.target !== canvasTarget) {
+    frameSrcRef.current = {
+      target: canvasTarget,
+      src: canvasTarget ? `${canvasTarget}&blMode=${mode}` : null,
+    };
+  }
+  const iframeSrc = frameSrcRef.current.src;
   const displayUrl = activePage?.url_normalized || project.target_origin;
   const topLevelComments = (commentsQuery.data ?? []).filter((comment) => !comment.parent_id);
   const selectedCommentNumber = selectedCommentId
@@ -560,7 +673,10 @@ export function ProjectOverviewPage() {
       </div>
 
       <section className="bl-review-main" aria-label="Website review canvas">
-        <div className={`bl-review-stage ${mode === "comment" || mode === "draw" ? "is-commenting" : "is-browsing"} ${mode === "draw" ? "is-drawing" : ""}`}>
+        <div
+          ref={stageRef}
+          className={`bl-review-stage ${mode === "comment" || mode === "draw" ? "is-commenting" : "is-browsing"} ${mode === "draw" ? "is-drawing" : ""}`}
+        >
           {shareLinksQuery.isLoading ? (
             <div className="bl-review-empty-canvas" role="status">
               <span className="bl-review-loader" aria-hidden="true" />
@@ -651,8 +767,9 @@ export function ProjectOverviewPage() {
             </div>
           ) : iframeSrc ? (
             <div
-              className={`bl-live-frame-shell ${viewport ? "is-fixed" : "is-fit"}`}
-              style={{ width: visibleWidth, height: visibleHeight, zoom: zoomScale } as CSSProperties}
+              ref={frameShellRef}
+              className={`bl-live-frame-shell ${viewport ? "is-fixed" : "is-fit"}${isResizingFrame ? " is-resizing" : ""}`}
+              style={{ width: visibleWidth ?? fitWidth ?? undefined, height: visibleHeight, zoom: zoomScale } as CSSProperties}
             >
               <div className="bl-live-frame-bar">
                 <span className="bl-live-frame-lights" aria-hidden="true"><i /><i /><i /></span>
@@ -696,6 +813,15 @@ export function ProjectOverviewPage() {
                 <span>{selectedCommentNumber > 0 ? `Comment ${selectedCommentNumber} selected — locating its pin` : mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : "Browse mode — page interactions enabled"}</span>
                 <span>Source: proxy</span>
               </div>
+              {!viewport && (
+                <CanvasResizer
+                  shellRef={frameShellRef}
+                  stageRef={stageRef}
+                  zoom={zoomScale}
+                  width={fitWidth}
+                  onResize={onFrameResize}
+                />
+              )}
             </div>
           ) : (
             <div className="bl-review-empty-canvas">
@@ -723,6 +849,7 @@ export function ProjectOverviewPage() {
           currentPageId={currentPageId}
           selectedCommentId={selectedCommentId}
           onSelectComment={setSelectedCommentId}
+          revealCommentsSignal={commentsRevealSignal}
         />
       </section>
 
@@ -737,6 +864,7 @@ export function ProjectOverviewPage() {
         onSelectPage={goToPage}
         viewport={viewport}
         onViewportChange={setViewport}
+        fitWidth={fitWidth}
         browser={browser}
         onBrowserChange={(nextBrowser) => updateViewParams({ browser: nextBrowser.name === BROWSERS[0].name ? null : nextBrowser.name })}
         orientation={orientation}

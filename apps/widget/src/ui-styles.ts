@@ -1,5 +1,15 @@
 const HOST_STYLES = `
-  :host { all: initial; }
+  :host {
+    all: initial;
+    /* Backline design tokens (apps/web's backline.css), so the overlay reads as the same
+       product as the dashboard around it. --bl-ink-4 is the dashboard's AA-contrast
+       value, not the prototype's lighter #9A9D99. */
+    --bl-ink: #0B0B0B; --bl-ink-2: #3A3D3A; --bl-ink-3: #6B6E6B; --bl-ink-4: #696C68;
+    --bl-paper: #F1F2F0; --bl-surface: #FFFFFF; --bl-line: #DDDEDA; --bl-line-soft: #E9EAE6;
+    --bl-mint: #69DEB2; --bl-mint-deep: #0A6B4B; --bl-mint-tint: #E3F8EF;
+    --bl-sans: "Inter", "Schibsted Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --bl-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
   .bl-tooltip {
     position: fixed; bottom: 24px; right: 24px; z-index: 2147483000;
@@ -12,24 +22,14 @@ const HOST_STYLES = `
     width: 260px; border: 1px solid rgba(0,0,0,0.08);
     top: 50%; left: 50%; transform: translate(-50%, -50%);
   }
-  .bl-composer {
-    /* absolute (document coordinates), not fixed (viewport coordinates): the composer
-       opens at the point the reviewer clicked, on an already-scrolled page - fixed
-       positioning would leave it glued to that screen position as the page scrolls
-       underneath it, drifting away from the element it's actually about. */
-    position: absolute; z-index: 2147483000; background: #FFFFFF; color: #14141A;
-    border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.25); padding: 16px;
-    width: 260px; border: 1px solid rgba(0,0,0,0.08);
-  }
-  .bl-composer input, .bl-composer textarea, .bl-name-form input {
+  .bl-name-form input {
     width: 100%; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; padding: 8px;
     font-size: 13px; margin-top: 6px; margin-bottom: 10px;
   }
-  .bl-composer button, .bl-name-form button {
+  .bl-name-form button {
     background: #4F46E5; color: #fff; border: none; border-radius: 6px; padding: 8px 12px;
     font-size: 13px; cursor: pointer; width: 100%;
   }
-  .bl-composer-header { display: flex; justify-content: flex-end; margin-bottom: -4px; }
   .bl-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .bl-attachment-chip {
     display: flex; align-items: center; gap: 5px; background: #F5F5F7; border-radius: 6px;
@@ -39,122 +39,23 @@ const HOST_STYLES = `
   .bl-attachment-name {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;
   }
-  .bl-attachment-link {
-    display: flex; align-items: center; gap: 5px; background: #F5F5F7; border-radius: 6px;
-    padding: 4px 8px; font-size: 12px; color: #14141A; text-decoration: none; max-width: 100%;
-    border: 1px solid rgba(0,0,0,0.06);
-  }
-  .bl-attachment-link:hover { background: #EBEBEF; }
-  .bl-composer-toolbar { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-  /* Two classes (this container + .bl-submit) beats ".bl-composer button"'s one-class
-     -plus-element on specificity outright - no source-order trick needed here, unlike
-     button.bl-attach-button below. Without this, width:100% from the general rule would
-     fight the flex row instead of sharing it with the attach button beside it. */
-  .bl-composer-toolbar .bl-submit { flex: 1; width: auto; }
-  .bl-message-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  /* .bl-composer button (above) also matches this element (it's a button inside
-     .bl-composer) and beats a bare .bl-cancel class on specificity alone regardless of
-     source order - the extra "button" qualifier here is what makes this win instead. */
-  button.bl-cancel {
-    background: none; color: #6B6B76; width: auto; padding: 2px 4px; font-size: 16px;
-    line-height: 1; border-radius: 4px;
-  }
-  button.bl-cancel:hover { background: rgba(0,0,0,0.06); }
-  .bl-thread {
-    position: absolute; z-index: 2147483000; background: #FFFFFF; color: #14141A;
-    border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
-    width: 300px; max-height: 400px; border: 1px solid rgba(0,0,0,0.06);
-    display: flex; flex-direction: column; overflow: hidden;
-  }
-  .bl-thread-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 8px 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.06); font-weight: 600;
-    font-size: 13px; flex-shrink: 0;
-  }
-  .bl-thread-header-actions { display: flex; align-items: center; gap: 2px; }
-  .bl-thread-messages {
-    overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 14px;
-  }
-  .bl-thread-message { display: flex; gap: 10px; }
-  .bl-avatar {
-    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 600; line-height: 1;
-  }
-  .bl-thread-message-main { flex: 1; min-width: 0; }
-  .bl-thread-message-header {
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 4px;
-  }
-  .bl-thread-message-meta {
-    font-size: 12px; display: flex; align-items: baseline; gap: 6px; min-width: 0;
-    padding-top: 2px;
-  }
-  .bl-thread-message-author { font-weight: 600; color: #14141A; }
-  .bl-thread-message-time { color: #9A9AA6; font-size: 11px; white-space: nowrap; }
-  .bl-thread-message-body {
-    font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
-    margin-top: 3px;
-  }
-  .bl-menu { position: relative; flex-shrink: 0; }
-  .bl-menu-trigger {
-    background: none; border: none; color: #9A9AA6; width: 22px; height: 20px; padding: 0;
-    border-radius: 4px; cursor: pointer; font-size: 15px; line-height: 1; letter-spacing: 1px;
-  }
-  .bl-menu-trigger:hover { background: rgba(0,0,0,0.06); color: #14141A; }
-  .bl-menu-dropdown {
-    /* fixed (viewport coordinates, positioned via JS from the trigger's own
-       getBoundingClientRect() - see openThreadView), not absolute: .bl-thread has
-       overflow:hidden and .bl-thread-messages scrolls its own overflow, so an
-       absolutely-positioned dropdown opened on a message near the panel's bottom edge
-       got silently clipped - invisible or cut off instead of just floating over
-       whatever's actually behind the panel, which fixed positioning correctly does. */
-    position: fixed; background: #fff; border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.18); border: 1px solid rgba(0,0,0,0.06);
-    min-width: 150px; padding: 4px; z-index: 2147483001;
-  }
-  .bl-menu-item {
-    display: block; width: 100%; text-align: left; background: none; border: none;
-    padding: 7px 10px; font-size: 13px; border-radius: 5px; cursor: pointer; color: #14141A;
-  }
-  .bl-menu-item:hover { background: rgba(0,0,0,0.05); }
-  .bl-menu-item.bl-danger { color: #EF4444; }
-  .bl-thread-edit textarea {
-    width: 100%; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; background: #F5F5F7;
-    padding: 8px 10px; font-size: 13px; resize: vertical; min-height: 60px;
-  }
-  .bl-thread-edit-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-  .bl-thread-edit-actions button {
-    border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; border: none;
-  }
-  .bl-thread-edit-actions button:disabled { opacity: 0.5; cursor: default; }
-  /* button.bl-edit-cancel, not bare .bl-edit-cancel: same specificity reasoning as
-     button.bl-cancel above - needs to beat .bl-thread-edit-actions button's own
-     border:none to actually render a visible outline. */
-  .bl-thread-edit-actions button.bl-edit-cancel {
-    background: #fff; border: 1px solid rgba(0,0,0,0.15); color: #14141A;
-  }
-  .bl-edit-save { background: #4F46E5; color: #fff; }
-  .bl-thread-reply {
-    border-top: 1px solid rgba(0,0,0,0.06); padding: 10px 14px 12px; flex-shrink: 0;
-    display: flex; gap: 8px; align-items: flex-end;
-  }
-  .bl-thread-reply textarea {
-    flex: 1; min-width: 0; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px;
-    padding: 8px 10px; font-size: 13px; resize: none; max-height: 80px;
-  }
-  .bl-thread-reply button {
-    background: #4F46E5; color: #fff; border: none; border-radius: 8px; padding: 8px 12px;
-    font-size: 13px; cursor: pointer; flex-shrink: 0;
-  }
-  .bl-thread-reply button:disabled { opacity: 0.5; cursor: default; }
-  .bl-thread-error { color: #EF4444; font-size: 11px; padding: 0 14px 8px; }
   .bl-pin {
     /* absolute (document coordinates): must scroll with the page to stay attached to
-       the element it marks, the same reasoning as .bl-composer above. */
-    position: absolute; width: 28px; height: 28px; border-radius: 50% 50% 50% 0;
-    background: #4F46E5; transform: rotate(-45deg) translate(-50%, -50%);
-    z-index: 2147482999; box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer;
+       the element it marks, the same reasoning as .bl-card below. The square
+       bottom-left corner is the pin's point, lifted by its own height so that corner
+       sits exactly on the clicked spot. */
+    position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 3px;
+    background: var(--bl-ink); color: #fff; border: 2px solid #fff;
+    transform: translateY(-100%); display: grid; place-items: center;
+    font-size: 13px; font-weight: 700; line-height: 1;
+    z-index: 2147482999; box-shadow: 0 2px 5px rgba(11,11,11,0.22); cursor: pointer;
   }
+  /* The pin for a comment still being written - the design's "ghost" pin. */
+  .bl-pin.bl-pin-ghost {
+    background: var(--bl-mint); color: var(--bl-ink);
+    outline: 2px dashed var(--bl-ink); outline-offset: 2px;
+  }
+  .bl-pin.bl-pin-ghost::after { content: "+"; }
   .bl-pin:focus-visible { outline: 3px solid #14141A; outline-offset: 3px; }
   .bl-status { font-size: 12px; color: #6B6B76; margin-top: 8px; }
   .bl-toast {
@@ -163,26 +64,143 @@ const HOST_STYLES = `
     font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); max-width: 240px;
   }
   .bl-toast-offline { background: #8A5B00; color: #FFFFFF; }
-  /* button.bl-attach-button / button.bl-attachment-remove, not the bare classes: both
-     ".bl-composer button" and ".bl-thread-reply button" above already match these
-     elements (they're buttons inside those containers) at equal specificity (one class
-     + one element each) - the extra "button" qualifier here ties that instead of
-     losing to it, and being declared last in this stylesheet is what wins the tie
-     (same trick as button.bl-cancel above). Without this, both rendered as a full-width
-     purple bar (the composer's own submit-button styling bleeding onto them) instead of
-     a small, borderless icon - a real bug found by hand, not just a specificity nitpick.
-  */
-  button.bl-attach-button {
-    background: none; border: none; color: #6B6B76; width: 26px; height: 26px;
-    border-radius: 6px; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; padding: 0; flex-shrink: 0;
-  }
-  button.bl-attach-button:hover { background: rgba(0,0,0,0.06); color: #14141A; }
   button.bl-attachment-remove {
     background: none; border: none; color: #6B6B76; cursor: pointer; width: auto;
     padding: 0 2px; font-size: 14px; line-height: 1; flex-shrink: 0;
   }
   button.bl-attachment-remove:hover { color: #EF4444; }
+
+  /* ---- Comment cards: the new-comment composer and the read-only view of an
+     existing comment share this box (the design's composer-pop) ---- */
+  .bl-card {
+    /* absolute (document coordinates), not fixed (viewport coordinates): the card
+       opens at the point the reviewer clicked, on an already-scrolled page - fixed
+       positioning would leave it glued to that screen position as the page scrolls
+       underneath it, drifting away from the element it's actually about. */
+    position: absolute; z-index: 2147483000; width: 344px; max-width: calc(100vw - 24px);
+    background: var(--bl-surface); color: var(--bl-ink); border: 1px solid var(--bl-line);
+    border-radius: 8px; box-shadow: 0 20px 48px rgba(11,11,11,0.24);
+    font-size: 14px; line-height: 1.45; text-align: left;
+  }
+  .bl-card, .bl-card * { font-family: var(--bl-sans); }
+  .bl-card .bl-cp-av, .bl-card .bl-cp-loc, .bl-card .bl-cp-lbl,
+  .bl-card .bl-cp-ctx, .bl-card .bl-cp-hint, .bl-card .bl-cp-hint kbd {
+    font-family: var(--bl-mono);
+  }
+  .bl-card button { font: inherit; margin: 0; cursor: pointer; }
+  .bl-card button:disabled { cursor: default; opacity: 0.55; }
+  .bl-cp-head {
+    display: flex; align-items: center; gap: 9px; padding: 11px 12px;
+    background: var(--bl-ink); color: #fff; border-radius: 7px 7px 0 0;
+    font-size: 13px; font-weight: 600;
+  }
+  .bl-card .bl-cp-av {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--bl-mint);
+    color: var(--bl-ink); display: grid; place-items: center; flex: none;
+    font-size: 9px; font-weight: 700;
+  }
+  .bl-cp-title { white-space: nowrap; }
+  .bl-card .bl-cp-loc {
+    margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.12);
+    border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 400;
+  }
+  .bl-card button.bl-cancel {
+    flex: none; background: none; border: 0; padding: 0 2px; color: rgba(255,255,255,0.7);
+    font-size: 18px; line-height: 1;
+  }
+  .bl-card button.bl-cancel:hover { color: #fff; }
+  .bl-cp-body { padding: 13px 13px 12px; }
+  /* max-height is the cap the composer's own auto-grow reads back out of the computed
+     style (ui-composer.ts) - one source of truth for how tall this can get before it
+     starts scrolling instead. resize stays on, so it's still draggable past that. */
+  .bl-card textarea {
+    display: block; width: 100%; min-height: 78px; max-height: 40vh; margin: 0;
+    padding: 10px 11px; overflow-y: auto;
+    border: 1px solid var(--bl-line); border-radius: 3px; background: var(--bl-surface);
+    color: var(--bl-ink); font-size: 13.5px; line-height: 1.5; resize: vertical; outline: none;
+  }
+  .bl-card textarea:focus { border-color: var(--bl-ink); }
+  .bl-card textarea::placeholder { color: var(--bl-ink-4); }
+  .bl-cp-sec { margin-top: 12px; }
+  .bl-card .bl-cp-lbl {
+    display: block; margin-bottom: 7px; font-size: 9px; letter-spacing: 0.07em;
+    color: var(--bl-ink-4);
+  }
+  .bl-cp-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bl-card .bl-cp-tag {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px 0 9px;
+    border: 1px solid var(--bl-line); border-radius: 20px; background: var(--bl-surface);
+    color: var(--bl-ink-2); font-size: 12px; font-weight: 500;
+  }
+  .bl-cp-tag svg { color: var(--bl-ink-4); flex: none; }
+  .bl-card button.bl-cp-tag:hover { border-color: var(--bl-ink-4); }
+  .bl-card .bl-cp-tag[aria-pressed="true"], .bl-card .bl-cp-tag.bl-is-on {
+    background: var(--bl-ink); border-color: var(--bl-ink); color: #fff;
+  }
+  .bl-cp-tag[aria-pressed="true"] svg, .bl-cp-tag.bl-is-on svg { color: var(--bl-mint); }
+  .bl-cp-shots { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+  /* The uploaded-file chips flow in the same row as the attach button. */
+  .bl-cp-shots .bl-attachments { display: contents; }
+  .bl-card .bl-attachment-chip {
+    height: 34px; border-radius: 3px; border: 1px solid var(--bl-line);
+    background: var(--bl-paper); color: var(--bl-ink-2);
+  }
+  .bl-card button.bl-cp-attach {
+    display: inline-flex; align-items: center; gap: 7px; width: auto; height: 34px;
+    padding: 0 12px; border: 1px dashed var(--bl-line); border-radius: 3px;
+    background: var(--bl-surface); color: var(--bl-ink-3); font-size: 12.5px;
+  }
+  .bl-card button.bl-cp-attach svg { color: var(--bl-ink-4); }
+  .bl-card button.bl-cp-attach:hover { border-color: var(--bl-ink); border-style: solid; color: var(--bl-ink); }
+  .bl-card button.bl-cp-attach:hover svg { color: var(--bl-ink); }
+  .bl-card .bl-cp-ctx {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 12px;
+    padding: 8px 10px; background: var(--bl-paper); border-radius: 3px;
+    font-size: 10px; color: var(--bl-ink-3);
+  }
+  .bl-cp-ctx svg { color: var(--bl-ink-4); flex: none; }
+  .bl-cp-sep { width: 1px; height: 10px; background: var(--bl-line); flex: none; }
+  .bl-cp-rgn {
+    display: inline-flex; align-items: center; gap: 5px; margin-left: auto;
+    color: var(--bl-mint-deep); background: var(--bl-mint-tint); border-radius: 20px; padding: 2px 8px;
+  }
+  .bl-cp-rgn svg { color: var(--bl-mint-deep); }
+  .bl-card .bl-status { margin-top: 10px; font-size: 12px; color: var(--bl-ink-3); }
+  .bl-card .bl-status:empty { display: none; }
+  .bl-cp-foot {
+    display: flex; align-items: center; gap: 8px; margin-top: 13px; padding-top: 12px;
+    border-top: 1px solid var(--bl-line-soft);
+  }
+  .bl-card .bl-cp-hint { margin-right: auto; font-size: 9.5px; color: var(--bl-ink-4); white-space: nowrap; }
+  .bl-card .bl-cp-hint kbd {
+    background: var(--bl-paper); border: 1px solid var(--bl-line); border-radius: 3px;
+    padding: 1px 5px; font-size: inherit; font-weight: 500; color: var(--bl-ink-3);
+  }
+  .bl-card button.bl-cp-cancel {
+    background: none; border: 0; border-radius: 3px; padding: 8px 12px;
+    font-size: 12.5px; color: var(--bl-ink-3);
+  }
+  .bl-card button.bl-cp-cancel:hover:not(:disabled) { background: var(--bl-paper); color: var(--bl-ink); }
+  .bl-card button.bl-submit {
+    display: inline-flex; align-items: center; gap: 7px; background: var(--bl-ink); color: #fff;
+    border: 0; border-radius: 3px; padding: 8px 14px; font-size: 12.5px; font-weight: 600;
+  }
+  .bl-card button.bl-submit:hover:not(:disabled) { background: #232523; }
+  /* Read-only view of an existing comment (ui-comment-view.ts). */
+  .bl-cv-text {
+    margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--bl-ink);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .bl-cv-files { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+  .bl-card .bl-attachment-link {
+    display: inline-flex; align-items: center; gap: 6px; height: 34px; max-width: 100%;
+    padding: 0 10px; border: 1px solid var(--bl-line); border-radius: 3px;
+    background: var(--bl-paper); color: var(--bl-ink-2); font-size: 12px; text-decoration: none;
+  }
+  .bl-card .bl-attachment-link:hover { border-color: var(--bl-ink); color: var(--bl-ink); }
+  .bl-card .bl-attachment-link.bl-cv-thumb { width: 64px; height: 48px; padding: 0; overflow: hidden; }
+  .bl-cv-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 `;
 
 export function createShadowRoot(): ShadowRoot {
@@ -193,5 +211,22 @@ export function createShadowRoot(): ShadowRoot {
   const style = document.createElement("style");
   style.textContent = HOST_STYLES;
   shadow.appendChild(style);
+
+  // Keystrokes typed into Backline's own UI must not also reach the page underneath.
+  // A shadow root hides the DOM, not the events: they keep propagating out (retargeted
+  // to the host), so a site listening on document for a key - a search box, a nav, a
+  // carousel - acts on a comment being typed into the composer. Pressing Enter mid
+  // comment navigated the frame away on sites that do this, taking the unsent comment
+  // with it.
+  //
+  // Stopping them here, at the boundary, leaves every widget-internal handler working:
+  // those sit either on the elements themselves (the composer's Cmd+Enter, a pin's
+  // Enter) or on document in the capture phase (the comment card's Escape), and both
+  // run before an event reaches this point on the way out. A site's own capture-phase
+  // listeners still fire - nothing inside a shadow tree can prevent that.
+  for (const type of ["keydown", "keypress", "keyup"]) {
+    shadow.addEventListener(type, (event) => event.stopPropagation());
+  }
+
   return shadow;
 }

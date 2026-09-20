@@ -11,7 +11,7 @@ const FIXTURE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../
 // per-file upload, pending -> uploaded chip state), the resulting thread-view link
 // (opens in a new tab, points at a real fetchable URL - not a dead link), and the
 // dashboard Comments panel picking up the top-level comment's own attachment.
-test("comment/reply attachments: upload, thread display, new-tab link, dashboard display", async ({
+test("comment attachments: upload, card display, new-tab link, dashboard display", async ({
   page,
   context,
 }) => {
@@ -42,10 +42,10 @@ test("comment/reply attachments: upload, thread display, new-tab link, dashboard
     .waitFor({ timeout: 10_000 });
 
   await frame.locator("h1").click();
-  await frame.locator('textarea[placeholder="What\'s the issue here?"]').fill("check this brief");
+  await frame.locator('textarea[placeholder="What needs to change here?"]').fill("check this brief");
 
   // Attach a PDF via the paperclip button.
-  await frame.locator('button[aria-label="Attach a file"]').click();
+  await frame.locator('.bl-composer button:has-text("Attach a screenshot")').click();
   await frame
     .locator('input[aria-label="Choose files to attach"]')
     .setInputFiles(path.join(FIXTURE_DIR, "brief.pdf"));
@@ -56,7 +56,7 @@ test("comment/reply attachments: upload, thread display, new-tab link, dashboard
   await expect(chip).not.toHaveClass(/bl-attachment-pending/, { timeout: 10_000 });
   await expect(chip.locator(".bl-attachment-name")).toHaveText("brief.pdf");
 
-  await frame.locator('button:has-text("Capture & prepare comment")').click();
+  await frame.locator('button:has-text("Post comment")').click();
   await frame.locator("text=Comment posted.").waitFor({ timeout: 15_000 });
 
   // Reopen the thread by clicking the pin, verify the attachment link is there.
@@ -77,24 +77,7 @@ test("comment/reply attachments: upload, thread display, new-tab link, dashboard
   const fetchedBody = await fetchResp.text();
   expect(fetchedBody).toContain("fake pdf content");
 
-  // Reply with a markdown attachment.
-  await frame.locator(".bl-thread-reply textarea").fill("here are my notes");
-  await frame.locator(".bl-reply-attach").click();
-  await frame
-    .locator(".bl-thread .bl-attach-input")
-    .setInputFiles(path.join(FIXTURE_DIR, "notes.md"));
-  await expect(frame.locator(".bl-reply-attachments .bl-attachment-chip")).not.toHaveClass(
-    /bl-attachment-pending/,
-    { timeout: 10_000 },
-  );
-  await frame.locator(".bl-reply-submit").click();
-  await expect(frame.locator(".bl-attachment-link", { hasText: "notes.md" })).toBeVisible({
-    timeout: 10_000,
-  });
-
-  // Dashboard's Comments panel shows the top-level comment's attachment (it only ever
-  // lists top-level threads, never reply bodies - the reply's own attachment is only
-  // reachable by opening the thread, already verified above via the widget).
+  // Dashboard's Comments panel shows the comment's attachment too.
   await page.click('button[aria-label="Comments"]');
   await expect(page.locator('a[title="brief.pdf"]')).toBeVisible();
 });

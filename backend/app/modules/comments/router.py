@@ -74,6 +74,7 @@ async def create_comment(
         screenshot_key=body.screenshot_key,
         capture_status=body.capture_status,
         attachments=body.attachments,
+        tags=body.tags,
         client_request_id=body.client_request_id,
     )
 

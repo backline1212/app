@@ -13,7 +13,9 @@ from app.modules.auth.schemas import (
     GoogleCallbackRequest,
     OtpRequestRequest,
     OtpVerifyRequest,
+    PasswordLoginRequest,
     SessionOut,
+    SignupRequest,
     SwitchWorkspaceRequest,
     TokenPairOut,
     UserOut,
@@ -46,6 +48,59 @@ async def google_callback(
     ua = request.headers.get("user-agent")
     ip = get_client_ip(request)
     issued = await auth_service.login_with_google(get_db(), body.code, ua=ua, ip=ip)
+    _set_refresh_cookie(response, issued.refresh_token)
+    return TokenPairOut(access_token=issued.access_token, user=issued.user)
+
+
+@router.post("/signup", response_model=TokenPairOut, status_code=201)
+async def signup(body: SignupRequest, request: Request, response: Response) -> TokenPairOut:
+    """Creates an account with a password and signs it straight in - the member never
+    has to go and log in again with credentials they just chose."""
+    settings = get_settings()
+    ip = get_client_ip(request)
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:signup:ip:{ip}",
+        limit=settings.signup_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    issued = await auth_service.signup_with_password(
+        get_db(),
+        name=body.name,
+        email=body.email,
+        password=body.password,
+        ua=request.headers.get("user-agent"),
+        ip=ip,
+    )
+    _set_refresh_cookie(response, issued.refresh_token)
+    return TokenPairOut(access_token=issued.access_token, user=issued.user)
+
+
+@router.post("/login", response_model=TokenPairOut)
+async def login(body: PasswordLoginRequest, request: Request, response: Response) -> TokenPairOut:
+    settings = get_settings()
+    ip = get_client_ip(request)
+    # Limited per address as well as per IP: one is what stops a distributed run at a
+    # single account, the other what stops one host working through many accounts.
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:password-login:ip:{ip}",
+        limit=settings.password_login_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:password-login:email:{body.email.lower()}",
+        limit=settings.password_login_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    issued = await auth_service.login_with_password(
+        get_db(),
+        email=body.email,
+        password=body.password,
+        ua=request.headers.get("user-agent"),
+        ip=ip,
+    )
     _set_refresh_cookie(response, issued.refresh_token)
     return TokenPairOut(access_token=issued.access_token, user=issued.user)
 

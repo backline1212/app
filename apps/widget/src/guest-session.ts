@@ -45,6 +45,32 @@ function getGuestSessionFromQueryParam(): StoredGuestSession | null {
   return { guestSessionToken: token, displayName };
 }
 
+// The dashboard's own canvas preview (ProjectOverviewPage) is only ever opened by a
+// signed-in team member, whose name the dashboard already knows - so instead of showing
+// the "Your name" prompt there, ask the parent frame for it. Resolves null if no answer
+// arrives in time (no dashboard parent, or an older dashboard build), in which case the
+// caller falls back to the normal prompt.
+export function requestDashboardDisplayName(timeoutMs = 3000): Promise<string | null> {
+  if (window.parent === window) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    function finish(name: string | null): void {
+      clearTimeout(timer);
+      window.removeEventListener("message", onMessage);
+      resolve(name);
+    }
+    function onMessage(event: MessageEvent): void {
+      if (event.source !== window.parent) return;
+      if (event.data?.type !== "backline:display-name") return;
+      const name = typeof event.data.displayName === "string" ? event.data.displayName.trim() : "";
+      // 100 = GuestSessionCreate.display_name's max_length (share_links/schemas.py).
+      finish(name ? name.slice(0, 100) : null);
+    }
+    window.addEventListener("message", onMessage);
+    window.parent.postMessage({ type: "backline:request-display-name" }, "*");
+  });
+}
+
 export async function ensureGuestSession(
   api: ApiClient,
   shareToken: string,

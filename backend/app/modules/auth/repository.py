@@ -36,13 +36,23 @@ class UserRepository:
         return {uid: by_oid[oid] for uid, oid in oids.items() if oid in by_oid}
 
     async def create(
-        self, *, email: str, name: str, avatar_url: str | None, auth_provider: str
+        self,
+        *,
+        email: str,
+        name: str,
+        avatar_url: str | None,
+        auth_provider: str,
+        password_hash: str | None = None,
     ) -> dict[str, Any]:
+        """password_hash stays None for every provider but "password" - members created
+        by Google or an OTP sign-in have no password at all, which is what
+        login_with_password checks for rather than assuming the field exists."""
         doc = {
             "email": email,
             "name": name,
             "avatar_url": avatar_url,
             "auth_providers": [auth_provider],
+            "password_hash": password_hash,
             "created_at": datetime.now(UTC),
             "last_login_at": datetime.now(UTC),
             "preferences": {

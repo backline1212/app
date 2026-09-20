@@ -23,6 +23,7 @@ from app.modules.comments.schemas import (
     GuestBoardItemOut,
     GuestBoardOut,
     RecoveryStatus,
+    Tag,
 )
 from app.modules.notifications import service as notification_service
 from app.modules.pages.repository import PageRepository
@@ -298,6 +299,7 @@ async def create_comment(
     screenshot_key: str | None,
     capture_status: str,
     attachments: list[AttachmentIn] | None = None,
+    tags: list[Tag] | None = None,
     client_request_id: str | None = None,
 ) -> CommentOut:
     page = await _resolve_page_and_access(db, actor, page_id)
@@ -339,6 +341,7 @@ async def create_comment(
         "consecutive_orphaned_revisions": 0,
         "context_json": _redact_context(context, capture_device_details=capture_device_details),
         "attachments": [a.model_dump() for a in (attachments or [])],
+        "tags": list(dict.fromkeys(tags or [])),
         "screenshot_key": screenshot_key,
         "capture_status": capture_status,
         "client_request_id": client_request_id,

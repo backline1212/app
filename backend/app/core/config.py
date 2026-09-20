@@ -71,6 +71,11 @@ class Settings(BaseSettings):
     # session-creation/resolve endpoints already covered - otherwise a guest token is a
     # free pass to spam comments, pages, snapshots, or presigned upload URLs.
     otp_request_rate_limit_per_minute: int = 5
+    # Unauthenticated and password-guessable: the limit is what stands between the
+    # login endpoint and an online brute-force run, since scrypt only makes each
+    # attempt expensive, not impossible.
+    password_login_rate_limit_per_minute: int = 10
+    signup_rate_limit_per_minute: int = 5
     page_register_rate_limit_per_minute: int = 30
     snapshot_submit_rate_limit_per_minute: int = 30
     comment_create_rate_limit_per_minute: int = 20

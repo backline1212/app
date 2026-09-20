@@ -48,11 +48,11 @@ export async function postCommentViaWidget(
     timeout: 10_000,
   });
   await page.click(clickSelector);
-  await page.waitForSelector('textarea[placeholder="What\'s the issue here?"]', {
+  await page.waitForSelector('textarea[placeholder="What needs to change here?"]', {
     timeout: 10_000,
   });
-  await page.fill('textarea[placeholder="What\'s the issue here?"]', body);
-  await page.click('button:has-text("Capture & prepare comment")');
+  await page.fill('textarea[placeholder="What needs to change here?"]', body);
+  await page.click('button:has-text("Post comment")');
   await page.waitForSelector("text=Comment posted.", { timeout: 15_000 });
 
   const guestSessionToken = await page.evaluate((token: string) => {

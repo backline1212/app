@@ -1,8 +1,7 @@
 import { createApiClient } from "./api-client";
 import { anchorPointFor, computeAnchor, resolveAnchorElement } from "./anchor";
 import { uploadAttachment, uploadScreenshot } from "./attachment-upload";
-import { ensureGuestSession } from "./guest-session";
-import { decodeGuestSessionId } from "./jwt";
+import { ensureGuestSession, requestDashboardDisplayName } from "./guest-session";
 import { registerCurrentPage, realPageUrl, submitPageSnapshot } from "./page-registration";
 import { wireRealtimeUpdates } from "./realtime";
 import { captureScreenshot } from "./screenshot";
@@ -14,9 +13,12 @@ import {
   promptForName,
   renderPin,
   showTooltip,
+  type ComposerDetails,
 } from "./ui";
 import { parseUserAgent } from "./user-agent";
 import { setupRegionDrawer } from "./region-drawer";
+
+type WidgetMode = "browse" | "comment" | "draw";
 
 async function init(config: BacklineConfig): Promise<void> {
   // Set once ensureGuestSession resolves below - the api client is constructed first
@@ -32,22 +34,37 @@ async function init(config: BacklineConfig): Promise<void> {
 
   // The dashboard's own canvas preview (ProjectOverviewPage) toggles between "Browse"
   // (the site behaves normally - existing pins are still visible/clickable for
-  // context, but nothing invites or accepts a new comment) and "Comment" (this
-  // widget's full, normal behavior) by reloading the iframe with this query param -
-  // there's no other channel to reach into an already-loaded proxied page's widget
-  // instance, since the widget script is baked into the proxy's HTML response
-  // server-side, not passed live init() args from the parent frame.
+  // context, but nothing invites or accepts a new comment), "Comment" (this widget's
+  // full, normal behavior) and "Draw". `blMode` carries only the mode this page was
+  // *loaded* with; every later switch arrives over postMessage below, because
+  // reloading the iframe to change a mode threw away all in-page state (pins, open
+  // threads, an unsent composer, the reviewer's scroll position) and visibly
+  // re-fetched the whole site on each toggle.
   const modeParams = new URLSearchParams(window.location.search);
   const blMode = modeParams.get("blMode");
   // Real guest reviewers (the /review/:shareToken flow, redirected straight to the
   // proxied site) never carry a blMode param at all - only the dashboard's own canvas
   // iframe sets one, always to one of "browse"/"comment"/"draw" (ProjectOverviewPage's
-  // iframeSearch.set("blMode", mode)). Comment mode has to stay the default for that
+  // iframeSearch.set("blMode", ...)). Comment mode has to stay the default for that
   // absent case, same as before "draw" existed - flipping this to an allowlist
   // (`=== "comment"`) would silently turn commenting off for every real guest
   // reviewer, since their URL never says "comment" explicitly.
-  const drawingEnabled = blMode === "draw";
-  const commentingEnabled = !drawingEnabled && blMode !== "browse";
+  let currentMode: WidgetMode = blMode === "draw" ? "draw" : blMode === "browse" ? "browse" : "comment";
+  // Replaced at the end of init with the real switcher, once there's something to
+  // switch. init() is async (guest session, page registration, existing comments), and
+  // the dashboard re-sends the mode on every iframe load, so a mode can genuinely
+  // arrive before this widget is wired up - until then it's just recorded, and the
+  // wiring below applies whatever the latest one turned out to be.
+  let applyMode = (next: WidgetMode) => {
+    currentMode = next;
+  };
+  window.addEventListener("message", (event) => {
+    if (event.data?.type !== "backline:set-mode") return;
+    const next: unknown = event.data.mode;
+    if (next !== "browse" && next !== "comment" && next !== "draw") return;
+    if (next === currentMode) return;
+    applyMode(next);
+  });
 
   // The dashboard's BrowserMenu ("CAPTURE AS") lets a team member manually tag which
   // browser a comment should be recorded against, for QA scenarios where they can't
@@ -58,7 +75,12 @@ async function init(config: BacklineConfig): Promise<void> {
   // ever sets this param there).
   const browserOverride = modeParams.get("blBrowser");
 
-  const guest = await ensureGuestSession(api, config.shareToken, () => promptForName(shadow));
+  // blMode is only ever set by the dashboard's canvas iframe (see above), so only there
+  // is a signed-in member's name available to skip the prompt with.
+  const guest = await ensureGuestSession(api, config.shareToken, async () => {
+    const dashboardName = blMode ? await requestDashboardDisplayName() : null;
+    return dashboardName ?? promptForName(shadow);
+  });
   guestToken = guest.guestSessionToken;
 
   // We don't yet know the project - it's resolved from the share link server-side via
@@ -81,25 +103,34 @@ async function init(config: BacklineConfig): Promise<void> {
   // known dashboard origin to address - and a page id isn't sensitive.
   window.parent.postMessage({ type: "backline:page-registered", pageId }, "*");
 
-  // Never invites a comment that clicking wouldn't actually accept.
-  const tooltip = commentingEnabled ? showTooltip(shadow) : { dismiss: () => {} };
+  // Never invites a comment that clicking wouldn't actually accept - and it's shown
+  // again each time the reviewer switches back into comment mode, so what the composer
+  // and the region drawer hold has to be this stable handle rather than one tooltip.
+  let tooltipHandle: { dismiss: () => void } | null = null;
+  const tooltip = {
+    dismiss: () => {
+      tooltipHandle?.dismiss();
+      tooltipHandle = null;
+    },
+  };
 
-  // The widget only ever acts as a guest (members review via the dashboard's
-  // CommentThreadPanel, not this SDK) - decoding our own guest session's `sub` here is
-  // just for "is this comment mine" UI gating (show/hide delete affordances). The
-  // backend re-checks authorship itself on every delete/reply call regardless.
-  const myGuestId = decodeGuestSessionId(guest.guestSessionToken);
+  // The real site's path for this page (not the proxy's), shown in the comment cards'
+  // header pill. Computed on each call, since an SPA can change the path without
+  // reloading this widget.
+  const currentPagePath = (): string => {
+    try {
+      return new URL(realPageUrl(config.shareToken, resolved.target_origin)).pathname;
+    } catch {
+      // keep the proxied path if the target origin isn't a parseable URL
+      return window.location.pathname;
+    }
+  };
 
   // threadMessages/pinsByTopId (the per-page thread + pin state) and the handlers that
   // read/mutate them all live in thread-manager.ts now - see its own comments for the
   // reasoning behind each piece. index.ts still owns the DOM events (clicks,
   // postMessage, websocket) that drive them.
-  const threadManager = createThreadManager({
-    shadow,
-    api,
-    projectId,
-    myActorId: myGuestId,
-  });
+  const threadManager = createThreadManager({ shadow, pagePath: currentPagePath });
   const { threadMessages, pinsByTopId, trackPinPosition, openThreadForComment, attachPinClickHandler } =
     threadManager;
 
@@ -170,6 +201,14 @@ async function init(config: BacklineConfig): Promise<void> {
     }, 400);
   });
 
+  // What the composer's header and facts row show.
+  const composerDetails = (regionSize?: string): ComposerDetails => ({
+    authorName: guest.displayName,
+    pagePath: currentPagePath(),
+    browser: browserOverride ?? parseUserAgent(navigator.userAgent).browser,
+    regionSize,
+  });
+
   const ownCommentIds = new Set<string>();
   wireRealtimeUpdates(
     shadow,
@@ -180,23 +219,36 @@ async function init(config: BacklineConfig): Promise<void> {
     ownCommentIds,
   );
 
-  if (!commentingEnabled && !drawingEnabled) return;
-
-  if (drawingEnabled) {
-    setupRegionDrawer({
-      shadow,
-      api,
-      projectId,
-      pageId,
-      browserOverride,
-      threadManager,
-      ownCommentIds,
-      tooltip,
-    });
-    return;
-  }
+  // Everything above this point is mode-independent (pins for existing comments,
+  // realtime updates, scroll-to-comment) and stays wired in every mode. Only what
+  // *accepts* a new comment is switched here, so toggling Browse/Comment/Draw no
+  // longer needs a reload: the region drawer is set up and torn down in place, and the
+  // click handler below is attached once and checks the live mode.
+  let regionTeardown: (() => void) | null = null;
+  applyMode = (next: WidgetMode) => {
+    currentMode = next;
+    regionTeardown?.();
+    regionTeardown = null;
+    tooltip.dismiss();
+    if (next === "comment") tooltipHandle = showTooltip(shadow);
+    if (next === "draw") {
+      regionTeardown = setupRegionDrawer({
+        shadow,
+        api,
+        projectId,
+        pageId,
+        browserOverride,
+        threadManager,
+        ownCommentIds,
+        tooltip,
+        composerDetails,
+      });
+    }
+  };
+  applyMode(currentMode);
 
   document.addEventListener("click", (event) => {
+    if (currentMode !== "comment") return;
     const target = event.target as Element | null;
     if (!target || target.closest("[data-backline-root]")) return;
 
@@ -218,6 +270,7 @@ async function init(config: BacklineConfig): Promise<void> {
     const x = event.pageX;
     const y = event.pageY;
     const pin = renderPin(shadow, x, y);
+    pin.classList.add("bl-pin-ghost");
     // Tracks from the moment the pin exists (composing included), using the exact
     // clicked element directly - no anchor/selector resolution needed, this element
     // reference is already unambiguous. The offset preserves exactly where within the
@@ -241,7 +294,7 @@ async function init(config: BacklineConfig): Promise<void> {
       shadow,
       x,
       y,
-      async ({ body, attachments }) => {
+      async ({ body, attachments, tags }) => {
         controls.setStatus("Capturing anchor + screenshot...");
 
         const anchor = await computeAnchor(target, x, y);
@@ -277,9 +330,11 @@ async function init(config: BacklineConfig): Promise<void> {
               screenshot_key: screenshotKey,
               capture_status: screenshotKey ? "ok" : "failed",
               attachments,
+              tags,
               client_request_id: clientRequestId,
             }),
           });
+          pin.classList.remove("bl-pin-ghost");
           ownCommentIds.add(created.id);
           threadMessages.set(created.id, [created]);
           pinsByTopId.set(created.id, { pin, untrack });
@@ -295,6 +350,7 @@ async function init(config: BacklineConfig): Promise<void> {
         pin.remove();
       },
       (file) => uploadAttachment(api, projectId, file),
+      composerDetails(),
     );
   });
 }

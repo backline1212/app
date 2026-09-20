@@ -36,8 +36,8 @@ test("clicking a comment in the dashboard's Comments panel opens its thread insi
     .locator("text=Tap anywhere on the page to leave feedback.")
     .waitFor({ timeout: 10_000 });
   await frame.locator("h1").first().click();
-  await frame.locator('textarea[placeholder="What\'s the issue here?"]').fill("Find me again");
-  await frame.locator('button:has-text("Capture & prepare comment")').click();
+  await frame.locator('textarea[placeholder="What needs to change here?"]').fill("Find me again");
+  await frame.locator('button:has-text("Post comment")').click();
   await frame.locator("text=Comment posted.").waitFor({ timeout: 15_000 });
 
   // A real bug found by hand: the thread opened at the *anchored element's* raw

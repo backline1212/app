@@ -82,6 +82,14 @@ export function CommentRow({
     onSuccess: invalidate,
   });
 
+  // A comment selected from its pin in the canvas (not from this list) can be scrolled
+  // out of view in the drawer - bring it in. "nearest" is a no-op when the row is
+  // already visible, which a row that was just clicked here always is.
+  const rowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selected) rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selected]);
+
   const meta = STATUS_META[comment.status];
   const priority = comment.priority ? PRIORITY_META[comment.priority] : null;
   const due = dueMeta(comment.due_at, isClosed(comment.status));
@@ -95,6 +103,7 @@ export function CommentRow({
 
   return (
     <div
+      ref={rowRef}
       onClick={() => onNavigate(comment.id)}
       role="button"
       tabIndex={0}
