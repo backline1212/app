@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useFocusTrap } from "../lib/use-focus-trap";
+import { popOpenDialog, pushOpenDialog } from "../lib/dialog-stack";
 
 export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -8,7 +9,12 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
     const dialog = ref.current;
     const previous = document.activeElement;
     dialog?.showModal();
-    return () => { dialog?.close(); if (previous instanceof HTMLElement) previous.focus(); };
+    if (dialog) pushOpenDialog(dialog);
+    return () => {
+      dialog?.close();
+      if (dialog) popOpenDialog(dialog);
+      if (previous instanceof HTMLElement) previous.focus();
+    };
   }, []);
   // Native <dialog>.showModal() already contains focus in most browsers, but the
   // shared trap is wired in here too (FD-AUD FE-08) so this component matches the

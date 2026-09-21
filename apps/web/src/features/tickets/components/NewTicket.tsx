@@ -97,9 +97,14 @@ export function NewTicket({ workspace, members, onClose }: { workspace: Workspac
             {save.error.message}
           </p>
         )}
-        <button className="bl-button" disabled={save.isPending || !projectId || !body.trim()}>
-          {save.isPending ? "Creating…" : "Create ticket"}
-        </button>
+        <div className="bl-form-actions">
+          <button type="button" className="bl-quiet" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="bl-button" disabled={save.isPending || !projectId || !body.trim()}>
+            {save.isPending ? "Creating…" : "Create ticket"}
+          </button>
+        </div>
       </form>
     </Dialog>
   );

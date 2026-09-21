@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useOnClickOutside } from "../../../lib/use-click-outside";
+import { useFocusTrap } from "../../../lib/use-focus-trap";
 import { ThemeToggle } from "../../../components/ThemeToggle";
 import { CommentsIcon } from "../panel/icons";
 import { GearIcon } from "../../../components/icons";
@@ -23,6 +24,21 @@ export function QuickToolsDock({ environment, mode, onModeChange }: QuickToolsDo
 
   const prefRef = useRef<HTMLDivElement>(null);
   useOnClickOutside(prefRef, () => setPreferencesOpen(false));
+  // Styled and behaves like a real modal (its own header + close button), unlike the
+  // plain dropdown menu above it - so it gets the same Escape + focus-trap protections
+  // every other modal in the app has, instead of only closing via click-outside/the X.
+  useFocusTrap(prefRef, preferencesOpen);
+
+  useEffect(() => {
+    if (!menuOpen && !preferencesOpen) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      setPreferencesOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen, preferencesOpen]);
 
   useEffect(() => {
     localStorage.setItem("bl-dock-hidden", String(startHidden));
@@ -92,7 +108,7 @@ export function QuickToolsDock({ environment, mode, onModeChange }: QuickToolsDo
         <div className="bl-dock-prefs-modal" ref={prefRef}>
           <div className="bl-dock-prefs-head">
             <h3>Preferences</h3>
-            <button onClick={() => setPreferencesOpen(false)}>×</button>
+            <button type="button" className="bl-icon" aria-label="Close preferences" onClick={() => setPreferencesOpen(false)}>×</button>
           </div>
           <div className="bl-dock-prefs-body">
             <div className="bl-setting-row bl-setting-row-static">

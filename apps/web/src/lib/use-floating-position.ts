@@ -12,6 +12,15 @@ export interface FloatingPosition {
  * wrapper, a side panel) the way a plain `position:absolute` child would.
  * Returns null until the first measurement is in, so callers can keep the
  * element invisible for that one frame instead of flashing it at (0,0).
+ *
+ * If the trigger sits inside a native `<dialog>`, the position is clamped to
+ * that dialog's own box instead of the full viewport. A `<dialog open by
+ * .showModal()>` renders in the browser's top layer, which paints above the
+ * entire regular document regardless of z-index - callers portal into that
+ * same `<dialog>` (via `closestDialog(triggerRef)`, below) rather than
+ * `document.body` so they render in front of it instead of invisibly behind
+ * it, and this clamp keeps them from extending past the dialog's own edges
+ * where its `overflow-y:auto` would otherwise clip them.
  */
 export function useFloatingPosition(
   triggerRef: RefObject<HTMLElement>,
@@ -32,15 +41,19 @@ export function useFloatingPosition(
       const height = floating?.offsetHeight ?? 340;
       const margin = 8;
 
+      const boundary = trigger.closest("dialog")?.getBoundingClientRect();
+      const minX = (boundary?.left ?? 0) + margin;
+      const maxX = (boundary ? boundary.right : window.innerWidth) - margin;
+      const minY = (boundary?.top ?? 0) + margin;
+      const maxY = (boundary ? boundary.bottom : window.innerHeight) - margin;
+
       let left = rect.left;
-      if (left + width > window.innerWidth - margin) {
-        left = Math.max(margin, window.innerWidth - width - margin);
-      }
+      if (left + width > maxX) left = Math.max(minX, maxX - width);
 
       let top = rect.bottom + 4;
-      if (top + height > window.innerHeight - margin) {
+      if (top + height > maxY) {
         const above = rect.top - height - 4;
-        top = above >= margin ? above : Math.max(margin, window.innerHeight - height - margin);
+        top = above >= minY ? above : Math.max(minY, maxY - height);
       }
 
       setPos({ top, left });
@@ -57,4 +70,11 @@ export function useFloatingPosition(
   }, [open]);
 
   return pos;
+}
+
+/** Portal target for a floating element anchored to `triggerRef`: the nearest
+ * enclosing `<dialog>` if there is one (so it joins the dialog's own top-layer
+ * stacking instead of rendering invisibly behind it), otherwise `document.body`. */
+export function closestPortalTarget(triggerRef: RefObject<HTMLElement>): Element {
+  return triggerRef.current?.closest("dialog") ?? document.body;
 }

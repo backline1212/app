@@ -137,6 +137,11 @@ body{font-family:var(--sans);background:var(--bl-paper);color:var(--bl-ink)}
 @media(max-width:640px){.bl-app{display:block}.bl-rail{position:relative;height:auto;border-right:0;border-bottom:1px solid var(--bl-line)}.bl-workspace{padding:12px}.bl-nav{flex-direction:row;overflow-x:auto;padding:6px}.bl-nav>a{white-space:nowrap}.bl-nav .bl-eyebrow,.bl-nav>a:has(.bl-dot),.bl-rail-footer{display:none}.bl-projects,.bl-projects.compact{grid-template-columns:1fr}.bl-topbar{padding:10px;gap:8px}.bl-wrap{padding:20px 14px 40px}.bl-fields{grid-template-columns:1fr}.bl-head{gap:12px}.bl-head h1{font-size:24px}.bl-calendar{grid-template-columns:repeat(7,minmax(50px,1fr))}.bl-calendar>div{padding:4px}.bl-tool-right{margin-left:0}.bl-segment button{padding:6px}.bl-activity>article{flex-wrap:wrap}.bl-board{grid-template-columns:1fr;overflow-x:visible}.bl-board>section{min-height:0}}
 /* ── Toast system (UX-AUD-008) ─────────────────────────────────────────── */
 .bl-toasts{position:fixed;top:16px;right:16px;z-index:9000;display:flex;flex-direction:column;gap:8px;width:340px;max-width:calc(100vw - 32px);pointer-events:none}
+/* Portaled into the topmost open <dialog> instead of document.body when one is open
+   (Toast.tsx) - a dialog's own overflow-y:auto clips anything appended to it that
+   renders outside its own box, so this has to stay within the dialog's box (below its
+   sticky ~60px header) rather than reusing the viewport-corner position above. */
+.bl-toasts.in-dialog{position:absolute;top:64px;right:16px;width:min(340px,calc(100% - 32px));max-width:none}
 .bl-toast{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:4px;font-size:13px;line-height:1.5;background:var(--bl-surface);border:1px solid var(--bl-line);box-shadow:0 4px 20px #0002;pointer-events:all;animation:bl-toast-in .18s ease}
 @keyframes bl-toast-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 .bl-toast.success{border-left:3px solid var(--mint-deep);background:var(--mint-tint);color:var(--mint-deep)}
@@ -149,7 +154,7 @@ body{font-family:var(--sans);background:var(--bl-paper);color:var(--bl-ink)}
 .bl-toast.warning .bl-toast-icon{color:var(--amber-ink)}
 .bl-toast.progress .bl-toast-icon{color:var(--bl-info)}
 .bl-toast-msg{flex:1;word-break:break-word}
-.bl-toast-close{flex-shrink:0;width:20px;height:20px;display:grid;place-items:center;font-size:16px;line-height:1;color:var(--bl-muted);margin-top:-1px;border-radius:3px}
+.bl-toast-close{flex-shrink:0;width:24px;height:24px;display:grid;place-items:center;font-size:16px;line-height:1;color:var(--bl-muted);margin-top:-3px;border-radius:3px}
 .bl-toast-close:hover{background:var(--bl-line)}
 /* ── Connection banner (UX-AUD-010) ────────────────────────────────────── */
 .bl-conn-banner{position:sticky;top:0;z-index:30;padding:8px 20px;font-size:12px;font-weight:500;text-align:center;border-bottom:1px solid transparent}
@@ -1620,8 +1625,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  /* Matches .bl-dock-btn's own 32px box - the compact BrandMark it wraps
+     (.bl-brand-glyph, 30x30) previously overflowed a 24px box by ~3px per side. */
+  width: 32px;
+  height: 32px;
   color: var(--ink-1);
 }
 
