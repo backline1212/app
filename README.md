@@ -123,3 +123,5 @@ Whenever the backend's routes/schemas change, regenerate `packages/types` agains
 ```bash
 cd packages/types && pnpm generate
 ```
+
+<!-- CI/CD pipeline test: 2026-09-22T11:27:02Z -->
