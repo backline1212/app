@@ -125,3 +125,4 @@ cd packages/types && pnpm generate
 ```
 
 <!-- CI/CD pipeline test: 2026-09-22T11:27:02Z -->
+<!-- CI/CD pipeline test: 2026-09-22T11:28:47Z -->
