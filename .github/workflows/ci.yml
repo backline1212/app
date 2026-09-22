@@ -184,22 +184,24 @@ jobs:
     needs: [backend, frontend, test-e2e]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    env:
+      HAS_PRODUCTION_API_URL: ${{ secrets.PRODUCTION_API_URL != '' }}
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        if: ${{ secrets.PRODUCTION_API_URL != '' }}
+        if: ${{ env.HAS_PRODUCTION_API_URL == 'true' }}
         uses: astral-sh/setup-uv@v3
         with:
           version: "0.11.28"
       - name: Install dependencies
-        if: ${{ secrets.PRODUCTION_API_URL != '' }}
+        if: ${{ env.HAS_PRODUCTION_API_URL == 'true' }}
         working-directory: backend
         run: uv sync
       - name: Wait for Vercel/Railway auto-deploy to finish
-        if: ${{ secrets.PRODUCTION_API_URL != '' }}
+        if: ${{ env.HAS_PRODUCTION_API_URL == 'true' }}
         run: sleep 60
       - name: Post-deploy smoke test
-        if: ${{ secrets.PRODUCTION_API_URL != '' }}
+        if: ${{ env.HAS_PRODUCTION_API_URL == 'true' }}
         working-directory: backend
         env:
           SMOKE_TEST_BASE_URL: ${{ secrets.PRODUCTION_API_URL }}
