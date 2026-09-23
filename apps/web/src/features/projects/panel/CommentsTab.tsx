@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { RefObject } from "react";
 
 import * as boardApi from "../../board/api";
 import type { CommentOut, CommentStatus } from "../../board/api";
-import { CommentThreadPanel } from "../../board/CommentThreadPanel";
 import { API_BASE_URL } from "../../../lib/api-client";
 import { qk } from "../../../lib/query-keys";
 import * as pagesApi from "../../pages/api";
 import * as workspacesApi from "../../workspaces/api";
+import { CommentDetail } from "./comments/CommentDetail";
 import { CommentsList } from "./comments/CommentsList";
 import { FilterSortBar } from "./comments/FilterSortBar";
 import { StatusChips } from "./comments/StatusChips";
@@ -104,18 +104,6 @@ export function CommentsTab({
 
   const openThreadComment = (comments ?? []).find((c) => c.id === openThreadId) ?? null;
 
-  // Numeric badge order is stable across every filter/sort choice - it always reflects
-  // creation order across the whole project, not the currently-visible subset - so a
-  // comment's number never changes just because a filter hid its neighbors.
-  const sequenceByCommentId = useMemo(() => {
-    const byCreatedAsc = allThreads
-      .slice()
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
-    const map = new Map<string, number>();
-    byCreatedAsc.forEach((c, index) => map.set(c.id, index + 1));
-    return map;
-  }, [allThreads]);
-
   const statusCounts = useMemo(() => {
     const counts: Record<CommentStatus, number> = {
       todo: 0,
@@ -162,11 +150,42 @@ export function CommentsTab({
   // listens for this exact message). Not just cosmetic: a comment whose pin never
   // rendered (off-screen, or the target hadn't loaded yet) can still genuinely exist -
   // this is how a reviewer actually finds it again.
-  function navigateToComment(commentId: string) {
+  function showOnPage(commentId: string) {
     onSelectComment?.(commentId);
     canvasRef.current?.contentWindow?.postMessage(
       { type: "backline:scroll-to-comment", commentId },
       new URL(API_BASE_URL).origin,
+    );
+  }
+
+  // Clicking a comment opens its detail here *and* takes the canvas to its pin, the
+  // two halves of "show me this comment".
+  function openComment(commentId: string) {
+    setOpenThreadId(commentId);
+    showOnPage(commentId);
+  }
+
+  // A pin clicked in the canvas selects that comment (ProjectOverviewPage's
+  // backline:comment-opened handler). With the detail open, follow it there rather
+  // than leaving a different comment's detail on screen.
+  useEffect(() => {
+    if (openThreadId && selectedCommentId && selectedCommentId !== openThreadId) {
+      setOpenThreadId(selectedCommentId);
+    }
+  }, [openThreadId, selectedCommentId, setOpenThreadId]);
+
+  if (openThreadComment) {
+    return (
+      <CommentDetail
+        comment={openThreadComment}
+        replies={repliesByParent.get(openThreadComment.id) ?? []}
+        projectId={projectId}
+        workspaceId={workspaceId}
+        members={members}
+        pages={pages}
+        onBack={() => setOpenThreadId(null)}
+        onShowOnPage={showOnPage}
+      />
     );
   }
 
@@ -222,21 +241,11 @@ export function CommentsTab({
         projectId={projectId}
         pages={pages}
         members={members}
-        sequenceByCommentId={sequenceByCommentId}
         replyCountByCommentId={replyCountByCommentId}
-        onNavigate={navigateToComment}
-        onOpenThread={setOpenThreadId}
+        onNavigate={openComment}
+        onOpenThread={openComment}
         selectedCommentId={selectedCommentId}
       />
-
-      {openThreadComment && (
-        <CommentThreadPanel
-          comment={openThreadComment}
-          replies={repliesByParent.get(openThreadComment.id) ?? []}
-          projectId={projectId}
-          onClose={() => setOpenThreadId(null)}
-        />
-      )}
     </div>
   );
 }

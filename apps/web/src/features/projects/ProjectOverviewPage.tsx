@@ -1,5 +1,5 @@
 import type { Schemas } from "@backline/types";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type CSSProperties, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 
@@ -7,10 +7,11 @@ import { useWSEvent } from "../../app/WSProvider";
 import { API_BASE_URL, apiFetch } from "../../lib/api-client";
 import { removeProjectComment, upsertProjectComment } from "../../lib/comment-cache";
 import { qk } from "../../lib/query-keys";
+import { WORKFLOW_STATUSES } from "../../lib/workflow";
 import { AssetReview } from "../assets/AssetReview";
 import { useAuth } from "../auth/AuthContext";
 import * as boardApi from "../board/api";
-import type { CommentOut } from "../board/api";
+import type { CommentOut, CommentStatus } from "../board/api";
 import * as shareLinksApi from "../share-links/api";
 import { ShareProjectModal } from "../workspaces/ShareProjectModal";
 import type { WorkspaceOut } from "../workspaces/api";
@@ -132,7 +133,7 @@ export function ProjectOverviewPage() {
   // drag can produce (snapped back to filling the container).
   const [dragWidth, setDragWidth] = useState<number | null | undefined>(undefined);
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   useEffect(() => {
     const handleOpenShortcuts = () => setShowShortcuts(true);
@@ -366,6 +367,46 @@ export function ProjectOverviewPage() {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [memberDisplayName]);
+
+  // The canvas widget's comment card has a status menu in its header (widget
+  // dashboard-bridge.ts), but the widget itself runs as a guest, and guests can't change
+  // a status - so it asks this page, where the member is signed in, to make the change
+  // with the member's own session. Every workspace role holds comment:update_status
+  // (backend core/permissions.py); anything else gets the card's read-only status.
+  const canUpdateStatus = role === "owner" || role === "admin" || role === "member";
+  const statusMutation = useMutation({
+    mutationFn: ({ commentId, status }: { commentId: string; status: CommentStatus }) =>
+      boardApi.updateComment(commentId, { status }),
+    onSuccess: (updated) => upsertProjectComment(queryClient, projectId ?? "", updated),
+  });
+  const updateStatusFromCanvas = statusMutation.mutateAsync;
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      const canvasWindow = canvasRef.current?.contentWindow;
+      if (!canvasWindow || event.source !== canvasWindow) return;
+      const data = event.data;
+      if (data?.type === "backline:request-status-access") {
+        canvasWindow.postMessage({ type: "backline:status-access", canUpdateStatus }, event.origin);
+        return;
+      }
+      if (data?.type !== "backline:update-comment-status") return;
+      const { requestId, commentId, status } = data as { requestId: unknown; commentId: unknown; status: unknown };
+      if (typeof requestId !== "string" || typeof commentId !== "string") return;
+      const origin = event.origin;
+      const reply = (result: { ok: true; status: CommentStatus } | { ok: false }) =>
+        canvasWindow.postMessage({ type: "backline:comment-status-result", requestId, ...result }, origin);
+      if (!canUpdateStatus || !WORKFLOW_STATUSES.includes(status as CommentStatus)) {
+        reply({ ok: false });
+        return;
+      }
+      updateStatusFromCanvas({ commentId, status: status as CommentStatus }).then(
+        (updated) => reply({ ok: true, status: updated.status }),
+        () => reply({ ok: false }),
+      );
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [canUpdateStatus, updateStatusFromCanvas]);
 
   // Switching Comment/Browse/Draw is driven into the already-loaded canvas rather than
   // reloading it with a new blMode (the widget's own set-mode listener, index.ts): a

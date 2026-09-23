@@ -235,6 +235,7 @@ async def _comment_out(
         attachments=attachments,
         created_at=doc["created_at"],
         edited_at=doc.get("edited_at"),
+        ticket_number=doc.get("ticket_number"),
     )
 
 
@@ -347,6 +348,9 @@ async def create_comment(
         "client_request_id": client_request_id,
         "created_at": datetime.now(UTC),
         "edited_at": None,
+        # Top-level comments are tickets on the board, so each one gets the workspace's
+        # next number here (replies, created in create_reply, deliberately do not).
+        "ticket_number": await CommentRepository(db).next_ticket_number(page["workspace_id"]),
     }
     created = await CommentRepository(db).create(doc)
 

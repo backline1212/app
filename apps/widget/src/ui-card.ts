@@ -27,19 +27,25 @@ export function initials(name: string): string {
   return letters.toUpperCase();
 }
 
-/** The dark header row: author avatar, title, page pill and a close "x". */
+/**
+ * The dark header row: author avatar, title, page pill and a close "x". `trailingHtml`
+ * (already-escaped markup) sits between the page pill and the "x" - the read-only
+ * comment view puts the comment's status there.
+ */
 export function cardHeaderHtml(opts: {
   authorName: string;
   title: string;
   titleClass?: string;
   pagePath: string;
   closeLabel: string;
+  trailingHtml?: string;
 }): string {
   return `
     <div class="bl-cp-head">
       <span class="bl-cp-av" aria-hidden="true">${escapeHtml(initials(opts.authorName))}</span>
       <span class="bl-cp-title ${opts.titleClass ?? ""}">${escapeHtml(opts.title)}</span>
       <span class="bl-cp-loc" title="${escapeHtml(opts.pagePath)}">${escapeHtml(opts.pagePath)}</span>
+      ${opts.trailingHtml ?? ""}
       <button type="button" class="bl-cancel" aria-label="${escapeHtml(opts.closeLabel)}">&times;</button>
     </div>`;
 }

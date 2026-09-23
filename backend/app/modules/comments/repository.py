@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from app.core.mongo_utils import to_object_id
@@ -34,6 +35,23 @@ class CommentRepository:
             return existing
         doc["_id"] = result.inserted_id
         return doc
+
+    async def next_ticket_number(self, workspace_id: str) -> int:
+        """The next human-readable ticket number for this workspace (#1, #2, ...).
+
+        One counter document per workspace, bumped with a single atomic
+        find_one_and_update - two comments created at the same moment can never be
+        handed the same number, which a max()+1 read-then-write could. Numbers are
+        per workspace, not per project: the tickets list spans every project, and two
+        different projects both owning a "#3" would make the number useless there.
+        """
+        doc = await self.db.counters.find_one_and_update(
+            {"_id": f"tickets:{workspace_id}"},
+            {"$inc": {"seq": 1}},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+        return int(doc["seq"])
 
     async def find_by_id(self, comment_id: str) -> dict[str, Any] | None:
         oid = to_object_id(comment_id)

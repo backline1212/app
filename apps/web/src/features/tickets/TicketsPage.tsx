@@ -13,6 +13,13 @@ import { NewTicket } from "./components/NewTicket";
 import { TicketDetail } from "./components/TicketDetail";
 import { useTickets } from "./use-tickets";
 
+const VIEW_LAYOUTS = [
+  { id: "list", label: "List", icon: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /> },
+  { id: "board", label: "Board", icon: <><rect x="3" y="4" width="5" height="16" rx="1" /><rect x="10" y="4" width="5" height="11" rx="1" /><rect x="17" y="4" width="4" height="7" rx="1" /></> },
+  { id: "table", label: "Table", icon: <><rect x="3" y="4" width="18" height="16" rx="1" /><path d="M3 10h18M3 15h18M10 4v16" /></> },
+  { id: "calendar", label: "Calendar", icon: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></> },
+];
+
 const VIEW_TABS: { key: string; label: string }[] = [
   { key: "all", label: "Everyone" },
   { key: "mine", label: "Assigned to me" },
@@ -86,9 +93,9 @@ export function TicketsPage() {
         </div>
       </header>
 
-      <div className="bl-tabs">
+      <div className="bl-segment bl-ticket-filters" role="group" aria-label="Filter tickets">
         {VIEW_TABS.map((tab) => (
-          <button key={tab.key} aria-pressed={(params.get("view") ?? "all") === tab.key} onClick={() => set("view", tab.key)}>
+          <button key={tab.key} type="button" aria-pressed={(params.get("view") ?? "all") === tab.key} onClick={() => set("view", tab.key)}>
             {tab.label}
             {tabCounts[tab.key] !== undefined && <span className="bl-count">{tabCounts[tab.key]}</span>}
           </button>
@@ -166,10 +173,11 @@ export function TicketsPage() {
             assignees={assignees}
             onAssignees={(v) => set("assignee", v)}
           />
-          <div className="bl-segment">
-            {["list", "board", "table", "calendar"].map((v) => (
-              <button key={v} aria-pressed={display === v} onClick={() => set("display", v)}>
-                {v}
+          <div className="bl-segment" role="group" aria-label="Ticket layout">
+            {VIEW_LAYOUTS.map(({ id, label, icon }) => (
+              <button key={id} type="button" aria-pressed={display === id} onClick={() => set("display", id)}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{icon}</svg>
+                {label}
               </button>
             ))}
           </div>

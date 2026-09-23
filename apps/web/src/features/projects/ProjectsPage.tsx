@@ -189,7 +189,13 @@ export function ProjectsPage() {
     const isWebsite = (p.project_type ?? "website") === "website";
     const destination = `/w/${workspace.slug}/p/${p.id}`;
     const displayUrl = isWebsite ? p.target_origin.replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
+    // The two preview layouts put the menu in the card's top-right corner, over the
+    // artwork; the row layouts (list/table) have no corner to speak of and keep it in
+    // the actions column at the end of the row.
+    const cornerMenu = view === "cards" || view === "compact";
+    const menu = <ProjectMenu project={p} workspaceSlug={workspace.slug} onShare={() => setShare(p)} onSettings={() => setEdit(p)} onManagePages={isWebsite ? () => setManagePages(p) : undefined} />;
     return <article key={p.id} className={`bl-project ${p.archived_at ? "archived" : ""}`}>
+      {cornerMenu && <div className="bl-project-card-menu">{menu}</div>}
       <div className="bl-project-preview">
         <ProjectArtwork project={p} />
         <div className="bl-browser"><span aria-hidden="true"><i /><i /><i /></span><span>{displayUrl}</span></div>
@@ -199,7 +205,7 @@ export function ProjectsPage() {
           <div className="bl-project-overlay">
             <div className="bl-project-overlay-actions">
               <button type="button" aria-label={`Share ${p.name}`} onClick={() => setShare(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="3.5"/><path d="M19 8v6M22 11h-6"/></svg></button>
-              <button type="button" aria-label={`Open ${p.name} settings`} onClick={() => setEdit(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg></button>
+              <button type="button" aria-label={`Open ${p.name} settings`} onClick={() => setEdit(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg></button>
             </div>
             <Link className="bl-project-overlay-open" to={destination}>Open project <span>↗</span></Link>
             <span className="bl-project-overlay-url">{displayUrl}</span>
@@ -219,9 +225,39 @@ export function ProjectsPage() {
       </div>
       <footer className="bl-project-actions">
         <span className="bl-project-client">{clients.data?.find((c) => c.id === p.client_id)?.name ?? "Internal project"}</span>
-        <ProjectMenu project={p} workspaceSlug={workspace.slug} onShare={() => setShare(p)} onSettings={() => setEdit(p)} onManagePages={isWebsite ? () => setManagePages(p) : undefined} />
+        {!cornerMenu && menu}
       </footer>
     </article>;
+  }
+
+  function newProjectTile(className = "bl-new-card") {
+    if (archived || search) return null;
+    return <button className={className} onClick={() => setCreateType(type === "image" || type === "pdf" ? type : "website")}><span className="bl-new-card-plus"><PlusIcon /></span><strong>{type === "image" ? "Upload images to review" : type === "pdf" ? "Upload a PDF to review" : "Add a website to review"}</strong><small>{type === "image" ? "Pin feedback directly to campaign and product artwork." : type === "pdf" ? "Collect precise comments across every page of a document." : "Paste a URL and send your client a review link."}</small></button>;
+  }
+
+  // The Table layout is a real table (design/index.html's tableRows()), one column per
+  // fact, rather than the card markup folded into a grid - that left a third of the row
+  // empty and stacked the URL, the bar and the counts into one narrow column.
+  function projectRow(p: api.ProjectOut) {
+    const s = stats.get(p.id);
+    const isWebsite = (p.project_type ?? "website") === "website";
+    const destination = `/w/${workspace.slug}/p/${p.id}`;
+    const displayUrl = isWebsite ? p.target_origin.replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
+    const count = (value: number) => <td className={`bl-col-num${value > 0 ? " has-value" : ""}`}>{value}</td>;
+    return <tr key={p.id} className={p.archived_at ? "is-archived" : ""}>
+      <td>{p.archived_at
+        ? <span className="bl-table-name is-archived">{p.name}<span className="bl-arch-tag">Archived</span></span>
+        : <Link className="bl-table-name" to={destination}>{p.name}</Link>}</td>
+      <td><span className="bl-table-source" title={displayUrl}>{displayUrl}</span></td>
+      <td><span className={`bl-chip ${p.archived_at ? "" : (p.environment ?? "live")}`}>{!p.archived_at && (p.environment ?? "live") === "live" && <i className="bl-live-dot" aria-hidden="true" />}{p.archived_at ? "Archived" : p.environment ?? "live"}</span></td>
+      <td className={`bl-col-num${(s?.open ?? 0) > 0 ? " has-value is-strong" : ""}`}>{(s?.open ?? 0) > 0 ? <Link to={`/w/${workspace.slug}/tickets?project_id=${p.id}`}>{s?.open ?? 0}</Link> : 0}</td>
+      {count(s?.status_counts?.in_review ?? 0)}
+      {count(s?.status_counts?.blocked ?? 0)}
+      {count(s?.resolved ?? 0)}
+      <td><span className="bl-table-client">{clients.data?.find((c) => c.id === p.client_id)?.name ?? "Internal project"}</span></td>
+      <td className="bl-col-num">{timeAgo(s?.last_activity_at ?? p.updated_at)}</td>
+      <td className="bl-col-actions"><ProjectMenu project={p} workspaceSlug={workspace.slug} onShare={() => setShare(p)} onSettings={() => setEdit(p)} onManagePages={isWebsite ? () => setManagePages(p) : undefined} /></td>
+    </tr>;
   }
 
   return <>
@@ -294,10 +330,33 @@ export function ProjectsPage() {
         {/* Keyed on the active filters so switching tabs/sort/search replays the fade-in
             (UX-AUD-005: motion is decorative only - prefers-reduced-motion already
             flattens every animation/transition duration to ~0 globally, see backline.css). */}
-        <div className={`bl-projects ${view}`} key={`${type}-${archived}-${sort}-${search}-${params.get("client") ?? ""}`}>
-          {visible.map(projectCard)}
-          {!archived && !search && <button className="bl-new-card" onClick={() => setCreateType(type === "image" || type === "pdf" ? type : "website")}><span className="bl-new-card-plus"><PlusIcon /></span><strong>{type === "image" ? "Upload images to review" : type === "pdf" ? "Upload a PDF to review" : "Add a website to review"}</strong><small>{type === "image" ? "Pin feedback directly to campaign and product artwork." : type === "pdf" ? "Collect precise comments across every page of a document." : "Paste a URL and send your client a review link."}</small></button>}
-        </div>
+        {view === "table" ? (
+          <div key={`${type}-${archived}-${sort}-${search}-${params.get("client") ?? ""}`}>
+            <div className="bl-table-wrap bl-projects-table">
+              <table className="bl-table">
+                <thead><tr>
+                  <th scope="col">Project</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">State</th>
+                  <th scope="col" className="bl-col-num">Open</th>
+                  <th scope="col" className="bl-col-num">In review</th>
+                  <th scope="col" className="bl-col-num">Blocked</th>
+                  <th scope="col" className="bl-col-num">Resolved</th>
+                  <th scope="col">Client</th>
+                  <th scope="col" className="bl-col-num">Last activity</th>
+                  <th scope="col" className="bl-col-actions"><span className="sr-only">Actions</span></th>
+                </tr></thead>
+                <tbody>{visible.map(projectRow)}</tbody>
+              </table>
+            </div>
+            {newProjectTile("bl-new-card bl-new-row")}
+          </div>
+        ) : (
+          <div className={`bl-projects ${view}`} key={`${type}-${archived}-${sort}-${search}-${params.get("client") ?? ""}`}>
+            {visible.map(projectCard)}
+            {newProjectTile()}
+          </div>
+        )}
         {!projects.error && visible.length === 0 && <div className="bl-empty"><h2>{archived ? "No archived projects" : "No projects here yet"}</h2><p>{search || type !== "all" ? "Try a different search or project type." : "Create a project to get a shareable review link."}</p></div>}
       </>}
     </main>

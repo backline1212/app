@@ -12,6 +12,112 @@
 - Verification for this workflow/documentation-only change: `git diff --check` and
   repository status/diff inspection. No application source, API contract, database,
   lint/typecheck/build output, or test suite was changed or claimed.
+## 2026-09-22: Ticket numbers, board, calendar and date picker (TDR-0032)
+
+- **Ticket numbers (TDR-0032).** `comments.ticket_number` - a per-workspace integer
+  assigned at creation from an atomic `counters` document
+  (`CommentRepository.next_ticket_number`), exposed on `CommentOut`/`TicketOut`, backed
+  by the additive unique partial index `comments_workspace_ticket_number`, and
+  backfilled for existing records by `scripts/migrate_ticket_numbers.py` (dry-run by
+  default, creation order, skips numbered records, raises counters with `$max`,
+  re-runnable). Replies are deliberately unnumbered. `packages/types` regenerated.
+  The reference is printed through one frontend helper (`lib/ticket-ref.ts`) on the
+  board, list, table, calendar, ticket detail and the project review drawer - which
+  now shows the real number instead of the browser-computed position it used before.
+- **Board view rebuilt to the design** (`tBoard`/`taskCard` in `design/index.html`): a
+  column per status tinted by that status with a count, and compact cards carrying the
+  ticket number, priority, the ticket, its project · page, first tag, due date and
+  assignee faces. Dragging between columns still sets status; the per-card status
+  `<select>` is gone, since the design's card does not have one and the drag does the
+  same job (it remains on the list and table rows).
+- **Calendar view fixed** (`design/index.html`'s `.calm`/`.cal-dow`/`.cal-grid`): the
+  CSS assumed flat day cells while the component wrapped each week in a `role="row"`,
+  so every week collapsed into a single column and the weekday names ran together.
+  Each row is now its own 7-column grid, with outside/today cells, three chips per day
+  plus "+N more" / "Show less", a Today button and the "No due date" drop panel.
+- **Due-date picker fixed.** `components/Dialog.tsx` opens a native `<dialog>` with
+  `showModal()`, which paints in the browser's top layer; the calendar portaled to
+  `<body>` therefore landed *behind* the dialog backdrop - visible as a smudge and
+  impossible to click, so a due date could not be set from a ticket. It now portals
+  into the nearest `<dialog>` when there is one, and the popup itself was rebuilt to
+  the design's `.dp` (it previously borrowed the full-page `.bl-calendar` grid).
+- **Board screen matched to the design, second pass.** Two separate causes, both now
+  fixed. (1) A grid item is `min-width:auto`, so one unbreakable string (a project named
+  by its URL) set a card's minimum width and pushed it past the column edge, hiding
+  priority and the due date; columns, bodies and cards now carry `min-width:0`, so the
+  subtitle ellipsizes instead. (2) The new board reused the `.bl-board` container class,
+  and the legacy `.bl-board>section` / `.bl-board h2` rules - still the guest board's
+  (`features/review/GuestBoard.tsx`), so not removable - outrank any single class: they
+  were painting the columns paper-grey instead of white, adding 10px of padding that
+  squeezed every card, and shrinking the column headings. The ticket board now has its
+  own container class (`.bl-tboard`), which leaves the guest board untouched. Column
+  tracks floor at 200px so six statuses still fit a laptop without a horizontal
+  scrollbar. The card's due date became plain
+  coloured mono text rather than a filled pill, as the design has it, and `TicketOut`
+  gained `page_path` so the second line reads "Project · /pricing" (design/index.html's
+  taskCard) instead of a page's marketing `<title>`. The ticket filters and the layout
+  switcher are now one segmented control each with the design's own view icons and mint
+  active counts, matching `.seg` in the design rather than the projects list's folder
+  tabs.
+- Verification: `pnpm turbo run lint typecheck build` passed (12/12; web lint keeps its
+  4 pre-existing warnings, none in changed code). Backend `ruff check .` and strict
+  `mypy app/ scripts/` passed (172 files); `ruff format --check` reports only
+  files that were already unformatted before this change. The backfill was dry-run and
+  then applied against the local dev database (1 workspace, 9 records numbered) and
+  re-run to confirm idempotency (9 already numbered, 0 to number). Board, calendar and
+  date picker were rendered in headless Chromium against the app's built CSS in light
+  and dark, including picking a date inside a real modal dialog (returns the selected
+  ISO date and closes) and the calendar's expand/collapse and month navigation. Per
+  AGENTS.md, no test suite was added.
+
+## 2026-09-22: Comment detail in the review drawer (TDR-0031)
+
+- Clicking a comment in the project review drawer now opens that comment's detail in
+  the drawer (`CommentDetail.tsx`) instead of only scrolling the canvas to its pin: an
+  "All comments" back link and `#<n>` badge, the workflow fields (status, waiting on,
+  tags, assignee, due date, priority, page), the thread with each message's author,
+  attachments and captured context (browser · OS · viewport, and the element it was
+  left on), and a reply box. The canvas still scrolls to the pin on the same click, and
+  a pin clicked in the canvas moves the open detail to that comment.
+- The reply box carries the design's "Write a reply for me" (the existing
+  `ai/suggest-reply` endpoint) and "Turn into a dev task", which formats the comment's
+  own recorded fields into a copyable card - no AI call, since no such endpoint exists.
+  Replies keep their Client visible / Team only choice, screenshot attachments, @
+  mentions and Cmd/Ctrl+Enter to post; Resolve/Reopen sits beside Post reply.
+- The modal thread dialog is no longer opened from the drawer (the ticket board still
+  uses it). `?thread=<id>` still deep-links a comment, and every field edit goes
+  through the same `PATCH /comments/{id}` and cache merge as the list and board.
+  `DatePicker` gained an optional `triggerClassName`/`children` for its trigger only.
+- Verification: `pnpm turbo run lint typecheck build` passed (12/12 tasks; web lint has
+  the same 4 pre-existing warnings, none in changed code). The detail was rendered in
+  headless Chromium against the app's built CSS at drawer width, in light and dark:
+  fields, thread, dev-task card, the status and tag menus, Escape closing a menu
+  without closing the drawer (and reaching the drawer on the next press), click-outside
+  closing a menu, and Post reply enabling once a reply is typed. Per AGENTS.md, no test
+  suite was added; the live drawer against a running API was not exercised.
+
+## 2026-09-22: Status in the canvas comment card (TDR-0030)
+
+- The read-only comment card opened from a pin now shows the comment's status in its
+  dark header (dot + label, between the page pill and the close "x"). In the dashboard
+  canvas it's a menu with all six workflow statuses. The widget hands the change to the
+  dashboard over postMessage (`backline:request-status-access` / `status-access`,
+  `update-comment-status` / `comment-status-result`), and the dashboard makes it with
+  the member's session via `PATCH /comments/{id}` and merges the result into the
+  Comments drawer's cache. The extension calls the same PATCH with its member token.
+  Guest reviewers see the status read-only. Guest permissions and the backend are
+  unchanged.
+- The card shows the new status straight away, then settles to what was saved, or
+  reverts with "Couldn't change the status. Please try again." if the change fails or
+  no answer comes within 15 s. `comment.updated` over the guest socket now also updates
+  the widget's thread state and an open card. The menu is keyboard-operable (arrows,
+  Home/End, Enter, Tab). Escape closes the menu first and the card on the next press.
+- Verification: widget, extension and web `typecheck`, `lint` (web: 4 existing
+  warnings, none in changed code) and `build` passed. The card was rendered in headless
+  Chromium from the widget sources against a stubbed updater: editable and read-only
+  headers, the open menu, keyboard selection, the pending state, the failure revert and
+  the Escape order. Per AGENTS.md, no test suite was added. The live dashboard ↔ canvas
+  round trip against a running API was not exercised.
 
 ## 2026-09-20: Full-width review preview and draggable width (TDR-0022)
 

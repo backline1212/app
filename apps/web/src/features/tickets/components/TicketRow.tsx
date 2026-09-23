@@ -1,5 +1,6 @@
 import { Avatar } from "@backline/ui";
 import { isClosed } from "../../../lib/workflow";
+import { ticketRef } from "../../../lib/ticket-ref";
 import { PRIORITY_META, dueMeta } from "../../projects/panel/comments/types";
 import type { MemberOut } from "../../workspaces/api";
 import * as api from "../api";
@@ -52,10 +53,11 @@ export function TicketRow({
       <span className="bl-tk-prio" style={{ background: priority.color }} title={`${priority.label} priority`} />
       <div className="bl-tk-main">
         <span className="bl-ticket-title">
+          <span className="bl-tid">{ticketRef(ticket)}</span>
           {ticket.body}
         </span>
         <span className="bl-tk-s">
-          {ticket.project_name} · {ticket.is_standalone ? "Team ticket" : ticket.page_title}
+          {ticket.project_name} · {ticket.is_standalone ? "Team ticket" : (ticket.page_path ?? ticket.page_title)}
         </span>
       </div>
       <span className="bl-tk-status" onClick={(e) => e.stopPropagation()}>

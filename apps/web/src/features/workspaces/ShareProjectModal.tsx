@@ -152,7 +152,7 @@ export function ShareProjectModal({ project, workspaceId, workspaceSlug, workspa
           )}
         </section>
       </div>
-      <footer className="bl-dialog-actions bl-dialog-actions-bordered"><Link className="bl-text-link" to={`/w/${workspaceSlug}/p/${project.id}/share-links`} onClick={onClose}>Manage all share links</Link><button type="button" className="bl-quiet" onClick={onClose}>Done</button></footer>
+      <footer className="bl-dialog-actions bl-dialog-actions-bordered"><button type="button" className="bl-quiet" onClick={onClose}>Done</button></footer>
     </Dialog>
   );
 }

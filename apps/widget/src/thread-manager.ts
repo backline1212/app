@@ -1,4 +1,5 @@
 import { trackAnchor } from "./position-tracker";
+import type { StatusUpdater } from "./status";
 import type { CommentRecord } from "./types";
 import { openCommentView, type CommentViewControls } from "./ui";
 
@@ -7,6 +8,11 @@ export interface ThreadManagerOptions {
   // The page path shown in an opened comment's header pill - the real site's path, not
   // the proxy's. Defaults to this document's own path.
   pagePath?: () => string;
+  // How an opened comment's status gets changed, or null when this viewer can't change
+  // it (the card then shows the status read-only). Asked each time a card opens rather
+  // than once up front: the guest widget only learns it's inside the dashboard - and so
+  // may offer the change - once the dashboard answers (dashboard-bridge.ts).
+  statusUpdater?: () => StatusUpdater | null;
 }
 
 /**
@@ -20,6 +26,7 @@ export interface ThreadManagerOptions {
 export function createThreadManager({
   shadow,
   pagePath = () => window.location.pathname,
+  statusUpdater = () => null,
 }: ThreadManagerOptions) {
   // Every top-level comment id maps to [top, ...replies] (sorted oldest-first) - the
   // full flat list the backend returns per page, regrouped here since the widget is
@@ -91,6 +98,7 @@ export function createThreadManager({
     const topComment = threadMessages.get(topId)?.[0];
     if (!topComment) return;
 
+    const updateStatus = statusUpdater();
     const controls = openCommentView(
       shadow,
       x,
@@ -98,6 +106,7 @@ export function createThreadManager({
       {
         authorName: topComment.author_name,
         body: topComment.body,
+        status: topComment.status,
         tags: topComment.tags ?? [],
         attachments: topComment.attachments,
         pagePath: pagePath(),
@@ -105,8 +114,30 @@ export function createThreadManager({
       () => {
         if (openThread?.topId === topId) openThread = null;
       },
+      updateStatus
+        ? async (status) => {
+            const saved = await updateStatus(topId, status);
+            setThreadStatus(topId, saved);
+            return saved;
+          }
+        : null,
     );
     openThread = { topId, controls };
+  }
+
+  function setThreadStatus(topId: string, status: string): void {
+    const list = threadMessages.get(topId);
+    if (list && list.length > 0) threadMessages.set(topId, [{ ...list[0], status }, ...list.slice(1)]);
+  }
+
+  // The comment.updated branch of the realtime handler (realtime.ts): a status changed
+  // elsewhere (the dashboard, another tab) shows up on the next open of that comment,
+  // and straight away on its card if it's the one open right now. Only a thread's top
+  // comment carries the status the card shows, so updates to replies change nothing.
+  function handleStatusChanged(commentId: string, status: string): void {
+    if (!threadMessages.has(commentId)) return;
+    setThreadStatus(commentId, status);
+    if (openThread?.topId === commentId) openThread.controls.setStatus(status);
   }
 
   function attachPinClickHandler(pin: HTMLElement, topId: string): void {
@@ -167,6 +198,7 @@ export function createThreadManager({
     openThreadForComment,
     attachPinClickHandler,
     handleCommentDeleted,
+    handleStatusChanged,
   };
 }
 

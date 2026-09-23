@@ -113,6 +113,22 @@ AUDIT_BATCH_14_INDEXES: tuple[AdditiveIndex, ...] = (
 )
 
 
+# Human-readable ticket numbers (#14). Sparse-by-type so the records still waiting on
+# scripts/migrate_ticket_numbers.py don't collide on a missing value, and unique so two
+# writers can never end up sharing a number even if a counter is ever reset by hand.
+TICKET_NUMBER_INDEXES: tuple[AdditiveIndex, ...] = (
+    AdditiveIndex(
+        "comments",
+        (("workspace_id", 1), ("ticket_number", 1)),
+        "comments_workspace_ticket_number",
+        {
+            "unique": True,
+            "partialFilterExpression": {"ticket_number": {"$type": "int"}},
+        },
+    ),
+)
+
+
 BROWSER_RENDER_INDEXES: tuple[AdditiveIndex, ...] = (
     # One cache/job-status document per (page, browser, viewport, orientation)
     # combination - modules/browser_render's repository upserts against exactly this
@@ -290,3 +306,4 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
     await ensure_additive_indexes(db, AUDIT_BATCH_03_INDEXES)
     await ensure_additive_indexes(db, BROWSER_RENDER_INDEXES)
     await ensure_additive_indexes(db, AUDIT_BATCH_14_INDEXES)
+    await ensure_additive_indexes(db, TICKET_NUMBER_INDEXES)

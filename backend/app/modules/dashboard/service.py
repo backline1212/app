@@ -1,6 +1,7 @@
 import re
 from datetime import UTC, datetime
 from typing import Any, Literal
+from urllib.parse import urlparse
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -26,6 +27,20 @@ from app.modules.dashboard.schemas import (
 )
 from app.modules.projects.service import get_project
 from app.modules.workspaces.repository import MembershipRepository
+
+
+def _page_path(url_normalized: str | None) -> str | None:
+    """The path a ticket's page lives at ("/pricing"), for the board and list cards.
+
+    Falls back to the stored URL when it isn't parseable, and never raises: this is a
+    label, and a malformed row should not take a whole ticket list down with it.
+    """
+    if not url_normalized:
+        return None
+    try:
+        return urlparse(url_normalized).path or "/"
+    except ValueError:
+        return None
 
 
 async def search(
@@ -132,6 +147,7 @@ async def list_tickets(
                 project_id=doc["_page"]["project_id"],
                 project_name=doc["_project"]["name"],
                 page_title=doc["_page"].get("title") or doc["_page"]["url_normalized"],
+                page_path=_page_path(doc["_page"].get("url_normalized")),
             )
         )
     return TicketListOut(
@@ -251,6 +267,7 @@ async def create_ticket(
             "created_at": datetime.now(UTC),
             "edited_at": None,
             "deleted_at": None,
+            "ticket_number": await CommentRepository(db).next_ticket_number(workspace_id),
         }
     )
     comment = await _comment_out(db, doc)
@@ -284,4 +301,5 @@ async def create_ticket(
         project_id=project_id,
         project_name=project.name,
         page_title="Project tickets",
+        page_path=None,
     )

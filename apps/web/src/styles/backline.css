@@ -621,8 +621,11 @@ body.lg-on .app,body.lg-on .toast{visibility:hidden}
    state - so clearing your last reply-owed comment doesn't yank the tabs/grid
    below it up the page. */
 .bl-attention{min-height:150px;display:flex;flex-direction:column}
-.bl-attention-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:26px 20px;text-align:center}
-.bl-attention-empty p{margin:0;font-size:12.5px;color:var(--bl-muted);max-width:44ch;line-height:1.5}
+/* Outranks .bl-attention>div's 3-column grid (which stretched the button across a
+   whole column and centred the message inside another): the empty state is one
+   left-aligned row - the line of copy, then the button at its natural width. */
+.bl-attention>.bl-attention-empty{flex:1;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:14px;padding:20px;text-align:left}
+.bl-attention-empty p{margin:0;font-size:12.5px;color:var(--bl-muted);max-width:68ch;line-height:1.5}
 .bl-attention-empty p b{color:var(--bl-ink)}
 
 /* ── Live hero preview ────────────────────────────────────────────────────
@@ -697,7 +700,7 @@ button{letter-spacing:inherit}
 .bl-brand-lockup.is-compact .bl-brand-glyph{width:30px;height:30px}
 
 /* Sidebar */
-.bl-rail{z-index:45;box-shadow:1px 0 0 rgba(11,11,11,.02)}
+.bl-rail{z-index:45;overflow-x:hidden;box-shadow:1px 0 0 rgba(11,11,11,.02)}
 .bl-rail-brand{height:58px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--line-soft)}
 .bl-rail-close{display:none;margin-left:auto;width:34px;height:34px;place-items:center;border-radius:3px;color:var(--ink-3)}
 .bl-workspace{padding:14px 16px;background:var(--bl-surface);transition:background .14s ease}
@@ -753,11 +756,11 @@ button{letter-spacing:inherit}
 .bl-attention>div>a::after{content:"↗";position:absolute;right:13px;bottom:11px;color:var(--ink-4);opacity:0;transform:translate(-3px,3px);transition:opacity .12s ease,transform .12s ease}
 .bl-attention>div>a:hover::after{opacity:1;transform:none}
 .bl-attention strong{font-size:13px;line-height:1.45}
-.bl-attention-empty .bl-quiet{display:inline-flex;align-items:center;gap:6px}
+.bl-attention-empty .bl-quiet{display:inline-flex;width:auto;flex:none;align-items:center;gap:6px}
 .bl-attention-empty .bl-quiet svg{width:13px;height:13px}
 
 /* Prototype-style project type tabs */
-.bl-tabs{align-items:flex-end;gap:2px;margin:0 0 18px;overflow-y:visible}
+.bl-tabs{align-items:flex-end;flex-wrap:wrap;gap:2px;margin:0 0 18px;overflow:visible}
 .bl-tabs>button,.bl-tabs>a{position:relative;margin-bottom:-1px;padding:9px 13px;border:1px solid transparent;border-bottom:0;border-radius:3px 3px 0 0;color:var(--ink-3);font-size:13px;font-weight:500}
 .bl-tabs>button[aria-pressed="true"]{background:var(--bl-surface);border-color:var(--line);border-bottom-color:#fff;color:var(--ink);font-weight:600}
 .bl-tabs>button[aria-pressed="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--bl-surface)}
@@ -799,7 +802,12 @@ button{letter-spacing:inherit}
 .bl-project-preview-link:focus-visible{outline:3px solid var(--ink);outline-offset:-3px}
 .bl-project-overlay{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;padding:10px;background:linear-gradient(180deg,rgba(11,11,11,.48),rgba(11,11,11,.06) 43%,rgba(11,11,11,.74));opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}
 .bl-project:hover .bl-project-overlay,.bl-project:focus-within .bl-project-overlay{opacity:1;visibility:visible}
-.bl-project-overlay-actions{display:flex;justify-content:flex-end;gap:6px;pointer-events:auto}
+.bl-project-card-menu{position:absolute;top:10px;right:10px;z-index:5}
+.bl-project-card-menu .bl-dropdown-trigger{width:31px;height:31px;border:1px solid rgba(221,222,218,.85);border-radius:3px;background:var(--bl-glass);color:var(--ink-3);box-shadow:0 3px 10px rgba(11,11,11,.12)}
+.bl-project-card-menu .bl-dropdown-trigger:hover,.bl-project-card-menu .bl-dropdown-trigger[aria-expanded="true"]{background:var(--mint);border-color:var(--mint);color:var(--ink)}
+/* Leaves the corner menu its own room, so the overlay's buttons sit beside it rather
+   than underneath. */
+.bl-project-overlay-actions{display:flex;justify-content:flex-end;gap:6px;padding-right:37px;pointer-events:auto}
 .bl-project-overlay-actions button{width:31px;height:31px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.35);border-radius:3px;background:var(--bl-glass);color:var(--ink);box-shadow:0 3px 10px rgba(11,11,11,.16)}
 .bl-project-overlay-actions button:hover{background:var(--mint);border-color:var(--mint)}
 .bl-project-overlay-actions svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -1314,7 +1322,7 @@ button{letter-spacing:inherit}
 .bl-comment-popover-foot{display:flex;justify-content:flex-end;padding:7px 10px;border-top:1px solid var(--line-soft)}
 
 .bl-comment-head{display:flex;align-items:flex-start;gap:8px}
-.bl-comment-badge{display:grid;place-items:center;width:20px;height:20px;flex:none;border-radius:50%;background:var(--paper);color:var(--ink-4);font:600 10px var(--mono)}
+.bl-comment-badge{display:grid;min-width:20px;height:20px;place-items:center;flex:none;border-radius:20px;background:var(--paper);padding:0 6px;color:var(--ink-4);font:600 10px var(--mono);white-space:nowrap}
 .bl-comment-person{display:flex;min-width:0;flex:1;align-items:center;gap:8px}
 .bl-comment-who{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
 .bl-comment-when{color:var(--ink-4);font:10px var(--mono);white-space:nowrap}
@@ -1467,7 +1475,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .bl-rail-brand{background:var(--bl-rail)}
 .bl-brand-glyph{background:#10231C;color:var(--mint);box-shadow:inset 0 0 0 1px rgba(105,222,178,.24)}
 .bl-brand-copy strong{letter-spacing:-.025em}
+.bl-ws-trigger-wrap{position:relative;margin:10px 10px 4px}
 .bl-workspace{margin:10px 10px 4px;padding:10px;border:1px solid transparent;border-radius:6px}
+.bl-workspace.bl-ws-trigger{margin:0}
 .bl-workspace:hover,.bl-workspace[aria-expanded="true"]{background:var(--bl-surface);border-color:var(--line)}
 .bl-mark{background:var(--mint-tint);color:var(--bl-accent-text);border:1px solid color-mix(in srgb,var(--mint-deep) 30%,var(--line))}
 .bl-nav{padding:8px 10px 16px;gap:3px}
@@ -1872,3 +1882,240 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   --tw-layer-client:110 189 232; --tw-layer-team:196 165 232;
   --tw-recovery-low-confidence:245 191 92; --tw-recovery-orphaned:240 128 107;
 }
+
+/* ── Review drawer: one comment's detail (CommentDetail.tsx) ───────────────
+   The design's comment detail, opened from a row in the drawer's list: workflow
+   fields, the thread, and a reply box that stays put while the thread scrolls.
+   Colors come from the shared tokens so it flips with the rest of the app in dark
+   mode; per-status/priority hues arrive as the --c/--pc custom properties set inline
+   from STATUS_META/PRIORITY_META. */
+/* Fills the drawer so only the thread scrolls: head, fields and the reply box
+   stay put, the way the design's detail does. */
+.bl-cd{display:flex;height:100%;flex-direction:column}
+.bl-cd-head,.bl-cd-meta,.bl-cd-reply{flex:none}
+.bl-cd-head{display:flex;align-items:center;gap:8px;padding:10px 13px;border-bottom:1px solid var(--line-soft)}
+.bl-cd-back{display:inline-flex;align-items:center;gap:6px;padding:0;color:var(--ink-3);font-size:12px}
+.bl-cd-back:hover{color:var(--ink)}
+.bl-cd-badges{display:flex;align-items:center;gap:6px;margin-left:auto}
+.bl-cd-id{flex:none;border:1px solid var(--line);border-radius:2px;padding:1px 5px;color:var(--ink-4);font:10px var(--mono)}
+.bl-cd-meta{display:grid;gap:10px;padding:11px 13px;border-bottom:1px solid var(--line-soft)}
+.bl-cd-row{display:flex;min-height:24px;align-items:center;gap:8px;font-size:12px}
+.bl-cd-label{width:78px;flex:none;color:var(--ink-4);font:9.5px var(--mono);letter-spacing:.06em}
+.bl-cd-muted{color:var(--ink-4)}
+.bl-cd-empty{padding:8px 10px;color:var(--ink-4);font-size:11px}
+.bl-cd-status{display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--c) 45%,var(--line));border-radius:var(--r);padding:3px 8px;background:color-mix(in srgb,var(--c) 15%,var(--bl-surface));color:color-mix(in srgb,var(--c) 40%,var(--ink));font-size:11.5px;font-weight:600}
+.bl-cd-status .bl-status-dot{background:var(--c)}
+.bl-cd-status:hover{border-color:var(--c)}
+.bl-cd-pick{display:flex;min-width:0;align-items:center;gap:7px;border:1px solid transparent;border-radius:var(--r);padding:2px 6px;color:var(--ink-2);font-size:12.5px;font-weight:500;text-align:left}
+.bl-cd-pick:hover{border-color:var(--line)}
+.bl-cd-pick svg{flex:none;color:var(--ink-4)}
+.bl-cd-stack{display:flex}.bl-cd-stack>*+*{margin-left:-6px}
+.bl-cd-balls{display:flex;flex-wrap:wrap;gap:4px}
+.bl-cd-ball{display:inline-flex;align-items:center;gap:5px;border-radius:20px;background:var(--paper);padding:2px 8px;font-size:11px;color:var(--ink-2)}
+.bl-cd-ball>i{width:5px;height:5px;border-radius:50%;background:var(--ink-4)}
+.bl-cd-ball.is-client>i{background:var(--mint-deep)}
+.bl-cd-tags{display:flex;flex:1 1 auto;min-width:0;flex-wrap:wrap;align-items:center;gap:6px}
+.bl-cd-tag{display:inline-flex;align-items:center;height:20px;border:1px solid var(--line);border-radius:3px;padding:0 8px;color:var(--ink-3);font:9px var(--mono);letter-spacing:.03em;white-space:nowrap}
+.bl-cd-tag.is-act:hover{border-color:var(--ink);color:var(--ink)}
+.bl-cd-tag-add{display:inline-flex;width:22px;height:22px;flex:none;align-items:center;justify-content:center;border:1px dashed var(--line);border-radius:4px;background:var(--bl-surface);color:var(--ink-3);line-height:0}
+.bl-cd-tag-add:hover{border-style:solid;border-color:var(--ink);color:var(--ink)}
+.bl-cd-date{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:var(--r);padding:4px 9px;background:var(--bl-surface);color:var(--ink);font:11px var(--mono);cursor:pointer}
+.bl-cd-date:hover{border-color:var(--ink-4)}
+.bl-cd-date[aria-expanded="true"]{border-color:var(--ink)}
+.bl-cd-date.is-empty{color:var(--ink-4)}
+.bl-cd-date svg{flex:none;color:var(--ink-4)}
+.bl-cd-due{font:10px var(--mono);color:var(--ink-4);white-space:nowrap}
+.bl-cd-due.is-late{color:var(--bl-error);font-weight:700}
+.bl-cd-due.is-soon{color:var(--amber-ink);font-weight:700}
+.bl-cd-due.is-ok{color:var(--bl-accent-text)}
+.bl-cd-prio{display:flex;gap:4px}
+.bl-cd-prio-b{border:1px solid var(--line);border-radius:2px;padding:2px 6px;color:var(--ink-4);font:9.5px var(--mono)}
+.bl-cd-prio-b:hover{border-color:var(--ink-4)}
+.bl-cd-prio-b[aria-pressed="true"]{border-color:var(--pc);background:var(--bl-surface);color:var(--pc);font-weight:700}
+.bl-cd-page{padding:0;color:var(--ink-3);font:11px var(--mono);overflow-wrap:anywhere;text-align:left}
+.bl-cd-page:hover{color:var(--ink);text-decoration:underline}
+.bl-cd-msgs{display:grid;flex:1;min-height:0;align-content:start;gap:14px;overflow-y:auto;padding:14px 13px}
+.bl-cd-msg{display:flex;gap:10px}
+.bl-cd-msg-body{min-width:0;flex:1}
+.bl-cd-msg-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:7px;margin-bottom:3px}
+.bl-cd-who{font-size:12.5px;font-weight:600}
+.bl-cd-time{color:var(--ink-4);font:10px var(--mono)}
+.bl-cd-msg-body>p{margin:0;color:var(--ink-2);font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.bl-cd-tech{margin-top:7px;border-left:2px solid var(--line);padding-left:8px;color:var(--ink-4);font:10px var(--mono);line-height:1.6;overflow-wrap:anywhere}
+.bl-cd-att{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:9px}
+.bl-cd-shot{display:block;max-width:190px;overflow:hidden;border:1px solid var(--line);border-radius:var(--r);line-height:0}
+.bl-cd-shot:hover{border-color:var(--ink)}
+.bl-cd-shot img{display:block;max-width:100%;max-height:150px}
+.bl-cd-out{border:1px solid var(--line);border-radius:var(--r);background:var(--bl-subtle);padding:10px 11px}
+.bl-cd-out-head{display:flex;align-items:center;gap:6px;margin-bottom:7px;color:var(--mint-deep);font:11px var(--mono);letter-spacing:.04em}
+.bl-cd-out-copy{margin-left:auto;border:1px solid var(--line);border-radius:2px;padding:2px 7px;color:var(--ink-2);font-size:11px}
+.bl-cd-out-copy:hover{border-color:var(--ink);color:var(--ink)}
+.bl-cd-out-x{padding:0 4px;color:var(--ink-4);font-size:15px;line-height:1}
+.bl-cd-out-x:hover{color:var(--ink)}
+.bl-cd-out pre{margin:0;color:var(--ink-2);font:11px/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+.bl-cd-reply{border-top:1px solid var(--line-soft);background:var(--bl-surface);padding:12px 13px}
+.bl-cd-tools{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:8px}
+.bl-cd-tool{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:20px;padding:4px 11px;background:var(--bl-surface);color:var(--ink-2);font-size:11.5px}
+.bl-cd-tool svg{color:var(--mint-deep)}
+.bl-cd-tool:hover:not(:disabled){border-color:var(--ink);color:var(--ink)}
+.bl-cd-tool[aria-busy="true"]{opacity:.6}
+textarea.bl-cd-textarea{width:100%;min-height:64px;max-height:40vh;border:1px solid var(--line);border-radius:var(--r);padding:9px 11px;background:var(--paper);color:var(--ink);font:13px var(--sans);resize:vertical;outline:none}
+textarea.bl-cd-textarea:focus{border-color:var(--ink);background:var(--bl-surface)}
+.bl-cd-shots{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:9px}
+.bl-cd-shot-add{display:inline-flex;height:34px;align-items:center;gap:7px;border:1px dashed var(--line);border-radius:var(--r);padding:0 12px;background:var(--bl-surface);color:var(--ink-3);font-size:12.5px}
+.bl-cd-shot-add:hover:not(:disabled){border-style:solid;border-color:var(--ink);color:var(--ink)}
+.bl-cd-shot-add svg{color:var(--ink-4)}
+.bl-cd-shot-add:hover:not(:disabled) svg{color:var(--ink)}
+.bl-cd-chip-x{padding:0 2px;color:var(--ink-4);font-size:13px;line-height:1}
+.bl-cd-chip-x:hover{color:var(--bl-error)}
+.bl-cd-actions{display:flex;align-items:center;gap:8px;margin-top:9px}
+.bl-cd-actions .bl-button{padding:7px 13px;font-size:12.5px}
+.bl-cd-resolve{padding:7px 13px;font-size:12.5px}
+.bl-cd-layer{margin-left:auto;max-width:140px;font-size:11px}
+.bl-cd-opt{display:flex;min-width:0;align-items:center;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bl-review-menu-row .bl-cd-tick{display:flex;flex:none;color:var(--mint-deep)}
+.bl-cd-reply .bl-error{margin:9px 0 0}
+@media(max-width:760px){.bl-cd{height:auto;min-height:100%}.bl-cd-msgs{overflow-y:visible}}
+
+/* ── Select controls: the design's own chevron ─────────────────────────────
+   A native select arrow sits flush against the field's right border (it ignores
+   padding), which is what made the project-settings "Client" field and the projects
+   toolbar's client filter look like the arrow was glued to the edge. design/index.html
+   styles its own `.sel` exactly this way: appearance:none, a chevron painted at
+   `right 10px center`, and room reserved for it. Appended at the end of the file so
+   the earlier rules that set `background` as a shorthand can't wipe the image out. */
+select.bl-input,.bl-select{appearance:none;-webkit-appearance:none;padding-right:30px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6E6B' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+/* Explicit per-theme value, this file's convention: the stroke is baked into the data
+   URI, so the light-mode grey has to be swapped rather than tinted. */
+:root.dark select.bl-input,:root.dark .bl-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B978F' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
+
+/* ── Projects: Table layout ────────────────────────────────────────────────
+   design/index.html's tableRows(): one column per fact (project, source, state,
+   the counts that matter, client, last activity) instead of the card markup folded
+   into a two-column grid, which left a third of every row empty. Built on the shared
+   .bl-table so it matches the tickets/members tables and flips with the theme. */
+.bl-projects-table .bl-table{font-size:13px}
+.bl-projects-table th{position:sticky;top:0;z-index:1}
+.bl-projects-table td{padding:11px 14px}
+.bl-projects-table tr.is-archived td{color:var(--ink-4)}
+.bl-table-name{display:inline-block;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px;margin-left:-5px;padding:1px 5px;font-size:13px;font-weight:600;color:var(--ink);vertical-align:middle}
+a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
+.bl-table-name.is-archived{color:var(--ink-4);font-weight:500}
+.bl-arch-tag{margin-left:7px;border-radius:2px;background:var(--paper);padding:1px 5px;color:var(--ink-4);font:8.5px var(--mono);letter-spacing:.05em;text-transform:uppercase}
+.bl-table-source,.bl-table-client{display:block;max-width:26ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-3)}
+.bl-table-source{font:11px var(--mono)}
+.bl-table-client{font-size:12px}
+/* Counts read as a column of numbers, so they line up and a zero stays quiet. */
+.bl-projects-table .bl-col-num{color:var(--ink-4);font:11px var(--mono);text-align:right;white-space:nowrap}
+.bl-projects-table th.bl-col-num{text-align:right}
+.bl-projects-table td.bl-col-num.has-value{color:var(--ink-2)}
+.bl-projects-table td.bl-col-num.is-strong{color:var(--ink);font-size:13px;font-weight:700}
+.bl-projects-table td.bl-col-num a{color:inherit}
+.bl-projects-table td.bl-col-num a:hover{color:var(--bl-accent-text);text-decoration:underline}
+.bl-projects-table .bl-col-actions{width:44px;text-align:right}
+.bl-projects-table td.bl-col-actions{padding-right:8px}
+/* The "add a project" tile under the table: one quiet row, not a 250px card. */
+.bl-new-row{width:100%;min-height:64px;flex-direction:row;justify-content:flex-start;gap:12px;margin-top:10px;padding:14px 16px;text-align:left}
+.bl-new-row small{max-width:none}
+@media(max-width:900px){.bl-projects-table th{position:static}}
+
+/* ── Tickets: Calendar view ────────────────────────────────────────────────
+   design/index.html's .calm/.cal-dow/.cal-grid: a month of day cells, each holding
+   up to three ticket chips and a count for the rest. The old rules assumed the day
+   cells were direct children of one 7-column grid, but the component wraps each week
+   in a role="row" (which ARIA's grid pattern wants), so every week collapsed into a
+   single column. Each row is its own 7-column grid instead, which keeps both. */
+.bl-cal-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 12px}
+.bl-cal-head h2{min-width:158px;font-size:15px;font-weight:600;letter-spacing:-.01em;text-align:center}
+.bl-cal-nav{display:grid;width:30px;height:30px;place-items:center;padding:0}
+.bl-cal-hint{color:var(--ink-4);font-size:10px}
+.bl-cal{overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--bl-surface)}
+.bl-cal-dow,.bl-cal-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.bl-cal-dow{border-bottom:1px solid var(--line);background:var(--paper)}
+.bl-cal-dow span{padding:8px 10px;color:var(--ink-4);font:9.5px var(--mono);letter-spacing:.07em;text-transform:uppercase}
+.bl-cal-day{display:flex;min-width:0;min-height:112px;flex-direction:column;gap:3px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);padding:7px}
+.bl-cal-week:last-child .bl-cal-day{border-bottom:0}
+.bl-cal-day:nth-child(7n){border-right:0}
+.bl-cal-day.is-out{background:var(--bl-subtle)}
+.bl-cal-day.is-today{background:var(--mint-tint)}
+.bl-cal-day[data-dragover]{outline:2px dashed var(--mint-deep);outline-offset:-2px;background:var(--mint-tint)}
+.bl-cal-date{display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:12.5px;font-weight:600}
+.bl-cal-date i{border-radius:2px;background:var(--ink);padding:1px 5px;color:var(--mint);font:8px var(--mono);font-style:normal;letter-spacing:.05em;text-transform:uppercase}
+.bl-cal-chip{display:flex;width:100%;align-items:center;gap:5px;border-radius:3px;background:var(--paper);padding:3px 5px;color:var(--ink-2);font-size:10.5px;line-height:1.3;text-align:left;cursor:grab}
+.bl-cal-chip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bl-cal-chip:hover{background:var(--bl-surface);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink)}
+.bl-cal-chip.bl-dragging{opacity:.45}
+.bl-cal-more{align-self:flex-start;padding:2px 5px;color:var(--ink-4);font:9px var(--mono)}
+.bl-cal-more:hover{color:var(--ink);text-decoration:underline}
+.bl-cal-unscheduled{margin-top:14px;border:1px solid var(--line);border-radius:8px;background:var(--bl-surface);padding:12px}
+.bl-cal-unscheduled[data-dragover]{border-color:var(--mint-deep);background:var(--mint-tint)}
+.bl-cal-unscheduled>b{display:block;margin-bottom:8px;font-size:12.5px}
+.bl-cal-unscheduled>p{color:var(--ink-4);font-size:11.5px}
+.bl-cal-unscheduled-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
+@media(max-width:760px){
+  .bl-cal{overflow-x:auto}
+  .bl-cal-dow,.bl-cal-week{min-width:640px}
+  .bl-cal-day{min-height:92px}
+}
+
+/* ── Date picker popup ─────────────────────────────────────────────────────
+   design/index.html's .dp: a compact month with the selected day filled, today
+   outlined, and Clear / Today under a rule. It used to borrow .bl-calendar (the
+   full-page month view), whose 7-column grid expected flat day cells and so blew
+   the popup out to the width of a whole calendar. */
+.bl-dp{position:fixed;z-index:1000;width:268px;border:1px solid var(--line);border-radius:8px;background:var(--bl-surface);box-shadow:0 16px 40px rgba(11,11,11,.18);padding:12px;color:var(--bl-ink)}
+.bl-dp-head{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.bl-dp-head b{flex:1;font-size:13px;font-weight:600;letter-spacing:-.01em;text-align:center}
+.bl-dp-head button{display:grid;width:26px;height:26px;place-items:center;border-radius:var(--r);color:var(--ink-3)}
+.bl-dp-head button:hover{background:var(--paper);color:var(--ink)}
+.bl-dp-dow{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
+.bl-dp-dow span{padding:4px 0;color:var(--ink-4);font:9px var(--mono);text-align:center}
+.bl-dp-grid{display:grid;gap:2px}
+.bl-dp-week{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.bl-dp-day{display:grid;height:30px;place-items:center;border-radius:var(--r);color:var(--ink-2);font-size:12px;font-variant-numeric:tabular-nums}
+.bl-dp-day:hover:not(:disabled){background:var(--paper);color:var(--ink)}
+.bl-dp-day:disabled{cursor:default;opacity:0}
+.bl-dp-day.is-today{box-shadow:inset 0 0 0 1px var(--line);font-weight:600}
+.bl-dp-day.is-on,.bl-dp-day.is-on:hover{background:var(--bl-ink);color:var(--bl-invert-fg);font-weight:600}
+.bl-dp-foot{display:flex;align-items:center;gap:8px;margin-top:10px;border-top:1px solid var(--line-soft);padding-top:10px}
+.bl-dp-foot button{padding:0;color:var(--ink-3);font-size:12px}
+.bl-dp-foot button:hover{color:var(--ink);text-decoration:underline}
+.bl-dp-foot .is-right{margin-left:auto}
+
+/* ── Tickets: Board view ───────────────────────────────────────────────────
+   design/index.html's .board/.bcol/.tc: a column per status, tinted by that status
+   and counting its cards, holding compact tickets that are dragged between columns.
+   --c is the status colour, set inline from STATUS_COLORS. */
+.bl-tboard{display:grid;grid-template-columns:repeat(6,minmax(200px,1fr));gap:12px;align-items:start;overflow-x:auto;padding-bottom:16px}
+.bl-bcol{min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--bl-surface)}
+.bl-bcol-h{display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--line-soft);background:color-mix(in srgb,var(--c) 14%,var(--bl-surface));padding:10px 12px;color:color-mix(in srgb,var(--c) 42%,var(--ink));font-size:12.5px;font-weight:600}
+.bl-bcol-h b{margin-left:auto;font:10px var(--mono)}
+.bl-bcol-b{display:grid;min-height:90px;min-width:0;align-content:start;gap:8px;padding:8px}
+.bl-bcol-e{border:1px dashed var(--line);border-radius:var(--r);padding:18px 4px;color:var(--ink-4);font:9.5px var(--mono);text-align:center}
+.bl-bcol[data-dragover]{outline:2px dashed var(--mint-deep);outline-offset:-2px}
+.bl-bcol[data-dragover] .bl-bcol-b{background:var(--mint-tint)}
+.bl-tc{display:block;width:100%;min-width:0;border:1px solid var(--line);border-radius:6px;background:var(--bl-surface);padding:10px;text-align:left;cursor:grab}
+.bl-tc:hover{border-color:var(--ink-4);box-shadow:0 2px 8px rgba(11,11,11,.06)}
+.bl-tc:active{cursor:grabbing}
+.bl-tc.bl-dragging{opacity:.4}
+.bl-tc-top{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.bl-tid{border:1px solid var(--line);border-radius:2px;padding:1px 5px;color:var(--ink-4);font:10px var(--mono)}
+.bl-tc-prio{margin-left:auto;font:9.5px var(--mono)}
+.bl-tc-t{display:block;margin-bottom:6px;color:var(--ink);font-size:12.5px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.bl-tc-s{display:block;margin-bottom:9px;color:var(--ink-4);font:9.5px var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bl-tc-foot{display:flex;align-items:center;gap:6px;min-width:0}
+.bl-tc-foot .bl-chip{flex:none;white-space:nowrap}
+.bl-tc-foot .bl-due-chip{min-width:0;overflow:hidden;border-radius:0;background:none;padding:0;color:var(--ink-4);font:9.5px var(--mono);text-overflow:ellipsis;white-space:nowrap}
+.bl-tc-foot .bl-due-chip.is-late{background:none;color:var(--bl-error);font-weight:700}
+.bl-tc-foot .bl-due-chip.is-soon{background:none;color:var(--amber-ink);font-weight:700}
+.bl-tc-faces{display:flex;margin-left:auto}
+.bl-tc-faces>*+*{margin-left:-6px}
+@media(max-width:900px){.bl-tboard{grid-template-columns:repeat(6,minmax(200px,1fr))}}
+
+/* The tickets screen's filters and layout switcher are one segmented control, as in
+   design/index.html's .seg: joined buttons, the active one filled, its count in mint. */
+.bl-segment button{display:inline-flex;align-items:center;gap:7px;text-transform:none}
+.bl-segment .bl-count{border:0;background:none;padding:0;color:var(--ink-4);font:700 10.5px var(--mono);min-width:0}
+.bl-segment button[aria-pressed="true"] .bl-count{color:var(--mint)}
+.bl-ticket-filters{width:max-content;max-width:100%;margin:0 0 16px;flex-wrap:wrap}
+.bl-ticket-filters button{font-size:12.5px;font-weight:500;padding:6px 13px}

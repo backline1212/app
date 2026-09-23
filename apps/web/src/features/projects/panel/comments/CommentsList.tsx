@@ -15,7 +15,6 @@ export interface CommentsListProps {
   projectId: string;
   pages: PageOut[];
   members: MemberOut[];
-  sequenceByCommentId: Map<string, number>;
   replyCountByCommentId: Map<string, number>;
   onNavigate: (commentId: string) => void;
   onOpenThread: (commentId: string) => void;
@@ -39,7 +38,6 @@ export function CommentsList({
   projectId,
   pages,
   members,
-  sequenceByCommentId,
   replyCountByCommentId,
   onNavigate,
   onOpenThread,
@@ -90,7 +88,6 @@ export function CommentsList({
         key={comment.id}
         comment={comment}
         projectId={projectId}
-        sequenceNumber={sequenceByCommentId.get(comment.id) ?? 0}
         replyCount={replyCountByCommentId.get(comment.id) ?? 0}
         members={members}
         onNavigate={onNavigate}

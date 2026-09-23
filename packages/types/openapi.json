@@ -6473,6 +6473,17 @@
             ],
             "title": "Edited At"
           },
+          "ticket_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number"
+          },
           "priority": {
             "type": "string",
             "enum": [
@@ -9709,6 +9720,17 @@
             ],
             "title": "Edited At"
           },
+          "ticket_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number"
+          },
           "priority": {
             "type": "string",
             "enum": [
@@ -9769,6 +9791,17 @@
           "page_title": {
             "type": "string",
             "title": "Page Title"
+          },
+          "page_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Path"
           }
         },
         "type": "object",

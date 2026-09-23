@@ -1,6 +1,7 @@
 import { createApiClient } from "./api-client";
 import { anchorPointFor, computeAnchor, resolveAnchorElement } from "./anchor";
 import { uploadAttachment, uploadScreenshot } from "./attachment-upload";
+import { connectDashboardStatusBridge } from "./dashboard-bridge";
 import { ensureGuestSession, requestDashboardDisplayName } from "./guest-session";
 import { registerCurrentPage, realPageUrl, submitPageSnapshot } from "./page-registration";
 import { wireRealtimeUpdates } from "./realtime";
@@ -66,6 +67,10 @@ async function init(config: BacklineConfig): Promise<void> {
     applyMode(next);
   });
 
+  // Connected this early for the same reason as the mode listener above: its question
+  // to the dashboard is answered while the rest of init is still awaiting the API.
+  const statusUpdater = connectDashboardStatusBridge();
+
   // The dashboard's BrowserMenu ("CAPTURE AS") lets a team member manually tag which
   // browser a comment should be recorded against, for QA scenarios where they can't
   // actually load the real browser locally - it reloads this same iframe (see the
@@ -130,7 +135,7 @@ async function init(config: BacklineConfig): Promise<void> {
   // read/mutate them all live in thread-manager.ts now - see its own comments for the
   // reasoning behind each piece. index.ts still owns the DOM events (clicks,
   // postMessage, websocket) that drive them.
-  const threadManager = createThreadManager({ shadow, pagePath: currentPagePath });
+  const threadManager = createThreadManager({ shadow, pagePath: currentPagePath, statusUpdater });
   const { threadMessages, pinsByTopId, trackPinPosition, openThreadForComment, attachPinClickHandler } =
     threadManager;
 
