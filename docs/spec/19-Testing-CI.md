@@ -20,7 +20,7 @@ Because "does recovery still work" isn't a normal assertion - it's a statistical
 - Element removed entirely - expect `orphaned` after full traversal.
 - Ambiguous duplicate elements (e.g., two "Learn more" buttons) - expect `low_confidence`, not a silent wrong match.
 
-Each fixture pair has an expected `recovery_status` + confidence range; CI fails if a change to the diff/anchor logic regresses any fixture's expected outcome. This is the automated version of Rule 4 (Deterministic Before Intelligent) - deterministic behavior should be exactly reproducible in tests, not "usually works."
+Each fixture pair has an expected `recovery_status` + confidence range; the verification suite fails if a change to the diff/anchor logic regresses any fixture's expected outcome. This is the automated version of Rule 4 (Deterministic Before Intelligent) - deterministic behavior should be exactly reproducible in tests, not "usually works."
 
 ## 19.3 Critical Playwright Journeys
 
@@ -30,26 +30,24 @@ Each fixture pair has an expected `recovery_status` + confidence range; CI fails
 4. Comment's page is redeployed with a structural change -> recovery pipeline runs -> comment's `recovery_status` updates and is reflected in the dashboard.
 5. Comment -> ClickUp task creation round-trip preserves screenshot/metadata/backlink.
 
-## 19.4 CI/CD Pipeline (GitHub Actions)
+## 19.4 Local Verification and Direct Deployment
 
-```
-on: pull_request, push to main
-jobs:
-  lint:        ruff + eslint + prettier --check
-  typecheck:   mypy --strict app/  &&  tsc --noEmit
-  test-unit:   pytest -m "not integration"  &&  vitest run
-  test-integration: start mongo+redis (service containers or native binaries)  &&  pytest -m integration
-  test-e2e:    playwright test (against a preview deploy, PR-only)
-  build:       turbo build (frontend + widget bundles)
-  deploy:      (main only) trigger Vercel + Railway deploys, then smoke test
-```
-Branch protection on `main`: all jobs above must pass; at least one approving review required (Rule 2, Production Quality Only, enforced structurally, not just by policy).
+GitHub Actions is intentionally disabled (TDR-0027). Before merging or pushing to
+`main`, contributors run the affected local checks: Ruff formatting/lint, strict mypy,
+workspace-scoping lint, generated-contract drift, frontend lint/typecheck/build, and
+the relevant isolated test suites when the task permits them. Vercel and Railway deploy
+from their direct GitHub integrations; Railway watch paths may legitimately skip a
+service when its source was not changed.
+
+Branch protection on `main` should require a pull request and approving review. There
+are no hosted status checks to require, so the reviewer is responsible for confirming
+that verification evidence is recorded in `docs/implementation/06-delivery.md`.
 
 ## 19.5 Performance Test Gates
 
-- SDK bundle size check fails the build if gzipped size exceeds 40KB (`07-Review-SDK.md` §7.7) - enforced via a `size-limit` CI step, not manual spot-checking.
+- SDK bundle size must remain below 40KB gzipped (`07-Review-SDK.md` §7.7); check it during local release verification.
 - Lighthouse CI on the dashboard's board view, budget: Time to Interactive < 2.5s on a throttled connection profile.
 
 ## 19.6 Test Data Hygiene
 
-Integration/E2E tests run against ephemeral, seeded databases per run (service containers or native binaries in CI, a fresh Atlas preview cluster namespace per PR) - never against staging or production data. Seed fixtures live in `backend/tests/fixtures/` and mirror realistic shapes (using the schemas in `11-Database.md`), not minimal/degenerate stand-ins, since anchor/recovery correctness depends on realistic DOM shapes.
+Integration/E2E tests run against ephemeral, seeded databases per run (service containers or native binaries locally, or a fresh Atlas preview namespace) - never against staging or production data. Seed fixtures live in `backend/tests/fixtures/` and mirror realistic shapes (using the schemas in `11-Database.md`), not minimal/degenerate stand-ins, since anchor/recovery correctness depends on realistic DOM shapes.

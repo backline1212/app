@@ -1,5 +1,18 @@
 # Delivery and verification ledger
 
+## 2026-09-23: Direct deployments without GitHub Actions
+
+- Removed the repository's only GitHub Actions workflow at the owner's explicit
+  request. The workflow was a verification/smoke-test gate; it did not perform the
+  Vercel or Railway deployments.
+- Retained direct Vercel and Railway GitHub deployments. Railway watch paths may still
+  report "No deployment needed" for commits that do not change a service's source.
+- Reconciled the current architecture, deployment guide, and testing specification in
+  TDR-0027. Historical TDRs were left unchanged.
+- Verification for this workflow/documentation-only change: `git diff --check` and
+  repository status/diff inspection. No application source, API contract, database,
+  lint/typecheck/build output, or test suite was changed or claimed.
+
 ## 2026-09-20: Full-width review preview and draggable width (TDR-0022)
 
 - The responsive project-review preview ("Fit canvas") now fills its container instead

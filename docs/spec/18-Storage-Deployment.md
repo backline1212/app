@@ -64,6 +64,10 @@ Secrets are never committed; `.env.example` documents names/shapes only. Railway
 
 A minimal flag system from day one (not a full LaunchDarkly-style service pre-MVP): a `feature_flags` collection (`{ key, workspace_id?, enabled }` - `workspace_id: null` means global default), read once at request-start into a request-scoped context, exposed via a `use_feature_flag(key)` dependency on the backend and a `useFeatureFlag(key)` hook on the frontend (backed by a value returned in the auth/bootstrap response, not a separate polled endpoint). Used for staged rollout of new integrations (e.g., Asana when it's implemented) without a full deploy-gated release.
 
-## 18.8 CI/CD Pipeline Summary (detail in `19-Testing-CI.md`)
+## 18.8 Deployment Pipeline Summary (detail in `19-Testing-CI.md`)
 
-`main` merge -> GitHub Actions runs lint/typecheck/test -> on pass, Vercel auto-deploys frontend, Railway auto-deploys backend (via GitHub integration, not a custom deploy script) -> smoke test hits `/health` and a read-only API endpoint post-deploy before marking the deploy healthy.
+`main` push -> Vercel auto-deploys the frontend and Railway auto-deploys services whose
+watch paths match the commit, using each platform's GitHub integration. GitHub Actions
+is intentionally disabled (TDR-0027), so contributors run the documented local
+verification before merge and the operator runs the smoke test after significant
+deployments.

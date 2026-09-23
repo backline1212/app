@@ -17,7 +17,7 @@
 | Auth | Google OAuth (agency members) + Email OTP (agency members) + signed share-link tokens (guests) | Covers both "fast login" and "no-Google-account" agency users; guests never need an account at all |
 | Frontend hosting | Vercel | Edge network for dashboard static assets; preview deployments per PR |
 | Backend hosting | Railway | Simple container deploy, good Postgres/Redis/Mongo add-on story, no need for full K8s at this stage |
-| CI/CD | GitHub Actions | Native to the repo host, sufficient for the pipeline in `19-Testing-CI.md` |
+| CI/CD | Vercel + Railway Git integrations; local verification | Pushes to the configured production branch deploy directly; hosted GitHub Actions is intentionally disabled per TDR-0027 |
 | Monorepo tooling | pnpm workspaces + Turborepo | Shared `packages/ui` and `packages/types` without publishing to a registry |
 
 ## 4.2 Explicitly Rejected Alternatives (and why)

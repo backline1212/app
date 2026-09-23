@@ -687,20 +687,22 @@ Your setup deploys automatically. The flow is:
 
 1. Developer makes changes on their computer
 2. They push to a **branch** and open a **Pull Request** on GitHub
-3. **GitHub Actions** automatically runs your tests (already configured in
-   `.github/workflows/ci.yml`)
-4. **If tests fail, do not merge.** That's the guardrail working.
+3. They run the affected lint, typecheck, build, and permitted isolated test checks
+   locally and record the result in `docs/implementation/06-delivery.md`
+4. The reviewer confirms that evidence before approving the change
 5. Merge the PR into `main`
 6. Railway and Vercel each detect the change and deploy automatically, in ~2–5 minutes
 7. **Re-run the smoke test** (Part 14) after anything significant
 
-### Protect `main` so nobody can skip the tests
+Railway watch paths can skip an unaffected service. For example, a docs-only change may
+deploy Vercel but correctly show "No deployment needed" for the API and worker.
+
+### Protect `main` with review
 
 1. GitHub repo → **Settings** → **Branches** → **Add branch protection rule**
 2. **Branch name pattern:** `main`
 3. Tick:
    - **Require a pull request before merging**
-   - **Require status checks to pass before merging** → select your CI checks
    - **Do not allow bypassing the above settings**
 4. **Create**
 
