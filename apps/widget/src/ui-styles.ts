@@ -99,7 +99,7 @@ const HOST_STYLES = `
     color: var(--bl-ink); display: grid; place-items: center; flex: none;
     font-size: 9px; font-weight: 700;
   }
-  .bl-cp-title { white-space: nowrap; }
+  .bl-cp-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bl-card .bl-cp-loc {
     margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.12);
@@ -110,6 +110,42 @@ const HOST_STYLES = `
     font-size: 18px; line-height: 1;
   }
   .bl-card button.bl-cancel:hover { color: #fff; }
+  /* The comment's status, in the header of the read-only comment view
+     (ui-comment-view.ts): a button with a menu where this viewer can change it, a plain
+     pill where they can't. */
+  .bl-cv-status-wrap { position: relative; flex: none; }
+  .bl-card .bl-cv-status {
+    display: inline-flex; align-items: center; gap: 6px; flex: none; height: 22px;
+    padding: 0 8px; border: 0; border-radius: 20px; background: rgba(255,255,255,0.12);
+    color: #fff; font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap;
+  }
+  .bl-card button.bl-cv-status { padding-right: 6px; }
+  .bl-card button.bl-cv-status:hover, .bl-card button.bl-cv-status[aria-expanded="true"] {
+    background: rgba(255,255,255,0.22);
+  }
+  .bl-card button.bl-cv-status:focus-visible { outline: 2px solid var(--bl-mint); outline-offset: 2px; }
+  .bl-card button.bl-cv-status[aria-busy="true"] { opacity: 0.6; cursor: progress; }
+  .bl-cv-status svg { color: rgba(255,255,255,0.7); flex: none; }
+  .bl-cv-status-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .bl-cv-status-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 1;
+    display: grid; gap: 1px; min-width: 168px; padding: 4px;
+    background: var(--bl-surface); color: var(--bl-ink); border: 1px solid var(--bl-line);
+    border-radius: 6px; box-shadow: 0 12px 32px rgba(11,11,11,0.18);
+  }
+  .bl-cv-status-menu.bl-is-up { top: auto; bottom: calc(100% + 6px); }
+  .bl-cv-status-menu[hidden] { display: none; }
+  .bl-card .bl-cv-status-opt {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px;
+    border: 0; border-radius: 4px; background: none; color: var(--bl-ink-2);
+    font-size: 12.5px; font-weight: 500; line-height: 1.2; text-align: left;
+  }
+  .bl-card .bl-cv-status-opt:hover, .bl-card .bl-cv-status-opt:focus-visible {
+    background: var(--bl-paper); color: var(--bl-ink); outline: none;
+  }
+  .bl-cv-status-opt svg { margin-left: auto; color: var(--bl-mint-deep); flex: none; visibility: hidden; }
+  .bl-card .bl-cv-status-opt[aria-checked="true"] { color: var(--bl-ink); font-weight: 600; }
+  .bl-cv-status-opt[aria-checked="true"] svg { visibility: visible; }
   .bl-cp-body { padding: 13px 13px 12px; }
   /* max-height is the cap the composer's own auto-grow reads back out of the computed
      style (ui-composer.ts) - one source of truth for how tall this can get before it

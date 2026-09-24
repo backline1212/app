@@ -63,6 +63,14 @@ export function useCommentFilters() {
     [setSearchParams],
   );
 
+  // Memoized, unlike its plain-arrow siblings above: CommentsTab keeps this in an
+  // effect's dependency list (following a canvas pin click into the open detail), and a
+  // fresh identity every render would resubscribe that effect on every render.
+  const setOpenThreadId = useCallback(
+    (threadId: string | null) => updateParam("thread", threadId),
+    [updateParam],
+  );
+
   return {
     activeStatus,
     setActiveStatus,
@@ -87,6 +95,6 @@ export function useCommentFilters() {
     groupBy,
     setGroupBy: (group: "none" | "page") => updateParam("groupBy", group === "none" ? null : group),
     openThreadId,
-    setOpenThreadId: (threadId: string | null) => updateParam("thread", threadId),
+    setOpenThreadId,
   };
 }

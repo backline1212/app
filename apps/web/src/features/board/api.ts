@@ -48,6 +48,19 @@ export function createUpload(
   });
 }
 
+// Presigned-PUT upload for a reply attachment, returning the AttachmentIn the reply
+// carries - the same two-step flow a screenshot uses (POST /uploads, then PUT the bytes).
+export async function uploadAttachment(projectId: string, file: File): Promise<Schemas["AttachmentIn"]> {
+  const upload = await createUpload(projectId, file.type, file.size);
+  const response = await fetch(upload.upload_url, {
+    method: "PUT",
+    body: file,
+    headers: { "Content-Type": file.type },
+  });
+  if (!response.ok) throw new Error(`Upload failed (${response.status}).`);
+  return { key: upload.key, filename: file.name, content_type: file.type };
+}
+
 // Moderation delete (any comment in the caller's workspace, regardless of authorship) -
 // distinct from the widget's own-author-only guest self-service delete, which this
 // dashboard never calls.

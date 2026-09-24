@@ -73,7 +73,18 @@ async function buildContext(): Promise<AnnotationContext | null> {
   );
   const pageId = await registerCurrentPage(api, project.id, window.location.href);
 
-  const threadManager = createThreadManager({ shadow });
+  // Connected with a member token, so unlike the guest widget this can change a
+  // comment's status itself - the same member-only PATCH the dashboard uses.
+  const threadManager = createThreadManager({
+    shadow,
+    statusUpdater: () => async (commentId, status) => {
+      const updated = await api.request<CommentRecord>(`/api/v1/comments/${commentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      return updated.status;
+    },
+  });
   const { threadMessages, pinsByTopId, trackPinPosition, attachPinClickHandler } = threadManager;
 
   const existingComments = await api.request<CommentRecord[]>(

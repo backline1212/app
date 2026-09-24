@@ -1,4 +1,5 @@
 import { isClosed } from "../../../lib/workflow";
+import { ticketRef } from "../../../lib/ticket-ref";
 import { dueMeta } from "../../projects/panel/comments/types";
 import type { MemberOut } from "../../workspaces/api";
 import * as api from "../api";
@@ -51,6 +52,7 @@ export function TicketTable({
       <table className="bl-table">
         <thead>
           <tr>
+            <th className="bl-col-num">ID</th>
             <th>Ticket</th>
             <SortableHeader label="Project" sortKey="project" sort={sort} onSort={onSort} />
             <SortableHeader label="Status" sortKey="status" sort={sort} onSort={onSort} />
@@ -65,6 +67,7 @@ export function TicketTable({
             const due = dueMeta(t.due_at, isClosed(t.status));
             return (
               <tr key={t.id}>
+                <td className="bl-col-num">{ticketRef(t)}</td>
                 <td>
                   <button type="button" className="bl-ticket-title" onClick={() => onOpen(t.id)}>
                     {t.body}

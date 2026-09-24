@@ -24,6 +24,9 @@ class TicketOut(CommentOut):
     project_id: str
     project_name: str
     page_title: str
+    # The page's path ("/pricing"), for the compact "Project · /pricing" line the board
+    # and list cards show. None for a standalone team ticket, which belongs to no page.
+    page_path: str | None = None
 
 
 class TicketListOut(BaseModel):

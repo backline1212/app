@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useFocusTrap } from "../../../lib/use-focus-trap";
 import { useOnClickOutside } from "../../../lib/use-click-outside";
@@ -15,15 +15,31 @@ const getWeekdays = () => {
   });
 };
 
-export function DatePicker({ value, onChange }: { value: string | null | undefined, onChange: (date: string | null) => void }) {
+function utcKey(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00Z`;
+}
+
+// `triggerClassName`/`children` restyle just the trigger button (the project review
+// drawer's comment detail uses a compact date chip); the calendar itself is unchanged.
+export function DatePicker({
+  value,
+  onChange,
+  triggerClassName,
+  children,
+}: {
+  value: string | null | undefined;
+  onChange: (date: string | null) => void;
+  triggerClassName?: string;
+  children?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  // The popover is portaled to <body> (see the render below) so it can escape any
-  // ancestor with `overflow:auto/hidden` (dialogs, table wrappers) instead of being
-  // clipped by it - so click-outside has to watch the portaled node too, since it no
-  // longer shares a DOM subtree with rootRef.
+  // The popover is portaled out of the flow (closestPortalTarget) so it can escape
+  // any ancestor with overflow:auto/hidden instead of being clipped by it - so
+  // click-outside has to watch the portaled node too, since it no longer shares a DOM
+  // subtree with rootRef.
   const popoverPos = useFloatingPosition(triggerRef, popoverRef, open);
 
   useFocusTrap(popoverRef, open);
@@ -41,17 +57,19 @@ export function DatePicker({ value, onChange }: { value: string | null | undefin
 
   const weekdays = useMemo(getWeekdays, []);
 
+  function closeAndRestoreFocus() {
+    setOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus());
+  }
+
   const handleDateSelect = (d: number) => {
-    // Generate UTC ISO string from the calendar's currently viewed year/month and the selected day
-    const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2,'0')}T00:00:00Z`;
-    onChange(key);
+    onChange(utcKey(month.getFullYear(), month.getMonth(), d));
     closeAndRestoreFocus();
   };
 
   const handleToday = () => {
     const now = new Date();
-    const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2,'0')}T00:00:00Z`;
-    onChange(key);
+    onChange(utcKey(now.getFullYear(), now.getMonth(), now.getDate()));
     closeAndRestoreFocus();
   };
 
@@ -63,14 +81,14 @@ export function DatePicker({ value, onChange }: { value: string | null | undefin
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const cells = Array.from({ length: Math.ceil((first.getDay() + days) / 7) * 7 }, (_, i) => i - first.getDay() + 1);
+  const weeks = Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, (w + 1) * 7));
 
   // Format the currently selected value for the button
   const displayValue = value ? new Intl.DateTimeFormat(navigator.language || 'en').format(
     new Date(new Date(value).getUTCFullYear(), new Date(value).getUTCMonth(), new Date(value).getUTCDate())
   ) : 'Select date...';
 
-  // Format the month header
-  const monthLabel = new Intl.DateTimeFormat(navigator.language || 'en', { month: "short", year: "numeric" }).format(month);
+  const monthLabel = new Intl.DateTimeFormat(navigator.language || 'en', { month: "long", year: "numeric" }).format(month);
 
   // Helper to check if a rendered day matches the selected UTC value
   const isSelected = (day: number) => {
@@ -80,6 +98,8 @@ export function DatePicker({ value, onChange }: { value: string | null | undefin
   };
 
   const today = new Date();
+  const isToday = (day: number) =>
+    today.getDate() === day && today.getMonth() === month.getMonth() && today.getFullYear() === month.getFullYear();
   const selectedDate = value ? new Date(value) : null;
   const focusableDay = selectedDate &&
     selectedDate.getUTCFullYear() === month.getFullYear() &&
@@ -89,17 +109,12 @@ export function DatePicker({ value, onChange }: { value: string | null | undefin
       ? today.getDate()
       : 1;
 
-  function closeAndRestoreFocus() {
-    setOpen(false);
-    requestAnimationFrame(() => triggerRef.current?.focus());
-  }
-
   // Keyboard navigation for calendar grid
   const handleGridKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
-    if (target.role !== 'gridcell') return;
+    if (target.getAttribute("role") !== 'gridcell') return;
 
-    const day = parseInt(target.textContent || "0", 10);
+    const day = parseInt(target.dataset.day || "0", 10);
     if (!day) return;
 
     let nextDay = day;
@@ -121,62 +136,63 @@ export function DatePicker({ value, onChange }: { value: string | null | undefin
       <button
         ref={triggerRef}
         type="button"
-        className="bl-input"
+        className={triggerClassName ?? "bl-input"}
         aria-label={value ? `Change date, currently ${displayValue}` : 'Select date'}
         aria-haspopup="dialog"
         aria-expanded={open}
-        style={{ textAlign: 'left', minHeight: '38px', cursor: 'pointer' }}
+        style={triggerClassName ? undefined : { textAlign: 'left', minHeight: '38px', cursor: 'pointer' }}
         onClick={() => setOpen(!open)}
         onKeyDown={(e) => {
           if (e.key === 'Escape') closeAndRestoreFocus();
         }}
       >
-        {displayValue}
+        {children ?? displayValue}
       </button>
       {open && createPortal(
         <div
           ref={popoverRef}
-          className="bl-popover"
+          className="bl-dp"
           role="dialog"
-          aria-label="Date picker"
+          aria-label="Choose a date"
           style={{
-            position: 'fixed',
-            zIndex: 1000,
             top: popoverPos?.top ?? -9999,
             left: popoverPos?.left ?? -9999,
             visibility: popoverPos ? 'visible' : 'hidden',
-            padding: '1rem',
           }}
           onKeyDown={(e) => {
             if (e.key === 'Escape') closeAndRestoreFocus();
           }}
         >
-          <div className="bl-toolbar" style={{ marginBottom: '8px' }}>
-            <button type="button" aria-label="Previous month" className="bl-quiet" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>←</button>
-            <strong aria-live="polite" style={{ margin: '0 8px' }}>{monthLabel}</strong>
-            <button type="button" aria-label="Next month" className="bl-quiet" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>→</button>
+          <div className="bl-dp-head">
+            <button type="button" aria-label="Previous month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            <b aria-live="polite">{monthLabel}</b>
+            <button type="button" aria-label="Next month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
           </div>
-          <div className="bl-calendar bl-datepicker-grid" role="grid" aria-label="Calendar grid" style={{ minHeight: 'auto', gap: '4px', marginBottom: '8px' }} onKeyDown={handleGridKeyDown}>
-            <div role="row">
-              {weekdays.map((d, i) => <strong key={i} role="columnheader" aria-label={d} style={{ width: '28px', textAlign: 'center', display: 'inline-block' }}>{d}</strong>)}
-            </div>
-            {Array.from({ length: cells.length / 7 }).map((_, weekIndex) => (
-              <div key={weekIndex} role="row">
-                {cells.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day, i) => {
+          <div className="bl-dp-dow" aria-hidden="true">
+            {weekdays.map((d, i) => <span key={i}>{d}</span>)}
+          </div>
+          <div className="bl-dp-grid" role="grid" aria-label={monthLabel} onKeyDown={handleGridKeyDown}>
+            {weeks.map((week, weekIndex) => (
+              <div className="bl-dp-week" role="row" key={weekIndex}>
+                {week.map((day, i) => {
                   const valid = day >= 1 && day <= days;
                   const selected = valid && isSelected(day);
                   return (
                     <button
                       key={i}
                       type="button"
+                      role="gridcell"
                       data-day={valid ? day : undefined}
                       disabled={!valid}
                       tabIndex={valid ? (day === focusableDay ? 0 : -1) : undefined}
-                      aria-label={valid ? `${monthLabel.split(' ')[0]} ${day}, ${month.getFullYear()}` : undefined}
+                      aria-label={valid ? new Date(month.getFullYear(), month.getMonth(), day).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : undefined}
                       aria-selected={selected}
+                      className={`bl-dp-day${selected ? " is-on" : ""}${valid && isToday(day) ? " is-today" : ""}`}
                       onClick={() => valid && handleDateSelect(day)}
-                      style={{ width: '28px', height: '28px', cursor: valid ? 'pointer' : 'default' }}
-                      role="gridcell"
                     >
                       {valid ? day : ''}
                     </button>
@@ -185,9 +201,9 @@ export function DatePicker({ value, onChange }: { value: string | null | undefin
               </div>
             ))}
           </div>
-          <div className="bl-form-actions bl-datepicker-actions" style={{ marginTop: '8px', paddingTop: '8px' }}>
-            <button type="button" className="bl-quiet" onClick={handleClear}>Clear</button>
-            <button type="button" className="bl-button" onClick={handleToday}>Today</button>
+          <div className="bl-dp-foot">
+            <button type="button" onClick={handleClear}>Clear</button>
+            <button type="button" className="is-right" onClick={handleToday}>Today</button>
           </div>
         </div>,
         closestPortalTarget(triggerRef)

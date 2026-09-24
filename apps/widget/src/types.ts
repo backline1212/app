@@ -81,6 +81,9 @@ export interface CommentRecord {
   author_id: string;
   author_name: string;
   body: string;
+  // The backend's Status vocabulary (comments/schemas.py) - kept as a plain string
+  // here, the same way `tags` is, so a status added there doesn't break this bundle.
+  status: string;
   created_at: string;
   anchor: AnchorPayload;
   attachments: AttachmentRecord[];

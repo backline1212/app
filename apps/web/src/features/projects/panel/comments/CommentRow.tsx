@@ -9,6 +9,7 @@ import { qk } from "../../../../lib/query-keys";
 import { useFloatingPosition } from "../../../../lib/use-floating-position";
 import { useOnClickOutside } from "../../../../lib/use-click-outside";
 import { renderWithMentions } from "../../../../lib/mentions";
+import { ticketRef } from "../../../../lib/ticket-ref";
 import { timeAgo } from "../../../../lib/time";
 import { isClosed } from "../../../../lib/workflow";
 import type { MemberOut } from "../../../workspaces/api";
@@ -18,7 +19,6 @@ import { PRIORITY_META, STATUS_META, STATUS_ORDER, commentDeviceType, dueMeta } 
 export interface CommentRowProps {
   comment: CommentOut;
   projectId: string;
-  sequenceNumber: number;
   replyCount: number;
   members: MemberOut[];
   onNavigate: (commentId: string) => void;
@@ -34,7 +34,6 @@ function memberName(members: MemberOut[], userId: string): string {
 export function CommentRow({
   comment,
   projectId,
-  sequenceNumber,
   replyCount,
   members,
   onNavigate,
@@ -117,13 +116,13 @@ export function CommentRow({
       title={
         orphaned
           ? "This comment's position on the page could not be confirmed after a page change"
-          : "Jump to this comment on the page"
+          : "Open this comment"
       }
       className={`bl-comment-row ${selected ? "is-selected" : ""} ${orphaned ? "bl-comment-orphaned" : ""}`}
     >
       <div className="bl-comment-head">
         <span className="bl-comment-badge" title={meta.label}>
-          {sequenceNumber}
+          {ticketRef(comment)}
         </span>
         <Avatar name={comment.author_name} size={24} />
         <div className="bl-comment-person">

@@ -1799,6 +1799,8 @@ export interface components {
             created_at: string;
             /** Edited At */
             edited_at: string | null;
+            /** Ticket Number */
+            ticket_number?: number | null;
             /**
              * Priority
              * @default medium
@@ -3124,6 +3126,8 @@ export interface components {
             created_at: string;
             /** Edited At */
             edited_at: string | null;
+            /** Ticket Number */
+            ticket_number?: number | null;
             /**
              * Priority
              * @default medium
@@ -3152,6 +3156,8 @@ export interface components {
             project_name: string;
             /** Page Title */
             page_title: string;
+            /** Page Path */
+            page_path?: string | null;
         };
         /**
          * TokenPairOut

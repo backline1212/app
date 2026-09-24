@@ -171,6 +171,11 @@ class CommentOut(BaseModel):
     attachments: list[AttachmentOut]
     created_at: datetime
     edited_at: datetime | None
+    # Human-readable per-workspace number ("#14"), assigned when a top-level comment or
+    # a standalone ticket is created. Replies never get one - they belong to their
+    # thread's number. None only for records created before numbering existed and not
+    # yet backfilled (scripts/migrate_ticket_numbers.py).
+    ticket_number: int | None = None
     priority: Priority = "medium"
     tags: list[Tag] = Field(default_factory=list)
     assignee_ids: list[str] = Field(default_factory=list)

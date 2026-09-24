@@ -42,7 +42,7 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
       <button type="button" className="bl-rail-close" aria-label="Close navigation" onClick={onClose}><CloseIcon /></button>
     </header>
     {/* Workspace switcher trigger */}
-    <div style={{ position: "relative" }}>
+    <div className="bl-ws-trigger-wrap">
       <button
         type="button"
         className="bl-workspace bl-ws-trigger"
