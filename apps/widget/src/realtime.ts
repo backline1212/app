@@ -17,9 +17,9 @@ export function wireRealtimeUpdates(
   pageId: string,
   threadManager: ThreadManager,
   ownCommentIds: Set<string>,
-): void {
+): () => void {
   let indicator: { dismiss: () => void, setStatus: (status: string) => void } | null = null;
-  connectReviewSocket(
+  const close = connectReviewSocket(
     apiBaseUrl ?? "http://localhost:8000",
     guestSessionToken,
     pageId,
@@ -56,4 +56,9 @@ export function wireRealtimeUpdates(
       }
     },
   );
+  return () => {
+    close();
+    indicator?.dismiss();
+    indicator = null;
+  };
 }

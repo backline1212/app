@@ -1,5 +1,203 @@
 # Delivery and verification ledger
 
+## 2026-09-26: Final proxy, comment persistence, and Groq reconciliation (TDR-0033–0036)
+
+- Completed the interrupted comment-pin slice: stored anchors now wait a bounded time
+  for late SPA rendering, pin offsets are proportional to the element's current box,
+  and pending anchor work is discarded after a page change. This removes the
+  load-timing race that made a persisted comment appear only on some reloads.
+- Presigned R2 uploads remain the fast path. Screenshots and attachments now retry via
+  a bounded multipart API relay when the browser cannot complete that PUT (notably a
+  missing/stale bucket CORS policy). The relay repeats actor/project authorization,
+  Pydantic type/size validation, rate limiting and private S3 storage; the generated
+  OpenAPI JSON and TypeScript contracts include `StoredUploadOut` and the new route.
+- Hardened the proxy work before publication: per-request HTTP clients now close
+  without closing the shared connection pool, and cross-site GET redirects return to
+  the browser instead of forwarding bearer/custom headers to a different host.
+- Reconciled Groq behavior with current official documentation. The configured default
+  is the documented production model `openai/gpt-oss-120b`; limits are organization-
+  wide, so a 429 cools the entire pool rather than hopping keys. Redis leases now carry
+  unique ownership tokens and release/cooldown uses atomic compare operations, avoiding
+  deletion of a newer lease after a safety TTL expires. Documentation no longer
+  recommends extra accounts/organizations to multiply quota.
+- Final verification: backend `ruff check app` passed; `ruff format --check` passed on
+  all changed Python files; strict `mypy app/ scripts/` passed across 174 source files;
+  and the workspace-scoping checker passed across 19 repository files. OpenAPI JSON
+  and generated TypeScript were regenerated twice with identical SHA-256 hashes.
+  Frontend `pnpm turbo run lint typecheck build` passed all 12 tasks (the same four
+  existing web warnings remain); the web build retains its existing >500 kB chunk
+  advisory. Per the Codex task instruction,
+  no new test suite was written or run. No live provider credential, production
+  service, shared fixture, or destructive migration was used.
+
+## 2026-09-26: Groq AI feature - frontend refinement and concurrency verification
+
+> Historical intermediate evidence: the pool later gained owner-token leases and
+> organization-wide 429 cooldown in the final reconciliation above. Treat the final
+> lint/typecheck/build evidence, not this earlier throwaway harness, as release evidence.
+
+- Confirmed the AI feature needs no permission/plan change to be testable by every real
+  user: `comment:view_team` (the permission both AI endpoints already require) is
+  granted to `owner`/`admin`/`member` - every workspace role except `guest` - per
+  `backend/app/core/permissions.py`. No `ProFeatureModal`/plan check wraps either AI
+  button in the frontend (grepped both surfaces directly). This was already the case
+  before today's Groq work; nothing needed changing to make it available for testing.
+- Found and fixed a real state-leak bug while reviewing the frontend for refinement:
+  `CommentDetail.tsx`'s `draft` (suggestReply) mutation's `isError`/`error` is not
+  reset when the drawer switches to a different comment (its existing per-comment
+  reset `useEffect` cleared `body`/`attachments`/`devTask`/etc. but never called
+  `draft.reset()`). A user who got "AI is busy" on one comment would still see that
+  banner under the next comment they opened, before ever asking it for a draft. Fixed
+  by moving the reset effect to after `draft` is declared (it referenced `draft`
+  before its declaration otherwise) and adding `draft.reset()` to it.
+- Small related polish in `CommentThreadPanel.tsx`: a summary or suggested replies
+  generated before a reply is posted now clear on that reply's success, since they
+  described a thread state (pre-reply) that no longer matches what's now on screen.
+- **Made the key pool's concurrency claim concrete, not just reviewed:** no local Redis
+  was available in this sandbox during the original TDR-0034 work, so `acquire_key`/
+  `release_key`/`cool_down_key` had only been verified by reading. Wrote an ad-hoc
+  script (not part of the repo) against `fakeredis`'s async Redis stand-in and ran it:
+  confirmed 3 concurrent acquires against 3 keys each get a distinct key with no
+  double-claim; a 4th concurrent caller with all keys held gets `None` (the "busy"
+  case); a released key is immediately re-claimable rather than waiting out the lock's
+  safety-net TTL; a cooled-down key stays unavailable until its own cooldown elapses,
+  then is claimable again; and - the strongest check - 50 concurrent callers racing for
+  3 keys produced exactly 3 winners with no two winners getting the same key index,
+  which is the actual atomicity guarantee `SET NX` is relied on for. All 10 checks
+  passed. This does not test against the real production Redis (out of reach from this
+  environment, and not attempted so as not to touch live traffic/data) - it tests the
+  same logic against a faithful in-memory Redis implementation instead.
+- Verification: `pnpm turbo run lint typecheck build` passed 12/12 (only the same
+  pre-existing warnings as every prior run - none in the two files touched here). The
+  `fakeredis`-based key-pool script was run via `uv run --with fakeredis`, an ephemeral
+  dependency for this one verification run only - `pyproject.toml`/`uv.lock` are
+  unchanged.
+
+## 2026-09-26: Proxy sign-in through a site's own scripts, and faster, steadier loading (TDR-0035)
+
+- Problem reported: signing in to a reviewed site inside the canvas failed, and the
+  canvas was slow, reloaded by itself and sometimes showed "failed to load". The user
+  asked for the proxy (not the browser extension) to handle any site's own login.
+- Root causes and fixes are itemized in TDR-0035. In short: a page's scripted requests
+  (fetch/XHR login, SPA routing, resources added after load) never reached the site, so a
+  network interceptor is now injected first in every proxied page
+  (`backend/app/modules/proxy/interceptor.py`) and the widget reaches Backline through the
+  un-wrapped fetch; bearer/CSRF headers and the reviewer's User-Agent are forwarded, and
+  PUT/PATCH/DELETE are proxied; DNS no longer blocks the event loop; connections are
+  pooled; responses are gzipped and keep their caching headers; the rate limit is per
+  share link + IP at 1200/min; the dashboard no longer reloads (or times out) pages the
+  frame navigated to itself; and the widget follows SPA route changes, re-registering the
+  page, its pins and its realtime subscription.
+- Also fixed on the way: registered page URLs no longer include the canvas's `blBrowser`
+  parameter, which had been creating a separate page per capture-browser choice (and a
+  different page from the one guests register). Existing `?blBrowser=` pages are left
+  as-is; merging them needs a dry-run-first migration, not done here.
+- Verification: `uv run ruff check app/` and `ruff format --check` clean; `uv run mypy app/`
+  clean (164 files); `tests/test_proxy_rewriter.py` 10/10 passed. `pnpm turbo run lint
+  typecheck build` for web, widget and extension: 9/9 tasks passed (web lint: the 4
+  existing warnings, none new), plus uncached `tsc`/`eslint` runs for widget and extension.
+  Two scratch harnesses (not checked in): the generated interceptor run in a Node VM
+  against a fake browser global - 25/25 rewrite-rule checks, including the widget bypass,
+  double-injection guard and element rules; and `fetch_proxied_resource` driven against an
+  `httpx.MockTransport` site - 16/16, covering the injected-script order, a JSON login
+  POST (body intact, `Set-Cookie` namespaced and path-scoped), CSRF/UA forwarding with the
+  reviewer's IP withheld, a follow-up call authenticated by bearer token plus the
+  namespaced cookie with Backline's own cookie withheld, cache-header passthrough, and 50
+  concurrent asset fetches.
+- **Not verified:** no live browser run against a real site through a deployed stack -
+  MongoDB/Redis/S3 aren't available on this machine, so `tests/test_proxy.py` and the
+  Playwright journeys couldn't run. That suite is also already broken independent of this
+  change: its `_FakeUpstreamClient` has no `.cookies`, which `service.py` has read since
+  `916e444` (the session work), and the file hasn't been updated since before that commit.
+- Open follow-ups: an API on a separate domain; WebSocket and streamed (SSE) responses;
+  worker requests and CSS `url()` (still via the Referer fallback); the `?blBrowser=` page
+  merge. Framed third-party SSO (Google/Microsoft/Okta) is a browser-enforced limit.
+
+## 2026-09-26: Groq model and local environment reconciliation
+
+- `openai/gpt-oss-120b` is the configurable default and is listed in Groq's official
+  production model catalog. No API key is committed; deployment credentials belong in
+  Railway and local credentials belong in ignored environment files.
+- Groq's current documentation confirms limits are organization-wide. The key pool is
+  for credential rotation and graceful busy handling, not quota multiplication; a 429
+  now cools the whole pool and never hops organizations/accounts.
+- `Settings.model_config` resolves `.env` from the backend process working directory.
+  `RUNNING_LOCALLY.md` now calls out that local backend settings belong in
+  `backend/.env` when starting from `backend/`.
+
+## 2026-09-26: Groq key pool - multi-key rotation and a graceful busy state (TDR-0034)
+
+- Follow-up to the same-day Groq migration below, before the user's key was live:
+  they asked whether Groq's rate limits are per-account or per-key (Groq documents
+  them as **organization-wide**), and asked for multi-key rotation with a cooldown
+  and a graceful "busy, try again" response for whichever request doesn't get a key,
+  regardless of the answer.
+- `GROQ_API_KEY` (singular) became `GROQ_API_KEYS` (a JSON array, matching
+  `CORS_ALLOW_ORIGINS`'s existing convention) backed by a new Redis-based pool,
+  `backend/app/modules/ai/key_pool.py`: each concurrent AI action claims one
+  configured key for the duration of its own call and releases it immediately after;
+  a 401/403 cools only the rejected credential and retries another configured key;
+  a 429 honors `Retry-After` and cools the organization-wide pool. A new
+  `AIServiceBusyError` (503, `AI_SERVICE_BUSY`) fires when every
+  key is genuinely unavailable, before any request reaches Groq - distinct from the
+  existing `RateLimitedError` (per-workspace abuse throttling).
+- Both existing frontend surfaces (`CommentDetail.tsx`'s "Write a reply for me",
+  `CommentThreadPanel.tsx`'s "Summarize"/"Suggest Replies") now show "AI is busy right
+  now - try again in a moment." specifically for that case via a new
+  `aiErrorMessage()` helper in `features/ai/api.ts`, instead of the generic per-action
+  failure text. `CommentThreadPanel.tsx`'s suggest-reply failure path previously had no
+  visible error state at all (only `console.error`) - fixed as part of this same
+  change.
+- Full design rationale, including why the pool uses a call-duration lock rather than
+  a fixed per-call cooldown (would spuriously show "busy" with only one key
+  configured), is in TDR-0034.
+- Verification: from `backend/`, `uv run ruff check .` passed clean and strict
+  `uv run mypy app/` passed clean (163 source files, up one for the new
+  `ai/key_pool.py`). `uv run ruff format --check app/modules/ai/ app/core/config.py`
+  confirmed the new/changed files themselves are clean (the 2 files it still flags,
+  `ai/router.py`/`ai/schemas.py`, are the same pre-existing drift noted in the
+  TDR-0033 entry below, not touched here either). `pnpm turbo run lint typecheck
+  build` passed 12/12 for the frontend changes (`CommentDetail.tsx`,
+  `CommentThreadPanel.tsx`, `features/ai/api.ts`), same 3 pre-existing warnings as
+  every prior run. No test suite was written or run, per this task's own instructions.
+  No live call to Groq or Redis-backed concurrency scenario was exercised - the pool's
+  claim/release/cooldown logic was verified by reading, not by running multiple
+  concurrent requests against a live Redis instance.
+
+## 2026-09-26: AI provider is Groq (TDR-0033)
+
+- `backend/app/modules/ai/service.py`'s "Summarize" and "Suggest reply" actions were
+  already real, shipped endpoints, and the frontend (`CommentThreadPanel.tsx`'s "✨
+  Summarize" / "✨ Suggest Replies", `CommentDetail.tsx`'s "Write a reply for me") was
+  already fully wired to them - both predate this change. What was missing was a
+  configured, documented provider: the code called Gemini via a raw `os.getenv`
+  read that bypassed `Settings` entirely and was never added to either `.env.example`
+  file, so in this deployment every call fell through to the canned placeholder text.
+- Per the open decision flagged in `docs/implementation/slack-ai-mcp-architecture.md`
+  §0, the user chose Groq (not Gemini or Claude).
+  `ai/service.py` now calls Groq's OpenAI-compatible chat completions API directly
+  over `httpx` (no new SDK dependency); `groq_api_keys`/`groq_model` were added to
+  `Settings` following the existing empty-array-disables convention, and documented
+  in `.env.example`, `.env.production.example`, and `DEPLOYMENT.md` Part 8.7. See
+  TDR-0033 for the full decision record, including why a genuine upstream failure now
+  raises `ExternalServiceError` (502) instead of an unhandled exception.
+- Not in scope, and not touched: `AiTab.tsx` ("BugHunt AI") is a different, unbuilt,
+  page-wide multi-comment analysis surface with no backend endpoint, tied in the
+  reference HTML to a fake AI-credits system (`CREDITS`/`spendCredit()`). It remains
+  the honest "Coming soon" placeholder noted in the 2026-09-08 entry below.
+- Verification: from `backend/`, `uv run ruff check .` passed clean (162 files); strict
+  `uv run mypy app/` passed clean (162 source files). `uv run ruff format --check .`
+  flagged 13 files as needing reformatting, none of them touched by this change
+  (pre-existing drift - `ai/service.py` itself is not in that list). From the repo
+  root, `pnpm turbo run lint typecheck build` passed 12/12 tasks (0 cache hits, fresh
+  run); the only lint output is the same three pre-existing warnings unrelated to this
+  change (`ProjectOverviewPage.tsx` exhaustive-deps, two fast-refresh-only-exports
+  warnings), and the `web:build` >500 kB chunk warning is the same pre-existing one
+  noted in the 2026-09-09 entry above. `SummarizeResult`/`SuggestReplyResult` were not
+  touched, so no `packages/types` regeneration was needed. No test suite was written or
+  run, per this task's own instructions. No live call to Groq was made as part of
+  verification - the key is supplied by the user outside this session.
+
 ## 2026-09-23: Direct deployments without GitHub Actions
 
 - Removed the repository's only GitHub Actions workflow at the owner's explicit

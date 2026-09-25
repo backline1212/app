@@ -21,7 +21,11 @@ export function realPageUrl(shareToken: string, targetOrigin: string): string {
     pathname = pathname.slice(prefix.length) || "/";
   }
   const search = new URLSearchParams(window.location.search);
+  // The dashboard canvas's own parameters, not part of the reviewed page's address -
+  // left in, the same page registered once per canvas browser choice and again for
+  // every guest (whose URL never carries them).
   search.delete("blMode");
+  search.delete("blBrowser");
   const qs = search.toString();
   return targetOrigin.replace(/\/+$/, "") + pathname + (qs ? `?${qs}` : "");
 }

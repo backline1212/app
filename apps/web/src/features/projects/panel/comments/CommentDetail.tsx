@@ -20,7 +20,7 @@ import { timeAgo } from "../../../../lib/time";
 import { useOnClickOutside } from "../../../../lib/use-click-outside";
 import { useFloatingPosition } from "../../../../lib/use-floating-position";
 import { isClosed } from "../../../../lib/workflow";
-import { suggestReply } from "../../../ai/api";
+import { aiErrorMessage, suggestReply } from "../../../ai/api";
 import * as boardApi from "../../../board/api";
 import type { CommentLayer, CommentOut, CommentStatus } from "../../../board/api";
 import { MentionsInput } from "../../../comments/MentionsInput";
@@ -351,22 +351,6 @@ export function CommentDetail({
   const assigneesRef = useRef<HTMLButtonElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // A different comment (another row, or a pin clicked in the canvas) starts clean:
-  // an unsent draft or dev-task card belongs to the comment it was written for.
-  useEffect(() => {
-    setOpenMenu(null);
-    setBody("");
-    setAttachments([]);
-    setMentionedUserIds([]);
-    setDevTask(null);
-    // Only when the click that got here came from this drawer: opening a row removes
-    // it, dropping focus to <body>, and the back button is where that focus belongs.
-    // A pin clicked inside the canvas leaves focus on the iframe, and pulling it out
-    // would take Escape (and the rest of the keyboard) away from the widget's own card.
-    const active = document.activeElement;
-    if (!active || active === document.body) backRef.current?.focus();
-  }, [comment.id]);
-
   const closeMenu = useCallback(() => setOpenMenu(null), []);
   const toggleMenu = (menu: MenuId) => setOpenMenu((current) => (current === menu ? null : menu));
 
@@ -393,6 +377,31 @@ export function CommentDetail({
       if (result.suggestions[0]) setBody(result.suggestions[0]);
     },
   });
+
+  // A different comment (another row, or a pin clicked in the canvas) starts clean:
+  // an unsent draft or dev-task card belongs to the comment it was written for.
+  useEffect(() => {
+    setOpenMenu(null);
+    setBody("");
+    setAttachments([]);
+    setMentionedUserIds([]);
+    setDevTask(null);
+    // draft (suggestReply) isn't recreated by this comment change - useMutation keeps
+    // its isError/error from whichever comment last called it, so without this an "AI
+    // is busy" banner from a previous comment would still show under a fresh one that
+    // was never even asked for a draft yet.
+    draft.reset();
+    // Only when the click that got here came from this drawer: opening a row removes
+    // it, dropping focus to <body>, and the back button is where that focus belongs.
+    // A pin clicked inside the canvas leaves focus on the iframe, and pulling it out
+    // would take Escape (and the rest of the keyboard) away from the widget's own card.
+    const active = document.activeElement;
+    if (!active || active === document.body) backRef.current?.focus();
+    // draft is intentionally left out below: it's a useMutation result recreated every
+    // render, so depending on it would re-run this whole effect (including the focus
+    // logic above) on every render instead of only on an actual comment change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comment.id]);
 
   function setStatus(status: CommentStatus) {
     update.mutate({
@@ -746,7 +755,7 @@ export function CommentDetail({
         </div>
         {draft.isError && (
           <p role="alert" className="bl-error">
-            Could not draft a reply right now.
+            {aiErrorMessage(draft.error, "Could not draft a reply right now.")}
           </p>
         )}
         <MentionsInput

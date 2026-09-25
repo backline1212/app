@@ -50,6 +50,49 @@ export function resolveAnchorElement(anchor: AnchorPayload): Element | null {
   }
 }
 
+/**
+ * Resolve an existing anchor after client-rendered content has had time to appear.
+ *
+ * The widget can initialize before an SPA finishes hydrating or fetching the section
+ * that owns a comment. A one-shot query made pin visibility depend on that race. This
+ * bounded observer/poll combination catches late DOM insertion and class/style-driven
+ * rendering without waiting forever when an anchor is genuinely stale.
+ */
+export function waitForAnchorElement(
+  anchor: AnchorPayload,
+  timeoutMs = 8_000,
+): Promise<Element | null> {
+  const immediate = resolveAnchorElement(anchor);
+  if (immediate) return Promise.resolve(immediate);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const observer = new MutationObserver(check);
+
+    function finish(element: Element | null): void {
+      if (settled) return;
+      settled = true;
+      observer.disconnect();
+      clearInterval(pollId);
+      clearTimeout(timeoutId);
+      resolve(element);
+    }
+
+    function check(): void {
+      const element = resolveAnchorElement(anchor);
+      if (element) finish(element);
+    }
+
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+    });
+    const pollId = setInterval(check, 500);
+    const timeoutId = setTimeout(() => finish(null), timeoutMs);
+  });
+}
+
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }

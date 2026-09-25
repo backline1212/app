@@ -1,8 +1,29 @@
-import type { createApiClient } from "./api-client";
+import { nativeFetch, type createApiClient } from "./api-client";
 
 interface UploadResponse {
   upload_url: string;
   key: string;
+}
+
+interface StoredUploadResponse {
+  key: string;
+}
+
+async function uploadThroughApi(
+  api: ReturnType<typeof createApiClient>,
+  projectId: string,
+  body: Blob,
+  filename: string,
+): Promise<string | null> {
+  try {
+    const form = new FormData();
+    form.append("project_id", projectId);
+    form.append("file", body, filename);
+    const stored = await api.upload<StoredUploadResponse>("/api/v1/uploads/direct", form);
+    return stored.key;
+  } catch {
+    return null;
+  }
 }
 
 export async function uploadScreenshot(
@@ -19,15 +40,17 @@ export async function uploadScreenshot(
         content_length: blob.size,
       }),
     });
-    const putResponse = await fetch(uploadUrl, {
+    const putResponse = await nativeFetch(uploadUrl, {
       method: "PUT",
       body: blob,
       headers: { "Content-Type": blob.type || "image/jpeg" },
     });
-    if (!putResponse.ok) return null;
+    if (!putResponse.ok) {
+      return uploadThroughApi(api, projectId, blob, "screenshot.jpg");
+    }
     return key;
   } catch {
-    return null;
+    return uploadThroughApi(api, projectId, blob, "screenshot.jpg");
   }
 }
 
@@ -41,8 +64,8 @@ export async function uploadAttachment(
   projectId: string,
   file: File,
 ): Promise<{ key: string; filename: string; content_type: string } | null> {
+  const contentType = file.type || "application/octet-stream";
   try {
-    const contentType = file.type || "application/octet-stream";
     const { upload_url: uploadUrl, key } = await api.request<UploadResponse>("/api/v1/uploads", {
       method: "POST",
       body: JSON.stringify({
@@ -51,14 +74,18 @@ export async function uploadAttachment(
         content_length: file.size,
       }),
     });
-    const putResponse = await fetch(uploadUrl, {
+    const putResponse = await nativeFetch(uploadUrl, {
       method: "PUT",
       body: file,
       headers: { "Content-Type": contentType },
     });
-    if (!putResponse.ok) return null;
-    return { key, filename: file.name, content_type: contentType };
+    const storedKey = putResponse.ok
+      ? key
+      : await uploadThroughApi(api, projectId, file, file.name);
+    if (!storedKey) return null;
+    return { key: storedKey, filename: file.name, content_type: contentType };
   } catch {
-    return null;
+    const key = await uploadThroughApi(api, projectId, file, file.name);
+    return key ? { key, filename: file.name, content_type: contentType } : null;
   }
 }

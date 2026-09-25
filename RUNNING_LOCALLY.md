@@ -135,4 +135,5 @@ cd /Users/harsh/Q_A_TOOL
 | http://localhost:8000/health won't load | Backend (Terminal #2) isn't running, or crashed - check that window for red error text. |
 | "No OTP code" in the terminal | Make sure you're looking at the **backend** terminal (#2), not the frontend one, and that you already clicked "Send sign-in code" on the site first. |
 | Google sign-in still fails after setup | Double check the redirect URI is *exactly* `http://localhost:5173/auth/callback` (no trailing slash), and that you restarted both the backend and frontend after editing `.env`. |
+| Edited `.env` at the project root but the backend doesn't seem to see the change (Google sign-in, AI keys, etc. still act unconfigured) | The backend only reads `.env` from **inside `backend/`** (`config.py`'s `env_file=".env"` resolves relative to Step 3's `cd backend`, not the project root this doc otherwise tells you to edit). Copy the same edit into `backend/.env` too, then restart the backend terminal. Keep both files in sync until this is fixed to read one file. |
 | Page at :5173 won't load | Frontend (Terminal #4) isn't running - check that window. |

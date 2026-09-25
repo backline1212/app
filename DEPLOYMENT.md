@@ -498,6 +498,33 @@ sending digest emails). It needs its own service.
 3. **Variables** → RAW Editor → paste **the exact same variables** as in 8.4
 4. Deploy. The log should read `Starting worker for N functions`.
 
+### 8.7 Optional: turn on AI replies (Groq)
+
+Without this, the "Summarize" and "Write a reply for me" / "Suggest replies" buttons
+on a comment thread still work, but only show a labeled placeholder — no request ever
+leaves your server.
+
+1. Log into [console.groq.com](https://console.groq.com) → **API Keys** → **Create API Key**
+2. Copy it → add to Railway (both the backend service **and** the worker service, same
+   as every other variable in 8.4/8.6), **as a JSON array**:
+   ```
+   GROQ_API_KEYS=["gsk_..."]
+   ```
+   🚨 Same rule as `CORS_ALLOW_ORIGINS` — square brackets and quotes, not a bare value.
+   A plain `GROQ_API_KEYS=gsk_...` crashes the app on startup.
+3. Redeploy both services.
+
+Groq's free tier is enough to try this out; no credit card is required to get a key.
+
+**More than one key (optional).** Multiple keys are useful for planned rotation or
+revocation, but Groq's limits are organization-wide and extra keys do not add quota.
+Do not create or orchestrate additional accounts/organizations to bypass those limits:
+```
+GROQ_API_KEYS=["gsk_accountA...", "gsk_accountB...", "gsk_accountC..."]
+```
+If every configured key is busy, or Groq has rate-limited the organization, the next
+AI action returns a "try again in a moment" message instead of breaking the app.
+
 ---
 
 ## Part 9 — Deploy the dashboard (Vercel)
@@ -842,6 +869,7 @@ every variable, which are required, and how to generate the secret ones.
 | `GOOGLE_OAUTH_*` | "Sign in with Google" |
 | `CLICKUP_OAUTH_*` | ClickUp integration |
 | `SENTRY_DSN` | Error alerts |
+| `GROQ_API_KEYS` / `GROQ_MODEL` | AI summarize / suggest-reply actions (Part 8.7) |
 
 **Dashboard (Vercel) — baked in at build time, redeploy after changing**
 

@@ -836,6 +836,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/uploads/direct": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Direct Upload
+         * @description Same-origin fallback when the normal presigned R2 PUT is browser-blocked.
+         */
+        post: operations["create_direct_upload_api_v1_uploads_direct_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/pages/{page_id}/comments": {
         parameters: {
             query?: never;
@@ -1593,6 +1613,16 @@ export interface components {
             url: string;
             /** Content Type */
             content_type: string;
+        };
+        /** Body_create_direct_upload_api_v1_uploads_direct_post */
+        Body_create_direct_upload_api_v1_uploads_direct_post: {
+            /** Project Id */
+            project_id: string;
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
         };
         /** Body_upload_asset_api_v1_projects__project_id__assets_post */
         Body_upload_asset_api_v1_projects__project_id__assets_post: {
@@ -3006,6 +3036,11 @@ export interface components {
             nodes_index: Record<string, never>;
             /** Full Page Hash */
             full_page_hash: string;
+        };
+        /** StoredUploadOut */
+        StoredUploadOut: {
+            /** Key */
+            key: string;
         };
         /** StructuredPlan */
         StructuredPlan: {
@@ -5227,6 +5262,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UploadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_direct_upload_api_v1_uploads_direct_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-guest-session"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_direct_upload_api_v1_uploads_direct_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoredUploadOut"];
                 };
             };
             /** @description Validation Error */

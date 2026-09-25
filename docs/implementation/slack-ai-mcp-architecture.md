@@ -21,6 +21,10 @@ scopes only what's actually still needed.
 
 ### Provider decision needed from the user
 
+**Resolved 2026-09-26, see [TDR-0033](../tdr/0033-groq-ai-provider.md):** the user chose
+Groq, not Gemini or Claude. `ai/service.py` now calls Groq directly over `httpx`. The
+paragraph below is left as-is for historical context on why this was flagged.
+
 `MASTER_PROMPT.md` itself says: *"pick a provider (default recommendation: Claude...) -
 do NOT default to OpenAI/Gemini without the user confirming."* The already-shipped
 `ai/service.py` defaults to **Google Gemini**, which is the opposite of that
@@ -167,5 +171,4 @@ own outgoing webhooks are conventionally verified, and route it through the same
    real slice of the MCP feature - ships something functional before the fancier
    "connect Cursor via its own extension API" integrations).
 3. Per-project/per-member Slack notification opt-outs.
-4. The Claude-vs-Gemini provider decision (§0) - blocks nothing else, but should be
-   made deliberately rather than by default.
+4. ~~The Claude-vs-Gemini provider decision (§0)~~ - resolved, see TDR-0033 (Groq).

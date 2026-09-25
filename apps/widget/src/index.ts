@@ -1,5 +1,10 @@
 import { createApiClient } from "./api-client";
-import { anchorPointFor, computeAnchor, resolveAnchorElement } from "./anchor";
+import {
+  anchorPointFor,
+  computeAnchor,
+  resolveAnchorElement,
+  waitForAnchorElement,
+} from "./anchor";
 import { uploadAttachment, uploadScreenshot } from "./attachment-upload";
 import { connectDashboardStatusBridge } from "./dashboard-bridge";
 import { ensureGuestSession, requestDashboardDisplayName } from "./guest-session";
@@ -98,7 +103,9 @@ async function init(config: BacklineConfig): Promise<void> {
   const projectId = resolved.project_id;
 
   const pageUrl = realPageUrl(config.shareToken, resolved.target_origin);
-  const pageId = await registerCurrentPage(api, projectId, pageUrl);
+  // `let`: a single-page app's own route changes move this widget to another page
+  // without a reload - see the route follower at the end of init.
+  let pageId = await registerCurrentPage(api, projectId, pageUrl);
   await submitPageSnapshot(api, pageId);
 
   // Tells the dashboard (if it's embedding this in the canvas iframe) which page is
@@ -140,37 +147,39 @@ async function init(config: BacklineConfig): Promise<void> {
     threadManager;
 
   // Existing comments on this page (guest-accessible, already server-side layer-filtered)
-  // get a pin each - resolved best-effort back to a live element via the same selector
-  // path captured at comment-creation time (resolveAnchorElement's own doc comment: a
-  // missing match just means that pin doesn't render this load, the comment itself is
-  // untouched).
-  const existingComments = await api.request<CommentRecord[]>(
-    `/api/v1/pages/${pageId}/comments`,
-  );
-  const topLevelComments = existingComments.filter((c) => c.parent_id === null);
-  for (const top of topLevelComments) {
-    const replies = existingComments
-      .filter((c) => c.parent_id === top.id)
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
-    threadMessages.set(top.id, [top, ...replies]);
+  // get a pin each. Client-rendered pages often hydrate after this widget starts, so
+  // anchor resolution waits for late DOM content instead of taking one race-prone
+  // synchronous shot.
+  const loadPagePins = async (forPageId: string): Promise<void> => {
+    const existingComments = await api.request<CommentRecord[]>(
+      `/api/v1/pages/${forPageId}/comments`,
+    );
+    // A later route change may have moved the widget on while this was in flight.
+    if (forPageId !== pageId) return;
+    const topLevelComments = existingComments.filter((c) => c.parent_id === null);
+    for (const top of topLevelComments) {
+      const replies = existingComments
+        .filter((c) => c.parent_id === top.id)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at));
+      threadMessages.set(top.id, [top, ...replies]);
 
-    const element = resolveAnchorElement(top.anchor);
-    if (!element) continue;
-    // Restore the click point *within* the element, not its top-left corner. A comment
-    // left on one word partway through a paragraph anchors to that whole <p> (selector
-    // paths resolve no finer), so rendering at the corner visibly moved the pin to the
-    // start of the paragraph on every reload - the exact bug this offset fixes.
-    const rect = element.getBoundingClientRect();
-    const point = anchorPointFor(element, top.anchor);
-    const offset = {
-      x: point.x - (rect.left + window.scrollX),
-      y: point.y - (rect.top + window.scrollY),
-    };
-    const pin = renderPin(shadow, point.x, point.y);
-    attachPinClickHandler(pin, top.id);
-    const untrack = trackPinPosition(pin, () => resolveAnchorElement(top.anchor), offset);
-    pinsByTopId.set(top.id, { pin, untrack });
-  }
+      void waitForAnchorElement(top.anchor).then((element) => {
+        // A route change can finish while this anchor is waiting to render.
+        if (!element || forPageId !== pageId || pinsByTopId.has(top.id)) return;
+        const point = anchorPointFor(element, top.anchor);
+        const pct = top.anchor.dom_fingerprint.click_offset_pct ?? { x: 0, y: 0 };
+        const pin = renderPin(shadow, point.x, point.y);
+        attachPinClickHandler(pin, top.id);
+        const untrack = trackPinPosition(
+          pin,
+          () => resolveAnchorElement(top.anchor),
+          (box) => ({ x: box.width * pct.x, y: box.height * pct.y }),
+        );
+        pinsByTopId.set(top.id, { pin, untrack });
+      });
+    }
+  };
+  await loadPagePins(pageId);
 
   // The dashboard's Comments panel (outside this iframe, cross-origin - the canvas is
   // served from the API's own origin, not the dashboard's) can't reach into this page's
@@ -186,24 +195,21 @@ async function init(config: BacklineConfig): Promise<void> {
     const messages = topId ? threadMessages.get(topId) : undefined;
     if (!topId || !messages || messages.length === 0) return;
 
-    const element = resolveAnchorElement(messages[0].anchor);
-    if (!element) return;
-    element.scrollIntoView({ behavior: "smooth", block: "center" });
-    // Give the scroll (and position-tracker's own viewport re-check) a moment to
-    // settle before opening the thread.
-    setTimeout(() => {
-      // Prefer the pin's own live position - the same one clicking the pin directly
-      // uses (attachPinClickHandler) - over recomputing from the element's raw
-      // top-left corner. The two aren't the same point: a pin keeps the exact
-      // click-time offset within its element (trackPinPosition's `offset` param), so
-      // a wide/tall anchored element (a whole hero section, say) would otherwise open
-      // the thread at its corner - visibly far from where the pin (and the original
-      // comment) actually sits.
-      const pin = pinsByTopId.get(topId)?.pin;
-      const x = pin ? parseFloat(pin.style.left) : element.getBoundingClientRect().left + window.scrollX;
-      const y = pin ? parseFloat(pin.style.top) : element.getBoundingClientRect().top + window.scrollY;
-      openThreadForComment(topId, x, y);
-    }, 400);
+    const requestedPageId = pageId;
+    const anchor = messages[0].anchor;
+    void waitForAnchorElement(anchor).then((element) => {
+      if (!element || requestedPageId !== pageId || !threadMessages.has(topId)) return;
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Give the scroll (and position-tracker's own viewport re-check) a moment to
+      // settle before opening the thread.
+      setTimeout(() => {
+        const pin = pinsByTopId.get(topId)?.pin;
+        const point = anchorPointFor(element, anchor);
+        const x = pin ? parseFloat(pin.style.left) : point.x;
+        const y = pin ? parseFloat(pin.style.top) : point.y;
+        openThreadForComment(topId, x, y);
+      }, 400);
+    });
   });
 
   // What the composer's header and facts row show.
@@ -215,7 +221,7 @@ async function init(config: BacklineConfig): Promise<void> {
   });
 
   const ownCommentIds = new Set<string>();
-  wireRealtimeUpdates(
+  let stopRealtime = wireRealtimeUpdates(
     shadow,
     config.apiBaseUrl,
     guest.guestSessionToken,
@@ -282,11 +288,14 @@ async function init(config: BacklineConfig): Promise<void> {
     // element the reviewer clicked, rather than snapping to the element's corner the
     // moment tracking's first frame runs.
     const targetRect = target.getBoundingClientRect();
-    const offset = {
-      x: x - (targetRect.left + window.scrollX),
-      y: y - (targetRect.top + window.scrollY),
+    const offsetPct = {
+      x: targetRect.width > 0 ? (x - (targetRect.left + window.scrollX)) / targetRect.width : 0,
+      y: targetRect.height > 0 ? (y - (targetRect.top + window.scrollY)) / targetRect.height : 0,
     };
-    const untrack = trackPinPosition(pin, () => target, offset);
+    const untrack = trackPinPosition(pin, () => target, (box) => ({
+      x: box.width * offsetPct.x,
+      y: box.height * offsetPct.y,
+    }));
 
     // M-08 idempotency: generated once per pin/composer, not inside the submit
     // callback, so a future retry affordance on this same composer (UX-AUD-027 is
@@ -294,6 +303,8 @@ async function init(config: BacklineConfig): Promise<void> {
     // the backend replays the original comment for a repeated key rather than
     // creating a duplicate (comments/repository.py's find_by_client_request_id).
     const clientRequestId = crypto.randomUUID();
+    // The page clicked on, even if an SPA routes elsewhere while the composer is open.
+    const commentPageId = pageId;
 
     const controls = openComposer(
       shadow,
@@ -320,7 +331,7 @@ async function init(config: BacklineConfig): Promise<void> {
         const browser = browserOverride ?? detectedBrowser;
 
         try {
-          const created = await api.request<CommentRecord>(`/api/v1/pages/${pageId}/comments`, {
+          const created = await api.request<CommentRecord>(`/api/v1/pages/${commentPageId}/comments`, {
             method: "POST",
             body: JSON.stringify({
               body,
@@ -358,6 +369,57 @@ async function init(config: BacklineConfig): Promise<void> {
       composerDetails(),
     );
   });
+
+  // A single-page app navigates with history.pushState and never reloads this script,
+  // so without this every comment after the first in-app navigation (signing in, say)
+  // would land on - and show the pins of - the page the reviewer started on. Polled
+  // rather than hooked: this script runs last, and a router that kept its own reference
+  // to history.pushState from before would never pass through a hook installed here.
+  // Compared as the same URL registration uses, so a query-string change is a new page
+  // exactly when a full load of that URL would be (backend pages/url_normalize.py).
+  let followedUrl = pageUrl;
+  let seenUrl = pageUrl;
+  let routeTimer: ReturnType<typeof setTimeout> | null = null;
+  const followRoute = async (): Promise<void> => {
+    const nextUrl = realPageUrl(config.shareToken, resolved.target_origin);
+    if (nextUrl === followedUrl) return;
+    followedUrl = nextUrl;
+    const nextPageId = await registerCurrentPage(api, projectId, nextUrl);
+    if (nextUrl !== followedUrl) return; // superseded by a later navigation
+    pageId = nextPageId;
+    threadManager.clearPage();
+    stopRealtime();
+    stopRealtime = wireRealtimeUpdates(
+      shadow,
+      config.apiBaseUrl,
+      guest.guestSessionToken,
+      pageId,
+      threadManager,
+      ownCommentIds,
+    );
+    window.parent.postMessage({ type: "backline:page-registered", pageId }, "*");
+    // The region drawer is bound to a page id when it's set up.
+    if (currentMode === "draw") applyMode(currentMode);
+    await loadPagePins(pageId);
+    await submitPageSnapshot(api, pageId).catch(() => undefined);
+  };
+  window.setInterval(() => {
+    const now = realPageUrl(config.shareToken, resolved.target_origin);
+    if (now === seenUrl) return;
+    seenUrl = now;
+    if (routeTimer) clearTimeout(routeTimer);
+    // Once the new route has had a moment to render, so its anchors exist to pin to.
+    routeTimer = setTimeout(() => {
+      routeTimer = null;
+      followRoute().catch(() => {
+        // Offline or rate-limited: try this URL again shortly rather than never.
+        followedUrl = "";
+        setTimeout(() => {
+          seenUrl = "";
+        }, 5000);
+      });
+    }, 400);
+  }, 300);
 }
 
 declare global {

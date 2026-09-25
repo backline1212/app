@@ -61,5 +61,6 @@ an upload relay.
   session lives only in the reviewer's own browser. Each reviewer logs in as themselves.
 - The SSRF guard still runs before every hop, including the POST.
 - Sites that gate login behind their own JavaScript (an XHR login, a SPA router) still
-  won't work - that is the unchanged part of TDR-0008.
+  won't work - that is the unchanged part of TDR-0008. *(2026-09-26: superseded by
+  TDR-0035, which routes a page's own scripted requests through the proxy.)*
 - A reviewer's session is bound to the share link's path, so rotating the link ends it.
