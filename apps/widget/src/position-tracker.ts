@@ -19,9 +19,17 @@
 // getBoundingClientRect(). A dirty-check (only touching the DOM when the position
 // actually changed) keeps a page with zero moving elements essentially free after the
 // first frame.
+/** The tracked element's top-left page coordinate and current rendered size. */
+export interface AnchorBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface TrackedAnchor {
   resolve: () => Element | null;
-  onUpdate: (point: { x: number; y: number } | null) => void;
+  onUpdate: (box: AnchorBox | null) => void;
   lastKey: string;
 }
 
@@ -50,10 +58,10 @@ function tick(): void {
     if (rect && intersectsViewport(rect)) {
       const x = rect.left + window.scrollX;
       const y = rect.top + window.scrollY;
-      const key = `${x}:${y}`;
+      const key = `${x}:${y}:${rect.width}:${rect.height}`;
       if (key !== anchor.lastKey) {
         anchor.lastKey = key;
-        anchor.onUpdate({ x, y });
+        anchor.onUpdate({ x, y, width: rect.width, height: rect.height });
       }
     } else if (anchor.lastKey !== "gone") {
       anchor.lastKey = "gone";
@@ -67,7 +75,7 @@ function tick(): void {
  * `resolve` is called every frame to get the current live element - a direct element
  * reference for a pin just created this session (`() => target`), or
  * `resolveAnchorElement(anchor)` for one loaded from the server. `onUpdate` fires only
- * when the resolved element's position actually changes, with `null` if the element
+ * when the resolved element's position or size actually changes, with `null` if the element
  * currently can't be found at all (e.g. removed from the DOM) *or* is scrolled
  * completely outside the viewport - callers typically hide the pin in that case rather
  * than leaving it at its last known position or letting it trail off past the edge of
@@ -76,7 +84,7 @@ function tick(): void {
  */
 export function trackAnchor(
   resolve: () => Element | null,
-  onUpdate: (point: { x: number; y: number } | null) => void,
+  onUpdate: (box: AnchorBox | null) => void,
 ): () => void {
   const entry: TrackedAnchor = { resolve, onUpdate, lastKey: "" };
   tracked.add(entry);

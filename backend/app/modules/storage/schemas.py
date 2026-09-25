@@ -38,3 +38,7 @@ class UploadRequest(BaseModel):
 class UploadOut(BaseModel):
     upload_url: str
     key: str
+
+
+class StoredUploadOut(BaseModel):
+    key: str

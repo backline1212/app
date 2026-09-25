@@ -1,7 +1,11 @@
-import { trackAnchor } from "./position-tracker";
+import { trackAnchor, type AnchorBox } from "./position-tracker";
 import type { StatusUpdater } from "./status";
 import type { CommentRecord } from "./types";
 import { openCommentView, type CommentViewControls } from "./ui";
+
+export type PinOffset =
+  | { x: number; y: number }
+  | ((box: AnchorBox) => { x: number; y: number });
 
 export interface ThreadManagerOptions {
   shadow: ShadowRoot;
@@ -57,12 +61,13 @@ export function createThreadManager({
   function trackPinPosition(
     pin: HTMLElement,
     resolve: () => Element | null,
-    offset: { x: number; y: number } = { x: 0, y: 0 },
+    offset: PinOffset = { x: 0, y: 0 },
   ): () => void {
-    return trackAnchor(resolve, (point) => {
-      if (point) {
-        pin.style.left = `${point.x + offset.x}px`;
-        pin.style.top = `${point.y + offset.y}px`;
+    return trackAnchor(resolve, (box) => {
+      if (box) {
+        const shift = typeof offset === "function" ? offset(box) : offset;
+        pin.style.left = `${box.x + shift.x}px`;
+        pin.style.top = `${box.y + shift.y}px`;
         pin.style.display = "";
       } else {
         pin.style.display = "none";
@@ -190,11 +195,23 @@ export function createThreadManager({
     }
   }
 
+  // An SPA route change moves this widget to a different page without a reload
+  // (index.ts's route follower), and every pin and thread here belongs to the page left.
+  function clearPage(): void {
+    for (const topId of [...pinsByTopId.keys()]) removeThreadPin(topId);
+    threadMessages.clear();
+    if (openThread) {
+      openThread.controls.close();
+      openThread = null;
+    }
+  }
+
   return {
     threadMessages,
     pinsByTopId,
     trackPinPosition,
     removeThreadPin,
+    clearPage,
     openThreadForComment,
     attachPinClickHandler,
     handleCommentDeleted,

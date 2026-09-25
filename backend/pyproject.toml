@@ -25,11 +25,14 @@ dependencies = [
   # Regenerating uv.lock below to fix the playwright/google-genai gap silently dropped
   # it from the resolution entirely, which would have broken PDF asset handling.
   "pypdf==6.17.0",
-  # Capped below 12.0.0: google-genai==0.3.0 requires pillow<12.0.0, and uv.lock
-  # simply never included google-genai (or playwright, below) at all rather than
-  # error - `uv sync --frozen` installed whatever the last successful lock had and
-  # silently skipped both, so this conflict shipped to prod undetected.
+  # Used by modules/assets/service.py for image handling - unrelated to google-genai
+  # below, though the version was originally capped to satisfy it (see that entry).
   "pillow==11.3.0",
+  # No longer imported: modules/ai/service.py moved to Groq (docs/tdr/0033) via plain
+  # httpx, so this dependency is now unused dead weight. Left in place rather than
+  # pulled out here to avoid an unrelated uv.lock regeneration in this change - safe to
+  # remove in a follow-up cleanup pass (and re-check the pillow<12.0.0 cap above once it
+  # is gone, since that cap existed only for this package's sake).
   "google-genai==0.3.0",
   # modules/browser_render: real Chromium/WebKit/Firefox headless rendering for the
   # "Capture As" dropdown. Only imported lazily inside browser_render/service.py's
@@ -77,10 +80,11 @@ module = "playwright.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# google-genai ships no py.typed marker/stubs - modules/ai/service.py's optional
-# `from google import genai` (behind a try/except ImportError, since the AI
-# summarizer is a credential-gated no-op like every other optional integration) has
-# no way to satisfy strict mode otherwise.
+# google-auth ships no py.typed marker/stubs - auth/google_oauth.py's
+# `from google.auth...` / `from google.oauth2...` imports have no way to satisfy
+# strict mode otherwise. (Previously also covered google-genai's `from google import
+# genai` in modules/ai/service.py; that moved to Groq over plain httpx, see
+# docs/tdr/0033, but this override is still needed for google-auth.)
 module = "google.*"
 ignore_missing_imports = true
 

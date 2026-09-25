@@ -99,11 +99,18 @@ export function setupRegionDrawer({
     pin.classList.add("bl-pin-ghost");
     
     const targetRect = target.getBoundingClientRect();
-    const offset = {
-      x: finalLeft - (targetRect.left + window.scrollX),
-      y: finalTop - (targetRect.top + window.scrollY),
+    const offsetPct = {
+      x: targetRect.width > 0
+        ? (finalLeft - (targetRect.left + window.scrollX)) / targetRect.width
+        : 0,
+      y: targetRect.height > 0
+        ? (finalTop - (targetRect.top + window.scrollY)) / targetRect.height
+        : 0,
     };
-    const untrack = threadManager.trackPinPosition(pin, () => target, offset);
+    const untrack = threadManager.trackPinPosition(pin, () => target, (box) => ({
+      x: box.width * offsetPct.x,
+      y: box.height * offsetPct.y,
+    }));
 
     const clientRequestId = crypto.randomUUID();
     const activeTarget = target;

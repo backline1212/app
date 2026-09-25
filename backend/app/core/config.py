@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Dev-only default secrets. Must never be reachable outside `environment == "local"` -
@@ -64,7 +64,10 @@ class Settings(BaseSettings):
     guest_token_ttl_days: int = 30
     review_resolve_rate_limit_per_minute: int = 30
     guest_session_rate_limit_per_minute: int = 10
-    proxy_rate_limit_per_minute: int = 300
+    # Per share link + IP (modules/proxy/router.py). One page load through the proxy is
+    # every script, image and API call it makes, so this is sized for a few full page
+    # loads a minute rather than for one request per page.
+    proxy_rate_limit_per_minute: int = 1200
 
     # Milestone 11 rate-limiting audit (docs/tdr/0010): every write endpoint reachable
     # by an unauthenticated guest session needs its own budget, not just the
@@ -100,6 +103,28 @@ class Settings(BaseSettings):
     # (RESEND_API_KEY, GOOGLE_OAUTH_CLIENT_ID, ...), since no real Sentry project exists
     # for this build.
     sentry_dsn: str = ""
+
+    # Groq (docs/tdr/0033, docs/tdr/0034): powers modules/ai/service.py's thread
+    # summarize and suggest-reply actions via Groq's OpenAI-compatible chat completions
+    # API. A JSON array, same convention as CORS_ALLOW_ORIGINS above - empty means
+    # disabled (same credential-gated-no-op pattern as everything else here). More than
+    # one key is supported for rotation/revocation resilience, but Groq's quota remains
+    # organization-wide: adding keys does not increase allowed traffic. ai/key_pool.py
+    # round-robins whichever keys are configured; one key is the normal setup.
+    groq_api_keys: list[str] = Field(default_factory=list)
+    # Checked live against Groq's own /models endpoint (2026-09-26, docs/tdr/0033) - the
+    # once-standard `llama-3.3-70b-versatile` is no longer listed at all for a current
+    # account. gpt-oss-120b is OpenAI's open-weight flagship, Groq-hosted; kept as a
+    # setting rather than hardcoded for exactly the reason this correction happened once
+    # already - Groq's lineup moves.
+    groq_model: str = "openai/gpt-oss-120b"
+    # Safety-net TTL on a key's in-flight lock (ai/key_pool.py) - the normal path
+    # releases it the moment the Groq call returns, so a key is only actually
+    # unavailable this long if the process dies mid-request.
+    groq_key_lock_ttl_seconds: float = 30.0
+    # Fallback cooldown after Groq rejects a key (401/403) or rate-limits the whole
+    # organization (429) when its Retry-After header is missing or unparseable.
+    groq_rate_limit_cooldown_seconds: float = 30.0
 
     @model_validator(mode="after")
     def check_production_secrets(self) -> "Settings":

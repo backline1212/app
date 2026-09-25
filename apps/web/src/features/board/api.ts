@@ -52,13 +52,26 @@ export function createUpload(
 // carries - the same two-step flow a screenshot uses (POST /uploads, then PUT the bytes).
 export async function uploadAttachment(projectId: string, file: File): Promise<Schemas["AttachmentIn"]> {
   const upload = await createUpload(projectId, file.type, file.size);
-  const response = await fetch(upload.upload_url, {
-    method: "PUT",
-    body: file,
-    headers: { "Content-Type": file.type },
+  try {
+    const response = await fetch(upload.upload_url, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": file.type },
+    });
+    if (response.ok) {
+      return { key: upload.key, filename: file.name, content_type: file.type };
+    }
+  } catch {
+    // A bucket CORS/network failure falls through to the same-origin relay below.
+  }
+  const form = new FormData();
+  form.append("project_id", projectId);
+  form.append("file", file, file.name);
+  const stored = await apiFetch<Schemas["StoredUploadOut"]>("/api/v1/uploads/direct", {
+    method: "POST",
+    body: form,
   });
-  if (!response.ok) throw new Error(`Upload failed (${response.status}).`);
-  return { key: upload.key, filename: file.name, content_type: file.type };
+  return { key: stored.key, filename: file.name, content_type: file.type };
 }
 
 // Moderation delete (any comment in the caller's workspace, regardless of authorship) -

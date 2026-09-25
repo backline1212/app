@@ -126,7 +126,12 @@ export function ProjectOverviewPage() {
   const frameShellRef = useRef<HTMLDivElement>(null);
   // Memoizes the canvas URL against the target it was built for - see where iframeSrc
   // is assembled below for why the mode can't be part of that rebuild.
-  const frameSrcRef = useRef<{ target: string | null; src: string | null }>({ target: null, src: null });
+  const frameSrcRef = useRef<{ target: string | null; frameKey: string | null; src: string | null }>({ target: null, frameKey: null, src: null });
+  // The page the canvas navigated to by itself (a link, a login redirect, an SPA route
+  // change). The URL follows it so the page stays selected, but the iframe is already
+  // showing it - reloading would double every navigation and throw away a signed-in
+  // SPA's in-memory session. Cleared whenever a page is picked from outside the frame.
+  const frameDrivenPageRef = useRef<string | null>(null);
   const pageTabsRef = useRef<HTMLDivElement>(null);
   // Live width while the resize handle is held down. `undefined` means "not
   // resizing" and defers to the URL-persisted width; `null` is a real value the
@@ -320,6 +325,7 @@ export function ProjectOverviewPage() {
       if (event.source !== canvasRef.current?.contentWindow) return;
       if (event.data?.type !== "backline:page-registered") return;
       const pageId = event.data.pageId as string;
+      frameDrivenPageRef.current = pageId;
       setCurrentPageId(pageId);
       setIframeStatus("loaded");
       setSearchParams(
@@ -439,6 +445,9 @@ export function ProjectOverviewPage() {
   // sit there until the timeout below called it an error.
   useEffect(() => {
     if (!hasProxyCandidate) return;
+    // The frame reported this page itself, so it's already loaded - a "loading" state
+    // here would have no load event coming to clear it and would time out as an error.
+    if (activePageIdParam !== null && activePageIdParam === frameDrivenPageRef.current) return;
     setIframeStatus("loading");
     const timer = window.setTimeout(() => {
       setIframeStatus((current) => current === "loading" ? "error" : current);
@@ -461,6 +470,7 @@ export function ProjectOverviewPage() {
   }
 
   function goToPage(pageId: string) {
+    frameDrivenPageRef.current = null;
     setCurrentPageId(null);
     setSelectedCommentId(null);
     updateViewParams({ page: pageId || null });
@@ -497,6 +507,10 @@ export function ProjectOverviewPage() {
   }
 
   function reloadPreview() {
+    // Rebuilt from the selected page, not the src first handed to the frame - that one
+    // may be several in-frame navigations behind what the reviewer is looking at.
+    frameDrivenPageRef.current = null;
+    frameSrcRef.current = { target: null, frameKey: null, src: null };
     setIframeStatus("loading");
     setRetryCount((count) => count + 1);
   }
@@ -596,10 +610,20 @@ export function ProjectOverviewPage() {
   // Comment/Browse/Draw toggle and reload the whole site; postCanvasMode above carries
   // the switch into the running widget instead. The ref is a memo of the URL already
   // handed to the iframe, not state - nothing renders off it but the iframe itself.
+  // Everything but the page: a different link or browser still reloads the canvas, even
+  // on a page the frame navigated to by itself.
+  const frameKey = embedLink ? `${embedLink.token}|${browser.name}` : null;
   if (frameSrcRef.current.target !== canvasTarget) {
+    const keepFrame =
+      canvasTarget !== null &&
+      frameSrcRef.current.src !== null &&
+      frameSrcRef.current.frameKey === frameKey &&
+      activePageIdParam !== null &&
+      activePageIdParam === frameDrivenPageRef.current;
     frameSrcRef.current = {
       target: canvasTarget,
-      src: canvasTarget ? `${canvasTarget}&blMode=${mode}` : null,
+      frameKey,
+      src: keepFrame ? frameSrcRef.current.src : canvasTarget ? `${canvasTarget}&blMode=${mode}` : null,
     };
   }
   const iframeSrc = frameSrcRef.current.src;

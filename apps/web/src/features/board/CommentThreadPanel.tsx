@@ -17,7 +17,7 @@ import { PeoplePicker } from "../tickets/components/PeoplePicker";
 import * as workspaceApi from "../workspaces/api";
 import * as boardApi from "./api";
 import type { CommentLayer, CommentOut } from "./api";
-import { summarizeThread, suggestReply } from "../ai/api";
+import { aiErrorMessage, summarizeThread, suggestReply } from "../ai/api";
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -77,6 +77,7 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
   const [suggestedReplies, setSuggestedReplies] = useState<string[]>([]);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // We need the workspace ID to list members. We can get it from the workspace object if available.
@@ -110,6 +111,12 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
       // Upsert by id, not a blind append: if the WS event already landed first, this
       // would otherwise add a second, duplicate copy of the same reply.
       upsertProjectComment(queryClient, projectId, created);
+      // A summary/suggestions generated before this reply describe a thread state that
+      // no longer exists - leaving them up would read as if they still apply to the
+      // (now longer) thread.
+      setSummary(null);
+      setSuggestedReplies([]);
+      setSuggestError(null);
     },
   });
 
@@ -161,8 +168,7 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
       const res = await summarizeThread(workspaceQuery.data.id, projectId, comment.id);
       setSummary(res.summary);
     } catch (err) {
-      console.error(err);
-      setSummary("Failed to generate summary.");
+      setSummary(aiErrorMessage(err, "Failed to generate summary."));
     } finally {
       setIsSummarizing(false);
     }
@@ -171,11 +177,12 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
   async function handleSuggestReply() {
     if (!workspaceQuery.data?.id) return;
     setIsSuggesting(true);
+    setSuggestError(null);
     try {
       const res = await suggestReply(workspaceQuery.data.id, projectId, comment.id);
       setSuggestedReplies(res.suggestions);
     } catch (err) {
-      console.error(err);
+      setSuggestError(aiErrorMessage(err, "Could not suggest replies right now."));
     } finally {
       setIsSuggesting(false);
     }
@@ -322,6 +329,11 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
                 {isSuggesting ? "Suggesting..." : "✨ Suggest Replies"}
               </button>
             </div>
+            {suggestError && (
+              <p role="alert" className="bl-error" style={{ marginTop: "-4px" }}>
+                {suggestError}
+              </p>
+            )}
             <MentionsInput
               value={body}
               onChange={(event) => setBody(event.target.value)}

@@ -32,6 +32,7 @@ from app.modules.pages.router import router as pages_router
 from app.modules.projects.router import router as projects_router
 from app.modules.proxy.fallback_router import router as proxy_fallback_router
 from app.modules.proxy.router import router as proxy_router
+from app.modules.proxy.service import close_shared_transport as close_proxy_transport
 from app.modules.realtime.pubsub import run_subscriber
 from app.modules.realtime.router import router as realtime_router
 from app.modules.share_links.router import router as share_links_router
@@ -66,6 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await close_client()
     await close_redis()
     await close_arq_pool()
+    await close_proxy_transport()
 
 
 settings = get_settings()
