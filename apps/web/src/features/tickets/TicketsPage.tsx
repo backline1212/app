@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "../../lib/use-document-title";
-import { STATUS_LABELS } from "../../lib/workflow";
+import { STATUS_COLORS, STATUS_LABELS } from "../../lib/workflow";
 import { PlusIcon } from "../../components/icons";
 import type { WorkspaceOut } from "../workspaces/api";
 import type * as api from "./api";
@@ -62,8 +62,8 @@ export function TicketsPage() {
     overdue: dashboard.data?.overdue,
   };
 
-  const activeFilters: { label: string; onClear: () => void }[] = [
-    ...(params.get("status") ? [{ label: STATUS_LABELS[params.get("status") as keyof typeof STATUS_LABELS], onClear: () => set("status", "") }] : []),
+  const activeFilters: { label: string; dot?: string; onClear: () => void }[] = [
+    ...(params.get("status") ? [{ label: STATUS_LABELS[params.get("status") as keyof typeof STATUS_LABELS], dot: STATUS_COLORS[params.get("status") as keyof typeof STATUS_COLORS], onClear: () => set("status", "") }] : []),
     ...(params.get("project_id")
       ? [{ label: projects.data?.find((p) => p.id === params.get("project_id"))?.name ?? "Project", onClear: () => set("project_id", "") }]
       : []),
@@ -96,6 +96,19 @@ export function TicketsPage() {
         </div>
       </header>
 
+      {/* design/index.html .tfil-chip: what is narrowing the list, each one removable. */}
+      {activeFilters.length > 0 && (
+        <div className="bl-tfil-chips">
+          {activeFilters.map((f) => (
+            <span key={f.label} className="bl-tfil-chip">
+              {f.dot && <i style={{ background: f.dot }} aria-hidden="true" />}
+              {f.label}
+              <button type="button" onClick={f.onClear} aria-label={`Stop filtering by ${f.label}`}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="bl-segment bl-ticket-filters" role="group" aria-label="Filter tickets">
         {VIEW_TABS.map((tab) => (
           <button key={tab.key} type="button" aria-pressed={(params.get("view") ?? "all") === tab.key} onClick={() => set("view", tab.key)}>
@@ -105,18 +118,6 @@ export function TicketsPage() {
         ))}
       </div>
 
-      {activeFilters.length > 0 && (
-        <div className="bl-chip-row" style={{ padding: "0 0 14px" }}>
-          <span className="bl-eyebrow" style={{ margin: 0 }}>
-            Filtering by:
-          </span>
-          {activeFilters.map((f) => (
-            <button key={f.label} className="bl-chip" onClick={f.onClear} aria-label={`Clear filter ${f.label}`}>
-              {f.label} ✕
-            </button>
-          ))}
-        </div>
-      )}
 
       <div className="bl-toolbar">
         <span className="bl-mono">{query.data?.total ?? "—"} TICKETS</span>

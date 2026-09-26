@@ -112,7 +112,7 @@ export function TicketToolbar({ sort, onSort, group, onGroup, showGroup, members
     const m = members.find((x) => x.user_id === id);
     return m?.name || m?.email || "Former member";
   };
-  const whoLabel = assignees.length === 0 ? "All" : assignees.length === 1 ? (assignees[0] === "unassigned" ? "Unassigned" : nameOf(assignees[0])) : `${assignees.length} people`;
+  const whoLabel = assignees.length === 0 ? "Anyone" : assignees.length === 1 ? (assignees[0] === "unassigned" ? "Unassigned" : nameOf(assignees[0])) : `${assignees.length} people`;
   const faces = assignees.filter((a) => a !== "unassigned").slice(0, 3);
 
   return (
@@ -181,7 +181,7 @@ export function TicketToolbar({ sort, onSort, group, onGroup, showGroup, members
         <Popover anchor={whoRef} popRef={popRef} className="bl-who-pop">
           <div className="bl-pop-label">SHOW WORK FOR</div>
           <button type="button" className="bl-asg-opt" role="menuitemradio" aria-checked={assignees.length === 0} onClick={() => onAssignees([])}>
-            <span className="bl-pop-mk is-none">∗</span>All
+            <span className="bl-pop-mk is-none">∗</span>Anyone
             <span className="bl-pop-count">{totalAny}</span>
           </button>
           <div className="bl-pop-sep" />

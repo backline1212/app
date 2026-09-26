@@ -1,5 +1,5 @@
 import type { Schemas } from "@backline/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { downloadCsv } from "../../lib/csv";
 import { invalidateTicketsAndDashboard, qk } from "../../lib/query-keys";
@@ -33,7 +33,10 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
   const queryKeyStr = request.toString();
   const query = useQuery({ 
     queryKey: qk.ticketsList(workspaceId, queryKeyStr), 
-    queryFn: () => api.listTickets(workspaceId, request) 
+    queryFn: () => api.listTickets(workspaceId, request),
+    // Keep the current rows and counts on screen while a filter change loads, so
+    // ticking people in "Show work for" doesn't blank the list and zero every count.
+    placeholderData: keepPreviousData,
   });
   const projects = useQuery({ 
     queryKey: qk.projects(workspaceId), 
