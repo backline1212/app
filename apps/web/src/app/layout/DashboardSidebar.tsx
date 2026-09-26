@@ -69,12 +69,6 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
       <div className="bl-views">
         <NavLink onClick={onNavigate} to={`${base}?archived=true`} className={location.pathname === base && query.get("archived") === "true" ? "is-on" : ""}><i className="bl-dot is-grey" /><span className="bl-nav-txt">Archived</span><b className="bl-ct">{data?.archived_projects ?? 0}</b></NavLink>
       </div>
-      {/* Not in the design, which has no admin pages; kept so members, integrations,
-          the extension and settings stay reachable. */}
-      <p className="bl-nav-label">WORKSPACE</p>
-      <div className="bl-views">
-        {[['members', 'Members'], ['integrations', 'Integrations'], ['extension', 'Browser Extension'], ['settings', 'Settings']].map(([path, label]) => <NavLink key={path} onClick={onNavigate} to={`${base}/${path}`} className={({ isActive }) => isActive ? "is-on" : ""}><span className="bl-nav-txt">{label}</span></NavLink>)}
-      </div>
     </nav>
     <footer className="bl-rail-foot">
       <div className="bl-plan-card">
