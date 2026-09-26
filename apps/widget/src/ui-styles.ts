@@ -50,6 +50,9 @@ const HOST_STYLES = `
     font-size: 13px; font-weight: 700; line-height: 1;
     z-index: 2147482999; box-shadow: 0 2px 5px rgba(11,11,11,0.22); cursor: pointer;
   }
+  /* Browse mode shows the site alone - no pins, threads or composer. */
+  :host([data-mode="browse"]) .bl-pin,
+  :host([data-mode="browse"]) .bl-card { display: none !important; }
   /* The pin for a comment still being written - the design's "ghost" pin. */
   .bl-pin.bl-pin-ghost {
     background: var(--bl-mint); color: var(--bl-ink);

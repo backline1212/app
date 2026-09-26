@@ -1,4 +1,4 @@
-import { createApiClient } from "./api-client";
+import { createApiClient, WidgetApiError } from "./api-client";
 import {
   anchorPointFor,
   computeAnchor,
@@ -25,6 +25,22 @@ import { parseUserAgent } from "./user-agent";
 import { setupRegionDrawer } from "./region-drawer";
 
 type WidgetMode = "browse" | "comment" | "draw";
+
+// Retries the few init requests commenting cannot start without, on failures that
+// are worth a second try (network, rate limit, server hiccup) - not on a 4xx that
+// will only repeat, like a revoked share link.
+async function withRetry<T>(run: () => Promise<T>, delays = [800, 2500]): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await run();
+    } catch (error) {
+      const status = error instanceof WidgetApiError ? error.status : 0;
+      const retryable = status === 0 || status === 429 || status >= 500;
+      if (!retryable || attempt >= delays.length) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+    }
+  }
+}
 
 async function init(config: BacklineConfig): Promise<void> {
   // Set once ensureGuestSession resolves below - the api client is constructed first
@@ -61,8 +77,16 @@ async function init(config: BacklineConfig): Promise<void> {
   // the dashboard re-sends the mode on every iframe load, so a mode can genuinely
   // arrive before this widget is wired up - until then it's just recorded, and the
   // wiring below applies whatever the latest one turned out to be.
+  // Browse is the site on its own: pins, open threads and the composer are hidden
+  // (ui-styles.ts, :host([data-mode="browse"])) and come back as they were when the
+  // reviewer switches to Comment or Draw again.
+  const showMode = (next: WidgetMode) => {
+    (shadow.host as HTMLElement).dataset.mode = next;
+  };
+  showMode(currentMode);
   let applyMode = (next: WidgetMode) => {
     currentMode = next;
+    showMode(next);
   };
   window.addEventListener("message", (event) => {
     if (event.data?.type !== "backline:set-mode") return;
@@ -97,16 +121,20 @@ async function init(config: BacklineConfig): Promise<void> {
   // the guest token itself (every endpoint the guest calls checks their share link's
   // project, core/actor_access.py). The widget still needs it for the /uploads call's
   // request body, so it's resolved once here via the public review-resolve endpoint.
-  const resolved = await api.request<{ project_id: string; target_origin: string }>(
-    `/api/v1/review/${config.shareToken}`,
+  const resolved = await withRetry(() =>
+    api.request<{ project_id: string; target_origin: string }>(`/api/v1/review/${config.shareToken}`),
   );
   const projectId = resolved.project_id;
 
   const pageUrl = realPageUrl(config.shareToken, resolved.target_origin);
   // `let`: a single-page app's own route changes move this widget to another page
   // without a reload - see the route follower at the end of init.
-  let pageId = await registerCurrentPage(api, projectId, pageUrl);
-  await submitPageSnapshot(api, pageId);
+  let pageId = await withRetry(() => registerCurrentPage(api, projectId, pageUrl));
+  // Only feeds deploy re-anchoring, never needed to leave a comment - so it runs in the
+  // background and a failure (rate limit, a page too large to store) is ignored, the
+  // same as the route follower below. Awaited, one failed snapshot aborted init before
+  // the click handler existed and commenting silently never switched on.
+  void submitPageSnapshot(api, pageId).catch(() => undefined);
 
   // Tells the dashboard (if it's embedding this in the canvas iframe) which page is
   // currently loaded, so its Comments panel can offer "show comments on current page
@@ -238,6 +266,7 @@ async function init(config: BacklineConfig): Promise<void> {
   let regionTeardown: (() => void) | null = null;
   applyMode = (next: WidgetMode) => {
     currentMode = next;
+    showMode(next);
     regionTeardown?.();
     regionTeardown = null;
     tooltip.dismiss();
@@ -424,8 +453,21 @@ async function init(config: BacklineConfig): Promise<void> {
 
 declare global {
   interface Window {
-    Backline: { init: typeof init };
+    Backline: { init: typeof safeInit };
   }
 }
 
-window.Backline = { init };
+// The proxy's bootstrap calls init() without handling its promise, so a failure here
+// used to vanish: the page just ignored clicks. Say so in the console and tell the
+// dashboard canvas, which then stops claiming "click the page to place a pin".
+function safeInit(config: BacklineConfig): Promise<void> {
+  return init(config).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[Backline] Commenting could not start:", error);
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: "backline:widget-error", message }, "*");
+    }
+  });
+}
+
+window.Backline = { init: safeInit };
