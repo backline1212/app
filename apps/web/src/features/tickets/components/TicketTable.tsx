@@ -1,10 +1,18 @@
+import { Avatar } from "@backline/ui";
 import { isClosed } from "../../../lib/workflow";
 import { ticketRef } from "../../../lib/ticket-ref";
 import { dueMeta } from "../../projects/panel/comments/types";
 import type { MemberOut } from "../../workspaces/api";
 import * as api from "../api";
-import { StatusSelect } from "./StatusSelect";
+import { DatePicker } from "./DatePicker";
+import { TrashIcon } from "./DeleteTicket";
+import { PrioritySelect, StatusSelect } from "./StatusSelect";
 import type { TicketUpdateMutation } from "./types";
+
+function memberName(members: MemberOut[], userId: string): string {
+  const member = members.find((m) => m.user_id === userId);
+  return member?.name || member?.email || "Former member";
+}
 
 function SortArrow() {
   return (
@@ -37,6 +45,7 @@ export function TicketTable({
   onOpen,
   onFilterProject,
   onFilterTag,
+  onDelete,
 }: {
   tickets: api.Ticket[];
   members: MemberOut[];
@@ -46,9 +55,10 @@ export function TicketTable({
   onOpen: (id: string) => void;
   onFilterProject: (projectId: string) => void;
   onFilterTag: (tag: string) => void;
+  onDelete: (ticket: api.Ticket) => void;
 }) {
   return (
-    <div className="bl-table-wrap bl-tickets table">
+    <div className="bl-table-wrap bl-tickets table bl-ttable">
       <table className="bl-table">
         <thead>
           <tr>
@@ -58,24 +68,25 @@ export function TicketTable({
             <SortableHeader label="Status" sortKey="status" sort={sort} onSort={onSort} />
             <SortableHeader label="Priority" sortKey="priority" sort={sort} onSort={onSort} />
             <th>Tags</th>
-            <th>Assignees</th>
-            <SortableHeader label="Due date" sortKey="due" sort={sort} onSort={onSort} />
+            <th>Assignee</th>
+            <SortableHeader label="Due" sortKey="due" sort={sort} onSort={onSort} />
+            <th className="bl-col-actions"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody>
           {tickets.map((t) => {
             const due = dueMeta(t.due_at, isClosed(t.status));
+            const assignees = t.assignee_ids ?? [];
             return (
-              <tr key={t.id}>
+              <tr key={t.id} className={isClosed(t.status) ? "is-closed" : undefined} onClick={() => onOpen(t.id)}>
                 <td className="bl-col-num">{ticketRef(t)}</td>
-                <td>
-                  <button type="button" className="bl-ticket-title" onClick={() => onOpen(t.id)}>
+                <td className="bl-col-ticket">
+                  <button type="button" className="bl-ticket-title" onClick={(e) => { e.stopPropagation(); onOpen(t.id); }}>
                     {t.body}
                   </button>
-                  <small>{t.is_standalone ? "Team ticket" : t.page_title}</small>
                 </td>
-                <td style={{ color: "var(--ink-3)" }}>
-                  <button type="button" className="bl-cellf" onClick={() => onFilterProject(t.project_id)}>
+                <td className="bl-col-project">
+                  <button type="button" className="bl-cellf" onClick={(e) => { e.stopPropagation(); onFilterProject(t.project_id); }}>
                     {t.project_name}
                   </button>
                 </td>
@@ -83,48 +94,43 @@ export function TicketTable({
                   <StatusSelect ticket={t} disabled={update.isPending} onChange={(status) => update.mutate({ id: t.id, patch: { status } })} />
                 </td>
                 <td>
-                  <select
-                    className="bl-select"
-                    aria-label={`Priority for ${t.body.slice(0, 40)}`}
-                    disabled={update.isPending}
-                    value={t.priority ?? "medium"}
-                    onChange={(e) => update.mutate({ id: t.id, patch: { priority: e.target.value as "high" | "medium" | "low" } })}
-                  >
-                    {["high", "medium", "low"].map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
+                  <PrioritySelect ticket={t} disabled={update.isPending} onChange={(priority) => update.mutate({ id: t.id, patch: { priority } })} />
                 </td>
                 <td>
-                  <div className="bl-chip-row">
+                  <div className="bl-tcell-tags">
                     {t.tags?.map((tag) => (
-                      <button type="button" className="bl-chip" key={tag} onClick={() => onFilterTag(tag)}>
+                      <button type="button" className="bl-tag" key={tag} onClick={(e) => { e.stopPropagation(); onFilterTag(tag); }}>
                         {tag}
                       </button>
                     ))}
                   </div>
                 </td>
                 <td>
-                  <button type="button" className="bl-quiet" onClick={() => onOpen(t.id)}>
-                    {t.assignee_ids?.length
-                      ? t.assignee_ids.map((id) => members.find((m) => m.user_id === id)?.name ?? "Former member").join(", ")
-                      : "Unassigned"}
-                  </button>
-                </td>
-                <td>
-                  <input
-                    type="date"
-                    className="bl-date"
-                    aria-label={`Due date for ${t.body.slice(0, 40)}`}
-                    value={t.due_at?.slice(0, 10) ?? ""}
-                    disabled={update.isPending}
-                    onChange={(e) => update.mutate({ id: t.id, patch: { due_at: e.target.value ? `${e.target.value}T00:00:00Z` : null } })}
-                  />
-                  {due && (
-                    <span className={`bl-due-chip ${due.tone === "late" ? "is-late" : due.tone === "soon" ? "is-soon" : ""}`} style={{ marginTop: 4, display: "inline-flex" }}>
-                      {due.text}
-                    </span>
+                  {assignees.length ? (
+                    <div className="bl-tcell-tags">
+                      {assignees.map((id) => {
+                        const name = memberName(members, id);
+                        return (
+                          <span className="bl-cell-who" key={id}>
+                            <Avatar name={name} size={20} />
+                            {name}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="bl-cell-none">Unassigned</span>
                   )}
+                </td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <DatePicker value={t.due_at} onChange={(value) => update.mutate({ id: t.id, patch: { due_at: value } })} triggerClassName={`bl-due bl-due-trigger ${due?.tone ?? ""}`}>
+                    {due ? due.text : "Set date"}
+                  </DatePicker>
+                </td>
+                <td className="bl-col-actions">
+                  <button type="button" className="bl-row-delete" aria-label={`Delete ticket ${ticketRef(t)}`} title="Delete ticket" onClick={(e) => { e.stopPropagation(); onDelete(t); }}>
+                    <TrashIcon />
+                  </button>
                 </td>
               </tr>
             );

@@ -12,6 +12,9 @@ interface WorkspaceSwitcherPopoverProps {
   onClose: () => void;
 }
 
+// design/index.html wsPop marks: the current workspace is ink/mint, the others get a color.
+const WS_COLORS = ["#E86A33", "#7C6BE8", "#2C4B69", "#0A6B4B", "#A8401F", "#6B520B"];
+
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -31,6 +34,7 @@ export function WorkspaceSwitcherPopover({
   const [focusIndex, setFocusIndex] = useState(-1);
 
   const [newName, setNewName] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const busy = useRef(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -122,32 +126,48 @@ export function WorkspaceSwitcherPopover({
       aria-label="Switch workspace"
       onKeyDown={handleKeyDown}
     >
+      <div className="bl-pop-label">SWITCH WORKSPACE</div>
       <div className="bl-ws-pop-list" role="listbox" aria-label="Workspaces">
         {isLoading && <p role="status">Loading workspaces…</p>}
         {isError && <p role="alert">Could not load workspaces. <button onClick={() => void refetch()}>Retry</button></p>}
-        {workspaces.map((ws, i) => (
-          <button
-            key={ws.id}
-            ref={(el) => { if (el) itemsRef.current[i] = el; }}
-            className={`bl-ws-item${ws.id === currentWorkspace.id ? " selected" : ""}`}
-            role="option"
-            aria-selected={ws.id === currentWorkspace.id}
-            disabled={creating}
-            onFocus={() => setFocusIndex(i)}
-            onClick={() => void handleSwitch(ws)}
-          >
-            <span className="bl-ws-item-check" aria-hidden="true">
-              {ws.id === currentWorkspace.id ? "✓" : ""}
-            </span>
-            <span>{ws.name}</span>
-            <span className="bl-mono" style={{ marginLeft: "auto" }}>{ws.role}</span>
-          </button>
-        ))}
+        {workspaces.map((ws, i) => {
+          const current = ws.id === currentWorkspace.id;
+          return (
+            <button
+              key={ws.id}
+              ref={(el) => { if (el) itemsRef.current[i] = el; }}
+              className="bl-ws-item"
+              role="option"
+              aria-selected={current}
+              disabled={creating}
+              onFocus={() => setFocusIndex(i)}
+              onClick={() => void handleSwitch(ws)}
+            >
+              <span className="bl-ws-item-mk" style={current ? undefined : { background: WS_COLORS[i % WS_COLORS.length], color: "#fff" }}>{ws.name.slice(0, 1).toUpperCase()}</span>
+              <span className="bl-ws-item-name">
+                {ws.name}
+                <span>{ws.role ? ws.role.charAt(0).toUpperCase() + ws.role.slice(1) : "Member"}</span>
+              </span>
+              <span className="bl-ws-item-tick" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+              </span>
+            </button>
+          );
+        })}
       </div>
-
+      <div className="bl-pop-sep" />
+      {!showCreate ? (
+        <button type="button" className="bl-ws-item" onClick={() => setShowCreate(true)}>
+          <span className="bl-ws-item-mk is-new">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
+          </span>
+          Create workspace
+        </button>
+      ) : (
       <form className="bl-ws-create-form" onSubmit={(e) => void handleCreate(e)}>
         <p className="bl-eyebrow" style={{ margin: 0 }}>New workspace</p>
         <input
+          autoFocus
           className="bl-input"
           placeholder="Workspace name"
           aria-label="Workspace name"
@@ -170,6 +190,7 @@ export function WorkspaceSwitcherPopover({
           {creating ? "Creating…" : "Create"}
         </button>
       </form>
+      )}
     </div>
   );
 }

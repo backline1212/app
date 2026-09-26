@@ -143,47 +143,56 @@ export function CloseIcon(props: SVGProps<SVGSVGElement>) {
 
 export function ProjectsIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <Icon {...props}>
-      <rect x="3" y="3" width="8" height="8" rx="1.3" />
-      <rect x="13" y="3" width="8" height="8" rx="1.3" />
-      <rect x="3" y="13" width="8" height="8" rx="1.3" />
-      <rect x="13" y="13" width="8" height="8" rx="1.3" />
+    <Icon strokeWidth="1.8" width="15" height="15" {...props}>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
     </Icon>
   );
 }
 
 export function AssignedToMeIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <Icon {...props}>
-      <path d="M6 4v10.5c0 1.4 1.1 2.5 2.5 2.5H16" />
-      <path d="m12.5 13.5 3.5 3.5-3.5 3.5" />
+    <Icon strokeWidth="1.8" width="15" height="15" {...props}>
+      <path d="M21 11.5a8.4 8.4 0 01-9 8.4L3 21l1.1-8.9A8.4 8.4 0 1121 11.5z" />
     </Icon>
   );
 }
 
 export function TicketsIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <Icon {...props}>
-      <rect x="3" y="5" width="18" height="14" rx="1.8" />
-      <path d="M9 5v14M3 10.5h3M3 13.5h3M18 10.5h3M18 13.5h3" />
+    <Icon strokeWidth="1.8" width="15" height="15" {...props}>
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
     </Icon>
   );
 }
 
 export function ActivityClockIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <Icon {...props}>
+    <Icon strokeWidth="1.8" width="15" height="15" {...props}>
+      <path d="M12 8v4l3 2" />
       <circle cx="12" cy="12" r="9" />
-      <path d="M12 7.5V12l3 2" />
     </Icon>
   );
 }
 
 export function ClientsIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <Icon {...props}>
-      <path d="M4 20V6.5L12 3l8 3.5V20" />
-      <path d="M9 20v-5.5h6V20M9 9h.01M15 9h.01M9 12.5h.01M15 12.5h.01" />
+    <Icon strokeWidth="1.8" width="15" height="15" {...props}>
+      <path d="M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+      <circle cx="9.5" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 00-3-3.9" />
+    </Icon>
+  );
+}
+
+// The design's workspace switcher affordance: an up/down chevron pair.
+export function SwitchIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon strokeWidth="2" width="14" height="14" {...props}>
+      <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
     </Icon>
   );
 }

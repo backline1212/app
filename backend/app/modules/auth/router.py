@@ -10,9 +10,12 @@ from app.core.session import Session, get_current_session
 from app.modules.auth import service as auth_service
 from app.modules.auth.schemas import (
     AccessTokenOut,
+    EmailChangeConfirm,
+    EmailChangeRequest,
     GoogleCallbackRequest,
     OtpRequestRequest,
     OtpVerifyRequest,
+    PasswordChangeRequest,
     PasswordLoginRequest,
     SessionOut,
     SignupRequest,
@@ -196,4 +199,48 @@ async def update_me(
     """FD-AUD-046: Update user profile and preferences."""
     return await auth_service.update_user(
         get_db(), session.user_id, body.model_dump(exclude_unset=True)
+    )
+
+
+@router.post("/me/password", status_code=204)
+async def change_password(
+    body: PasswordChangeRequest, session: Session = Depends(get_current_session)
+) -> None:
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:password-change:user:{session.user_id}",
+        limit=get_settings().password_login_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    await auth_service.change_password(
+        get_db(),
+        session.user_id,
+        session.sid,
+        current_password=body.current_password,
+        new_password=body.new_password,
+    )
+
+
+@router.post("/me/email", status_code=204)
+async def request_email_change(
+    body: EmailChangeRequest, session: Session = Depends(get_current_session)
+) -> None:
+    """Sends a confirmation code to the new address; /me/email/confirm applies it."""
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:email-change:user:{session.user_id}",
+        limit=get_settings().otp_request_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    await auth_service.request_email_change(
+        get_db(), session.user_id, email=body.email, password=body.password
+    )
+
+
+@router.post("/me/email/confirm", response_model=UserOut)
+async def confirm_email_change(
+    body: EmailChangeConfirm, session: Session = Depends(get_current_session)
+) -> UserOut:
+    return await auth_service.confirm_email_change(
+        get_db(), session.user_id, email=body.email, code=body.code
     )

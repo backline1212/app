@@ -11,11 +11,32 @@ import { SearchIcon } from "../../components/icons";
 type SearchItem = SearchResults["items"][number];
 
 const SECTION_LABELS: Record<string, string> = {
-  project: "Projects",
-  comment: "Comments",
-  ticket: "Tickets",
-  member: "Members",
+  project: "PROJECTS",
+  comment: "COMMENTS",
+  ticket: "TICKETS",
+  member: "PEOPLE",
 };
+
+// design/index.html runSearch(): a small tile per result kind.
+function ResultIcon({ item }: { item: SearchItem }) {
+  if (item.kind === "member") {
+    const initials = item.title.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("");
+    return <span className="bl-sr-ic is-person">{initials || "?"}</span>;
+  }
+  return (
+    <span className="bl-sr-ic" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        {item.kind === "project" ? (
+          <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18" /></>
+        ) : item.kind === "ticket" ? (
+          <><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></>
+        ) : (
+          <path d="M21 11.5a8.4 8.4 0 01-9 8.4L3 21l1.1-8.9A8.4 8.4 0 1121 11.5z" />
+        )}
+      </svg>
+    </span>
+  );
+}
 
 function groupResults(items: SearchItem[]): Array<{ section: string; items: SearchItem[] }> {
   const order = ["project", "ticket", "comment", "member"];
@@ -117,7 +138,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
           maxLength={200}
           aria-controls="bl-search-results"
           aria-activedescendant={flatItems[activeIndex] ? `bl-sr-${flatItems[activeIndex].id}` : undefined}
-          placeholder="Search projects, comments, or people…"
+          placeholder="Search comments, projects and people"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleInputKeyDown}
@@ -125,7 +146,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
           aria-expanded={!!query.trim()}
           aria-autocomplete="list"
         />
-        <kbd title="Search: / or Cmd/Ctrl+K">/ · {shortcut}</kbd>
+        <kbd title={`Search: / or ${shortcut}`}>/</kbd>
       </label>
       {query.trim() && (
         <section
@@ -137,7 +158,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
         >
           {isFetching && <p>Searching…</p>}
           {isError && <p role="alert">Search failed. <button onClick={() => void refetch()}>Retry</button></p>}
-          {!isError && !isFetching && activeQuery === query.trim() && flatItems.length === 0 && <p>No results in this workspace.</p>}
+          {!isError && !isFetching && activeQuery === query.trim() && flatItems.length === 0 && <p className="bl-search-empty">Nothing matches “{query.trim()}”. Try a project name, a word from a comment, or a person.</p>}
           {grouped.map(({ section, items }) => (
             <div key={section} className="bl-search-section">
               <p className="bl-search-section-label">{SECTION_LABELS[section] ?? section}</p>
@@ -153,11 +174,11 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
                     onClick={() => open(result)}
                     tabIndex={-1}
                   >
-                    <span>
+                    <ResultIcon item={result} />
+                    <span className="bl-sr-b">
                       <strong>{result.title}</strong>
                       <small>{result.subtitle}</small>
                     </span>
-                    <em>{result.kind}</em>
                   </button>
                 );
               })}

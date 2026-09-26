@@ -493,6 +493,131 @@
         ]
       }
     },
+    "/api/v1/auth/me/password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Change Password",
+        "operationId": "change_password_api_v1_auth_me_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/me/email": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Request Email Change",
+        "description": "Sends a confirmation code to the new address; /me/email/confirm applies it.",
+        "operationId": "request_email_change_api_v1_auth_me_email_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/me/email/confirm": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Confirm Email Change",
+        "operationId": "confirm_email_change_api_v1_auth_me_email_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/workspaces": {
       "get": {
         "tags": [
@@ -2049,6 +2174,19 @@
             }
           },
           {
+            "name": "assignees",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 50,
+              "title": "Assignees"
+            }
+          },
+          {
             "name": "view",
             "in": "query",
             "required": false,
@@ -2076,7 +2214,9 @@
                 "due",
                 "priority",
                 "status",
-                "project"
+                "project",
+                "assignee",
+                "tag"
               ],
               "type": "string",
               "default": "newest",
@@ -7007,6 +7147,53 @@
         "title": "DomFingerprintIn",
         "description": "node_hash/ancestor_path_hash use the same hash scheme as a snapshot's NodeRecord\n(09-Snapshot-Engine.md \u00a79.6) - required for modules/anchor_engine to compare an\nanchor against a snapshot's nodes_index at all\n(docs/tdr/0004-anchor-snapshot-shared-hash-scheme.md)."
       },
+      "EmailChangeConfirm": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 12,
+            "minLength": 1,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "EmailChangeConfirm"
+      },
+      "EmailChangeRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "EmailChangeRequest"
+      },
       "ExtensionTokenCreate": {
         "properties": {
           "name": {
@@ -7979,6 +8166,28 @@
         },
         "type": "object",
         "title": "PageUpdate"
+      },
+      "PasswordChangeRequest": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Current Password"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 12,
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeRequest"
       },
       "PasswordLoginRequest": {
         "properties": {
@@ -9633,6 +9842,25 @@
               }
             ],
             "title": "Due At"
+          },
+          "page_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Id"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentIn"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Attachments"
           }
         },
         "type": "object",
@@ -9653,6 +9881,18 @@
           "total": {
             "type": "integer",
             "title": "Total"
+          },
+          "assignee_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Assignee Counts"
+          },
+          "total_any_assignee": {
+            "type": "integer",
+            "title": "Total Any Assignee",
+            "default": 0
           },
           "offset": {
             "type": "integer",
@@ -10059,6 +10299,11 @@
               "notify_on_status_change": true,
               "daily_digest": true
             }
+          },
+          "has_password": {
+            "type": "boolean",
+            "title": "Has Password",
+            "default": false
           }
         },
         "type": "object",
@@ -10105,7 +10350,9 @@
           "name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
               },
               {
                 "type": "null"
@@ -10122,6 +10369,19 @@
                 "type": "null"
               }
             ]
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200000,
+                "pattern": "^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
           }
         },
         "type": "object",

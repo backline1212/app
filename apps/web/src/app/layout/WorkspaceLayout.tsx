@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Avatar } from "@backline/ui";
+import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useWSEvent } from "../WSProvider";
@@ -19,53 +18,20 @@ import { CloseIcon, MenuIcon } from "./sidebar-icons";
 import { ProjectForm } from "../../features/projects/ProjectForm";
 import { ThemeToggle } from "../../components/ThemeToggle";
 
-// Account entry point - top-right of the persistent topbar, next to search and
-// notifications, rather than a text button buried at the bottom of the sidebar
-// (where the eye has to travel past the whole nav to find it every time).
-import { useOnClickOutside } from "../../lib/use-click-outside";
 
+// design/index.html #meBtn: a square initials (or photo) button that opens the Account
+// modal straight away - sign-out lives inside that modal.
 function AccountButton() {
-  const { user, logout } = useAuth();
-  const [popOpen, setPopOpen] = useState(false);
+  const { user } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const popRef = useRef<HTMLDivElement>(null);
-  
-  useOnClickOutside(popRef, () => setPopOpen(false));
-
+  const initials = (user?.name ?? "?").trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
   return (
-    <div style={{ position: "relative" }} ref={popRef}>
-      <button 
-        type="button" 
-        className="bl-account-btn" 
-        aria-label="Your account" 
-        aria-haspopup="menu"
-        aria-expanded={popOpen}
-        onClick={() => setPopOpen(p => !p)}
-      >
-        <Avatar name={user?.name ?? "?"} avatarUrl={user?.avatar_url} size={32} />
+    <>
+      <button type="button" className="bl-me" aria-label="Your account" onClick={() => setSettingsOpen(true)}>
+        {user?.avatar_url ? <img src={user.avatar_url} alt="" /> : initials}
       </button>
-      
-      {popOpen && (
-        <div className="bl-dropdown-pop" role="menu" aria-label="Account menu">
-          <button
-            className="bl-dropdown-item"
-            role="menuitem"
-            onClick={() => { setPopOpen(false); setSettingsOpen(true); }}
-          >
-            Profile &amp; Settings
-          </button>
-          <button
-            className="bl-dropdown-item danger"
-            role="menuitem"
-            onClick={() => { setPopOpen(false); void logout(); }}
-          >
-            Log out
-          </button>
-        </div>
-      )}
-      
       {settingsOpen && <AccountModal onClose={() => setSettingsOpen(false)} />}
-    </div>
+    </>
   );
 }
 
@@ -179,11 +145,11 @@ export function WorkspaceLayout() {
           <span className="bl-mobile-brand"><BrandMark compact /></span>
           <GlobalSearch key={workspace.id} workspaceId={workspace.id} workspaceSlug={workspace.slug} />
           <div className="bl-topbar-actions">
+            <ThemeToggle />
+            <NotificationBell />
             <button type="button" className="bl-button bl-topbar-create" onClick={() => setCreateProjectOpen(true)}>
               <PlusIcon /> <span>New project</span>
             </button>
-            <ThemeToggle />
-            <NotificationBell />
             <AccountButton />
           </div>
         </header>

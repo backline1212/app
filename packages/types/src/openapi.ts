@@ -204,6 +204,60 @@ export interface paths {
         patch: operations["update_me_api_v1_auth_me_patch"];
         trace?: never;
     };
+    "/api/v1/auth/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change Password */
+        post: operations["change_password_api_v1_auth_me_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Email Change
+         * @description Sends a confirmation code to the new address; /me/email/confirm applies it.
+         */
+        post: operations["request_email_change_api_v1_auth_me_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/email/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Email Change */
+        post: operations["confirm_email_change_api_v1_auth_me_email_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces": {
         parameters: {
             query?: never;
@@ -1964,6 +2018,26 @@ export interface components {
             click_offset_pct?: components["schemas"]["ClickOffsetPct"] | null;
             region_box_pct?: components["schemas"]["RegionBoxPct"] | null;
         };
+        /** EmailChangeConfirm */
+        EmailChangeConfirm: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Code */
+            code: string;
+        };
+        /** EmailChangeRequest */
+        EmailChangeRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Password */
+            password?: string | null;
+        };
         /** ExtensionTokenCreate */
         ExtensionTokenCreate: {
             /** Name */
@@ -2351,6 +2425,13 @@ export interface components {
             title?: string | null;
             /** Sort Order */
             sort_order?: number | null;
+        };
+        /** PasswordChangeRequest */
+        PasswordChangeRequest: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
         };
         /** PasswordLoginRequest */
         PasswordLoginRequest: {
@@ -3091,6 +3172,10 @@ export interface components {
             assignee_ids?: string[];
             /** Due At */
             due_at?: string | null;
+            /** Page Id */
+            page_id?: string | null;
+            /** Attachments */
+            attachments?: components["schemas"]["AttachmentIn"][];
         };
         /** TicketListOut */
         TicketListOut: {
@@ -3098,6 +3183,15 @@ export interface components {
             items: components["schemas"]["TicketOut"][];
             /** Total */
             total: number;
+            /** Assignee Counts */
+            assignee_counts?: {
+                [key: string]: number;
+            };
+            /**
+             * Total Any Assignee
+             * @default 0
+             */
+            total_any_assignee: number;
             /** Offset */
             offset: number;
             /** Limit */
@@ -3254,6 +3348,11 @@ export interface components {
              *     }
              */
             preferences: components["schemas"]["UserPreferencesOut"];
+            /**
+             * Has Password
+             * @default false
+             */
+            has_password: boolean;
         };
         /** UserPreferencesOut */
         UserPreferencesOut: {
@@ -3288,6 +3387,8 @@ export interface components {
             /** Name */
             name?: string | null;
             preferences?: components["schemas"]["UserPreferencesOut"] | null;
+            /** Avatar Url */
+            avatar_url?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -3668,6 +3769,101 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UserUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_password_api_v1_auth_me_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_email_change_api_v1_auth_me_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_email_change_api_v1_auth_me_email_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChangeConfirm"];
             };
         };
         responses: {
@@ -4573,8 +4769,9 @@ export interface operations {
                 priority?: ("low" | "medium" | "high") | null;
                 tag?: ("Bug" | "Copy" | "Design" | "Responsive" | "Content" | "Accessibility") | null;
                 assignee?: string | null;
+                assignees?: string[];
                 view?: "all" | "mine" | "reply" | "client" | "overdue";
-                sort?: "newest" | "oldest" | "due" | "priority" | "status" | "project";
+                sort?: "newest" | "oldest" | "due" | "priority" | "status" | "project" | "assignee" | "tag";
                 offset?: number;
                 limit?: number;
             };

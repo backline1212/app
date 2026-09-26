@@ -15,9 +15,9 @@ import { ShareProjectModal } from "../workspaces/ShareProjectModal";
 import type { WorkspaceOut } from "../workspaces/api";
 import * as api from "./api";
 import { ProjectForm } from "./ProjectForm";
-import { ProjectMenu } from "./ProjectMenu";
+import { DuplicateProjectDialog, ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
-import { ComingSoonModal } from "../workspaces/ComingSoonModal";
+import { ComingSoonPanel, type SoonType } from "./ComingSoonPanel";
 import { PlusIcon, SearchIcon } from "../../components/icons";
 
 const TYPE_LABELS: Record<string, string> = { website: "Website", image: "Images", pdf: "PDF" };
@@ -151,11 +151,12 @@ export function ProjectsPage() {
   const [params, setParams] = useSearchParams();
   const [createType, setCreateType] = useState<"website" | "image" | "pdf" | null>(null);
   const [share, setShare] = useState<api.ProjectOut | null>(null);
+  const [duplicating, setDuplicating] = useState<api.ProjectOut | null>(null);
   const [edit, setEdit] = useState<api.ProjectOut | null>(null);
   const [managePages, setManagePages] = useState<api.ProjectOut | null>(null);
   const [showNewTicket, setShowNewTicket] = useState(false);
-  const [comingSoonFeature, setComingSoonFeature] = useState<string | null>(null);
   const archived = params.get("archived") === "true", search = params.get("search") ?? "", type = params.get("type") ?? "all", view = params.get("display") ?? "cards", sort = params.get("sort") ?? "activity";
+  const soonType: SoonType | null = type === "webapp" || type === "mobile" ? type : null;
   // Live clock (ticks every minute) so the greeting's time-of-day and the head's
   // date/time readout are never more than a minute stale - always the viewer's own
   // local time, so it already reads correctly for whatever timezone they're in.
@@ -179,7 +180,7 @@ export function ProjectsPage() {
   const firstName = user?.name.trim().split(/\s+/)[0];
   const hour = now.getHours();
   const timeGreeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const headline = archived ? "Archived projects" : search ? `Results for "${search}"` : type !== "all" ? `${TYPE_LABELS[type] ?? "Projects"} projects` : firstName ? `${timeGreeting}, ${firstName}` : timeGreeting;
+  const headline = archived ? "Archived projects" : search ? `Results for "${search}"` : type !== "all" && !soonType ? `${TYPE_LABELS[type] ?? "Projects"} projects` : firstName ? `${timeGreeting}, ${firstName}` : timeGreeting;
   const needsReply = summary.data?.needs_reply ?? 0;
   const fullyResolved = (projects.data ?? []).filter((p) => !p.archived_at && (stats.get(p.id)?.total ?? 0) > 0 && stats.get(p.id)?.resolved === stats.get(p.id)?.total).map((p) => p.name);
 
@@ -204,11 +205,14 @@ export function ProjectsPage() {
         {!p.archived_at && view === "cards" && (
           <div className="bl-project-overlay">
             <div className="bl-project-overlay-actions">
-              <button type="button" aria-label={`Share ${p.name}`} onClick={() => setShare(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="3.5"/><path d="M19 8v6M22 11h-6"/></svg></button>
-              <button type="button" aria-label={`Open ${p.name} settings`} onClick={() => setEdit(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg></button>
+              <button type="button" aria-label={`Duplicate ${p.name}`} title="Duplicate project" onClick={() => setDuplicating(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+              <button type="button" aria-label={`Share ${p.name}`} title="Share project" onClick={() => setShare(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="3.5"/><path d="M19 8v6M22 11h-6"/></svg></button>
             </div>
-            <Link className="bl-project-overlay-open" to={destination}>Open project <span>↗</span></Link>
-            <span className="bl-project-overlay-url">{displayUrl}</span>
+            <Link className="bl-project-overlay-open" to={destination}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>Open Project</Link>
+            <div className="bl-project-overlay-foot">
+              <span className="bl-project-overlay-url">{displayUrl}</span>
+              <button type="button" className="bl-project-overlay-badge" aria-label={`Who has access to ${p.name}`} title="Who has access" onClick={() => setShare(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="3.5"/><path d="m17 11 2 2 4-4"/></svg></button>
+            </div>
           </div>
         )}
       </div>
@@ -263,7 +267,7 @@ export function ProjectsPage() {
   return <>
     <main className="bl-wrap">
       <header className="bl-head">
-        <div><h1>{headline}</h1><p>{archived ? "Finished for now. Restore a project to review it again." : search ? `${visible.length} result${visible.length === 1 ? "" : "s"} for "${search}".` : type !== "all" ? `Every ${(TYPE_LABELS[type] ?? "project").toLowerCase()} review, all in one place.` : <>{needsReply > 0 ? <><b>{needsReply} comment{needsReply === 1 ? "" : "s"}</b> {needsReply === 1 ? "is" : "are"} waiting on a reply from you</> : <><b>Nothing</b> is waiting on a reply from you</>}{fullyResolved.length > 0 ? `, and ${fullyResolved.join(" and ")} ${fullyResolved.length === 1 ? "has" : "have"} been fully resolved.` : "."}</>}</p></div>
+        <div><h1>{headline}</h1><p>{archived ? "Finished for now. Restore a project to review it again." : search ? `${visible.length} result${visible.length === 1 ? "" : "s"} for "${search}".` : type !== "all" && !soonType ? `Every ${(TYPE_LABELS[type] ?? "project").toLowerCase()} review, all in one place.` : <>{needsReply > 0 ? <><b>{needsReply} comment{needsReply === 1 ? "" : "s"}</b> {needsReply === 1 ? "is" : "are"} waiting on a reply from you</> : <><b>Nothing</b> is waiting on a reply from you</>}{fullyResolved.length > 0 ? `, and ${fullyResolved.join(" and ")} ${fullyResolved.length === 1 ? "has" : "have"} been fully resolved.` : "."}</>}</p></div>
         <div className="bl-head-actions">
           <time className="bl-mono bl-head-clock">{now.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}<br />{now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
         </div>
@@ -290,7 +294,9 @@ export function ProjectsPage() {
         </section>
       )}
 
-      <div className="bl-tabs" aria-label="Project types">{[['all', 'All projects'], ['website', 'Website'], ['image', 'Images'], ['pdf', 'PDF']].map(([key, label]) => <button key={key} aria-pressed={type === key} onClick={() => filter("type", key)}>{label}<span className="bl-count">{(projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (key === "all" || (p.project_type ?? "website") === key)).length}</span></button>)}<button type="button" onClick={() => setComingSoonFeature("Web App projects")}>Web App <small>Soon</small></button><button type="button" onClick={() => setComingSoonFeature("Mobile projects")}>Mobile <small>Soon</small></button></div>
+      <div className="bl-tabs" aria-label="Project types">{[['all', 'All projects'], ['website', 'Website'], ['image', 'Images'], ['pdf', 'PDF']].map(([key, label]) => <button key={key} aria-pressed={type === key} onClick={() => filter("type", key)}>{label}<span className="bl-count">{(projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (key === "all" || (p.project_type ?? "website") === key)).length}</span></button>)}<button type="button" aria-pressed={type === "webapp"} onClick={() => filter("type", "webapp")}>Web App <small>Soon</small></button><button type="button" aria-pressed={type === "mobile"} onClick={() => filter("type", "mobile")}>Mobile App <small>Soon</small></button></div>
+
+      {soonType ? <ComingSoonPanel type={soonType} /> : <>
 
       {/* One search-styled control on this screen, not two: this is the "filter the
           visible grid" input; the omnisearch in the persistent topbar (⌘K) is the
@@ -359,11 +365,12 @@ export function ProjectsPage() {
         )}
         {!projects.error && visible.length === 0 && <div className="bl-empty"><h2>{archived ? "No archived projects" : "No projects here yet"}</h2><p>{search || type !== "all" ? "Try a different search or project type." : "Create a project to get a shareable review link."}</p></div>}
       </>}
+      </>}
     </main>
     {createType && <ProjectForm workspace={workspace} initialType={createType} onClose={() => setCreateType(null)} />}{edit && <ProjectForm workspace={workspace} project={edit} onClose={() => setEdit(null)} />}
+    {duplicating && <DuplicateProjectDialog project={duplicating} workspaceSlug={workspace.slug} onClose={() => setDuplicating(null)} />}
     {share && <ShareProjectModal project={share} workspaceId={workspace.id} workspaceSlug={workspace.slug} workspaceName={workspace.name} onClose={() => setShare(null)} />}
     {managePages && <ProjectPagesModal project={managePages} activePageId={null} onOpenPage={(pageId) => navigate(`/w/${workspace.slug}/p/${managePages.id}${pageId ? `?page=${encodeURIComponent(pageId)}` : ""}`)} onClose={() => setManagePages(null)} />}
-    {comingSoonFeature && <ComingSoonModal feature={comingSoonFeature} onClose={() => setComingSoonFeature(null)} />}
     {showNewTicket && <NewTicket workspace={workspace} members={members.data ?? []} onClose={() => setShowNewTicket(false)} />}
   </>;
 }
