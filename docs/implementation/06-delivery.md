@@ -1197,3 +1197,10 @@ browser/E2E/axe run, database migration, or production deployment is claimed.
     shows the real project count instead of the design's "2 / 3" meter (no plan limits
     exist).
   - Verification: `tsc -b`, eslint (0 errors), `vite build`. Not checked in a browser.
+
+- **2026-09-26 Project card hover flicker**:
+  - Hover no longer moves the card (a lifted card slid out from under a cursor near
+    its edge and oscillated) and the overlay no longer uses backdrop-filter over
+    scaling artwork (repainted every frame and flashed in Chrome). Hover is now the
+    design's border + shadow change with a .13s opacity fade on a flat scrim.
+  - Verification: `vite build` passed. Not checked in a browser.

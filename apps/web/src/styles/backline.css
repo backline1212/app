@@ -2452,3 +2452,17 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-tfil-chip button:hover{color:#fff}
 :root.dark .bl-tfil-chip{background:#F3F7F4;color:#0B0B0B}
 :root.dark .bl-tfil-chip button{color:#0A6B4B}
+
+/* Project card hover without flicker. The design lifts the card and blurs behind the
+   overlay; both made the hover flicker here:
+   - a card that moves on hover slides out from under a cursor near its edge, drops
+     back, and loops - so hover only changes shadow and border, never position;
+   - backdrop-filter on a fading layer over scaling artwork repaints every frame and
+     flashes in Chrome - so the scrim is flat, and the artwork under it stays still.
+   The overlay fades on opacity alone (design: .13s) on its own compositor layer. */
+.bl-projects.cards .bl-project,.bl-projects.compact .bl-project{transition:border-color .12s ease,box-shadow .16s ease}
+.bl-projects.cards .bl-project:hover,.bl-projects.compact .bl-project:hover{transform:none;border-color:var(--ink-4);box-shadow:0 6px 20px rgba(11,11,11,.09)}
+.bl-projects.cards .bl-project:hover .bl-project-hero,.bl-projects.cards .bl-project:hover .bl-project-art svg,.bl-projects.cards .bl-project:hover .bl-project-letter{transform:none}
+.bl-project-overlay{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(11,11,11,.52);visibility:visible;transition:opacity .13s ease;will-change:opacity;pointer-events:none}
+.bl-project-overlay>*{pointer-events:none}
+.bl-project:hover .bl-project-overlay>*,.bl-project:focus-within .bl-project-overlay>*{pointer-events:auto}
