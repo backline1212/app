@@ -883,7 +883,7 @@ export function ProjectOverviewPage() {
                 )}
               </div>
               <div className="bl-live-frame-meta">
-                <span className={widgetError ? "bl-frame-error" : undefined} title={widgetError ?? undefined}>{widgetError ? "Commenting couldn't start on this page — reload the canvas to try again" : selectedCommentNumber > 0 ? `Comment ${selectedCommentNumber} selected — locating its pin` : mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : "Browse mode — page interactions enabled"}</span>
+                <span className={widgetError ? "bl-frame-error" : undefined} title={widgetError ?? undefined}>{widgetError ? "Commenting couldn't start on this page — reload the canvas to try again" : selectedCommentNumber > 0 && mode !== "browse" ? `Comment ${selectedCommentNumber} selected — locating its pin` : mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : "Browse mode — comments are hidden, use the site as normal"}</span>
                 <span>Source: proxy</span>
               </div>
               {!viewport && (
@@ -921,7 +921,12 @@ export function ProjectOverviewPage() {
           canvasRef={canvasRef}
           currentPageId={currentPageId}
           selectedCommentId={selectedCommentId}
-          onSelectComment={setSelectedCommentId}
+          onSelectComment={(id) => {
+            // Browse hides every pin, so opening a comment from the panel switches
+            // to Comment mode where its pin can actually be shown.
+            if (id && mode === "browse") setMode("comment");
+            setSelectedCommentId(id);
+          }}
           revealCommentsSignal={commentsRevealSignal}
         />
       </section>

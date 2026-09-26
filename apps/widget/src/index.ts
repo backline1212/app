@@ -77,8 +77,16 @@ async function init(config: BacklineConfig): Promise<void> {
   // the dashboard re-sends the mode on every iframe load, so a mode can genuinely
   // arrive before this widget is wired up - until then it's just recorded, and the
   // wiring below applies whatever the latest one turned out to be.
+  // Browse is the site on its own: pins, open threads and the composer are hidden
+  // (ui-styles.ts, :host([data-mode="browse"])) and come back as they were when the
+  // reviewer switches to Comment or Draw again.
+  const showMode = (next: WidgetMode) => {
+    (shadow.host as HTMLElement).dataset.mode = next;
+  };
+  showMode(currentMode);
   let applyMode = (next: WidgetMode) => {
     currentMode = next;
+    showMode(next);
   };
   window.addEventListener("message", (event) => {
     if (event.data?.type !== "backline:set-mode") return;
@@ -258,6 +266,7 @@ async function init(config: BacklineConfig): Promise<void> {
   let regionTeardown: (() => void) | null = null;
   applyMode = (next: WidgetMode) => {
     currentMode = next;
+    showMode(next);
     regionTeardown?.();
     regionTeardown = null;
     tooltip.dismiss();
