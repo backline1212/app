@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "../../lib/use-document-title";
-import { STATUS_LABELS, TAGS, WORKFLOW_STATUSES } from "../../lib/workflow";
+import { STATUS_LABELS } from "../../lib/workflow";
 import { PlusIcon } from "../../components/icons";
 import type { WorkspaceOut } from "../workspaces/api";
 import type * as api from "./api";
@@ -103,51 +103,6 @@ export function TicketsPage() {
             {tabCounts[tab.key] !== undefined && <span className="bl-count">{tabCounts[tab.key]}</span>}
           </button>
         ))}
-      </div>
-
-      <div className="bl-toolbar wrap">
-        <input className="bl-input" aria-label="Search tickets" placeholder="Search tickets or projects…" value={params.get("search") ?? ""} onChange={(e) => set("search", e.target.value)} />
-        <select className="bl-select" aria-label="Filter ticket status" value={params.get("status") ?? ""} onChange={(e) => set("status", e.target.value)}>
-          <option value="">All statuses</option>
-          {WORKFLOW_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABELS[s]}
-            </option>
-          ))}
-        </select>
-        <select className="bl-select" aria-label="Filter ticket project" value={params.get("project_id") ?? ""} onChange={(e) => set("project_id", e.target.value)}>
-          <option value="">All projects</option>
-          {projects.data
-            ?.filter((p) => !p.archived_at)
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-        </select>
-        <select className="bl-select" aria-label="Filter priority" value={params.get("priority") ?? ""} onChange={(e) => set("priority", e.target.value)}>
-          <option value="">All priorities</option>
-          {["high", "medium", "low"].map((p) => (
-            <option key={p}>{p}</option>
-          ))}
-        </select>
-        <select className="bl-select" aria-label="Filter tag" value={params.get("tag") ?? ""} onChange={(e) => set("tag", e.target.value)}>
-          <option value="">All tags</option>
-          {TAGS.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
-        <button
-          className="bl-quiet"
-          onClick={() => {
-            const next = new URLSearchParams();
-            next.set("view", params.get("view") || "all");
-            next.set("display", params.get("display") || "list");
-            setParams(next);
-          }}
-        >
-          Clear filters
-        </button>
       </div>
 
       {activeFilters.length > 0 && (
