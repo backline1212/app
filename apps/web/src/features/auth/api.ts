@@ -79,3 +79,24 @@ export function listSessions(): Promise<SessionOut[]> {
 export function revokeSession(familyId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/auth/sessions/${familyId}`, { method: "DELETE" });
 }
+
+export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return apiFetch<void>("/api/v1/auth/me/password", {
+    method: "POST",
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+}
+
+export function requestEmailChange(email: string, password: string | null): Promise<void> {
+  return apiFetch<void>("/api/v1/auth/me/email", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function confirmEmailChange(email: string, code: string): Promise<UserOut> {
+  return apiFetch<UserOut>("/api/v1/auth/me/email/confirm", {
+    method: "POST",
+    body: JSON.stringify({ email, code }),
+  });
+}

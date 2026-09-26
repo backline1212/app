@@ -7,7 +7,7 @@ import { updateComment } from "../board/api";
 import { listProjects } from "../projects/api";
 import { listMembers } from "../workspaces/api";
 import * as api from "./api";
-import { STATUS_LABELS } from "../../lib/workflow";
+import { STATUS_LABELS, isClosed } from "../../lib/workflow";
 
 export function useTickets(workspaceId: string, params: URLSearchParams, setParams: (p: URLSearchParams) => void) {
   const cache = useQueryClient();
@@ -25,10 +25,8 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     const value = params.get(key);
     if (value) request.set(key, value);
   }
-  // The API takes a single assignee filter; a multi-person "show work for" pick
-  // narrows to the first selection so results still reflect the URL's saved
-  // filter honestly rather than silently dropping the rest.
-  if (assignees.length) request.set("assignee", assignees[0]);
+  // "Show work for" can pick several people; the API matches any of them.
+  for (const person of assignees) request.append("assignees", person);
   request.set("offset", String(offset));
   request.set("limit", "50");
 
@@ -57,10 +55,9 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
       const previous = cache.getQueryData<Schemas["TicketListOut"]>(qk.ticketsList(workspaceId, queryKeyStr));
       cache.setQueryData<Schemas["TicketListOut"]>(qk.ticketsList(workspaceId, queryKeyStr), (old) => {
         if (!old) return old;
-        return {
-          ...old,
-          items: old.items.map((t) => t.id === id ? { ...t, ...(patch as unknown as Partial<api.Ticket>) } : t)
-        };
+        const items = old.items.map((t) => t.id === id ? { ...t, ...(patch as unknown as Partial<api.Ticket>) } : t);
+        // Mirror the API's order straight away: finished tickets sit below open ones.
+        return { ...old, items: [...items.filter((t) => !isClosed(t.status)), ...items.filter((t) => isClosed(t.status))] };
       });
       return { previous };
     },

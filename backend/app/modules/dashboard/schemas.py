@@ -3,7 +3,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.modules.comments.schemas import CommentOut, CommentUpdate, Priority, Status, Tag
+from app.modules.comments.schemas import (
+    AttachmentIn,
+    CommentOut,
+    CommentUpdate,
+    Priority,
+    Status,
+    Tag,
+)
 
 
 class TicketFilters(BaseModel):
@@ -14,8 +21,13 @@ class TicketFilters(BaseModel):
     priority: Priority | None = None
     tag: Tag | None = None
     assignee: str | None = None
+    # "Show work for": any of these people (user ids, or "unassigned"). Takes over from
+    # the single `assignee` when given; that one stays for older clients.
+    assignees: list[str] = Field(default_factory=list, max_length=50)
     view: Literal["all", "mine", "reply", "client", "overdue"] = "all"
-    sort: Literal["newest", "oldest", "due", "priority", "status", "project"] = "newest"
+    sort: Literal["newest", "oldest", "due", "priority", "status", "project", "assignee", "tag"] = (
+        "newest"
+    )
     offset: int = Field(default=0, ge=0, le=100000)
     limit: int = Field(default=50, ge=1, le=100)
 
@@ -32,6 +44,11 @@ class TicketOut(CommentOut):
 class TicketListOut(BaseModel):
     items: list[TicketOut]
     total: int
+    # Tickets per assignee (user id, or "unassigned") across the current filters minus
+    # the people filter itself - the counts the "Show work for" picker shows.
+    assignee_counts: dict[str, int] = Field(default_factory=dict)
+    # Same filters, without the people filter: the picker's "All" count.
+    total_any_assignee: int = 0
     offset: int
     limit: int
 
@@ -43,6 +60,12 @@ class TicketCreate(BaseModel):
     tags: list[Tag] = Field(default_factory=list, max_length=6)
     assignee_ids: list[str] = Field(default_factory=list, max_length=20)
     due_at: datetime | None = None
+    # Optional page/file the ticket is about. The ticket still isn't pinned (no anchor),
+    # it's only filed under that page; omitted → the project's hidden "Project tickets"
+    # page, same as before.
+    page_id: str | None = None
+    # Screenshots uploaded beforehand via POST /uploads for this same project.
+    attachments: list[AttachmentIn] = Field(default_factory=list, max_length=10)
 
 
 class ProjectStatsOut(BaseModel):

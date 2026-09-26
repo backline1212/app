@@ -143,9 +143,7 @@ class RefreshTokenRepository:
     async def find_by_hash(self, token_hash: str) -> dict[str, Any] | None:
         return await self.db.refresh_tokens.find_one({"token_hash": token_hash})
 
-    async def rotate(
-        self, *, old_token_hash: str, new_token_hash: str
-    ) -> dict[str, Any] | None:
+    async def rotate(self, *, old_token_hash: str, new_token_hash: str) -> dict[str, Any] | None:
         """Atomically claims the old token for rotation - only succeeds if it was
         still unrevoked at the exact moment of this update. Without the `revoked_at:
         None` filter here, two concurrent /auth/refresh calls carrying the same
@@ -205,6 +203,15 @@ class RefreshTokenRepository:
             {"$set": {"revoked_at": datetime.now(UTC)}},
         )
 
+    async def revoke_other_families(self, user_id: ObjectId, keep_family_id: str) -> None:
+        """One active session per member: every login family except `keep_family_id`
+        is revoked, which also invalidates its access tokens on their next request
+        (core/session.py's validate_member_session checks the family)."""
+        await self.db.refresh_tokens.update_many(
+            {"user_id": user_id, "family_id": {"$ne": keep_family_id}, "revoked_at": None},
+            {"$set": {"revoked_at": datetime.now(UTC)}},
+        )
+
     async def family_belongs_to_user(self, family_id: str, user_id: ObjectId) -> bool:
         """M-01 ownership check for DELETE /auth/sessions/{family_id}: a family_id is an
         opaque token, not derived from user_id, so without this a caller could revoke
@@ -246,12 +253,17 @@ class OtpRepository:
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
 
-    async def create(self, *, email: str, code_hash: str, ttl_minutes: int) -> None:
+    async def create(
+        self, *, email: str, code_hash: str, ttl_minutes: int, purpose: str | None = None
+    ) -> None:
+        """`purpose` marks a code that is not a sign-in code (e.g. confirming an email
+        change for one user); sign-in lookups only ever see codes without one."""
         now = datetime.now(UTC)
         await self.db.otp_codes.insert_one(
             {
                 "email": email,
                 "code_hash": code_hash,
+                "purpose": purpose,
                 "attempts": 0,
                 "expires_at": now + timedelta(minutes=ttl_minutes),
                 "consumed_at": None,
@@ -259,9 +271,17 @@ class OtpRepository:
             }
         )
 
-    async def find_latest_active(self, email: str) -> dict[str, Any] | None:
+    async def find_latest_active(
+        self, email: str, purpose: str | None = None
+    ) -> dict[str, Any] | None:
+        # {"purpose": None} also matches legacy codes stored before the field existed.
         return await self.db.otp_codes.find_one(
-            {"email": email, "consumed_at": None, "expires_at": {"$gt": datetime.now(UTC)}},
+            {
+                "email": email,
+                "purpose": purpose,
+                "consumed_at": None,
+                "expires_at": {"$gt": datetime.now(UTC)},
+            },
             sort=[("created_at", -1)],
         )
 

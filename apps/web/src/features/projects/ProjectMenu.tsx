@@ -71,10 +71,6 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
     },
     onError: () => toast("Could not load the review link.", "error"),
   });
-  const duplicate = useMutation({
-    mutationFn: () => api.duplicateProject(project.id),
-    onSuccess: async (newProject) => { await refreshWorkspace(); setConfirmDuplicate(false); toast("Project duplicated without comments or history."); navigate(`/w/${workspaceSlug}/p/${newProject.id}`); },
-  });
   const exportComments = useMutation({
     mutationFn: () => api.exportProject(project.id),
     onSuccess: (blob) => {
@@ -135,7 +131,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
 
       {renaming && <Dialog title="Rename project" onClose={() => setRenaming(false)}><div className="bl-dialog-intro"><p>{project.name}</p></div><form className="bl-compact-form" onSubmit={(event) => { event.preventDefault(); rename.mutate(); }}><label>Project name<input className="bl-input" autoFocus maxLength={200} value={renameValue} onChange={(event) => setRenameValue(event.target.value)} /><small>Reviewers see this name on the review link.</small></label>{rename.error && <p role="alert" className="bl-error">{rename.error.message}</p>}<footer className="bl-dialog-actions"><button type="button" className="bl-quiet" onClick={() => setRenaming(false)}>Cancel</button><button className="bl-button mint" disabled={rename.isPending || !renameValue.trim()}>{rename.isPending ? "Saving…" : "Save name"}</button></footer></form></Dialog>}
 
-      {confirmDuplicate && <ConfirmAction title="Duplicate project?" icon="duplicate" message={<><strong>{project.name}</strong> will be copied with its metadata, review settings, and website page list.</>} detail="Comments, revision and recovery history, share links, uploaded assets, and integrations stay with the original." error={duplicate.error} pending={duplicate.isPending} confirmLabel={duplicate.isPending ? "Duplicating…" : "Duplicate project"} onCancel={() => setConfirmDuplicate(false)} onConfirm={() => duplicate.mutate()} />}
+      {confirmDuplicate && <DuplicateProjectDialog project={project} workspaceSlug={workspaceSlug} onClose={() => setConfirmDuplicate(false)} />}
       {confirmExport && <ConfirmAction title="Export project comments?" icon="download" message={<>Download every comment you can access in <strong>{project.name}</strong> as a CSV file?</>} detail="The export contains comment text, workflow metadata, page context, and author names. Nothing in the project is changed." error={exportComments.error} pending={exportComments.isPending} confirmLabel={exportComments.isPending ? "Preparing…" : "Download CSV"} onCancel={() => setConfirmExport(false)} onConfirm={() => exportComments.mutate()} />}
       {confirmArchive && <ConfirmAction title="Archive project?" icon="archive" tone="warning" message={<>Archive <strong>{project.name}</strong>?</>} detail="Review links stop working and the project leaves active views. Its comments, history, files, and settings stay intact so you can restore it later." error={archive.error} pending={archive.isPending} confirmLabel={archive.isPending ? "Archiving…" : "Archive project"} onCancel={() => setConfirmArchive(false)} onConfirm={() => archive.mutate()} />}
       {confirmRestore && <ConfirmAction title="Restore project?" icon="restore" message={<>Restore <strong>{project.name}</strong> to active projects?</>} detail="Its existing review links become available again with their original safeguards." error={restore.error} pending={restore.isPending} confirmLabel={restore.isPending ? "Restoring…" : "Restore project"} onCancel={() => setConfirmRestore(false)} onConfirm={() => restore.mutate()} />}
@@ -191,4 +187,21 @@ function HardDeleteDialog({ project, onClose, onDeleted }: { project: ProjectOut
     </div>
     <footer className="bl-dialog-actions bl-dialog-actions-bordered"><button type="button" className="bl-quiet" onClick={onClose}>Cancel</button>{preview.data && isArchived && !hasUnsafeReferences && <button type="button" className="bl-button danger" disabled={!nameMatches || confirm.isPending} onClick={() => confirm.mutate()}>{confirm.isPending ? "Deleting…" : "Delete project forever"}</button>}</footer>
   </Dialog>;
+}
+
+// Shared by the ⋯ menu and the card's hover "Duplicate" button.
+export function DuplicateProjectDialog({ project, workspaceSlug, onClose }: { project: ProjectOut; workspaceSlug: string; onClose: () => void }) {
+  const navigate = useNavigate();
+  const cache = useQueryClient();
+  const { toast } = useToast();
+  const duplicate = useMutation({
+    mutationFn: () => api.duplicateProject(project.id),
+    onSuccess: async (newProject) => {
+      await invalidateProjectMutation(cache, project.workspace_id);
+      onClose();
+      toast("Project duplicated without comments or history.");
+      navigate(`/w/${workspaceSlug}/p/${newProject.id}`);
+    },
+  });
+  return <ConfirmAction title="Duplicate project?" icon="duplicate" message={<><strong>{project.name}</strong> will be copied with its metadata, review settings, and website page list.</>} detail="Comments, revision and recovery history, share links, uploaded assets, and integrations stay with the original." error={duplicate.error} pending={duplicate.isPending} confirmLabel={duplicate.isPending ? "Duplicating…" : "Duplicate project"} onCancel={onClose} onConfirm={() => duplicate.mutate()} />;
 }

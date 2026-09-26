@@ -4,6 +4,7 @@ import { useDocumentTitle } from "../../lib/use-document-title";
 import { STATUS_LABELS, TAGS, WORKFLOW_STATUSES } from "../../lib/workflow";
 import { PlusIcon } from "../../components/icons";
 import type { WorkspaceOut } from "../workspaces/api";
+import type * as api from "./api";
 import { TicketBoard } from "./components/TicketBoard";
 import { TicketCalendar } from "./components/TicketCalendar";
 import { TicketRow } from "./components/TicketRow";
@@ -11,6 +12,7 @@ import { TicketTable } from "./components/TicketTable";
 import { TicketToolbar } from "./components/TicketToolbar";
 import { NewTicket } from "./components/NewTicket";
 import { TicketDetail } from "./components/TicketDetail";
+import { DeleteTicketDialog } from "./components/DeleteTicket";
 import { useTickets } from "./use-tickets";
 
 const VIEW_LAYOUTS = [
@@ -30,6 +32,7 @@ const VIEW_TABS: { key: string; label: string }[] = [
 
 export function TicketsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
+  const [deleting, setDeleting] = useState<api.Ticket | null>(null);
   useDocumentTitle("Tickets");
   const [params, setParams] = useSearchParams();
   const [showCreate, setShowCreate] = useState(false);
@@ -172,6 +175,8 @@ export function TicketsPage() {
             members={members.data ?? []}
             assignees={assignees}
             onAssignees={(v) => set("assignee", v)}
+            counts={query.data?.assignee_counts ?? {}}
+            totalAny={query.data?.total_any_assignee ?? 0}
           />
           <div className="bl-segment" role="group" aria-label="Ticket layout">
             {VIEW_LAYOUTS.map(({ id, label, icon }) => (
@@ -213,11 +218,12 @@ export function TicketsPage() {
                 onOpen={(id) => set("comment", id)}
                 onFilterProject={(id) => set("project_id", id)}
                 onFilterTag={(tag) => set("tag", tag)}
+                onDelete={setDeleting}
               />
             ) : (
               <div className="bl-table-wrap">
                 {rows.map((t) => (
-                  <TicketRow key={t.id} ticket={t} members={members.data ?? []} update={update} onOpen={(id) => set("comment", id)} onFilterTag={(tag) => set("tag", tag)} />
+                  <TicketRow key={t.id} ticket={t} members={members.data ?? []} update={update} onOpen={(id) => set("comment", id)} onFilterTag={(tag) => set("tag", tag)} onDelete={setDeleting} />
                 ))}
               </div>
             )}
@@ -263,6 +269,7 @@ export function TicketsPage() {
       )}
 
       {showCreate && <NewTicket workspace={workspace} members={members.data ?? []} onClose={() => setShowCreate(false)} />}
+      {deleting && <DeleteTicketDialog ticket={deleting} workspaceId={workspace.id} onCancel={() => setDeleting(null)} onDeleted={() => setDeleting(null)} />}
       {selected && <TicketDetail id={selected} workspace={workspace} members={members.data ?? []} onClose={() => set("comment", "")} />}
     </main>
   );

@@ -54,11 +54,41 @@ class UserOut(BaseModel):
     name: str
     avatar_url: str | None = None
     preferences: UserPreferencesOut = UserPreferencesOut()
+    # Whether the account can sign in with a password - the account modal offers
+    # "Change password" only when there is one to change.
+    has_password: bool = False
+
+
+# A profile photo is stored as a small data URL (the browser downscales it first), so
+# every surface that already renders avatar_url shows it with no signed-URL plumbing.
+AVATAR_DATA_URL_PATTERN = r"^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$"
+AVATAR_MAX_LENGTH = 200_000
 
 
 class UserUpdateRequest(BaseModel):
-    name: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=120)
     preferences: UserPreferencesOut | None = None
+    # Sent as null to remove the photo.
+    avatar_url: str | None = Field(
+        default=None, max_length=AVATAR_MAX_LENGTH, pattern=AVATAR_DATA_URL_PATTERN
+    )
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=PASSWORD_MAX_LENGTH)
+    new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+
+
+class EmailChangeRequest(BaseModel):
+    email: EmailStr
+    # Required when the account has a password; Google/code accounts prove it's them
+    # with the code sent to the new address alone.
+    password: str | None = Field(default=None, max_length=PASSWORD_MAX_LENGTH)
+
+
+class EmailChangeConfirm(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=1, max_length=12)
 
 
 class TokenPairOut(BaseModel):

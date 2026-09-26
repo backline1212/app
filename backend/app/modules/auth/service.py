@@ -51,6 +51,7 @@ def _user_out(doc: dict[str, Any]) -> UserOut:
         name=doc["name"],
         avatar_url=doc.get("avatar_url"),
         preferences=doc.get("preferences", {}),
+        has_password=bool(doc.get("password_hash")),
     )
 
 
@@ -109,6 +110,9 @@ async def _issue_tokens(
         os=os,
         ip_address=ip,
     )
+    # A member works from one active session at a time: signing in anywhere signs out
+    # every other device (TDR-0034).
+    await refresh_repo.revoke_other_families(user_doc["_id"], family_id)
 
     return IssuedTokens(
         access_token=access_token, refresh_token=raw_refresh, user=_user_out(user_doc)
@@ -428,9 +432,16 @@ async def update_user(
     user_repo = UserRepository(db)
 
     # Prefix preferences updates
-    patch = {}
+    patch: dict[str, Any] = {}
     if "name" in updates and updates["name"] is not None:
-        patch["name"] = updates["name"]
+        name = updates["name"].strip()
+        if not name:
+            raise ValidationError("Name can't be empty.")
+        patch["name"] = name
+
+    # Present-but-null removes the photo; absent leaves it alone.
+    if "avatar_url" in updates:
+        patch["avatar_url"] = updates["avatar_url"]
 
     if "preferences" in updates and updates["preferences"] is not None:
         for k, v in updates["preferences"].items():
@@ -442,3 +453,110 @@ async def update_user(
     if not updated_doc:
         raise AuthenticationError("User not found.")
     return _user_out(updated_doc)
+
+
+async def change_password(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    session_user_id: str,
+    current_sid: str | None,
+    *,
+    current_password: str,
+    new_password: str,
+) -> None:
+    """Changing a password needs the current one, and signs out every other session -
+    whoever may have known the old password loses the sessions it got them."""
+    user_repo = UserRepository(db)
+    user_doc = await user_repo.find_by_id(session_user_id)
+    if user_doc is None:
+        raise AuthenticationError("User not found.")
+    stored = user_doc.get("password_hash")
+    if not stored:
+        raise ValidationError(
+            "You sign in with Google or an email code, so there is no password to change."
+        )
+    matched = await anyio.to_thread.run_sync(verify_password, current_password, stored)
+    if not matched:
+        raise ValidationError("Your current password is not right.")
+    if current_password == new_password:
+        raise ValidationError("Choose a password you haven't used here before.")
+    _validate_new_password(new_password, user_doc["email"])
+    password_hash = await anyio.to_thread.run_sync(hash_password, new_password)
+    await user_repo.update(
+        user_doc["_id"], {"password_hash": password_hash, "password_changed_at": datetime.now(UTC)}
+    )
+    if current_sid:
+        await RefreshTokenRepository(db).revoke_other_families(user_doc["_id"], current_sid)
+
+
+def _email_change_purpose(user_id: str) -> str:
+    return f"email_change:{user_id}"
+
+
+async def request_email_change(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    session_user_id: str,
+    *,
+    email: str,
+    password: str | None,
+) -> None:
+    """Step one of changing the sign-in email: a code goes to the *new* address, so the
+    change only lands once someone who reads that inbox confirms it."""
+    user_repo = UserRepository(db)
+    user_doc = await user_repo.find_by_id(session_user_id)
+    if user_doc is None:
+        raise AuthenticationError("User not found.")
+    if email == user_doc["email"]:
+        raise ValidationError("That's already your email.")
+    stored = user_doc.get("password_hash")
+    if stored:
+        matched = await anyio.to_thread.run_sync(verify_password, password or "", stored)
+        if not matched:
+            raise ValidationError("Enter your current password to change your email.")
+    if await user_repo.find_by_email(email) is not None:
+        raise ConflictError("That email already has a Backline account.")
+
+    settings = get_settings()
+    code = generate_otp_code()
+    await OtpRepository(db).create(
+        email=email,
+        code_hash=hash_secret(code),
+        ttl_minutes=settings.otp_ttl_minutes,
+        purpose=_email_change_purpose(session_user_id),
+    )
+    await send_email(
+        to=email,
+        subject="Confirm your new Backline email",
+        html=f"<p>Your confirmation code is <strong>{code}</strong>. It expires in "
+        f"{settings.otp_ttl_minutes} minutes.</p><p>If you didn't ask to change your "
+        "Backline email, ignore this message.</p>",
+    )
+
+
+async def confirm_email_change(
+    db: AsyncIOMotorDatabase[dict[str, Any]], session_user_id: str, *, email: str, code: str
+) -> UserOut:
+    otp_repo = OtpRepository(db)
+    settings = get_settings()
+    otp_doc = await otp_repo.find_latest_active(
+        email, purpose=_email_change_purpose(session_user_id)
+    )
+    if otp_doc is None:
+        raise ValidationError("No active code for this email. Request a new one.")
+    if otp_doc["attempts"] >= settings.otp_max_attempts:
+        raise ValidationError("Too many attempts. Request a new code.")
+    if not secrets_match(otp_doc["code_hash"], hash_secret(code)):
+        await otp_repo.increment_attempts(otp_doc["_id"])
+        raise ValidationError("Incorrect code.")
+    await otp_repo.mark_consumed(otp_doc["_id"])
+
+    user_repo = UserRepository(db)
+    user_doc = await user_repo.find_by_id(session_user_id)
+    if user_doc is None:
+        raise AuthenticationError("User not found.")
+    try:
+        await user_repo.update(user_doc["_id"], {"email": email})
+    except DuplicateKeyError:
+        raise ConflictError("That email already has a Backline account.") from None
+    updated = await user_repo.find_by_id(session_user_id)
+    assert updated is not None
+    return _user_out(updated)

@@ -9,9 +9,22 @@ import { BellIcon } from "../../components/icons";
 import { useOnClickOutside } from "../../lib/use-click-outside";
 import { qk } from "../../lib/query-keys";
 import { useAuth } from "../auth/AuthContext";
+import { timeAgo } from "../../lib/time";
 import * as notificationsApi from "./api";
 import type { NotificationOut } from "./api";
 
+
+// design/index.html renderNotifs(): who did it (bold) + what happened, with their
+// initials in a soft square. System events (deploys, integrations) come from Backline.
+const ACTOR_COLORS = ["#F3D9C6", "#C9E4F5", "#D8E9D2", "#DCD4EF", "#F1DCE0", "#E3F8EF"];
+function actorOf(notification: NotificationOut): { name: string; initials: string; color: string } {
+  const payload = notification.payload as Record<string, unknown>;
+  const name = typeof payload.actor_name === "string" && payload.actor_name.trim() ? payload.actor_name.trim() : "Backline";
+  const initials = name === "Backline" ? "BL" : name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("");
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return { name, initials, color: name === "Backline" ? "#E3F8EF" : ACTOR_COLORS[h % ACTOR_COLORS.length] };
+}
 
 // Map notification types to human-readable descriptions (FD-AUD-006)
 function describe(notification: NotificationOut): string {
@@ -118,22 +131,19 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={handleToggle}
-        className="bl-dropdown-trigger"
-        style={{ position: "relative" }}
+        className="bl-icon-btn"
         aria-label={`Notifications${unread && unread > 0 ? `, ${unread} unread` : ""}`}
         aria-haspopup="menu"
         aria-expanded={open}
       >
         <BellIcon />
-        {!!unread && unread > 0 && (
-          <span className="bl-notif-badge" aria-hidden="true">{unread > 9 ? "9+" : unread}</span>
-        )}
+        {!!unread && unread > 0 && <span className="bl-bell-dot" aria-hidden="true" />}
       </button>
 
       {open && (
         <div className="bl-dropdown-pop bl-notif-panel" role="menu" aria-label="Notifications">
           <div className="bl-notif-head">
-            <span>Notifications</span>
+            <span>NOTIFICATIONS</span>
             <button type="button" onClick={handleMarkAllRead}>Mark all read</button>
           </div>
           <ul role="list">
@@ -159,8 +169,18 @@ export function NotificationBell() {
                   }}
                   aria-label={`${describe(notification)}${route ? " — click to view" : ""}`}
                 >
-                  <div>{describe(notification)}</div>
-                  {route && <span className="bl-notif-route">{route}</span>}
+                  {(() => {
+                    const actor = actorOf(notification);
+                    return <span className="bl-nt-av" style={{ background: actor.color }} aria-hidden="true">{actor.initials}</span>;
+                  })()}
+                  <span className="bl-nt-b">
+                    <span className="bl-nt-t">{(() => {
+                      const text = describe(notification);
+                      const name = actorOf(notification).name;
+                      return text.startsWith(name) ? <><b>{name}</b>{text.slice(name.length)}</> : text;
+                    })()}</span>
+                    <span className="bl-nt-d">{timeAgo(notification.created_at)}</span>
+                  </span>
                 </li>
               );
             })}
