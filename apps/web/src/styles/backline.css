@@ -2466,3 +2466,10 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-project-overlay{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(11,11,11,.52);visibility:visible;transition:opacity .13s ease;will-change:opacity;pointer-events:none}
 .bl-project-overlay>*{pointer-events:none}
 .bl-project:hover .bl-project-overlay>*,.bl-project:focus-within .bl-project-overlay>*{pointer-events:auto}
+/* The preview's browser bar had its own backdrop-filter right under the fading
+   overlay - the other half of the flicker. Solid frosted fill instead, and like the
+   design's .env/.pin it steps aside on hover (the overlay footer shows the URL). */
+.bl-browser{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(255,255,255,.86)}
+:root.dark .bl-browser{background:rgba(23,29,25,.86)}
+.bl-projects.cards .bl-project:hover .bl-browser,.bl-projects.cards .bl-project:hover .bl-preview-type,
+.bl-projects.cards .bl-project:focus-within .bl-browser,.bl-projects.cards .bl-project:focus-within .bl-preview-type{opacity:0}
