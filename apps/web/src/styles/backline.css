@@ -2473,3 +2473,5 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 :root.dark .bl-browser{background:rgba(23,29,25,.86)}
 .bl-projects.cards .bl-project:hover .bl-browser,.bl-projects.cards .bl-project:hover .bl-preview-type,
 .bl-projects.cards .bl-project:focus-within .bl-browser,.bl-projects.cards .bl-project:focus-within .bl-preview-type{opacity:0}
+.bl-live-frame-meta .bl-frame-error{color:#A8401F;font-weight:600}
+:root.dark .bl-live-frame-meta .bl-frame-error{color:var(--bl-error)}
