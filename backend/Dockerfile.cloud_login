@@ -1,0 +1,45 @@
+# The cloud login browser's own Dockerfile (docs/tdr/0042), not a target inside
+# backend/Dockerfile - Railway's Dockerfile builder here builds whatever stage is last in
+# the file when no target is given, and there is no reachable "Docker Build Target"
+# control (checked via the dashboard and the public GraphQL API; `Dockerfile#stage`
+# syntax in the path is not supported either - Railway just fails to find that file). A
+# multi-stage target selector for THIS service risked the exact regression
+# backend/Dockerfile's own stage-4 comment already describes happening once before (an
+# untargeted build silently picking up the wrong, much heavier stage) - a dedicated file
+# for a dedicated service removes that risk entirely, at the cost of duplicating the base
+# Python setup below rather than sharing it with backend/Dockerfile.
+#
+# IMPORTANT: same as backend/Dockerfile - the build context is the REPO ROOT, not
+# backend/, so backend/app resolves correctly below.
+#
+# On Railway: Root Directory = "/" (repo root), Dockerfile Path =
+# "backend/Dockerfile.cloud_login". No build target setting needed - this file has only
+# one stage. Needs its own public domain (Settings -> Networking -> Generate Domain);
+# set CLOUD_LOGIN_WS_URL on the API service to that domain's wss:// address.
+#
+# Unlike app.main:app, cloud_login_app.py never serves the widget/extension bundles, so
+# this skips backend/Dockerfile's widget/extension build stages entirely.
+FROM python:3.12-slim
+
+RUN pip install --no-cache-dir uv==0.11.28
+
+WORKDIR /app
+
+# Dependencies first, so an application-code-only change doesn't invalidate this layer.
+COPY backend/pyproject.toml backend/uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+COPY backend/app ./app
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Only chromium - cloud_login_app.py never launches Firefox/WebKit (unlike
+# browser_render/service.py's cross-browser screenshots, which do need all three).
+# --with-deps installs the OS-level libraries Chromium needs to actually launch headless
+# (fonts, codecs, etc.) - without it the binary downloads fine but every launch() call
+# fails at runtime with a missing-shared-library error.
+RUN playwright install --with-deps chromium
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "uvicorn app.cloud_login_app:app --host 0.0.0.0 --port ${PORT:-8000}"]

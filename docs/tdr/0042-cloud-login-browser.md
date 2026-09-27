@@ -1,7 +1,7 @@
 # TDR-0042: A cloud login browser, for reviewers without the extension
 
 Date: 2026-09-27
-Status: Accepted, **not deployed** (code ready; needs a deploy decision - see Cost below)
+Status: Accepted, deploying (see docs/implementation/06-delivery.md for the current state)
 
 ## Context
 
@@ -23,10 +23,20 @@ modal, whose captured session hands off through TDR-0041's own ticket pipeline.*
 
 - New Railway service, not the API and not the existing arq worker:
   `backend/app/cloud_login_app.py`, a second, minimal FastAPI app carrying only
-  `GET /ws`. Deployed from the Dockerfile's new `cloud_login` stage (`FROM worker`, so
-  it reuses the Playwright browser binaries `worker` already installs - see
-  `browser_render/service.py`'s own comment on why those binaries stay out of the API
-  image; this follows the identical reasoning rather than repeating the install).
+  `GET /ws`. Deployed from its own `backend/Dockerfile.cloud_login` - not a stage inside
+  `backend/Dockerfile`. That was the first attempt (`FROM worker`, reusing the same
+  Playwright-install layer `worker` already pays for), matching how `worker` itself is
+  meant to select a non-default stage; it doesn't work in this project, though - neither
+  the Railway dashboard (checked directly) nor the public GraphQL API (searched
+  thoroughly - no `target`/`buildTarget`/`dockerfileTarget` field on `ServiceInstance`,
+  `ServiceInstanceUpdateInput`, or `ServiceSource`) exposes a way to pick a non-last
+  stage, and `Dockerfile#stagename` path syntax isn't supported either (Railway just
+  fails to find that literal filename). Whether `worker`'s own "Docker Build Target"
+  setting (referenced in `backend/Dockerfile`'s comments) still works wasn't confirmed
+  either way - not verified in this pass. A dedicated file removes the ambiguity for this
+  service entirely, at the cost of a small duplicated base-image setup (no shared stage
+  with `backend/Dockerfile`, so nothing about `app`'s or `worker`'s own build is at risk
+  from this).
 - `POST /api/v1/projects/{id}/cloud-login/sessions` (`modules/cloud_login`,
   `project:manage`-gated, on the main API - it never touches Playwright) mints a
   short-lived Redis ticket and returns the separate service's `ws_url` with the ticket
@@ -65,13 +75,11 @@ opens the modal. What this does add:
   fractions of a cent per sign-in - materially the same math as the general-purpose cloud
   browser cost estimate already given for this feature (a 3-4 minute session, ≈$0.005-
   0.01).
-- **Left undeployed for now**: this project's only Railway environment
-  (`believable-caring` / `production`) had **$4.41 of credit left over the remaining 25
-  days** when this was built, with no staging environment to try a new service against
-  first. The code and Dockerfile stage are ready; creating the actual Railway service
-  (`railway up`/dashboard, wiring `CLOUD_LOGIN_WS_URL`, generating its public domain) is
-  intentionally left for a deliberate decision once there's headroom to try it safely -
-  see docs/implementation/06-delivery.md's entry for this date for the full numbers.
+- This project's only Railway environment (`believable-caring` / `production`) had
+  **$4.41 of credit left over the remaining 25 days** when this was built, with no
+  staging environment to try a new service against first - flagged to the user before
+  provisioning anything. The user chose to add balance and deploy; see
+  docs/implementation/06-delivery.md for the deploy timeline and what's still pending.
 
 ## Consequences
 

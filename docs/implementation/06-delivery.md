@@ -1,5 +1,64 @@
 # Delivery and verification ledger
 
+## 2026-09-27: Cloud login browser deploy, part 2 - dedicated Dockerfile (TDR-0042)
+
+Continuing the same-day deploy: the user added Railway balance and asked for the
+`cloud-login` service to actually work. First deploy attempt (after merging PR #35,
+which landed the whole day's work - preview origins, session sync, and this feature - on
+`main`) failed twice:
+
+1. First build used Railpack's own Node/Nx auto-detection instead of the Dockerfile at
+   all - traced to the `cloud-login` service's build config not yet being set at the time
+   its first (service-creation-triggered) build ran.
+2. After setting `dockerfilePath`/`startCommand` via the Railway GraphQL API and
+   redeploying, the container built but crash-looped: `startCommand` bypasses the
+   Dockerfile's own `CMD ["sh", "-c", ...]` and runs the string directly, so
+   `${PORT:-8000}` was never shell-expanded. Fixed by wrapping the override in its own
+   `sh -c "..."`.
+3. That redeploy (still against the OLD `main`, before the PR merge landed) also failed
+   for the more fundamental reason that `cloud_login_app.py` didn't exist on `main` yet -
+   the earlier attempt to `git push` had been blocked by a safety check and needed the
+   user's explicit confirmation to retry, which they gave ("create pr and push to main").
+4. After merging, `app` and `worker` auto-redeployed cleanly with the new code (confirms
+   the rest of this day's work - TDR-0040/0041 - is now live). `cloud-login` still failed:
+   tried `dockerfilePath: "/backend/Dockerfile#cloud_login"` (a guess at stage-target
+   syntax some platforms support) - Railway's build log showed it literally tried to read
+   a file at that path and failed, confirming that syntax isn't supported here.
+5. Root cause: neither the Railway dashboard (Settings → Build, checked directly via a
+   screenshot the user shared) nor the public GraphQL API (`ServiceInstance`,
+   `ServiceInstanceUpdateInput`, `ServiceSource` schemas all searched for `target`) expose
+   a way to pick a non-last Dockerfile stage for this project. `backend/Dockerfile`'s own
+   comments describe a "Docker Build Target" dropdown for the `worker` service, but that
+   control isn't reachable through anything checked this session - whether it still works
+   for `worker` itself wasn't verified either way.
+6. Fix: gave the cloud login browser its own dedicated `backend/Dockerfile.cloud_login`
+   (single stage, no target ambiguity possible) instead of a `FROM worker` stage inside
+   the shared Dockerfile. Slightly duplicates the base Python/uv setup, installs only
+   Chromium (not Firefox/WebKit - this service never launches those), and completely
+   removes any risk to `app`'s or `worker`'s own untargeted builds. `backend/Dockerfile`'s
+   `cloud_login` stage was removed; TDR-0042, `.env.production.example`, and
+   `DEPLOYMENT.md` updated to reference the new file instead of a build-target setting.
+
+Status at end of this entry: `cloud-login` service's `dockerfilePath` repointed at
+`backend/Dockerfile.cloud_login` via the Railway API; the file itself committed and
+pushed on `codex/fix-proxy-comments-ai`, PR opened, not yet merged/redeployed - next step
+is the user merging it and a final redeploy + health check once that lands.
+
+Railway setup performed this session (via `railway` CLI + its GraphQL API, all
+non-destructive/reversible): linked the `believable-caring` project; created the
+`cloud-login` service tracking `main`; generated it a public domain
+(`cloud-login-production.up.railway.app`); set `CLOUD_LOGIN_WS_URL` on `app`; wired
+`cloud-login`'s `MONGO_URI`/`REDIS_URL`/`JWT_SIGNING_KEY`/`INTEGRATIONS_ENCRYPTION_KEY`/
+`CORS_ALLOW_ORIGINS`/`PUBLIC_DASHBOARD_BASE_URL` as Railway variable references to `app`'s
+existing values (`${{app.VAR}}`, not copied secrets). A `railway sandbox` was also tried
+mid-task (user's own suggestion) to get real infra for verification, but it has no access
+to the project's private network by default and no copy of the repo, so it was destroyed
+again without being put to use. One `git push` and one attempt to read back the
+`cloud-login` service's resolved variable values were both blocked by this environment's
+own auto-mode safety classifier (secret-store write/read guards); the push was retried
+after the user explicitly confirmed, the variable read was not retried (not needed - the
+`set` call's own success response was sufficient confirmation).
+
 ## 2026-09-27: Cloud login browser - code ready, not deployed (TDR-0042)
 
 Built the second of the two login approaches asked for (session sync, TDR-0041, is the
