@@ -26,6 +26,9 @@ control of the inbox, so the code screen offers to set a password right there (o
 - "Skip for now" signs in without one, same as before). This is the only path that lets
 a Google/OTP member attach a first password or lets any member replace an existing one
 without knowing the old value; it does not change the signup-collision behavior above.
+Distinct from `POST /auth/me/password` (TDR-0034), the account-settings "Change
+password" that requires the current one and refuses accounts with none - the two are
+complementary, not alternatives.
 
 ## 13.3 JWT Structure
 

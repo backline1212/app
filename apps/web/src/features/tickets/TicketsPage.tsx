@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "../../lib/use-document-title";
-import { STATUS_LABELS, TAGS, WORKFLOW_STATUSES } from "../../lib/workflow";
+import { STATUS_COLORS, STATUS_LABELS } from "../../lib/workflow";
 import { PlusIcon } from "../../components/icons";
 import type { WorkspaceOut } from "../workspaces/api";
+import type * as api from "./api";
 import { TicketBoard } from "./components/TicketBoard";
 import { TicketCalendar } from "./components/TicketCalendar";
 import { TicketRow } from "./components/TicketRow";
@@ -11,6 +12,7 @@ import { TicketTable } from "./components/TicketTable";
 import { TicketToolbar } from "./components/TicketToolbar";
 import { NewTicket } from "./components/NewTicket";
 import { TicketDetail } from "./components/TicketDetail";
+import { DeleteTicketDialog } from "./components/DeleteTicket";
 import { useTickets } from "./use-tickets";
 
 const VIEW_LAYOUTS = [
@@ -30,6 +32,7 @@ const VIEW_TABS: { key: string; label: string }[] = [
 
 export function TicketsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
+  const [deleting, setDeleting] = useState<api.Ticket | null>(null);
   useDocumentTitle("Tickets");
   const [params, setParams] = useSearchParams();
   const [showCreate, setShowCreate] = useState(false);
@@ -59,8 +62,8 @@ export function TicketsPage() {
     overdue: dashboard.data?.overdue,
   };
 
-  const activeFilters: { label: string; onClear: () => void }[] = [
-    ...(params.get("status") ? [{ label: STATUS_LABELS[params.get("status") as keyof typeof STATUS_LABELS], onClear: () => set("status", "") }] : []),
+  const activeFilters: { label: string; dot?: string; onClear: () => void }[] = [
+    ...(params.get("status") ? [{ label: STATUS_LABELS[params.get("status") as keyof typeof STATUS_LABELS], dot: STATUS_COLORS[params.get("status") as keyof typeof STATUS_COLORS], onClear: () => set("status", "") }] : []),
     ...(params.get("project_id")
       ? [{ label: projects.data?.find((p) => p.id === params.get("project_id"))?.name ?? "Project", onClear: () => set("project_id", "") }]
       : []),
@@ -93,6 +96,19 @@ export function TicketsPage() {
         </div>
       </header>
 
+      {/* design/index.html .tfil-chip: what is narrowing the list, each one removable. */}
+      {activeFilters.length > 0 && (
+        <div className="bl-tfil-chips">
+          {activeFilters.map((f) => (
+            <span key={f.label} className="bl-tfil-chip">
+              {f.dot && <i style={{ background: f.dot }} aria-hidden="true" />}
+              {f.label}
+              <button type="button" onClick={f.onClear} aria-label={`Stop filtering by ${f.label}`}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="bl-segment bl-ticket-filters" role="group" aria-label="Filter tickets">
         {VIEW_TABS.map((tab) => (
           <button key={tab.key} type="button" aria-pressed={(params.get("view") ?? "all") === tab.key} onClick={() => set("view", tab.key)}>
@@ -102,63 +118,6 @@ export function TicketsPage() {
         ))}
       </div>
 
-      <div className="bl-toolbar wrap">
-        <input className="bl-input" aria-label="Search tickets" placeholder="Search tickets or projects…" value={params.get("search") ?? ""} onChange={(e) => set("search", e.target.value)} />
-        <select className="bl-select" aria-label="Filter ticket status" value={params.get("status") ?? ""} onChange={(e) => set("status", e.target.value)}>
-          <option value="">All statuses</option>
-          {WORKFLOW_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABELS[s]}
-            </option>
-          ))}
-        </select>
-        <select className="bl-select" aria-label="Filter ticket project" value={params.get("project_id") ?? ""} onChange={(e) => set("project_id", e.target.value)}>
-          <option value="">All projects</option>
-          {projects.data
-            ?.filter((p) => !p.archived_at)
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-        </select>
-        <select className="bl-select" aria-label="Filter priority" value={params.get("priority") ?? ""} onChange={(e) => set("priority", e.target.value)}>
-          <option value="">All priorities</option>
-          {["high", "medium", "low"].map((p) => (
-            <option key={p}>{p}</option>
-          ))}
-        </select>
-        <select className="bl-select" aria-label="Filter tag" value={params.get("tag") ?? ""} onChange={(e) => set("tag", e.target.value)}>
-          <option value="">All tags</option>
-          {TAGS.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
-        <button
-          className="bl-quiet"
-          onClick={() => {
-            const next = new URLSearchParams();
-            next.set("view", params.get("view") || "all");
-            next.set("display", params.get("display") || "list");
-            setParams(next);
-          }}
-        >
-          Clear filters
-        </button>
-      </div>
-
-      {activeFilters.length > 0 && (
-        <div className="bl-chip-row" style={{ padding: "0 0 14px" }}>
-          <span className="bl-eyebrow" style={{ margin: 0 }}>
-            Filtering by:
-          </span>
-          {activeFilters.map((f) => (
-            <button key={f.label} className="bl-chip" onClick={f.onClear} aria-label={`Clear filter ${f.label}`}>
-              {f.label} ✕
-            </button>
-          ))}
-        </div>
-      )}
 
       <div className="bl-toolbar">
         <span className="bl-mono">{query.data?.total ?? "—"} TICKETS</span>
@@ -172,6 +131,8 @@ export function TicketsPage() {
             members={members.data ?? []}
             assignees={assignees}
             onAssignees={(v) => set("assignee", v)}
+            counts={query.data?.assignee_counts ?? {}}
+            totalAny={query.data?.total_any_assignee ?? 0}
           />
           <div className="bl-segment" role="group" aria-label="Ticket layout">
             {VIEW_LAYOUTS.map(({ id, label, icon }) => (
@@ -213,11 +174,12 @@ export function TicketsPage() {
                 onOpen={(id) => set("comment", id)}
                 onFilterProject={(id) => set("project_id", id)}
                 onFilterTag={(tag) => set("tag", tag)}
+                onDelete={setDeleting}
               />
             ) : (
               <div className="bl-table-wrap">
                 {rows.map((t) => (
-                  <TicketRow key={t.id} ticket={t} members={members.data ?? []} update={update} onOpen={(id) => set("comment", id)} onFilterTag={(tag) => set("tag", tag)} />
+                  <TicketRow key={t.id} ticket={t} members={members.data ?? []} update={update} onOpen={(id) => set("comment", id)} onFilterTag={(tag) => set("tag", tag)} onDelete={setDeleting} />
                 ))}
               </div>
             )}
@@ -263,6 +225,7 @@ export function TicketsPage() {
       )}
 
       {showCreate && <NewTicket workspace={workspace} members={members.data ?? []} onClose={() => setShowCreate(false)} />}
+      {deleting && <DeleteTicketDialog ticket={deleting} workspaceId={workspace.id} onCancel={() => setDeleting(null)} onDeleted={() => setDeleting(null)} />}
       {selected && <TicketDetail id={selected} workspace={workspace} members={members.data ?? []} onClose={() => set("comment", "")} />}
     </main>
   );

@@ -120,6 +120,9 @@ export function ProjectOverviewPage() {
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [commentsRevealSignal, setCommentsRevealSignal] = useState(0);
   const [iframeStatus, setIframeStatus] = useState<"loading" | "loaded" | "error">("loading");
+  // Set when the in-page widget reports it could not start (widget index.ts safeInit),
+  // so the status bar stops inviting clicks that nothing will pick up.
+  const [widgetError, setWidgetError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const canvasRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -323,7 +326,12 @@ export function ProjectOverviewPage() {
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (event.source !== canvasRef.current?.contentWindow) return;
+      if (event.data?.type === "backline:widget-error") {
+        setWidgetError(typeof event.data.message === "string" ? event.data.message : "Unknown error");
+        return;
+      }
       if (event.data?.type !== "backline:page-registered") return;
+      setWidgetError(null);
       const pageId = event.data.pageId as string;
       frameDrivenPageRef.current = pageId;
       setCurrentPageId(pageId);
@@ -875,7 +883,7 @@ export function ProjectOverviewPage() {
                 )}
               </div>
               <div className="bl-live-frame-meta">
-                <span>{selectedCommentNumber > 0 ? `Comment ${selectedCommentNumber} selected — locating its pin` : mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : "Browse mode — page interactions enabled"}</span>
+                <span className={widgetError ? "bl-frame-error" : undefined} title={widgetError ?? undefined}>{widgetError ? "Commenting couldn't start on this page — reload the canvas to try again" : selectedCommentNumber > 0 && mode !== "browse" ? `Comment ${selectedCommentNumber} selected — locating its pin` : mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : "Browse mode — comments are hidden, use the site as normal"}</span>
                 <span>Source: proxy</span>
               </div>
               {!viewport && (
@@ -913,7 +921,12 @@ export function ProjectOverviewPage() {
           canvasRef={canvasRef}
           currentPageId={currentPageId}
           selectedCommentId={selectedCommentId}
-          onSelectComment={setSelectedCommentId}
+          onSelectComment={(id) => {
+            // Browse hides every pin, so opening a comment from the panel switches
+            // to Comment mode where its pin can actually be shown.
+            if (id && mode === "browse") setMode("comment");
+            setSelectedCommentId(id);
+          }}
           revealCommentsSignal={commentsRevealSignal}
         />
       </section>

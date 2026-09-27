@@ -39,10 +39,10 @@ export function MentionsInput({ onMentionedIdsChange, ...props }: MentionsInputP
 
   const workspaceQuery = useQuery({
     queryKey: qk.workspaces(),
-    queryFn: async () => {
-      const ws = await workspaceApi.listWorkspaces();
-      return ws.find(w => w.slug === workspaceSlug);
-    },
+    // Same cache entry as useWorkspaceContext, so it must hold the full list; `select`
+    // narrows it for this component without writing the single workspace back.
+    queryFn: workspaceApi.listWorkspaces,
+    select: (ws) => ws.find((w) => w.slug === workspaceSlug),
     enabled: !!workspaceSlug
   });
 

@@ -83,10 +83,10 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
   // We need the workspace ID to list members. We can get it from the workspace object if available.
   const workspaceQuery = useQuery({
     queryKey: qk.workspaces(),
-    queryFn: async () => {
-      const ws = await workspaceApi.listWorkspaces();
-      return ws.find((w) => w.slug === workspaceSlug);
-    },
+    // Same cache entry as useWorkspaceContext, so it must hold the full list; `select`
+    // narrows it for this component without writing the single workspace back.
+    queryFn: workspaceApi.listWorkspaces,
+    select: (ws) => ws.find((w) => w.slug === workspaceSlug),
     enabled: !!workspaceSlug,
   });
 

@@ -1154,10 +1154,96 @@ screens (screenshots reviewed via the reported Google Doc):
   flex-start + manual offset hack.
 - Regenerated `packages/types/openapi.json` and `src/openapi.ts` for the new endpoint.
 
-Passed: backend `ruff check app/` (164 files) and strict `mypy app/` (164 files);
-`scripts/check_workspace_scoping.py` (19 repository files, unchanged - `users` stays a
-global, non-workspace-scoped collection per 11-Database.md §11.2); frontend `eslint .`
-(0 errors, 4 pre-existing warnings unrelated to this change), `tsc -b --noEmit`, and
-`vite build` (611 modules; existing >500 kB chunk warning). No test suite was written
-per this task's own instructions (Claude Code: verify via lint/typecheck/build only). No
-interactive browser/E2E run, database migration, or production deployment is claimed.
+Merged `main` (which had landed TDR-0034's account-settings password/email change,
+`has_password`, and the one-session-per-member model one day before this branch
+started) back into this branch: only `docs/implementation/06-delivery.md` conflicted
+textually (both sides appended a dated entry), resolved by keeping both, main's first
+chronologically. The two password endpoints coexist by design (see TDR-0037's updated
+Decision section); after `POST /auth/password` succeeds, the frontend now also patches
+the in-memory user's `has_password` so TDR-0034's account-modal copy doesn't go stale
+until the next token refresh. `packages/types` was regenerated fresh post-merge rather
+than trusted from the text-level auto-merge, and produced an identical result.
+
+Passed (post-merge, full tree): backend `ruff check app/` (166 files) and strict `mypy
+app/` (166 files); `scripts/check_workspace_scoping.py` (19 repository files); frontend
+`eslint .` (0 errors, pre-existing warnings unrelated to this change), `tsc -b
+--noEmit`, and `vite build`. No test suite was written per this task's own instructions
+(Claude Code: verify via lint/typecheck/build only). No interactive browser/E2E run,
+database migration, or production deployment is claimed.
+
+## 2026-09-26: Design parity slices - tickets, account/sessions, shell, card hover (TDR-0033, TDR-0034)
+
+- **2026-09-26 Tickets design parity (design/index.html)**:
+  - New ticket dialog rebuilt to the design: two-column fields, "Page or file" picker,
+    single assignee/tag selects, and real screenshot uploads (TDR-0033: additive
+    `TicketCreate.page_id` + `attachments`, both scope-checked).
+  - List rows and the table use the design's status pill, mono priority chip, outlined
+    tags and colored due text. Status (list and table), priority and due date (table)
+    stay editable inline through the pills. The list no longer has a priority select;
+    the colored bar shows priority, as in the design.
+  - Assignee filter's empty state reads "All" instead of "Anyone".
+  - Project card hover overlay lightened.
+  - Verification: web `tsc --noEmit`, `eslint` (no new warnings) and `vite build`
+    passed; backend `ruff check`/`ruff format` and `mypy` on `app/modules/dashboard`
+    passed. Not run in a browser; no E2E run is claimed.
+
+- **2026-09-26 Account, sessions and shell polish (design/index.html)**:
+  - Account modal rebuilt to the design (Profile / Notifications / Security tabs):
+    photo upload/remove, first/last name, email change confirmed by a code sent to the
+    new address, password change. One active session per member: signing in elsewhere
+    signs the other device out (TDR-0034). Language picker removed; app pinned to English.
+  - Projects: Web App / Mobile App tabs show the design's in-page coming-soon panel
+    instead of a modal (no notify button or target dates, per M-22).
+  - Project settings footer regains its bottom padding; the rail and main column scroll
+    without visible scrollbars; one shared hover (ink + underline) for text links.
+  - Verification: web `tsc`, `eslint` (0 errors), `vite build`; backend `ruff check .`,
+    `mypy app` passed. Not exercised in a browser; no E2E run claimed.
+
+- **2026-09-26 Tickets and project card follow-ups**:
+  - Resolved / won't-fix tickets sort below open ones under every sort (API pipeline
+    `_closed` key, mirrored optimistically in the list) and render struck through.
+  - Ticket ID badge restyled with its own fixed-width column in the list.
+  - Tickets can be deleted from a list/table row (hover trash) or the ticket detail,
+    with confirmation, through the existing thread moderation endpoint (`comment:delete`).
+  - Project card hover rebuilt to the design: Duplicate + Share glass buttons beside
+    the ⋯ menu (the gear "brightness" button is gone), white "Open Project" with an
+    external-link icon and mint hover, URL + mint access badge.
+  - Verification: `tsc -b`, eslint (0 errors), `vite build`; backend ruff + mypy on
+    `app/modules/dashboard`. Not exercised in a browser.
+
+- **2026-09-26 Tickets toolbar to design (#37a9, #37a7, #37a1)**:
+  - Sort / Group / "Show work for" rebuilt to design's tsortPop / tgrpPop / whoPop:
+    ghost buttons, SORT BY / GROUP BY labels, mint ticks, "Group: …" label; the people
+    picker is multi-select (checkboxes, person marks, per-person counts, Unassigned,
+    Clear / Done) and the button shows stacked faces or "N people".
+  - API: `TicketFilters.assignees` (repeatable; any-of, incl. "unassigned"; the single
+    `assignee` still works), new `assignee` / `tag` sorts, and `TicketListOut.assignee_counts`
+    + `total_any_assignee` computed over the same filters minus the people filter.
+  - #37a1 (page + screenshot in New ticket) was delivered in the earlier New ticket slice.
+  - Verification: `tsc -b`, eslint, `vite build`; ruff + mypy on dashboard. The new
+    aggregation was not run against MongoDB (none available locally).
+
+- **2026-09-26 Design parity, area 1 - rail, topbar, search, notifications**:
+  - Rail: workspace switcher at the top (ink/mint mark, "N projects · M people",
+    up/down switch icon); design nav icons, "All tickets" label, ink active state with
+    mint counts, mint "hot" count on Assigned to me; mono section labels; plan card in
+    the design's style. The Backline brand row is gone (not in the design).
+  - Switcher popover: SWITCH WORKSPACE label, lettered marks, role sub-line, tick on the
+    current workspace, "Create workspace" row that reveals the form.
+  - Topbar: design order (bell, New project, account); square initials/photo account
+    button opens the Account modal directly (sign-out is inside it); design search copy
+    and "/" hint; search results as icon tile + title + mono sub-line.
+  - Notifications: mint unread dot instead of a number badge; rows with actor initials,
+    bold actor name, mono relative time, mint tint when unread.
+  - Kept on purpose: the WORKSPACE nav group (members, integrations, extension,
+    settings) and the theme toggle, which the design has no place for; the plan card
+    shows the real project count instead of the design's "2 / 3" meter (no plan limits
+    exist).
+  - Verification: `tsc -b`, eslint (0 errors), `vite build`. Not checked in a browser.
+
+- **2026-09-26 Project card hover flicker**:
+  - Hover no longer moves the card (a lifted card slid out from under a cursor near
+    its edge and oscillated) and the overlay no longer uses backdrop-filter over
+    scaling artwork (repainted every frame and flashed in Chrome). Hover is now the
+    design's border + shadow change with a .13s opacity fade on a flat scrim.
+  - Verification: `vite build` passed. Not checked in a browser.

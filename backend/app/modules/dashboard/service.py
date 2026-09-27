@@ -25,6 +25,7 @@ from app.modules.dashboard.schemas import (
     TicketListOut,
     TicketOut,
 )
+from app.modules.pages.repository import PageRepository
 from app.modules.projects.service import get_project
 from app.modules.workspaces.repository import MembershipRepository
 
@@ -147,12 +148,19 @@ async def list_tickets(
                 project_id=doc["_page"]["project_id"],
                 project_name=doc["_project"]["name"],
                 page_title=doc["_page"].get("title") or doc["_page"]["url_normalized"],
-                page_path=_page_path(doc["_page"].get("url_normalized")),
+                page_path=None
+                if doc["_page"].get("kind") == "standalone"
+                else _page_path(doc["_page"].get("url_normalized")),
             )
         )
     return TicketListOut(
         items=items,
         total=result["count"][0]["total"] if result["count"] else 0,
+        total_any_assignee=result["count_any"][0]["total"] if result.get("count_any") else 0,
+        assignee_counts={
+            (row["_id"] if row["_id"] else "unassigned"): row["n"]
+            for row in result.get("people", [])
+        },
         offset=filters.offset,
         limit=filters.limit,
     )
@@ -237,7 +245,15 @@ async def create_ticket(
     for user_id in assignees:
         if not await MembershipRepository(db).find(workspace_id=workspace_id, user_id=user_id):
             raise ValidationError("Assignees must belong to this workspace.")
-    page = await DashboardRepository(db).standalone_page(workspace_id, project_id)
+    if body.page_id:
+        page = await PageRepository(db).find_by_id(body.page_id)
+        if page is None or page["workspace_id"] != workspace_id or page["project_id"] != project_id:
+            raise ValidationError("Choose a page from this project.")
+    else:
+        page = await DashboardRepository(db).standalone_page(workspace_id, project_id)
+    upload_prefix = f"uploads/{workspace_id}/{project_id}/"
+    if any(not a.key.startswith(upload_prefix) for a in body.attachments):
+        raise ValidationError("Screenshots must be uploaded to this project.")
     doc = await CommentRepository(db).create(
         {
             "workspace_id": workspace_id,
@@ -263,7 +279,7 @@ async def create_ticket(
             "context_json": {},
             "screenshot_key": None,
             "capture_status": "ok",
-            "attachments": [],
+            "attachments": [a.model_dump() for a in body.attachments],
             "created_at": datetime.now(UTC),
             "edited_at": None,
             "deleted_at": None,
@@ -300,6 +316,6 @@ async def create_ticket(
         **comment.model_dump(),
         project_id=project_id,
         project_name=project.name,
-        page_title="Project tickets",
-        page_path=None,
+        page_title=page.get("title") or page["url_normalized"],
+        page_path=_page_path(page["url_normalized"]) if body.page_id else None,
     )

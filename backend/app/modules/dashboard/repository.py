@@ -91,10 +91,6 @@ class DashboardRepository:
                 {key: {"$regex": escaped, "$options": "i"}}
                 for key in ("body", "_project.name", "_page.title")
             ]
-        if filters.assignee:
-            match["assignee_ids"] = (
-                {"$size": 0} if filters.assignee == "unassigned" else filters.assignee
-            )
         if filters.view == "mine":
             match.setdefault("$and", []).append({"assignee_ids": user_id})
         elif filters.view == "reply":
@@ -114,6 +110,10 @@ class DashboardRepository:
                 "$set": {
                     "_due": {"$ifNull": ["$due_at", datetime(9999, 1, 1, tzinfo=UTC)]},
                     "_priority": {"$indexOfArray": [["high", "medium", "low"], "$priority"]},
+                    # Finished work sinks below open work whatever the chosen order.
+                    "_closed": {"$in": ["$status", ["resolved", "wont_fix"]]},
+                    # "\uffff" sorts after every real value, so untagged tickets go last.
+                    "_tag": {"$ifNull": [{"$arrayElemAt": ["$tags", 0]}, "\uffff"]},
                     "_status": {
                         "$indexOfArray": [
                             ["todo", "in_progress", "in_review", "blocked", "resolved", "wont_fix"],
@@ -130,16 +130,78 @@ class DashboardRepository:
             "priority": {"_priority": 1, "_id": 1},
             "status": {"_status": 1, "_id": 1},
             "project": {"_project.name": 1, "_id": 1},
+            "assignee": {"_assignee_name": 1, "_id": 1},
+            "tag": {"_tag": 1, "_id": 1},
         }[filters.sort]
+        sort = {"_closed": 1, **sort}
+
+        people = filters.assignees or ([filters.assignee] if filters.assignee else [])
+        person_stage: list[dict[str, Any]] = []
+        if people:
+            ids = [p for p in people if p != "unassigned"]
+            either: list[dict[str, Any]] = []
+            if ids:
+                either.append({"assignee_ids": {"$in": ids}})
+            if "unassigned" in people:
+                either.append({"assignee_ids": {"$size": 0}})
+            person_stage = [{"$match": {"$or": either}}]
+
+        sort_stages: list[dict[str, Any]] = []
+        if filters.sort == "assignee":
+            # First assignee's name; unassigned tickets sort last.
+            sort_stages = [
+                {
+                    "$lookup": {
+                        "from": "users",
+                        "let": {"uid": {"$arrayElemAt": ["$assignee_ids", 0]}},
+                        "pipeline": [
+                            {
+                                "$match": {
+                                    "$expr": {
+                                        "$eq": [
+                                            "$_id",
+                                            {
+                                                "$convert": {
+                                                    "input": "$$uid",
+                                                    "to": "objectId",
+                                                    "onError": None,
+                                                    "onNull": None,
+                                                }
+                                            },
+                                        ]
+                                    }
+                                }
+                            },
+                            {"$project": {"name": 1}},
+                        ],
+                        "as": "_assignee",
+                    }
+                },
+                {
+                    "$set": {
+                        "_assignee_name": {
+                            "$ifNull": [{"$arrayElemAt": ["$_assignee.name", 0]}, "\uffff"]
+                        }
+                    }
+                },
+            ]
+
         pipeline.append(
             {
                 "$facet": {
                     "items": [
+                        *person_stage,
+                        *sort_stages,
                         {"$sort": sort},
                         {"$skip": filters.offset},
                         {"$limit": filters.limit},
                     ],
-                    "count": [{"$count": "total"}],
+                    "count": [*person_stage, {"$count": "total"}],
+                    "count_any": [{"$count": "total"}],
+                    "people": [
+                        {"$unwind": {"path": "$assignee_ids", "preserveNullAndEmptyArrays": True}},
+                        {"$group": {"_id": "$assignee_ids", "n": {"$sum": 1}}},
+                    ],
                 }
             }
         )

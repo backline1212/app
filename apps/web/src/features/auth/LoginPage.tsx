@@ -35,7 +35,7 @@ function passwordScore(value: string): number {
 
 export function LoginPage() {
   const { t } = useTranslation();
-  const { requestOtp, verifyOtp, signup, loginWithPassword, setPassword: savePassword } = useAuth();
+  const { requestOtp, verifyOtp, signup, loginWithPassword, setPassword: savePassword, user, updateUser } = useAuth();
   useDocumentTitle(t('auth.login.title' as TranslationKeys));
   const navigate = useNavigate();
   // design/index.html's four panels: #lg-in, #lg-up, #lg-reset, #lg-sent. "help" is
@@ -173,6 +173,9 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await savePassword(newPassword);
+      // The account modal's has_password gate (TDR-0034) would otherwise still show
+      // stale "no password to change" copy until the next token refresh.
+      if (user) updateUser({ ...user, has_password: true });
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save that password.");

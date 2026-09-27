@@ -28,6 +28,14 @@ could get back in by code but couldn't yet replace it. Items 1 and 5 both point 
 same gap: whether the account has no password yet or an existing one, the fix is the
 same capability, reached the same way.
 
+This branch was written against `34879ac`, one commit behind where `main` had already
+landed TDR-0034 the day before: `POST /auth/me/password` (account-settings "Change
+password", requires the *current* password, refuses accounts with none) plus
+`UserOut.has_password`. Merging `main` in did not change the plan here - TDR-0034
+explicitly declined the case this bug report is about ("Accounts without a password
+... are told there is none to change"), so the two endpoints are complementary, not
+competing. See Decision below for how they coexist.
+
 ## Decision
 
 **One endpoint, reached from the code screen, not a reset-link or account-settings
@@ -45,6 +53,16 @@ one-time code back in is never forced through it. The signup screen's 409 collis
 message is unchanged - it is correct, documented behavior (TDR-0025), and item 5's real
 complaint was the missing way to attach a password after proving ownership, not the
 collision check itself.
+
+**Distinct from `POST /auth/me/password` (TDR-0034), on purpose.** That endpoint is a
+voluntary change from account settings and rightly demands the current password; it
+already refuses accounts with none, by design. `POST /auth/password` exists only to
+clear that specific case (and forgotten-password recovery), gated by proof-of-inbox
+(the OTP) instead of proof-of-current-password. After it runs, `UserOut.has_password`
+is true and TDR-0034's "Change password" section works normally from then on - the
+frontend also patches the in-memory user (`updateUser`) right after a successful save,
+so the account modal doesn't show stale "no password to change" copy before the next
+token refresh.
 
 **Items 2, 4 and 6 are CSS/markup-only, scoped to `apps/web/src/styles/backline.css`
 and `LoginPage.tsx`:**
@@ -78,11 +96,10 @@ already reveal the case, so those were left alone.
   no other route changed shape.
 - The set-password screen is optional by design - skipping it leaves the account exactly
   as before (code-only sign-in, or its existing password unchanged).
-- Not built: a mailed password-reset link, and changing a password from account settings
-  while already signed in without the OTP step. Both remain out of scope; if wanted, a
-  new TDR should weigh them against `POST /auth/password`'s no-old-password design,
-  which assumes the caller just cleared an equivalent bar (the OTP), not merely an
-  existing session.
+- Not built: a mailed password-reset link. Changing a password from account settings
+  *is* now built, as of TDR-0034 (merged from `main` after this branch started) - it
+  requires the current password and is unrelated to this endpoint, which requires none
+  because it is reached a different, already-proven way (see Decision above).
 - `capsOn` is a single flag shared across panels; because the sign-in, sign-up and
   set-password panels are mutually exclusive (one `step` at a time, same as
   TDR-0024/0025), this doesn't cross-contaminate between fields.
