@@ -5,7 +5,8 @@ interface RegisterPageResponse {
   id: string;
 }
 
-// In proxy mode, window.location is the proxy's own URL (/proxy/{shareToken}/{realPath}),
+// On a share link's own preview origin (docs/tdr/0040) the pathname is already the real
+// one. On the legacy proxy path, window.location is /proxy/{shareToken}/{realPath},
 // not the reviewed site's - fetch_proxied_resource (backend/app/modules/proxy/service.py)
 // forwards `path` to the target origin verbatim, so stripping the "/proxy/{shareToken}"
 // prefix and swapping in the real target_origin recovers the reviewed site's actual URL.

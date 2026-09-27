@@ -1,5 +1,161 @@
 # Delivery and verification ledger
 
+## 2026-09-27: Cloud login browser - code ready, not deployed (TDR-0042)
+
+Built the second of the two login approaches asked for (session sync, TDR-0041, is the
+first): a real server-side Chromium a member can drive interactively for reviewers without
+the extension, or sites whose session is bound to the signing-in IP.
+
+- `backend/app/cloud_login_app.py` (new, separate minimal FastAPI app - never mounted into
+  `app.main:app`): `GET /ws` - validates a one-time Redis ticket, claims one of a small
+  number of concurrency slots (`SET NX EX`, same pattern as `ai/key_pool.py`'s Groq key
+  claiming), launches Chromium behind the same per-navigation SSRF guard
+  `browser_render/service.py` already uses, streams a CDP `Page.startScreencast` (JPEG,
+  1280×800) to the client, and applies mouse/keyboard input via `page.mouse`/
+  `page.keyboard`. On finish/timeout/disconnect: captures cookies + localStorage and calls
+  `session_sync.service.create_ticket` **directly** (same process - reuses TDR-0041's
+  pipeline instead of a second one).
+- `backend/app/modules/cloud_login/` (new): `POST /api/v1/projects/{id}/cloud-login/sessions`
+  (`project:manage`) mints the ticket on the main API, which never imports Playwright.
+- `backend/Dockerfile`: new `cloud_login` stage, `FROM worker` (reuses its already-installed
+  Chromium/Firefox/WebKit binaries rather than repeating the install), own `CMD`.
+- `apps/web/src/features/projects/CloudLoginModal.tsx` (new) + `QuickToolsDock`/
+  `ProjectOverviewPage` wiring (a "Sign in with a live browser" menu item, gated on a proxy
+  link existing) + `styles/backline.css` additions.
+- Config: `CLOUD_LOGIN_WS_URL` (empty = off, matches every other credential-gated feature's
+  convention), `CLOUD_LOGIN_MAX_CONCURRENT_SESSIONS` (default 2),
+  `CLOUD_LOGIN_SESSION_TTL_SECONDS` (default 240). Documented in `.env.production.example`
+  and `DEPLOYMENT.md`.
+- `packages/types` regenerated (additive: `CloudLoginSessionOut` + the new path).
+
+**Not deployed.** Mid-build, the user shared their Railway dashboard: the
+`believable-caring` project's only environment (`production`, already running the live
+`app`/`worker`/`Redis`) had **$4.41 of credit left over the remaining 25 days**, no staging
+environment to try a new service against first. A `railway sandbox create` was tried at the
+user's own suggestion to get a real Linux box for verification, but the sandbox has no
+access to the project's private network by default (confirmed: it couldn't even resolve
+`redis.railway.internal`) and no copy of the repo, so it was destroyed again after a few
+minutes rather than spending effort wiring it up for marginal benefit over the scratch
+harness below. Given that budget, creating the actual `cloud_login` Railway service
+(`CLOUD_LOGIN_WS_URL`, its own public domain) was deliberately left for the user to decide
+on rather than done unprompted - see TDR-0042's Cost section for the actual numbers
+(the running cost is genuinely small; the open question is whether to spend any of a
+near-exhausted balance on trying a new service before topping up).
+
+Verification:
+- Backend `ruff check`/`format --check`/`mypy` (strict, 175 files) clean.
+- Scratch harness (fakeredis, no real Redis/Mongo/Chromium): `cloud_login_app` module
+  imports cleanly without the browser binaries installed (confirms the lazy `playwright`
+  import - the API/ticket-minting path never pays for Chromium); the concurrency slot
+  semaphore claims exactly `CLOUD_LOGIN_MAX_CONCURRENT_SESSIONS` slots, refuses the next,
+  and reclaims one after release; the ticket round-trip is one-time (replay returns None);
+  the dashboard-origin allowlist accepts the configured dashboard origin and rejects an
+  arbitrary one; the mouse-coordinate parsing helper accepts numeric points and rejects
+  malformed ones.
+- `pnpm turbo run lint typecheck build` for web/widget/types: clean, same 4 pre-existing
+  warnings, no new ones. Extension `lint`/`build` clean (its one pre-existing `typecheck`
+  failure, unrelated to this work, is unchanged - see TDR-0041's entry).
+
+Not verified, and can't be without deploying: an actual Chromium launch, the CDP screencast
+loop against a real page, or the dashboard modal's canvas rendering/input capture against a
+live websocket. No test suite written, per this repo's Claude Code instruction.
+
+## 2026-09-27: Session sync via the extension, for SSO the proxy can't reach (TDR-0041)
+
+Google/Microsoft SSO refuses to render inside any iframe, so TDR-0040's per-link preview
+origin can't help sign-in flows that use it. Delivered a way to carry a session the member
+already has in a normal browser tab into the canvas instead:
+
+- `backend/app/modules/session_sync/` (new): `POST /api/v1/projects/{id}/session-sync`
+  (`project:manage`-gated) takes cookies + localStorage, resolves the project's active
+  proxy-mode share link, and stores a one-time Redis ticket (5-minute TTL) keyed by 24
+  random bytes; refuses outright (clear error, not silent no-op) when the link has no
+  preview origin (TDR-0040 not configured).
+- `GET /proxy/{share_token}/__backline/session-sync` (`proxy/router.py`, registered before
+  the catch-all path route so it isn't forwarded upstream) redeems the ticket: real
+  `Set-Cookie` names with TDR-0040's own CHIPS attributes, an inline script writing
+  localStorage (escaped the same way `interceptor.py`'s own injected script is), then
+  redirects to `/`. Deletes the ticket the instant it's read, valid or not.
+- Extension (`apps/extension`): manifest now declares `cookies` + `host_permissions:
+  <all_urls>`. Popup shows "Sync this session to the canvas" when the active tab matches a
+  project the member can manage; background worker reads cookies (`chrome.cookies.getAll`,
+  HttpOnly included) and localStorage (`chrome.scripting.executeScript`), posts the ticket,
+  then opens/closes an invisible tab at `redeem_url` - cookies/localStorage are per-origin,
+  not per-tab, so the canvas iframe (same preview origin) picks both up on its next load
+  with no coordination needed.
+- `packages/types` regenerated (additive: `SessionSyncTicketOut` + the new path).
+
+Verification:
+- Backend `ruff check`/`format --check`/`mypy` (strict, 170 files) clean.
+- Scratch in-process ASGI harness (real app, Mongo/Redis stubbed): create-ticket → redeem
+  round trip confirmed real cookie names + HttpOnly + CHIPS attributes on the Set-Cookie
+  response, an XSS-shaped localStorage value (`"<script>fake"`) correctly escaped in the
+  emitted inline script, one-time consumption (replay → 404), and redemption attempted off
+  a preview origin correctly rejected (422) rather than falling through to the generic
+  proxy handler and being forwarded upstream.
+- `pnpm turbo run lint typecheck build` for web/widget/types: clean, same 4 pre-existing
+  warnings. Extension `lint`/`build` clean; extension `typecheck` has one pre-existing
+  failure in `content-script.ts` (`openComposer` callback return type) confirmed via
+  `git stash` to already exist on this branch before this work - not introduced here, not
+  touched (out of scope for this change).
+
+Not verified: a live browser session (`chrome.cookies`/`chrome.scripting` behavior, the
+invisible-tab redeem) against a running extension + deployed stack. No test suite written,
+per this repo's Claude Code instruction.
+
+## 2026-09-27: Review proxy serves each share link from its own origin (TDR-0040)
+
+Login sites failed in the canvas: Instagram's login rendered its own "profile not found"
+page because its router read `/proxy/{token}/accounts/login/` as a username. Root cause
+and all related breakers in TDR-0040. Delivered:
+
+- `modules/proxy/preview_host.py` (token ↔ base32 DNS label, preview-domain config) and
+  `preview_middleware.py`, which re-addresses every preview-host request to the proxy and
+  nothing else (404 for a malformed label; websockets closed). Registered outermost in
+  `app/main.py`.
+- `proxy/service.py` preview path: `Cookie` forwarded as sent, `Set-Cookie` relayed under
+  real names (Domain dropped; `Secure; SameSite=None; Partitioned`), redirects returned to
+  the browser, Referer origin-swapped. `sec-ch-ua*`/`upgrade-insecure-requests` forwarded
+  and `Sec-Fetch-*` normalised to a direct visit (both modes). Legacy path mode extracted
+  unchanged into `_fetch_legacy`.
+- `interceptor.py`: empty-prefix mode, plus a `document.cookie` setter applying the same
+  cookie attributes. `rewriter.py` needed no logic change.
+- Contract: nullable `preview_origin` on `ShareLinkOut` and `ReviewResolveOut`; OpenAPI
+  re-exported and `packages/types` regenerated (additive diff only).
+- Web: canvas iframe and guest handoff use `preview_origin` (legacy URL when null);
+  postMessage targets the frame's real origin (`features/projects/canvas-origin.ts`, used
+  by `ProjectOverviewPage.tsx` and `panel/CommentsTab.tsx`).
+- Config/docs: `PROXY_PREVIEW_DOMAIN`/`PROXY_PREVIEW_SCHEME` (local default
+  `preview.localhost:8000`; off elsewhere until set) in `.env.production.example` and
+  `DEPLOYMENT.md`.
+
+Verification:
+- Backend `ruff check`, `ruff format --check` and `mypy` (strict, 166 files) clean; existing
+  `tests/test_proxy_rewriter.py` 10/10.
+- `pnpm turbo run lint typecheck build` for web, widget and types: all passed; web's 4
+  pre-existing warnings unchanged.
+- Scratch in-process ASGI harness (real app; Mongo, Redis and upstream stubbed with
+  `httpx.MockTransport`):
+  - preview `/` → `302 /accounts/login/`;
+  - `csrftoken` relayed unprefixed with `Secure; SameSite=None; Partitioned`;
+  - a JSON login POST carried the `Cookie` and `X-CSRFToken` upstream, and its HttpOnly
+    session cookie came back;
+  - absolute site links rewritten root-relative;
+  - `/api/v1/auth/me` and `/widget/sdk.js` on a preview host went upstream, not to
+    Backline;
+  - a malformed label returned 404;
+  - legacy `/proxy/{token}/` output unchanged;
+  - with `ENVIRONMENT=production` and nothing set, `preview_origin` is null.
+- Scratch Node VM run of the generated interceptor: relative URLs untouched, absolute
+  `www.`/apex site URLs made root-relative, CDN URLs untouched, `pushState` mapped, and a
+  `document.cookie` write's Domain/SameSite replaced.
+
+Not verified: a live browser session against a running stack (no local Mongo/Docker in this
+environment). That run would cover partitioned cookies in the cross-site canvas iframe on
+`*.preview.localhost`, and a real SPA login. No test suite written, per this repo's
+Claude Code instruction. Production needs wildcard DNS and a TLS certificate before
+`PROXY_PREVIEW_DOMAIN` is set.
+
 ## 2026-09-27: Tickets doc sweep — pin ticket numbers and paste-to-attach (TDR-0039)
 
 A second stakeholder Google Doc (plain text, no screenshots, 18 items) — distinct from

@@ -74,7 +74,9 @@ def rewrite_html(
 ) -> str:
     """`proxy_prefix` is `/proxy/{share_token}` - every rewritten root-relative or
     same-origin link is prefixed with it so subsequent navigation stays on Backline's
-    proxy instead of jumping back to the real site directly."""
+    proxy instead of jumping back to the real site directly. Empty on a link's own
+    preview origin (docs/tdr/0040): root-relative links are left alone and absolute ones
+    naming the site just lose their origin."""
 
     def _replace(match: re.Match[str]) -> str:
         value = match.group("value")

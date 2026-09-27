@@ -30,6 +30,7 @@ import {
   ShareIcon,
 } from "./panel/icons";
 import { ProjectSidePanel } from "./panel/ProjectSidePanel";
+import { canvasOrigin } from "./canvas-origin";
 import { CanvasResizer, type ResizePhase } from "./CanvasResizer";
 import { ProjectForm } from "./ProjectForm";
 import { ProjectMenu } from "./ProjectMenu";
@@ -37,12 +38,9 @@ import { ProjectPagesModal } from "./ProjectPagesModal";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { QuickToolsDock } from "./footer/QuickToolsDock";
 import { loadShortcuts, ShortcutsModal } from "./ShortcutsModal";
+import { CloudLoginModal } from "./CloudLoginModal";
 
 type PageOut = Schemas["PageOut"];
-
-// The canvas iframe is served from the API's own origin (its /proxy route), so
-// messages sent into it are addressed there rather than to "*".
-const CANVAS_ORIGIN = new URL(API_BASE_URL, window.location.origin).origin;
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 1.5;
@@ -116,6 +114,7 @@ export function ProjectOverviewPage() {
   const [showPages, setShowPages] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showCloudLogin, setShowCloudLogin] = useState(false);
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [commentsRevealSignal, setCommentsRevealSignal] = useState(0);
@@ -147,6 +146,12 @@ export function ProjectOverviewPage() {
     const handleOpenShortcuts = () => setShowShortcuts(true);
     window.addEventListener("backline:open-shortcuts", handleOpenShortcuts);
     return () => window.removeEventListener("backline:open-shortcuts", handleOpenShortcuts);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenCloudLogin = () => setShowCloudLogin(true);
+    window.addEventListener("backline:open-cloud-login", handleOpenCloudLogin);
+    return () => window.removeEventListener("backline:open-cloud-login", handleOpenCloudLogin);
   }, []);
 
   const activePageIdParam = searchParams.get("page");
@@ -273,7 +278,7 @@ export function ProjectOverviewPage() {
   // never hijacks normal text entry (e.g. a comment body that happens to contain "c").
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
-      if (showShare || showPages || showSettings || showShortcuts) return;
+      if (showShare || showPages || showSettings || showShortcuts || showCloudLogin) return;
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) return;
@@ -302,7 +307,7 @@ export function ProjectOverviewPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showShare, showPages, showSettings, showShortcuts, activePageIdParam, pagesQuery.data]);
+  }, [showShare, showPages, showSettings, showShortcuts, showCloudLogin, activePageIdParam, pagesQuery.data]);
 
   const upsertComment = useCallback(
     (payload: CommentOut & { project_id: string }) => {
@@ -430,7 +435,7 @@ export function ProjectOverviewPage() {
   // (and logged) by the browser, and a fresh load is covered by the handler below.
   useEffect(() => {
     if (iframeStatus !== "loaded") return;
-    canvasRef.current?.contentWindow?.postMessage({ type: "backline:set-mode", mode }, CANVAS_ORIGIN);
+    canvasRef.current?.contentWindow?.postMessage({ type: "backline:set-mode", mode }, canvasOrigin(canvasRef.current));
   }, [iframeStatus, mode]);
 
   // Every fresh widget instance announces itself with page-registered, including one
@@ -442,7 +447,7 @@ export function ProjectOverviewPage() {
       const canvasWindow = canvasRef.current?.contentWindow;
       if (!canvasWindow || event.source !== canvasWindow) return;
       if (event.data?.type !== "backline:page-registered") return;
-      canvasWindow.postMessage({ type: "backline:set-mode", mode }, CANVAS_ORIGIN);
+      canvasWindow.postMessage({ type: "backline:set-mode", mode }, canvasOrigin(canvasRef.current));
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -590,7 +595,12 @@ export function ProjectOverviewPage() {
   const activeLinks = (shareLinksQuery.data ?? []).filter((link) => link.revoked_at === null);
   const reviewLink = activeLinks[0] ?? null;
   const embedLink = activeLinks.find((link) => link.mode === "proxy") ?? null;
-  const canvasUrl = embedLink ? `${API_BASE_URL}/proxy/${embedLink.token}/` : null;
+  // A link's own preview origin when the API reports one (docs/tdr/0040), so the site
+  // runs at its real paths; the legacy path on the API origin otherwise.
+  const canvasBase = embedLink
+    ? embedLink.preview_origin ?? `${API_BASE_URL}/proxy/${embedLink.token}`
+    : null;
+  const canvasUrl = canvasBase ? `${canvasBase}/` : null;
 
   function proxyRequestFor(page: PageOut | null): { path: string; search: URLSearchParams } | null {
     if (!page) return { path: "", search: new URLSearchParams() };
@@ -610,7 +620,7 @@ export function ProjectOverviewPage() {
   // comment created from this canvas - see the widget's blBrowser handling in index.ts.
   iframeSearch.set("blBrowser", browser.name);
   const canvasTarget = canvasUrl && activePageRequest
-    ? `${API_BASE_URL}/proxy/${embedLink!.token}/${activePageRequest.path}?${iframeSearch.toString()}`
+    ? `${canvasBase}/${activePageRequest.path}?${iframeSearch.toString()}`
     : null;
   // blMode is the mode the canvas is *loaded* with, so it's only rebuilt when the
   // target itself changes (a different page, a different browser, a revoked link).
@@ -911,6 +921,7 @@ export function ProjectOverviewPage() {
           environment={project.environment}
           mode={mode}
           onModeChange={(m) => setMode(m)}
+          cloudLoginAvailable={Boolean(embedLink)}
         />
 
         <ProjectSidePanel
@@ -970,6 +981,7 @@ export function ProjectOverviewPage() {
         />
       )}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+      {showCloudLogin && <CloudLoginModal projectId={project.id} onClose={() => setShowCloudLogin(false)} />}
       {showSettings && <ProjectForm workspace={workspace} project={project} onClose={() => setShowSettings(false)} />}
     </main>
   );

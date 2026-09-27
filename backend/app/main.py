@@ -21,6 +21,7 @@ from app.modules.assets.router import router as assets_router
 from app.modules.auth.router import router as auth_router
 from app.modules.browser_render.router import router as browser_render_router
 from app.modules.clients.router import router as clients_router
+from app.modules.cloud_login.router import router as cloud_login_router
 from app.modules.comments.router import router as comments_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.modules.extension_tokens.router import router as extension_tokens_router
@@ -31,10 +32,12 @@ from app.modules.notifications.router import router as notifications_router
 from app.modules.pages.router import router as pages_router
 from app.modules.projects.router import router as projects_router
 from app.modules.proxy.fallback_router import router as proxy_fallback_router
+from app.modules.proxy.preview_middleware import PreviewHostMiddleware
 from app.modules.proxy.router import router as proxy_router
 from app.modules.proxy.service import close_shared_transport as close_proxy_transport
 from app.modules.realtime.pubsub import run_subscriber
 from app.modules.realtime.router import router as realtime_router
+from app.modules.session_sync.router import router as session_sync_router
 from app.modules.share_links.router import router as share_links_router
 from app.modules.snapshot_engine.router import router as snapshots_router
 from app.modules.storage.r2_client import ensure_bucket_exists
@@ -99,6 +102,9 @@ app.add_middleware(
 register_exception_handlers(app)
 
 app.add_middleware(AuthOriginMiddleware)
+# Added last so it runs first: a preview-origin request is re-addressed to the proxy
+# before any other middleware or route sees its path.
+app.add_middleware(PreviewHostMiddleware)
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(workspaces_router, prefix="/api/v1")
 app.include_router(projects_router, prefix="/api/v1")
@@ -116,6 +122,8 @@ app.include_router(integrations_router, prefix="/api/v1")
 app.include_router(mcp_router, prefix="/api/v1")
 app.include_router(extension_tokens_router, prefix="/api/v1")
 app.include_router(notifications_router, prefix="/api/v1")
+app.include_router(session_sync_router, prefix="/api/v1")
+app.include_router(cloud_login_router, prefix="/api/v1")
 # Deliberately not under /api/v1 - 12-API-WebSocket.md §12.6 specifies the connection URL
 # as `wss://api.backline.app/ws?...`, not `/api/v1/ws`.
 app.include_router(realtime_router)

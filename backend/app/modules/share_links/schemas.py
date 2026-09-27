@@ -27,6 +27,10 @@ class ShareLinkOut(BaseModel):
     ask_reviewer_name: bool = True
     domain_restrictions: list[str] = Field(default_factory=list)
     comment_export_permission: bool = False
+    # docs/tdr/0040: where a proxy-mode link's site is served from (its own origin).
+    # Null for snippet links, or when no preview domain is configured - then the legacy
+    # `{api}/proxy/{token}/` address applies.
+    preview_origin: str | None = None
 
 
 class ReviewResolveOut(BaseModel):
@@ -48,6 +52,8 @@ class ReviewResolveOut(BaseModel):
     # The guest-board endpoint independently re-checks this setting server-side
     # regardless of what the client does with this flag (comments/service.py::list_guest_board).
     show_board_to_client: bool = False
+    # Same as ShareLinkOut.preview_origin - the proxy-mode handoff destination.
+    preview_origin: str | None = None
 
 
 class GuestSessionCreate(BaseModel):

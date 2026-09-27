@@ -1473,6 +1473,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/session-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Session Sync Ticket
+         * @description Called by the Backline browser extension (docs/tdr/0041), never the dashboard
+         *     itself - the payload is cookies/localStorage read from the member's own real,
+         *     signed-in browser tab, which only the extension (chrome.cookies, HttpOnly included)
+         *     can see. Same permission browser_render's dashboard-only actions use.
+         */
+        post: operations["create_session_sync_ticket_api_v1_projects__project_id__session_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/cloud-login/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Cloud Login Session
+         * @description Mints a ticket for the separate cloud-login-browser service to redeem when the
+         *     member's browser opens the returned `ws_url` - this endpoint itself never touches
+         *     Playwright (docs/tdr/0042), so it stays on the main API like everything else here.
+         */
+        post: operations["create_cloud_login_session_api_v1_projects__project_id__cloud_login_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/proxy/{share_token}": {
         parameters: {
             query?: never;
@@ -1809,6 +1854,15 @@ export interface components {
             /** Email */
             email?: string | null;
         };
+        /** CloudLoginSessionOut */
+        CloudLoginSessionOut: {
+            /** Ws Url */
+            ws_url: string;
+            /** Ticket Ttl Seconds */
+            ticket_ttl_seconds: number;
+            /** Session Ttl Seconds */
+            session_ttl_seconds: number;
+        };
         /**
          * CommentBodyEdit
          * @description Distinct from CommentUpdate below: that's the member-only moderation PATCH (any
@@ -1964,6 +2018,30 @@ export interface components {
             device_type: string;
             /** Url */
             url: string;
+        };
+        /**
+         * CookieIn
+         * @description One cookie as `chrome.cookies.getAll` reports it (docs/tdr/0041) - the extension
+         *     reads these from the member's own real, signed-in browser profile, HttpOnly included,
+         *     which is the one thing a page's own script or a server-side proxy fetch can never do.
+         */
+        CookieIn: {
+            /** Name */
+            name: string;
+            /** Value */
+            value: string;
+            /**
+             * Path
+             * @default /
+             */
+            path: string;
+            /** Expires */
+            expires?: number | null;
+            /**
+             * Http Only
+             * @default false
+             */
+            http_only: boolean;
         };
         /** CreateAsanaTaskResult */
         CreateAsanaTaskResult: {
@@ -2275,6 +2353,13 @@ export interface components {
             layer: "client" | "team";
             /** Confirm */
             confirm: boolean;
+        };
+        /** LocalStorageItemIn */
+        LocalStorageItemIn: {
+            /** Key */
+            key: string;
+            /** Value */
+            value: string;
         };
         /** McpTokenCreate */
         McpTokenCreate: {
@@ -2894,6 +2979,8 @@ export interface components {
              * @default false
              */
             show_board_to_client: boolean;
+            /** Preview Origin */
+            preview_origin?: string | null;
         };
         /** RevisionChangeSummary */
         RevisionChangeSummary: {
@@ -3037,6 +3124,18 @@ export interface components {
              */
             last_active_at: string;
         };
+        /** SessionSyncCreate */
+        SessionSyncCreate: {
+            /** Cookies */
+            cookies?: components["schemas"]["CookieIn"][];
+            /** Local Storage */
+            local_storage?: components["schemas"]["LocalStorageItemIn"][];
+        };
+        /** SessionSyncTicketOut */
+        SessionSyncTicketOut: {
+            /** Redeem Url */
+            redeem_url: string;
+        };
         /** ShareLinkCreate */
         ShareLinkCreate: {
             /**
@@ -3098,6 +3197,8 @@ export interface components {
              * @default false
              */
             comment_export_permission: boolean;
+            /** Preview Origin */
+            preview_origin?: string | null;
         };
         /**
          * SignupRequest
@@ -6744,6 +6845,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    create_session_sync_ticket_api_v1_projects__project_id__session_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionSyncCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSyncTicketOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_cloud_login_session_api_v1_projects__project_id__cloud_login_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudLoginSessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
