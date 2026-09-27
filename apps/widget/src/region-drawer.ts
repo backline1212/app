@@ -167,8 +167,10 @@ export function setupRegionDrawer({
           threadManager.attachPinClickHandler(pin, created.id);
           tooltip.dismiss();
           controls.setStatus("Comment posted.");
+          return true;
         } catch {
           controls.setStatus("Could not post your comment. Please try again.");
+          return false;
         }
       },
       () => {
