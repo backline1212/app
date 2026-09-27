@@ -93,6 +93,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Password
+         * @description TDR-0037: reachable from the sign-in code flow (which already proved control
+         *     of the inbox) to set a first password or replace an existing one.
+         */
+        post: operations["set_password_api_v1_auth_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -2362,6 +2383,16 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * PasswordSetRequest
+         * @description TDR-0037: sets/replaces the caller's own password, authenticated by their
+         *     current session rather than by re-entering the old value - reached only after
+         *     an OTP verify, which already proved control of the inbox.
+         */
+        PasswordSetRequest: {
+            /** Password */
+            password: string;
+        };
         /** ProjectCreate */
         ProjectCreate: {
             /** Name */
@@ -3493,6 +3524,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TokenPairOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_password_api_v1_auth_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordSetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

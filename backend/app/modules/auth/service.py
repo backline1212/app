@@ -418,6 +418,31 @@ async def revoke_all_sessions(db: AsyncIOMotorDatabase[dict[str, Any]], user_id:
     )
 
 
+async def set_password(
+    db: AsyncIOMotorDatabase[dict[str, Any]], user_id: str, password: str
+) -> None:
+    """TDR-0037: lets a signed-in member set (or replace) their own password. Unlike
+    signup_with_password, this never has to guess whether the caller owns the
+    account - they already hold a valid session - so a member who joined by Google
+    or an OTP code can finally attach a first password, and one who already has a
+    password can replace it without knowing the old value, the same way any
+    OTP-verified reset works elsewhere."""
+    user_object_id = to_object_id(user_id)
+    if user_object_id is None:
+        raise AuthenticationError("Invalid session.")
+
+    user_repo = UserRepository(db)
+    user_doc = await user_repo.find_by_id(user_id)
+    if user_doc is None:
+        raise AuthenticationError("Invalid session.")
+
+    _validate_new_password(password, user_doc["email"])
+
+    # Blocking and memory-bound - off the event loop, same as signup.
+    password_hash = await anyio.to_thread.run_sync(hash_password, password)
+    await user_repo.set_password_hash(user_object_id, password_hash)
+
+
 async def update_user(
     db: AsyncIOMotorDatabase[dict[str, Any]], user_id: str, updates: dict[str, Any]
 ) -> UserOut:

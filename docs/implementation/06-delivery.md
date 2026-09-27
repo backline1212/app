@@ -1129,3 +1129,35 @@ Verification on the final working tree: `pnpm turbo run lint typecheck build` pa
 .` and `ruff format --check .` passed (189 files), strict `mypy app/ scripts/` passed
 (153 files), and workspace-scoping lint passed (17 repository files). No test suite,
 browser/E2E/axe run, database migration, or production deployment is claimed.
+
+## 2026-09-27: Client bug report - set-password from OTP flow, login UI fixes (TDR-0037)
+
+Fixed six items from a client bug report against the sign-in/sign-up/forgot-password
+screens (screenshots reviewed via the reported Google Doc):
+
+- Added `POST /auth/password` (authenticated, 204): sets/replaces the caller's own
+  password, reachable only after an OTP verify. `LoginPage`'s code-verification step now
+  offers a "Set a password" panel (with "Skip for now") instead of navigating straight
+  in. Closes both "update my password after the code" and "let a Google/OTP member
+  create a first password" - same gap, same fix; see TDR-0037 for why the signup 409
+  collision itself is unchanged.
+- Fixed the double focus outline on login password/email fields (`.lg-f
+  input:focus-visible`, previously a separately-darkened border plus an offset outline
+  from the global rule).
+- Wired up the previously-inert `.lg-caps`/`.capson` CSS: a Caps Lock badge on password
+  fields (sign-in, sign-up, set-password), via `getModifierState("CapsLock")`.
+- Replaced the signup password field's native `minLength` validation bubble with the
+  app's own `.lg-err` message (`Use at least 12 characters.`), matching what the backend
+  already enforces.
+- Added spacing between an error message and the button that follows it (`.lg-err`
+  `margin-bottom`), and centered the error icon on the message text instead of a
+  flex-start + manual offset hack.
+- Regenerated `packages/types/openapi.json` and `src/openapi.ts` for the new endpoint.
+
+Passed: backend `ruff check app/` (164 files) and strict `mypy app/` (164 files);
+`scripts/check_workspace_scoping.py` (19 repository files, unchanged - `users` stays a
+global, non-workspace-scoped collection per 11-Database.md §11.2); frontend `eslint .`
+(0 errors, 4 pre-existing warnings unrelated to this change), `tsc -b --noEmit`, and
+`vite build` (611 modules; existing >500 kB chunk warning). No test suite was written
+per this task's own instructions (Claude Code: verify via lint/typecheck/build only). No
+interactive browser/E2E run, database migration, or production deployment is claimed.

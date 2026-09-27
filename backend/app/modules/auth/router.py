@@ -14,6 +14,7 @@ from app.modules.auth.schemas import (
     OtpRequestRequest,
     OtpVerifyRequest,
     PasswordLoginRequest,
+    PasswordSetRequest,
     SessionOut,
     SignupRequest,
     SwitchWorkspaceRequest,
@@ -126,6 +127,16 @@ async def otp_verify(body: OtpVerifyRequest, request: Request, response: Respons
     issued = await auth_service.verify_otp(get_db(), body.email, body.code, ua=ua, ip=ip)
     _set_refresh_cookie(response, issued.refresh_token)
     return TokenPairOut(access_token=issued.access_token, user=issued.user)
+
+
+@router.post("/password", status_code=204)
+async def set_password(
+    body: PasswordSetRequest,
+    session: Session = Depends(get_current_session),
+) -> None:
+    """TDR-0037: reachable from the sign-in code flow (which already proved control
+    of the inbox) to set a first password or replace an existing one."""
+    await auth_service.set_password(get_db(), session.user_id, body.password)
 
 
 @router.post("/refresh", response_model=TokenPairOut)

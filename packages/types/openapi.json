@@ -204,6 +204,46 @@
         }
       }
     },
+    "/api/v1/auth/password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Set Password",
+        "description": "TDR-0037: reachable from the sign-in code flow (which already proved control\nof the inbox) to set a first password or replace an existing one.",
+        "operationId": "set_password_api_v1_auth_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/refresh": {
       "post": {
         "tags": [
@@ -8000,6 +8040,22 @@
           "password"
         ],
         "title": "PasswordLoginRequest"
+      },
+      "PasswordSetRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 12,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "PasswordSetRequest",
+        "description": "TDR-0037: sets/replaces the caller's own password, authenticated by their\ncurrent session rather than by re-entering the old value - reached only after\nan OTP verify, which already proved control of the inbox."
       },
       "ProjectCreate": {
         "properties": {

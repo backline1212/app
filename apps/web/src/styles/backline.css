@@ -307,7 +307,11 @@ body{font-family:var(--sans);background:var(--bl-paper);color:var(--bl-ink)}
   outline:none;color:var(--ink);display:block;
   transition:border-color .12s ease,background .12s ease}
 .lg-f input::placeholder{color:var(--ink-4)}
-.lg-f input:focus{border-color:var(--ink);background:var(--surface)}
+.lg-f input:focus{background:var(--surface)}
+/* Higher specificity than the global input:focus-visible rule below - one ring on
+   focus, flush against the field, not a bigger outline sitting outside a separately
+   darkened border with a gap between the two. */
+.lg-f input:focus-visible{border-color:transparent;outline:2px solid var(--bl-focus);outline-offset:0}
 .lg-f.bad input{border-color:#A8401F;background:#FFF8F6;color:#7A3016}
 .lg-inp.pw input{padding-right:74px}
 .lg-inp.pw.capson input{padding-right:150px}
@@ -329,9 +333,9 @@ body{font-family:var(--sans);background:var(--bl-paper);color:var(--bl-ink)}
   transition:background .12s ease,color .12s ease}
 .lg-forgot:hover{background:var(--mint-tint);color:var(--ink)}
 
-.lg-err{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:#A8401F;
-  margin-top:7px;line-height:1.4}
-.lg-err svg{flex:none;margin-top:2px}
+.lg-err{display:flex;align-items:center;gap:6px;font-size:12px;color:#A8401F;
+  margin:7px 0 14px;line-height:1.4}
+.lg-err svg{flex:none}
 
 /* ---- strength ---- */
 .lg-bar{display:grid;grid-template-columns:repeat(4,1fr) auto;gap:4px;align-items:center;margin-top:9px}
