@@ -232,6 +232,17 @@ const HOST_STYLES = `
     white-space: pre-wrap; word-break: break-word;
   }
   .bl-cv-files { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+  .bl-cv-replies {
+    display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid var(--bl-line-soft);
+  }
+  .bl-cv-reply-head { display: flex; align-items: baseline; gap: 7px; }
+  .bl-cv-reply-author { font-size: 12px; font-weight: 600; color: var(--bl-ink); }
+  .bl-cv-reply-time { font-size: 10.5px; color: var(--bl-ink-4); }
+  .bl-cv-reply-body {
+    margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--bl-ink-2);
+    white-space: pre-wrap; word-break: break-word;
+  }
   .bl-card .bl-attachment-link {
     display: inline-flex; align-items: center; gap: 6px; height: 34px; max-width: 100%;
     padding: 0 10px; border: 1px solid var(--bl-line); border-radius: 3px;

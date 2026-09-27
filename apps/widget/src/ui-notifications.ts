@@ -62,11 +62,12 @@ export function promptForName(shadow: ShadowRoot): Promise<string> {
 /** x/y are page (document) coordinates - e.g. MouseEvent.pageX/pageY, not clientX/
  * clientY - so the pin scrolls with the content instead of drifting off the element
  * it marks the moment the reviewer scrolls (.bl-pin is position: absolute). */
-export function renderPin(shadow: ShadowRoot, x: number, y: number): HTMLElement {
+export function renderPin(shadow: ShadowRoot, x: number, y: number, ticketNumber?: number | null): HTMLElement {
   const pin = document.createElement("div");
   pin.className = "bl-pin";
   pin.style.left = `${x}px`;
   pin.style.top = `${y}px`;
+  if (ticketNumber != null) pin.textContent = String(ticketNumber);
   shadow.appendChild(pin);
   return pin;
 }

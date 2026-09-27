@@ -160,6 +160,7 @@ export function setupRegionDrawer({
             }),
           });
           pin.classList.remove("bl-pin-ghost");
+          if (created.ticket_number != null) pin.textContent = String(created.ticket_number);
           ownCommentIds.add(created.id);
           threadManager.threadMessages.set(created.id, [created]);
           threadManager.pinsByTopId.set(created.id, { pin, untrack, regionOverlay: activeOverlay });

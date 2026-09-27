@@ -40,6 +40,31 @@ function deviceKind(width: number): keyof typeof DEVICE_ICONS {
   return "Desktop";
 }
 
+const PASTED_IMAGE_EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+};
+
+// A pasted screenshot (Cmd/Ctrl+V after a copy from the OS's own screenshot tool or
+// another app) arrives as a clipboard image item, not a File from a picker - `getAsFile`
+// gives a Blob with no name, so one is generated here to keep the same File-shaped value
+// the rest of the attachment pipeline (uploadFile, the chip UI) already expects.
+function pastedImageFiles(clipboardData: DataTransfer | null): File[] {
+  if (!clipboardData) return [];
+  const files: File[] = [];
+  Array.from(clipboardData.items).forEach((item, index) => {
+    if (!item.type.startsWith("image/")) return;
+    const blob = item.getAsFile();
+    if (!blob) return;
+    const ext = PASTED_IMAGE_EXTENSIONS[item.type] ?? "png";
+    const suffix = index > 0 ? `-${index}` : "";
+    files.push(new File([blob], `pasted-screenshot-${Date.now()}${suffix}.${ext}`, { type: item.type }));
+  });
+  return files;
+}
+
 /** Grows `textarea` to fit its content, capped by the max-height in its stylesheet.
  * A height the reviewer set themselves by dragging the corner becomes a floor, so
  * typing can push the box taller but a keystroke never undoes their drag. */
@@ -195,6 +220,13 @@ export function openComposer(
       event.preventDefault();
       submit();
     }
+  });
+  textarea.addEventListener("paste", (event) => {
+    const files = pastedImageFiles(event.clipboardData);
+    if (files.length === 0) return;
+    // A pasted image is never text worth inserting into the comment body.
+    event.preventDefault();
+    attachments.addFiles(files);
   });
 
   // The box starts at one comment's worth of space and grows with what's being typed,

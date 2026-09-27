@@ -1383,8 +1383,6 @@ button{letter-spacing:inherit}
 .bl-cellf:hover{box-shadow:0 0 0 1px currentColor inset}
 .bl-cellf:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
-.bl-ticket-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-
 /* an inline "not built yet" control, e.g. the new-ticket screenshot picker -
    looks like a real dropzone but takes no input, so it can't be mistaken for
    a working upload that silently drops files */
@@ -2323,7 +2321,7 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-project-overlay-badge svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Tickets toolbar popovers - design/index.html .ghost-btn / .pop / #whoPop. */
-.bl-ticket-toolbar{display:flex;align-items:center;gap:8px}
+.bl-ticket-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .bl-ghost-btn{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--bl-surface);padding:6px 11px;border-radius:5px;font-size:12.5px;color:var(--ink-2);white-space:nowrap;cursor:pointer}
 .bl-ghost-btn:hover{border-color:var(--ink-4);color:var(--ink)}
 .bl-ghost-btn[aria-expanded="true"]{border-color:var(--ink);color:var(--ink)}

@@ -1,5 +1,90 @@
 # Delivery and verification ledger
 
+## 2026-09-27: Tickets doc sweep — pin ticket numbers and paste-to-attach (TDR-0039)
+
+A second stakeholder Google Doc (plain text, no screenshots, 18 items) — distinct from
+TDR-0038's 13-item screenshot report above — listed QA-tool bugs/requests whose wording
+suggested an older backlog predating TDR-0021 through TDR-0038. Each item was checked
+against current source before anything was changed. Full reasoning in TDR-0039; summary:
+
+- **13 of 18 items were already done**, matching prior TDR work: ticket IDs in the
+  dashboard (TDR-0032), the ticket board design, multi-person assignee filter, Add/Select
+  Page, ticket-creation screenshots, default priority/page state, the due-date picker's
+  dialog-portal fix (TDR-0032), login/forgot-password/signup in the tool (TDR-0024,
+  TDR-0025), the full-width draggable/resizable preview (TDR-0022), comment pins surviving
+  a refresh (TDR-0033–0036), and the comment composer/popup design. No changes made.
+- **Fixed (2 genuine gaps):**
+  - The widget's `CommentRecord` type never declared `ticket_number` (already present on
+    the backend's `CommentOut` — no API change needed), so a live review-page pin and its
+    read-only card never showed which ticket they belonged to, even though the dashboard
+    shows the number everywhere. `renderPin` (`ui-notifications.ts`) now takes an optional
+    ticket number and renders it as the pin's text; `index.ts` and `region-drawer.ts` pass
+    it for an existing comment's pin and set it once a draft pin's comment is created.
+  - Screenshot copy-paste was entirely missing (confirmed net-new — not in the widget, the
+    web app, or the design HTML). `ui-attachments.ts`'s file-input handler was refactored
+    to expose a reusable `addFiles(files)`; `ui-composer.ts` now listens for `paste` on the
+    comment textarea, extracts any clipboard image items (naming them from their MIME type,
+    since `getAsFile()` gives no filename), and feeds them through the same upload/chip
+    pipeline a picked file already uses. Scoped to the widget comment composer only, per
+    stakeholder direction (not the dashboard's "New ticket" form).
+- **Asked the stakeholder directly rather than guessing (both answered):** the
+  Status/Priority pills in `TicketRow.tsx`/`TicketTable.tsx` use a native `<select>` over a
+  styled pill, with an existing code comment marking this intentional, and the design HTML
+  has no interactive open-state for it to match against — decision: leave as-is, not a bug;
+  and paste-to-attach scope — decision: widget composer only.
+- Verification: `pnpm turbo run lint typecheck build` for `@backline/widget`,
+  `@backline/extension`, and `@backline/web` all passed clean (web's 4 pre-existing
+  warnings unchanged, none in touched files). No test suite was written or run, per this
+  task's own instructions. Not exercised in a live browser against a running API.
+
+## 2026-09-27: QA doc bug sweep — verified against source, fixed what's still live (TDR-0038)
+
+A client bug report (Google Doc, 17 screenshots, 13 items) covering the Share modal,
+sidebar, dashboard, projects grid/table, tickets calendar/board/toolbar, and the widget's
+pin-click comment popup. Each item was checked against current source before changing
+anything, since the branch already carries TDR-0032's calendar/board/date-picker rebuild
+and the 2026-09-26 design-parity slices. Full reasoning and per-item disposition in
+TDR-0038; summary:
+
+- **8 of 13 items were already fixed** on this branch (calendar grid, due-date popup
+  positioning, sidebar horizontal scroll, "Waiting on you" alignment, projects tab-bar
+  scroll, project-card three-dot menu placement, select/dropdown chevron padding, board
+  view design) — confirmed by direct source read, several against code comments that
+  already describe the exact screenshot symptom as a closed bug. No changes made to these.
+- **Fixed:**
+  - `ShareProjectModal.tsx`'s hand-rolled sun-shaped settings icon replaced with the
+    existing shared `GearIcon` (already used for the identical control in
+    `CollaboratorsModal.tsx`).
+  - Removed the "Manage all share links" footer link from `CollaboratorsModal.tsx`.
+  - `features/board/components/KanbanBoard.tsx` (the comment/design-review board, distinct
+    from the tickets Kanban) had no ticket/comment number on its cards, unlike every other
+    ticket surface. Added a `bl-tid` badge via the existing `ticketRef()` helper.
+  - The widget's read-only pin-popup (`ui-comment-view.ts`'s `openCommentView`) rendered
+    only a thread's top comment; `thread-manager.ts` already held the full
+    `[top, ...replies]` array in memory but read only index `[0]`. Added a `replies` field
+    to `CommentViewData` and a read-only reply list (author, time, body) to the card. No
+    reply composer was added inside this popup — posting already has a permission-aware
+    path via the dashboard's `CommentDetail`/`CommentThreadPanel`; a second posting surface
+    in the on-page widget is a separate product decision this report didn't ask for.
+  - Found while investigating the reported toolbar "vertical scroll": `backline.css`
+    defined `.bl-ticket-toolbar` twice, and the later definition silently dropped
+    `flex-wrap:wrap`. Removed the shadowed rule and restored `flex-wrap:wrap` on the one
+    that wins the cascade.
+- **Deliberately left alone** (reasoning in TDR-0038): the pin-popup's status control is
+  already editable for a team member reviewing through the dashboard canvas and read-only
+  for a guest, by existing design policy — the screenshot most likely came from a bare
+  guest-link visit; the projects Table view already has real styling, so "design a proper
+  UI" is an open-ended aesthetic ask rather than a defect; a due-date range filter button
+  in the tickets toolbar was intentionally removed in an earlier commit (`caaf5d1`) and
+  wasn't reinstated, since re-adding it reverses a past product decision this report
+  didn't ask to reopen.
+- Verification: `pnpm turbo run lint typecheck build --filter=@backline/web
+  --filter=@backline/widget` passed 6/6 (web lint: the same 4 pre-existing warnings, none
+  in changed files; the same pre-existing >500 kB chunk advisory). No API contract,
+  database, or `packages/types` change. No test suite was written or run, per this task's
+  own instructions (Claude Code: verify via lint/typecheck/build only). No live browser
+  QA was performed in this pass.
+
 ## 2026-09-26: Final proxy, comment persistence, and Groq reconciliation (TDR-0033–0036)
 
 - Completed the interrupted comment-pin slice: stored anchors now wait a bounded time

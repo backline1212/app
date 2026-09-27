@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Dialog } from "../../components/Dialog";
+import { GearIcon } from "../../components/icons";
 import { useToast } from "../../components/Toast";
 import { qk } from "../../lib/query-keys";
 import { useUnsavedChanges } from "../../lib/use-unsaved-changes";
@@ -122,7 +123,7 @@ export function ShareProjectModal({ project, workspaceId, workspaceSlug, workspa
               <input className="bl-input bl-mono" aria-label="Client review link" readOnly value={reviewUrl(activeLink.token)} onFocus={(event) => event.target.select()} />
               <button type="button" className="bl-quiet" onClick={copyLink}>{copied ? "Copied" : "Copy link"}</button>
               <button type="button" className="bl-icon-button" aria-expanded={showSettings} aria-label="Review link settings" onClick={() => setShowSettings((value) => !value)}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" /></svg>
+                <GearIcon />
               </button>
             </div>
             {copyError && <p role="alert" className="bl-error">{copyError}</p>}

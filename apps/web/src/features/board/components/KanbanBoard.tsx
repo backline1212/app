@@ -2,6 +2,7 @@ import { LayerBadge, RecoveryBadge } from "@backline/ui";
 import type { UseMutationResult } from "@tanstack/react-query";
 
 import { WORKFLOW_STATUSES as STATUSES, STATUS_COLORS, STATUS_LABELS } from "../../../lib/workflow";
+import { ticketRef } from "../../../lib/ticket-ref";
 import type {
   CreateAsanaTaskResult,
   CreateClickUpTaskResult,
@@ -73,11 +74,12 @@ export function KanbanBoard({
                       className="bl-kanban-shot"
                     />
                   )}
-                  <p className="bl-kanban-copy">{comment.body}</p>
                   <div className="bl-chip-row">
+                    <span className="bl-tid">{ticketRef(comment)}</span>
                     <LayerBadge layer={comment.layer} />
                     <RecoveryBadge status={comment.recovery_status} />
                   </div>
+                  <p className="bl-kanban-copy">{comment.body}</p>
                   <div className="bl-kanban-meta">
                     <span>{memberName(comment.assignee_id) ?? "Unassigned"}</span>
                     <span>{commentContext(comment).device_type ?? ""}</span>
