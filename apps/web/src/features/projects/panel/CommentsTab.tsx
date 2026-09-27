@@ -4,7 +4,7 @@ import type { RefObject } from "react";
 
 import * as boardApi from "../../board/api";
 import type { CommentOut, CommentStatus } from "../../board/api";
-import { API_BASE_URL } from "../../../lib/api-client";
+import { canvasOrigin } from "../canvas-origin";
 import { qk } from "../../../lib/query-keys";
 import * as pagesApi from "../../pages/api";
 import * as workspacesApi from "../../workspaces/api";
@@ -145,8 +145,8 @@ export function CommentsTab({
     setActiveStatus((prev) => (prev === status ? null : status));
   }
 
-  // The canvas iframe is served from the API's own origin (proxy mode), not the
-  // dashboard's - postMessage is the only way to reach into it (apps/widget/src/index.ts
+  // The canvas iframe is served from the share link's preview origin (proxy mode), not
+  // the dashboard's - postMessage is the only way to reach into it (apps/widget/src/index.ts
   // listens for this exact message). Not just cosmetic: a comment whose pin never
   // rendered (off-screen, or the target hadn't loaded yet) can still genuinely exist -
   // this is how a reviewer actually finds it again.
@@ -154,7 +154,7 @@ export function CommentsTab({
     onSelectComment?.(commentId);
     canvasRef.current?.contentWindow?.postMessage(
       { type: "backline:scroll-to-comment", commentId },
-      new URL(API_BASE_URL).origin,
+      canvasOrigin(canvasRef.current),
     );
   }
 

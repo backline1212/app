@@ -16,6 +16,7 @@ from app.core.errors import ConflictError, ExternalServiceError, NotFoundError
 from app.core.ssrf_guard import MAX_REDIRECTS, assert_safe_to_fetch
 from app.modules.projects.repository import ProjectRepository
 from app.modules.proxy.interceptor import build_interceptor_script
+from app.modules.proxy.preview_host import preview_cookies_can_be_secure
 from app.modules.proxy.rewriter import rewrite_html
 from app.modules.share_links.repository import ShareLinkRepository
 
@@ -44,6 +45,12 @@ _FORWARDED_REQUEST_HEADERS = frozenset(
         "if-none-match",
         "if-range",
         "range",
+        # Client hints a real browser pairs with its User-Agent; a UA that claims Chrome
+        # without them is one of the cheapest bot signals a WAF checks (docs/tdr/0040).
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform",
+        "upgrade-insecure-requests",
     }
 )
 _BLOCKED_CUSTOM_HEADER_PREFIXES = ("x-forwarded-", "x-real-ip", "x-backline")
@@ -86,6 +93,9 @@ class ProxyRequest:
     content_type: str | None = None
     referer: str | None = None
     headers: Mapping[str, str] = field(default_factory=dict)
+    # Served from the link's own preview origin (docs/tdr/0040) rather than the legacy
+    # `/proxy/{token}/` path on the API origin.
+    preview_host: bool = False
 
 
 # One connection pool for every proxied request instead of a fresh TCP+TLS handshake to
@@ -224,6 +234,82 @@ def _location_for_browser(
     return f"/proxy/{share_token}{rest}"
 
 
+def _fetch_metadata(headers: Mapping[str, str]) -> dict[str, str]:
+    """Sec-Fetch-* as the site would see them had the reviewer opened it directly. The
+    canvas is an iframe on another site, so the browser describes each page load as a
+    cross-site iframe navigation - exactly what a Fetch Metadata isolation policy exists
+    to refuse. The page's own requests are same-origin, as they'd be on the real site."""
+    lowered = {name.lower(): value for name, value in headers.items()}
+    mode = lowered.get("sec-fetch-mode")
+    if not mode:
+        return {}
+    metadata = {"sec-fetch-mode": mode}
+    for name in ("sec-fetch-dest", "sec-fetch-site", "sec-fetch-user"):
+        if name in lowered:
+            metadata[name] = lowered[name]
+    if mode == "navigate":
+        metadata["sec-fetch-dest"] = "document"
+        if metadata.get("sec-fetch-site") in ("cross-site", "same-site"):
+            metadata["sec-fetch-site"] = "none"
+    return metadata
+
+
+def _preview_referer(referer: str | None, *, request_host: str, target_origin: str) -> str | None:
+    """On a preview origin the page's path *is* the site's path, so only the origin needs
+    swapping. A Referer from anywhere else (the dashboard framing the canvas) is dropped,
+    as a browser landing on the site from a bookmark would send none."""
+    if not referer:
+        return None
+    parsed = urlsplit(referer)
+    if not request_host or parsed.netloc.lower() != request_host.lower():
+        return None
+    rest = parsed.path or "/"
+    if parsed.query:
+        rest += f"?{parsed.query}"
+    return f"{target_origin}{rest}"
+
+
+def _preview_location(location: str, *, base_url: str, target_origin: str) -> str:
+    absolute = str(httpx.URL(base_url).join(location))
+    if not _same_reviewed_site(absolute, target_origin):
+        return absolute
+    parsed = urlsplit(absolute)
+    rest = parsed.path or "/"
+    if parsed.query:
+        rest += f"?{parsed.query}"
+    if parsed.fragment:
+        rest += f"#{parsed.fragment}"
+    return rest
+
+
+_DROPPED_COOKIE_ATTRIBUTES = frozenset({"domain", "samesite", "secure", "partitioned"})
+
+
+def _preview_set_cookies(values: list[str]) -> tuple[str, ...]:
+    """The site's own Set-Cookie headers, relayed under their real names - the page's
+    scripts read cookies like `csrftoken`/`XSRF-TOKEN` by name to build a login request.
+    Path, expiry and HttpOnly stay the site's call; Domain can't (it names the real
+    host), and SameSite/Secure/Partitioned are what let a cookie live in the cross-site
+    canvas iframe at all. Relaying headers rather than a cookie jar also carries
+    deletions through, which is how a sign-out actually signs out."""
+    suffix = (
+        "Secure; SameSite=None; Partitioned" if preview_cookies_can_be_secure() else "SameSite=Lax"
+    )
+    relayed: list[str] = []
+    for value in values:
+        pair, *attributes = value.split(";")
+        if "=" not in pair:
+            continue
+        kept = [
+            attribute.strip()
+            for attribute in attributes
+            if attribute.strip()
+            and attribute.split("=", 1)[0].strip().lower() not in _DROPPED_COOKIE_ATTRIBUTES
+        ]
+        relayed.append("; ".join([pair.strip(), *kept, suffix]))
+    return tuple(relayed)
+
+
 def _same_reviewed_site(url: str, target_origin: str) -> bool:
     """Treat the common apex/www redirect as the same site, but not arbitrary hosts."""
     candidate = urlsplit(url)
@@ -275,8 +361,10 @@ async def fetch_proxied_resource(
 
     Forms and the session they establish are carried too (docs/tdr/0026), and so are
     the requests a page's own scripts make - a fetch/XHR login, SPA navigation - via
-    the interceptor injected into every HTML page (docs/tdr/0035). Still out of scope:
-    WebSockets, streamed responses, and a site's API on a separate domain."""
+    the interceptor injected into every HTML page (docs/tdr/0035). On a link's own
+    preview origin (docs/tdr/0040) the site runs at its real paths with its real cookie
+    names; the legacy `/proxy/{token}/` path mode is kept for older embeds. Still out of
+    scope: WebSockets, streamed responses, and a site's API on a separate domain."""
     link = await ShareLinkRepository(db).find_by_token(share_token)
     if link is None:
         raise NotFoundError("This review link doesn't exist.")
@@ -312,13 +400,25 @@ async def fetch_proxied_resource(
     # Forwarded first so the values Backline must control (below) always win over
     # anything the page sent.
     upstream_headers = _forwarded_headers(request.headers)
+    upstream_headers.update(_fetch_metadata(request.headers))
     upstream_headers["user-agent"] = request.headers.get("user-agent") or "BacklineProxy/1.0"
     upstream_headers["origin"] = target_origin
     if request.content_type:
         upstream_headers["content-type"] = request.content_type
-    referer = _upstream_referer(
-        request.referer, share_token=share_token, target_origin=target_origin
-    )
+    if request.preview_host:
+        referer = _preview_referer(
+            request.referer,
+            request_host=request.headers.get("host", ""),
+            target_origin=target_origin,
+        )
+        # The preview origin belongs to this one link, so every cookie it holds is the
+        # reviewed site's own - sent on exactly as the browser sent it.
+        if request.cookie_header:
+            upstream_headers["cookie"] = request.cookie_header
+    else:
+        referer = _upstream_referer(
+            request.referer, share_token=share_token, target_origin=target_origin
+        )
     if referer:
         upstream_headers["referer"] = referer
 
@@ -334,60 +434,39 @@ async def fetch_proxied_resource(
         trust_env=False,
     )
     try:
-        # Seeded from the reviewer's browser so an established session keeps working
-        # on every later request; httpx then keeps the jar up to date across redirect
-        # hops, which is where a login's cookie usually arrives.
-        upstream_host = httpx.URL(upstream_url).host
-        for name, value in _cookies_for_upstream(request.cookie_header, share_token).items():
-            client.cookies.set(name, value, domain=upstream_host)
-
-        if method != "GET":
-            # A form submission is answered with the redirect itself rather than
-            # followed here: the reviewer's browser makes the next hop, so the frame's
-            # URL ends up on the page it's actually showing (and the session cookie
-            # rides along on this response). A script's fetch/XHR login that answers
-            # with JSON instead falls through to the passthrough below, Set-Cookie
-            # included.
-            upstream = await client.request(method, upstream_url, content=request.body)
+        if request.preview_host:
+            # Redirects go back to the browser rather than being followed here, so its
+            # address bar - which the site's own router reads - always names the page
+            # it's showing, and each hop's cookies land before the next request (which
+            # is a fresh proxied request, SSRF guard included).
+            upstream = await client.request(
+                method, upstream_url, content=request.body if method != "GET" else None
+            )
+            set_cookies = _preview_set_cookies(upstream.headers.get_list("set-cookie"))
             location = upstream.headers.get("location")
             if upstream.status_code in (301, 302, 303, 307, 308) and location:
                 return ProxiedResponse(
-                    status_code=303,
+                    status_code=upstream.status_code,
                     content_type="text/plain",
                     body=b"",
-                    set_cookies=_session_cookie_headers(client.cookies.jar, share_token),
-                    location=_location_for_browser(
-                        location,
-                        base_url=upstream_url,
-                        target_origin=target_origin,
-                        share_token=share_token,
+                    set_cookies=set_cookies,
+                    location=_preview_location(
+                        location, base_url=upstream_url, target_origin=target_origin
                     ),
                 )
         else:
-            next_url = upstream_url
-            for _ in range(MAX_REDIRECTS + 1):
-                upstream = await client.get(next_url)
-                if upstream.status_code not in (301, 302, 303, 307, 308):
-                    break
-                location = upstream.headers.get("location")
-                if not location:
-                    break
-                next_url = str(httpx.URL(next_url).join(location))
-                if not _same_reviewed_site(next_url, target_origin):
-                    return ProxiedResponse(
-                        status_code=303,
-                        content_type="text/plain",
-                        body=b"",
-                        set_cookies=_session_cookie_headers(client.cookies.jar, share_token),
-                        location=next_url,
-                    )
-                try:
-                    await asyncio.to_thread(assert_safe_to_fetch, next_url)
-                except ValueError as exc:
-                    raise ExternalServiceError(str(exc)) from exc
-            else:
-                raise ExternalServiceError("Too many redirects while reaching the reviewed site.")
-        set_cookies = _session_cookie_headers(client.cookies.jar, share_token)
+            upstream, early = await _fetch_legacy(
+                client,
+                method=method,
+                upstream_url=upstream_url,
+                body=request.body,
+                cookie_header=request.cookie_header,
+                share_token=share_token,
+                target_origin=target_origin,
+            )
+            if early is not None:
+                return early
+            set_cookies = _session_cookie_headers(client.cookies.jar, share_token)
     except httpx.HTTPError as exc:
         raise ExternalServiceError(f"Could not reach the reviewed site: {exc}") from exc
     finally:
@@ -396,7 +475,12 @@ async def fetch_proxied_resource(
     content_type = upstream.headers.get("content-type", "application/octet-stream")
 
     if "text/html" in content_type:
-        proxy_prefix = f"/proxy/{share_token}"
+        proxy_prefix = "" if request.preview_host else f"/proxy/{share_token}"
+        cookie_attributes = (
+            "; Secure; SameSite=None; Partitioned"
+            if request.preview_host and preview_cookies_can_be_secure()
+            else ""
+        )
         html = upstream.text
         rewritten = rewrite_html(
             html,
@@ -404,7 +488,9 @@ async def fetch_proxied_resource(
             proxy_prefix=proxy_prefix,
             widget_script_tag=_widget_script_tag(share_token),
             head_script=build_interceptor_script(
-                proxy_prefix=proxy_prefix, target_origin=target_origin
+                proxy_prefix=proxy_prefix,
+                target_origin=target_origin,
+                cookie_attributes=cookie_attributes,
             ),
         )
         return ProxiedResponse(
@@ -425,3 +511,69 @@ async def fetch_proxied_resource(
             if (value := upstream.headers.get(name)) is not None
         ),
     )
+
+
+async def _fetch_legacy(
+    client: httpx.AsyncClient,
+    *,
+    method: str,
+    upstream_url: str,
+    body: bytes,
+    cookie_header: str,
+    share_token: str,
+    target_origin: str,
+) -> tuple[httpx.Response, ProxiedResponse | None]:
+    """The `/proxy/{token}/` path mode on the API origin, unchanged since docs/tdr/0035:
+    a response to hand straight back (a redirect) or the upstream response to render."""
+    # Seeded from the reviewer's browser so an established session keeps working
+    # on every later request; httpx then keeps the jar up to date across redirect
+    # hops, which is where a login's cookie usually arrives.
+    upstream_host = httpx.URL(upstream_url).host
+    for name, value in _cookies_for_upstream(cookie_header, share_token).items():
+        client.cookies.set(name, value, domain=upstream_host)
+
+    if method != "GET":
+        # A form submission is answered with the redirect itself rather than followed
+        # here: the reviewer's browser makes the next hop, so the frame's URL ends up on
+        # the page it's actually showing (and the session cookie rides along on this
+        # response). A script's fetch/XHR login that answers with JSON instead falls
+        # through to the passthrough, Set-Cookie included.
+        upstream = await client.request(method, upstream_url, content=body)
+        location = upstream.headers.get("location")
+        if upstream.status_code in (301, 302, 303, 307, 308) and location:
+            return upstream, ProxiedResponse(
+                status_code=303,
+                content_type="text/plain",
+                body=b"",
+                set_cookies=_session_cookie_headers(client.cookies.jar, share_token),
+                location=_location_for_browser(
+                    location,
+                    base_url=upstream_url,
+                    target_origin=target_origin,
+                    share_token=share_token,
+                ),
+            )
+        return upstream, None
+
+    next_url = upstream_url
+    for _ in range(MAX_REDIRECTS + 1):
+        upstream = await client.get(next_url)
+        if upstream.status_code not in (301, 302, 303, 307, 308):
+            return upstream, None
+        location = upstream.headers.get("location")
+        if not location:
+            return upstream, None
+        next_url = str(httpx.URL(next_url).join(location))
+        if not _same_reviewed_site(next_url, target_origin):
+            return upstream, ProxiedResponse(
+                status_code=303,
+                content_type="text/plain",
+                body=b"",
+                set_cookies=_session_cookie_headers(client.cookies.jar, share_token),
+                location=next_url,
+            )
+        try:
+            await asyncio.to_thread(assert_safe_to_fetch, next_url)
+        except ValueError as exc:
+            raise ExternalServiceError(str(exc)) from exc
+    raise ExternalServiceError("Too many redirects while reaching the reviewed site.")

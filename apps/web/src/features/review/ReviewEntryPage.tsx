@@ -62,9 +62,10 @@ export function ReviewEntryPage() {
         backline_guest: session.guestSessionToken,
         backline_name: session.displayName,
       });
+      const proxyBase = resolved.preview_origin ?? `${API_BASE_URL}/proxy/${shareToken}`;
       const destination =
         resolved.mode === "proxy"
-          ? `${API_BASE_URL}/proxy/${shareToken}/?${handoff.toString()}`
+          ? `${proxyBase}/?${handoff.toString()}`
           : `${resolved.target_origin}${resolved.target_origin.includes("?") ? "&" : "?"}${handoff.toString()}`;
       if (resolved.show_board_to_client) {
         setPendingHandoff({ token: session.guestSessionToken, destination });

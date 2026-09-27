@@ -117,6 +117,19 @@ RUN playwright install --with-deps chromium firefox webkit
 
 CMD ["sh", "-c", "arq app.workers.main.WorkerSettings"]
 
+# --- Stage 3b: the cloud login browser (docs/tdr/0042) -------------------------------
+# A separate Railway service, not the API and not the arq worker: it holds one real,
+# interactive Chromium instance per concurrent session (streamed over its own websocket
+# to a member's browser), so it needs the same Playwright binaries `worker` already has -
+# reused as-is here rather than repeating the `playwright install` layer.
+#
+# On Railway: same repo, same Dockerfile Path, Settings -> Build -> "Docker Build Target"
+# = "cloud_login". Needs its own public domain (Settings -> Networking -> Generate
+# Domain); set CLOUD_LOGIN_WS_URL on the API service to that domain's wss:// address.
+FROM worker AS cloud_login
+
+CMD ["sh", "-c", "uvicorn app.cloud_login_app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+
 # --- Stage 4: default build target ---------------------------------------------------
 # Docker builds the LAST stage in a Dockerfile when no --target is given. With `worker`
 # defined last (above), every deploy that doesn't explicitly set a Docker Build Target -

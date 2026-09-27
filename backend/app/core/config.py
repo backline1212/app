@@ -98,6 +98,33 @@ class Settings(BaseSettings):
     # card back to the comment's Board (17.3's "deep link back to the comment's pin").
     public_dashboard_base_url: str = "http://localhost:5173"
 
+    # docs/tdr/0040: proxy mode serves each share link from its own origin,
+    # `{label}.{proxy_preview_domain}`, so the reviewed site runs at its real paths and
+    # never shares an origin with this API. Needs wildcard DNS + a wildcard TLS cert,
+    # ideally on a registrable domain separate from the dashboard's. Unset means
+    # `preview.localhost:8000` locally (browsers resolve `*.localhost` to loopback on
+    # their own) and off elsewhere; empty is off. Off keeps the legacy `/proxy/{token}/`
+    # path mode, so a deploy without the wildcard DNS in place yet is unaffected.
+    proxy_preview_domain: str | None = None
+    proxy_preview_scheme: str = "http"
+
+    # docs/tdr/0042: the cloud login browser is a separate deployable (its own Railway
+    # service, `backend/app/cloud_login_app.py`, the Dockerfile's `cloud_login` build
+    # target) - unlike the API, it has Playwright's Chromium binary installed, the same
+    # split `browser_render`'s own comments already document for the worker image. Empty
+    # (the default) means the feature is off: create_session_ticket refuses outright
+    # rather than minting a ticket nothing can redeem.
+    cloud_login_ws_url: str = ""
+    # A real Chromium instance per session - kept low for the same reason
+    # browser_render_rate_limit_per_minute is: a burst of clicks must not be able to
+    # exhaust this service's memory the way an unbounded number of concurrent launches
+    # would (app/workers/main.py's own max_jobs makes the identical trade-off).
+    cloud_login_max_concurrent_sessions: int = 2
+    # Hard cap regardless of activity - a member who wanders off mid-session, or a
+    # dropped connection that never sent "finish", must not hold a slot (and a live
+    # Chromium instance) indefinitely.
+    cloud_login_session_ttl_seconds: int = 240
+
     # Milestone 12 (docs/tdr/0011): error tracking. Empty means disabled - same
     # credential-gated-no-op pattern as every other optional integration in this file
     # (RESEND_API_KEY, GOOGLE_OAUTH_CLIENT_ID, ...), since no real Sentry project exists

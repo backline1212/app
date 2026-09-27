@@ -2477,3 +2477,10 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-projects.cards .bl-project:focus-within .bl-browser,.bl-projects.cards .bl-project:focus-within .bl-preview-type{opacity:0}
 .bl-live-frame-meta .bl-frame-error{color:#A8401F;font-weight:600}
 :root.dark .bl-live-frame-meta .bl-frame-error{color:var(--bl-error)}
+/* ── Cloud login browser (TDR-0042) ────────────────────────────────────── */
+.bl-cloud-login{display:flex;flex-direction:column;gap:10px;padding:16px 20px 20px;max-width:calc(100vw - 48px)}
+.bl-cloud-login p{margin:0;color:var(--ink-3);font-size:13px}
+.bl-cloud-login-timer{font:12px var(--mono);color:var(--ink-3);align-self:flex-end}
+.bl-cloud-login-canvas{width:100%;max-width:960px;aspect-ratio:1280/800;border:1px solid var(--line);border-radius:8px;background:#111;cursor:default;touch-action:none}
+.bl-cloud-login-keys{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.bl-cloud-login-actions{display:flex;justify-content:flex-end;gap:9px}

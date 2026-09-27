@@ -869,6 +869,8 @@ every variable, which are required, and how to generate the secret ones.
 | `GOOGLE_OAUTH_*` | "Sign in with Google" |
 | `CLICKUP_OAUTH_*` | ClickUp integration |
 | `SENTRY_DSN` | Error alerts |
+| `PROXY_PREVIEW_DOMAIN` / `PROXY_PREVIEW_SCHEME` | Each review link on its own origin, so login sites and single-page apps work in the canvas (`preview.yourpreviewdomain.net` / `https`). Needs wildcard DNS `*.preview.yourpreviewdomain.net` → the backend plus a wildcard TLS cert; use a domain separate from the app's. Unset = older `/proxy/{token}/` mode (docs/tdr/0040) |
+| `CLOUD_LOGIN_WS_URL` | The cloud login browser (docs/tdr/0042) - a real Chromium a member drives to sign in on sites Google/Microsoft/Okta SSO refuses to render inside any iframe. **A separate Railway service**, same repo/Dockerfile, Docker Build Target `cloud_login`, its own public domain; set this to that domain's `wss://.../ws` address. Costs real (if small) money only while a session is actually running - see docs/tdr/0042's cost note before enabling. Unset = feature off |
 | `GROQ_API_KEYS` / `GROQ_MODEL` | AI summarize / suggest-reply actions (Part 8.7) |
 
 **Dashboard (Vercel) — baked in at build time, redeploy after changing**

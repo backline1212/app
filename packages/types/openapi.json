@@ -5580,6 +5580,112 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/session-sync": {
+      "post": {
+        "tags": [
+          "session-sync"
+        ],
+        "summary": "Create Session Sync Ticket",
+        "description": "Called by the Backline browser extension (docs/tdr/0041), never the dashboard\nitself - the payload is cookies/localStorage read from the member's own real,\nsigned-in browser tab, which only the extension (chrome.cookies, HttpOnly included)\ncan see. Same permission browser_render's dashboard-only actions use.",
+        "operationId": "create_session_sync_ticket_api_v1_projects__project_id__session_sync_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionSyncCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSyncTicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/cloud-login/sessions": {
+      "post": {
+        "tags": [
+          "cloud-login"
+        ],
+        "summary": "Create Cloud Login Session",
+        "description": "Mints a ticket for the separate cloud-login-browser service to redeem when the\nmember's browser opens the returned `ws_url` - this endpoint itself never touches\nPlaywright (docs/tdr/0042), so it stays on the main API like everything else here.",
+        "operationId": "create_cloud_login_session_api_v1_projects__project_id__cloud_login_sessions_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudLoginSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/proxy/{share_token}": {
       "get": {
         "tags": [
@@ -6487,6 +6593,29 @@
         "type": "object",
         "title": "ClientUpdate"
       },
+      "CloudLoginSessionOut": {
+        "properties": {
+          "ws_url": {
+            "type": "string",
+            "title": "Ws Url"
+          },
+          "ticket_ttl_seconds": {
+            "type": "integer",
+            "title": "Ticket Ttl Seconds"
+          },
+          "session_ttl_seconds": {
+            "type": "integer",
+            "title": "Session Ttl Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ws_url",
+          "ticket_ttl_seconds",
+          "session_ttl_seconds"
+        ],
+        "title": "CloudLoginSessionOut"
+      },
       "CommentBodyEdit": {
         "properties": {
           "body": {
@@ -6998,6 +7127,50 @@
           "url"
         ],
         "title": "ContextIn"
+      },
+      "CookieIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 4096,
+            "title": "Value"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Path",
+            "default": "/"
+          },
+          "expires": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires"
+          },
+          "http_only": {
+            "type": "boolean",
+            "title": "Http Only",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "CookieIn",
+        "description": "One cookie as `chrome.cookies.getAll` reports it (docs/tdr/0041) - the extension\nreads these from the member's own real, signed-in browser profile, HttpOnly included,\nwhich is the one thing a page's own script or a server-side proxy fetch can never do."
       },
       "CreateAsanaTaskResult": {
         "properties": {
@@ -7717,6 +7890,27 @@
           "confirm"
         ],
         "title": "LayerToggleRequest"
+      },
+      "LocalStorageItemIn": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Key"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 65536,
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "LocalStorageItemIn"
       },
       "McpTokenCreate": {
         "properties": {
@@ -9205,6 +9399,17 @@
             "type": "boolean",
             "title": "Show Board To Client",
             "default": false
+          },
+          "preview_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Origin"
           }
         },
         "type": "object",
@@ -9507,6 +9712,41 @@
         "title": "SessionOut",
         "description": "FD-AUD-011: Represents an active refresh token family for the user.\nM-05: created_at/last_active_at are typed datetimes (Pydantic serializes to a real\nISO-8601 string with timezone on the wire) rather than hand-formatted str fields -\nAPI contracts stay generated/typed end-to-end per 06-Backend-Architecture.md \u00a72.3,\nand the frontend gets a real Date-parseable value instead of an ad hoc string."
       },
+      "SessionSyncCreate": {
+        "properties": {
+          "cookies": {
+            "items": {
+              "$ref": "#/components/schemas/CookieIn"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Cookies"
+          },
+          "local_storage": {
+            "items": {
+              "$ref": "#/components/schemas/LocalStorageItemIn"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Local Storage"
+          }
+        },
+        "type": "object",
+        "title": "SessionSyncCreate"
+      },
+      "SessionSyncTicketOut": {
+        "properties": {
+          "redeem_url": {
+            "type": "string",
+            "title": "Redeem Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "redeem_url"
+        ],
+        "title": "SessionSyncTicketOut"
+      },
       "ShareLinkCreate": {
         "properties": {
           "mode": {
@@ -9635,6 +9875,17 @@
             "type": "boolean",
             "title": "Comment Export Permission",
             "default": false
+          },
+          "preview_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Origin"
           }
         },
         "type": "object",

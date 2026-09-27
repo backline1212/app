@@ -9,7 +9,9 @@ from app.core.errors import ValidationError
 from app.core.rate_limit import check_rate_limit, get_client_ip
 from app.core.redis_client import get_redis
 from app.modules.proxy import service as proxy_service
+from app.modules.proxy.preview_middleware import PREVIEW_HOST_STATE_KEY
 from app.modules.proxy.service import MAX_PROXY_BODY_BYTES, ProxiedResponse, ProxyRequest
+from app.modules.session_sync import service as session_sync_service
 
 router = APIRouter(tags=["proxy"])
 
@@ -93,6 +95,7 @@ async def _proxy(share_token: str, path: str, request: Request) -> Response:
             # The service forwards only an allowlist of these (auth, CSRF, content
             # negotiation, validators) - see _forwarded_headers.
             headers=dict(request.headers),
+            preview_host=request.scope.get("state", {}).get(PREVIEW_HOST_STATE_KEY, False),
         ),
     )
     body, compressed = await _maybe_compress(request, result)
@@ -126,6 +129,25 @@ async def proxy_root(share_token: str, request: Request) -> Response:
 @router.post("/proxy/{share_token}")
 async def proxy_root_post(share_token: str, request: Request) -> Response:
     return await _proxy(share_token, "/", request)
+
+
+# Registered before the catch-all path route below: Starlette tries routes in
+# registration order, and `{path:path}` matches greedily enough to swallow this literal
+# path too - session-sync (docs/tdr/0041) has to be handled by Backline itself, never
+# forwarded upstream as if it were a page on the reviewed site.
+@router.get("/proxy/{share_token}/__backline/session-sync", include_in_schema=False)
+async def proxy_session_sync_redeem(share_token: str, ticket: str, request: Request) -> Response:
+    result = await session_sync_service.redeem_ticket(
+        get_db(),
+        get_redis(),
+        share_token=share_token,
+        ticket=ticket,
+        preview_host=bool(request.scope.get("state", {}).get(PREVIEW_HOST_STATE_KEY, False)),
+    )
+    response = Response(content=result.html, media_type="text/html")
+    for cookie in result.set_cookies:
+        response.headers.append("set-cookie", cookie)
+    return response
 
 
 @router.get("/proxy/{share_token}/{path:path}")

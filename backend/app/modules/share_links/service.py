@@ -9,6 +9,7 @@ from app.core.events import append_event
 from app.core.security import create_guest_token, generate_share_token, hash_secret
 from app.modules.projects import service as project_service
 from app.modules.projects.repository import ProjectRepository
+from app.modules.proxy.preview_host import preview_origin_for_token
 from app.modules.share_links import events as share_link_events
 from app.modules.share_links.policy import check_domain_restriction, resolve_guest_display_name
 from app.modules.share_links.repository import GuestSessionRepository, ShareLinkRepository
@@ -28,7 +29,12 @@ def _share_link_out(doc: dict[str, Any]) -> ShareLinkOut:
         ask_reviewer_name=doc.get("ask_reviewer_name", True),
         domain_restrictions=doc.get("domain_restrictions", []),
         comment_export_permission=doc.get("comment_export_permission", False),
+        preview_origin=_preview_origin(doc),
     )
+
+
+def _preview_origin(link: dict[str, Any]) -> str | None:
+    return preview_origin_for_token(link["token"]) if link["mode"] == "proxy" else None
 
 
 def _ensure_active(link: dict[str, Any]) -> None:
@@ -137,6 +143,7 @@ async def resolve_share_link(
         target_origin=project["target_origin"],
         ask_reviewer_name=link.get("ask_reviewer_name", True),
         show_board_to_client=project.get("settings_json", {}).get("show_board_to_client", False),
+        preview_origin=_preview_origin(link),
     )
 
 

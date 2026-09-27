@@ -2,7 +2,12 @@ import type { Schemas } from "@backline/types";
 
 import { apiRequest, ExtensionApiError } from "./lib/api";
 import { DASHBOARD_BASE_URL } from "./lib/config";
-import type { AnnotationMode, ConnectionResponse, ExtensionMessage } from "./lib/messages";
+import type {
+  AnnotationMode,
+  ConnectionResponse,
+  ExtensionMessage,
+  SyncSessionResponse,
+} from "./lib/messages";
 import type { ExtensionConnection } from "./lib/storage";
 
 function sendMessage<T>(message: ExtensionMessage): Promise<T> {
@@ -30,16 +35,18 @@ const activateStatus = el<HTMLParagraphElement>("activate-status");
 const activityList = el<HTMLUListElement>("activity-list");
 const activityEmpty = el<HTMLParagraphElement>("activity-empty");
 const openDashboardBtn = el<HTMLButtonElement>("open-dashboard-btn");
+const syncSessionBtn = el<HTMLButtonElement>("sync-session-btn");
+const syncSessionStatus = el<HTMLParagraphElement>("sync-session-status");
 
 function setStatus(message: string): void {
   statusEl.textContent = message;
 }
 
-async function getCurrentTabOrigin(): Promise<string | null> {
+async function getCurrentTab(): Promise<{ id: number; origin: string } | null> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.url) return null;
+  if (!tab?.url || tab.id === undefined) return null;
   try {
-    return new URL(tab.url).origin;
+    return { id: tab.id, origin: new URL(tab.url).origin };
   } catch {
     return null;
   }
@@ -70,23 +77,60 @@ function renderActivity(comments: Schemas["CommentOut"][]): void {
   }
 }
 
+function setSyncTarget(target: { tabId: number; projectId: string; targetOrigin: string } | null): void {
+  syncSessionBtn.style.display = target ? "block" : "none";
+  syncSessionBtn.onclick = target ? () => void handleSyncSession(target) : null;
+  syncSessionStatus.textContent = "";
+}
+
+async function handleSyncSession(target: {
+  tabId: number;
+  projectId: string;
+  targetOrigin: string;
+}): Promise<void> {
+  syncSessionBtn.disabled = true;
+  syncSessionStatus.style.color = "#555";
+  syncSessionStatus.textContent = "Reading this tab's sign-in...";
+  try {
+    const response = await sendMessage<SyncSessionResponse>({
+      type: "sync-session",
+      tabId: target.tabId,
+      projectId: target.projectId,
+      targetOrigin: target.targetOrigin,
+    });
+    if (response.ok) {
+      syncSessionStatus.style.color = "#1a7f37";
+      syncSessionStatus.textContent = "Synced. Reload the canvas in the dashboard to see it.";
+    } else {
+      syncSessionStatus.style.color = "#c0392b";
+      syncSessionStatus.textContent = response.error ?? "Could not sync this session.";
+    }
+  } catch {
+    syncSessionStatus.style.color = "#c0392b";
+    syncSessionStatus.textContent = "Could not sync this session.";
+  } finally {
+    syncSessionBtn.disabled = false;
+  }
+}
+
 async function loadActivity(connection: ExtensionConnection): Promise<void> {
   activityEmpty.textContent = "Loading...";
   activityList.innerHTML = "";
   // "Open in dashboard" always has somewhere useful to go, even before a project
   // exists for this site - the workspace root rather than a dead link.
   let dashboardPath = `/w/${connection.workspaceSlug}`;
+  setSyncTarget(null);
 
   try {
-    const origin = await getCurrentTabOrigin();
+    const tab = await getCurrentTab();
     const projects = await apiRequest<Schemas["ProjectOut"][]>(
       `/api/v1/workspaces/${connection.workspaceId}/projects`,
       connection.token,
     );
-    const project = origin ? projects.find((p) => p.target_origin === origin) : undefined;
+    const project = tab ? projects.find((p) => p.target_origin === tab.origin) : undefined;
 
     if (!project) {
-      activityEmpty.textContent = origin
+      activityEmpty.textContent = tab
         ? "No project yet for this site - click Add comment or Draw region to create one."
         : "Open a regular webpage to see its Backline activity.";
     } else {
@@ -96,6 +140,12 @@ async function loadActivity(connection: ExtensionConnection): Promise<void> {
         connection.token,
       );
       renderActivity(comments);
+      // A project's proxy share link is created automatically for every project
+      // (share_links/service.py's create_project flow), so any resolved project
+      // already has somewhere for a synced session to land.
+      if (tab && project.project_type === "website") {
+        setSyncTarget({ tabId: tab.id, projectId: project.id, targetOrigin: tab.origin });
+      }
     }
   } catch (err) {
     activityEmpty.textContent =

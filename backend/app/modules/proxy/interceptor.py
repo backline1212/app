@@ -12,7 +12,9 @@ This shim patches `fetch`, `XMLHttpRequest.open`, `navigator.sendBeacon` and
 `history.pushState`/`replaceState` so that a URL destined for the reviewed site is
 rewritten to `/proxy/{token}/...` before it leaves the page. The session the site then
 establishes (cookies, or a bearer token echoed back on later requests) rides through the
-proxy the same way a real page-reload form already does (docs/tdr/0026).
+proxy the same way a real page-reload form already does (docs/tdr/0026). On a link's own
+preview origin (docs/tdr/0040) there is no prefix: relative URLs already reach the proxy,
+so only absolute URLs naming the reviewed site are brought back to the page's origin.
 
 Rewritten: URLs on the reviewed site's host (`www.` or not), and URLs on the proxy's own
 host - which is where the page's relative URLs and anything built from
@@ -42,6 +44,7 @@ _TEMPLATE = Template(
   window.__backlineProxyInstalled = true;
   var PREFIX = $PREFIX;
   var TARGET_HOST = $TARGET_HOST;
+  var COOKIE_ATTRS = $COOKIE_ATTRS;
   var LOC = window.location;
   function skip(u){ return !u || /^(data:|blob:|javascript:|mailto:|tel:|about:|#)/i.test(u); }
   function isAbsolute(u){ return /^(https?:)?\\/\\//i.test(u); }
@@ -59,9 +62,10 @@ _TEMPLATE = Template(
       var abs = new URL(url, document.baseURI || LOC.href);
       if (abs.protocol !== "http:" && abs.protocol !== "https:") return url;
       var pqf = abs.pathname + abs.search + abs.hash;
-      if (pqf.indexOf(PREFIX + "/") === 0 || pqf === PREFIX) return url;
+      if (PREFIX && (pqf.indexOf(PREFIX + "/") === 0 || pqf === PREFIX)) return url;
       if (bare(abs.host) === TARGET_BARE) return PREFIX + pqf;
       if (abs.host === LOC.host){
+        if (!PREFIX) return url;
         if (keepAbsoluteLocal && isAbsolute(url)) return url;
         if (pqf.indexOf("/proxy/") === 0 || pqf.indexOf("/widget/") === 0) return url;
         return PREFIX + pqf;
@@ -140,6 +144,26 @@ _TEMPLATE = Template(
     } catch(e){}
     return _setAttribute.call(this, name, value);
   };
+  // A cookie the page sets from script (a CSRF token, a consent flag) is refused in the
+  // cross-site canvas iframe unless it's SameSite=None; Secure, and a Domain naming the
+  // real host is refused anywhere - the server-side Set-Cookie relay does the same.
+  var COOKIE_ATTR_PATTERN = /;\\s*(domain|samesite|secure|partitioned)(=[^;]*)?/gi;
+  if (COOKIE_ATTRS){
+    try{
+      var cd = Object.getOwnPropertyDescriptor(Document.prototype, "cookie");
+      if (cd && cd.set && cd.configurable){
+        Object.defineProperty(Document.prototype, "cookie", {
+          configurable: true, enumerable: cd.enumerable, get: cd.get,
+          set: function(v){
+            try{
+              v = String(v).replace(COOKIE_ATTR_PATTERN, "") + COOKIE_ATTRS;
+            } catch(e){}
+            return cd.set.call(this, v);
+          }
+        });
+      }
+    } catch(e){}
+  }
 })();
 </script>"""
 )
@@ -159,12 +183,19 @@ def _js_string(value: str) -> str:
     )
 
 
-def build_interceptor_script(*, proxy_prefix: str, target_origin: str) -> str:
-    """`proxy_prefix` is `/proxy/{share_token}`; `target_origin` is the reviewed site's
-    scheme+host (e.g. `https://acme.com`). Only the host (with port, if any) is compared
-    at runtime, so the scheme difference between an `http`-declared link and an
-    `https`-served page never matters."""
+def build_interceptor_script(
+    *, proxy_prefix: str, target_origin: str, cookie_attributes: str = ""
+) -> str:
+    """`proxy_prefix` is `/proxy/{share_token}`, or empty on a link's own preview origin
+    (docs/tdr/0040), where the page already runs at the site's real paths and only
+    absolute URLs naming the site need bringing back to it. `target_origin` is the
+    reviewed site's scheme+host (e.g. `https://acme.com`); only the host (with port, if
+    any) is compared at runtime, so an `http`-declared link served over `https` never
+    matters. `cookie_attributes`, when set, replaces the attributes of every cookie the
+    page's scripts write."""
     target_host = urlsplit(target_origin).netloc
     return _TEMPLATE.substitute(
-        PREFIX=_js_string(proxy_prefix), TARGET_HOST=_js_string(target_host)
+        PREFIX=_js_string(proxy_prefix),
+        TARGET_HOST=_js_string(target_host),
+        COOKIE_ATTRS=_js_string(cookie_attributes),
     )
