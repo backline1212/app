@@ -1,4 +1,8 @@
+import type { Schemas } from "@backline/types";
+
 import { ApiError, apiFetch } from "../../lib/api-client";
+
+export type ProjectAnalysisResult = Schemas["ProjectAnalysisResult"];
 
 export async function summarizeThread(workspaceId: string, projectId: string, commentId: string): Promise<{ summary: string }> {
   return apiFetch(`/api/workspaces/${workspaceId}/projects/${projectId}/comments/${commentId}/ai/summarize`, {
@@ -8,6 +12,12 @@ export async function summarizeThread(workspaceId: string, projectId: string, co
 
 export async function suggestReply(workspaceId: string, projectId: string, commentId: string): Promise<{ suggestions: string[] }> {
   return apiFetch(`/api/workspaces/${workspaceId}/projects/${projectId}/comments/${commentId}/ai/suggest-reply`, {
+    method: "POST"
+  });
+}
+
+export async function analyzeProject(workspaceId: string, projectId: string): Promise<ProjectAnalysisResult> {
+  return apiFetch(`/api/workspaces/${workspaceId}/projects/${projectId}/ai/analyze`, {
     method: "POST"
   });
 }
