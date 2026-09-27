@@ -27,6 +27,14 @@ class PasswordLoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=PASSWORD_MAX_LENGTH)
 
 
+class PasswordSetRequest(BaseModel):
+    """TDR-0037: sets/replaces the caller's own password, authenticated by their
+    current session rather than by re-entering the old value - reached only after
+    an OTP verify, which already proved control of the inbox."""
+
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+
+
 class OtpRequestRequest(BaseModel):
     email: EmailStr
 

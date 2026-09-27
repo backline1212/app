@@ -19,6 +19,7 @@ interface AuthContextValue {
   loginWithPassword: (email: string, password: string) => Promise<void>;
   requestOtp: (email: string) => Promise<void>;
   verifyOtp: (email: string, code: string) => Promise<void>;
+  setPassword: (password: string) => Promise<void>;
   loginWithGoogleCode: (code: string) => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -95,6 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(result.access_token);
       setUser(result.user);
       setStatus("authenticated");
+    },
+    async setPassword(password) {
+      await authApi.setPassword(password);
     },
     async loginWithGoogleCode(code) {
       const result = await authApi.exchangeGoogleCode(code);

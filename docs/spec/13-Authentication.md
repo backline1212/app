@@ -20,6 +20,16 @@ already exists (409) instead of attaching a password to it. Login answers every 
 identically and is rate-limited per IP and per email (Rule 6). Minimum 12 characters,
 at least 4 distinct characters, and the email's local part may not appear in it.
 
+`POST /auth/password` (TDR-0037, authenticated, 204) sets or replaces the caller's own
+password. It is reached from the OTP flow: verifying a sign-in code already proves
+control of the inbox, so the code screen offers to set a password right there (optional
+- "Skip for now" signs in without one, same as before). This is the only path that lets
+a Google/OTP member attach a first password or lets any member replace an existing one
+without knowing the old value; it does not change the signup-collision behavior above.
+Distinct from `POST /auth/me/password` (TDR-0034), the account-settings "Change
+password" that requires the current one and refuses accounts with none - the two are
+complementary, not alternatives.
+
 ## 13.3 JWT Structure
 
 ```json

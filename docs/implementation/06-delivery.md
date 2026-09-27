@@ -1130,6 +1130,49 @@ Verification on the final working tree: `pnpm turbo run lint typecheck build` pa
 (153 files), and workspace-scoping lint passed (17 repository files). No test suite,
 browser/E2E/axe run, database migration, or production deployment is claimed.
 
+## 2026-09-27: Client bug report - set-password from OTP flow, login UI fixes (TDR-0037)
+
+Fixed six items from a client bug report against the sign-in/sign-up/forgot-password
+screens (screenshots reviewed via the reported Google Doc):
+
+- Added `POST /auth/password` (authenticated, 204): sets/replaces the caller's own
+  password, reachable only after an OTP verify. `LoginPage`'s code-verification step now
+  offers a "Set a password" panel (with "Skip for now") instead of navigating straight
+  in. Closes both "update my password after the code" and "let a Google/OTP member
+  create a first password" - same gap, same fix; see TDR-0037 for why the signup 409
+  collision itself is unchanged.
+- Fixed the double focus outline on login password/email fields (`.lg-f
+  input:focus-visible`, previously a separately-darkened border plus an offset outline
+  from the global rule).
+- Wired up the previously-inert `.lg-caps`/`.capson` CSS: a Caps Lock badge on password
+  fields (sign-in, sign-up, set-password), via `getModifierState("CapsLock")`.
+- Replaced the signup password field's native `minLength` validation bubble with the
+  app's own `.lg-err` message (`Use at least 12 characters.`), matching what the backend
+  already enforces.
+- Added spacing between an error message and the button that follows it (`.lg-err`
+  `margin-bottom`), and centered the error icon on the message text instead of a
+  flex-start + manual offset hack.
+- Regenerated `packages/types/openapi.json` and `src/openapi.ts` for the new endpoint.
+
+Merged `main` (which had landed TDR-0034's account-settings password/email change,
+`has_password`, and the one-session-per-member model one day before this branch
+started) back into this branch: only `docs/implementation/06-delivery.md` conflicted
+textually (both sides appended a dated entry), resolved by keeping both, main's first
+chronologically. The two password endpoints coexist by design (see TDR-0037's updated
+Decision section); after `POST /auth/password` succeeds, the frontend now also patches
+the in-memory user's `has_password` so TDR-0034's account-modal copy doesn't go stale
+until the next token refresh. `packages/types` was regenerated fresh post-merge rather
+than trusted from the text-level auto-merge, and produced an identical result.
+
+Passed (post-merge, full tree): backend `ruff check app/` (166 files) and strict `mypy
+app/` (166 files); `scripts/check_workspace_scoping.py` (19 repository files); frontend
+`eslint .` (0 errors, pre-existing warnings unrelated to this change), `tsc -b
+--noEmit`, and `vite build`. No test suite was written per this task's own instructions
+(Claude Code: verify via lint/typecheck/build only). No interactive browser/E2E run,
+database migration, or production deployment is claimed.
+
+## 2026-09-26: Design parity slices - tickets, account/sessions, shell, card hover (TDR-0033, TDR-0034)
+
 - **2026-09-26 Tickets design parity (design/index.html)**:
   - New ticket dialog rebuilt to the design: two-column fields, "Page or file" picker,
     single assignee/tag selects, and real screenshot uploads (TDR-0033: additive

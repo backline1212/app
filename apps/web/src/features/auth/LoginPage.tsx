@@ -35,16 +35,17 @@ function passwordScore(value: string): number {
 
 export function LoginPage() {
   const { t } = useTranslation();
-  const { requestOtp, verifyOtp, signup, loginWithPassword } = useAuth();
+  const { requestOtp, verifyOtp, signup, loginWithPassword, setPassword: savePassword, user, updateUser } = useAuth();
   useDocumentTitle(t('auth.login.title' as TranslationKeys));
   const navigate = useNavigate();
   // design/index.html's four panels: #lg-in, #lg-up, #lg-reset, #lg-sent. "help" is
   // the reset panel - it doesn't reset a password (there's no reset-link flow yet),
   // it emails the six-digit code, which is also the way in for the members who predate
   // passwords and have none on their account at all.
-  const [step, setStep] = useState<"signin" | "signup" | "help" | "code">("signin");
+  const [step, setStep] = useState<"signin" | "signup" | "help" | "code" | "newpw">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -53,8 +54,16 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [expiresIn, setExpiresIn] = useState(OTP_EXPIRY_SECONDS);
+  // M-05/UX-AUD-019 follow-up (TDR-0037): Caps Lock is only worth flagging on a
+  // password field, where the typed characters are hidden - one flag is enough
+  // since the sign-in, sign-up and set-password panels never show at the same time.
+  const [capsOn, setCapsOn] = useState(false);
   const codeInputRef = useRef<HTMLInputElement>(null);
   const errorId = "login-form-error";
+
+  function checkCapsLock(event: { getModifierState(key: string): boolean }) {
+    setCapsOn(event.getModifierState("CapsLock"));
+  }
 
   // Resend cooldown + expiry countdown - both reset whenever a fresh code is sent
   // (initial request or resend), and stop entirely once we leave the code step.
@@ -71,6 +80,7 @@ export function LoginPage() {
     if (step === "code") {
       codeInputRef.current?.focus();
     }
+    setCapsOn(false);
   }, [step]);
 
   async function sendOtp() {
@@ -115,6 +125,10 @@ export function LoginPage() {
 
   async function handleSignup(event: FormEvent) {
     event.preventDefault();
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      setError(`Use at least ${PASSWORD_MIN_LENGTH} characters.`);
+      return;
+    }
     if (!acceptedTerms) {
       setError("Agree to the terms and privacy policy to create an account.");
       return;
@@ -137,12 +151,41 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await verifyOtp(email, code);
-      navigate("/", { replace: true });
+      // The code just proved control of this inbox - offer to set/replace the
+      // password right here (UX-AUD-057/TDR-0037) instead of only signing in,
+      // since this is the only way in for a member with no password on the account.
+      setNewPassword("");
+      setStep("newpw");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Incorrect code.");
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  async function handleSetPassword(event: FormEvent) {
+    event.preventDefault();
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+      setError(`Use at least ${PASSWORD_MIN_LENGTH} characters.`);
+      return;
+    }
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await savePassword(newPassword);
+      // The account modal's has_password gate (TDR-0034) would otherwise still show
+      // stale "no password to change" copy until the next token refresh.
+      if (user) updateUser({ ...user, has_password: true });
+      navigate("/", { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save that password.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function skipSetPassword() {
+    navigate("/", { replace: true });
   }
 
   function goToHelp() {
@@ -222,7 +265,7 @@ export function LoginPage() {
                     <label htmlFor="lgInPw">Password</label>
                     <button type="button" className="lg-forgot" onClick={goToHelp}>Forgot password?</button>
                   </div>
-                  <span className="lg-inp pw">
+                  <span className={`lg-inp pw${capsOn ? " capson" : ""}`}>
                     <input
                       id="lgInPw"
                       type={showPassword ? "text" : "password"}
@@ -232,8 +275,16 @@ export function LoginPage() {
                       aria-invalid={error ? true : undefined}
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
+                      onKeyDown={checkCapsLock}
+                      onKeyUp={checkCapsLock}
                       placeholder="Your password"
                     />
+                    {capsOn && (
+                      <span className="lg-caps" aria-hidden="true">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 3l7 7h-4v8h-6v-8H5z"/></svg>
+                        CAPS LOCK
+                      </span>
+                    )}
                     <button
                       type="button"
                       className="lg-peek"
@@ -313,18 +364,25 @@ export function LoginPage() {
 
                 <div className="lg-f" id="lgf-upPw">
                   <div className="lg-lbl"><label htmlFor="lgUpPw">Password</label></div>
-                  <span className="lg-inp pw">
+                  <span className={`lg-inp pw${capsOn ? " capson" : ""}`}>
                     <input
                       id="lgUpPw"
                       type={showPassword ? "text" : "password"}
                       required
-                      minLength={PASSWORD_MIN_LENGTH}
                       autoComplete="new-password"
                       aria-describedby="lgBar"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
+                      onKeyDown={checkCapsLock}
+                      onKeyUp={checkCapsLock}
                       placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
                     />
+                    {capsOn && (
+                      <span className="lg-caps" aria-hidden="true">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 3l7 7h-4v8h-6v-8H5z"/></svg>
+                        CAPS LOCK
+                      </span>
+                    )}
                     <button
                       type="button"
                       className="lg-peek"
@@ -475,8 +533,70 @@ export function LoginPage() {
               </div>
             </div>
           )}
+
+          {step === "newpw" && (
+            <div id="lg-newpw">
+              <h1>Set a password</h1>
+              <p className="lg-lede">
+                You're signed in. Add a password so you can sign in with it next time,
+                or skip this and keep using a sign-in code.
+              </p>
+
+              <form className="lg-formel" onSubmit={handleSetPassword}>
+                <div className="lg-f" id="lgf-newPw">
+                  <div className="lg-lbl"><label htmlFor="lgNewPw">New password</label></div>
+                  <span className={`lg-inp pw${capsOn ? " capson" : ""}`}>
+                    <input
+                      id="lgNewPw"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      autoComplete="new-password"
+                      aria-describedby="lgNewPwBar"
+                      value={newPassword}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                      onKeyDown={checkCapsLock}
+                      onKeyUp={checkCapsLock}
+                      placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
+                    />
+                    {capsOn && (
+                      <span className="lg-caps" aria-hidden="true">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 3l7 7h-4v8h-6v-8H5z"/></svg>
+                        CAPS LOCK
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="lg-peek"
+                      aria-pressed={showPassword}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowPassword((shown) => !shown)}
+                    >
+                      {showPassword ? "HIDE" : "SHOW"}
+                    </button>
+                  </span>
+                  <div className={`lg-bar s${passwordScore(newPassword)}`} id="lgNewPwBar" role="status" aria-live="polite">
+                    <i /><i /><i /><i />
+                    <span>{newPassword ? STRENGTH_LABELS[passwordScore(newPassword)] : "Strength"}</span>
+                  </div>
+                </div>
+                {error && (
+                  <p id={errorId} role="alert" className="lg-err">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+                    <span>{error}</span>
+                  </p>
+                )}
+                <button type="submit" className="lg-go" disabled={isSubmitting}>
+                  {isSubmitting ? <span className="lg-spin"></span> : null}
+                  Save password
+                </button>
+              </form>
+              <div className="lg-swap">
+                <button type="button" onClick={skipSetPassword}>Skip for now</button>
+              </div>
+            </div>
+          )}
         </div>
-        
+
         <div className="lg-foot">
           <span className="c">&copy; {new Date().getFullYear()} Backline</span>
           <a href="#">Privacy</a>

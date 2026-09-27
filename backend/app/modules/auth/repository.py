@@ -97,6 +97,19 @@ class UserRepository:
             return
         await self.db.users.update_one({"_id": user_id}, {"$set": patch})
 
+    async def set_password_hash(self, user_id: ObjectId, password_hash: str) -> None:
+        """Sets or replaces password_hash regardless of its prior value - the same
+        write serves a member creating their first password (was null, e.g. Google
+        or OTP) and one replacing an existing one. `auth_providers` gets "password"
+        added either way, same as touch_login."""
+        await self.db.users.update_one(
+            {"_id": user_id},
+            {
+                "$set": {"password_hash": password_hash},
+                "$addToSet": {"auth_providers": "password"},
+            },
+        )
+
     async def touch_login(self, user_id: ObjectId, auth_provider: str) -> None:
         await self.db.users.update_one(
             {"_id": user_id},

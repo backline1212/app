@@ -34,6 +34,13 @@ export function loginWithPassword(email: string, password: string): Promise<Toke
   });
 }
 
+export function setPassword(password: string): Promise<void> {
+  return apiFetch<void>("/api/v1/auth/password", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
 export function exchangeGoogleCode(code: string): Promise<TokenPairOut> {
   return apiFetch<TokenPairOut>("/api/v1/auth/google/callback", {
     method: "POST",
