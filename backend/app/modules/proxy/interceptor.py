@@ -25,10 +25,21 @@ the untouched native fetch this exposes as `window.__backlineNativeFetch`
 (apps/widget/src/api-client.ts). Element `src`/`href` setters additionally leave
 absolute proxy-host URLs alone, since the widget has no such bypass for elements.
 
-What this still cannot do (browser-enforced, not a proxy bug): third-party SSO such as
-Google or Microsoft sets `X-Frame-Options`/`frame-ancestors` and refuses to run in any
-iframe regardless of proxying; and a request from inside a web worker or a nested
-document isn't reached here (a Service Worker is the follow-up for that coverage)."""
+Also here (docs/tdr/0044): a click or form submit heading to a known identity provider's
+own sign-in page (Google, Microsoft, ...) is opened in a real new tab instead of navigated
+within the canvas. Third-party SSO sets `X-Frame-Options`/`frame-ancestors` and refuses to
+run in any iframe regardless of proxying - browser-enforced, not fixable by rewriting
+anything - so left alone the navigation just fails; a plain new tab isn't framed at all,
+so the provider's own page loads normally there. The resulting session lands on the
+provider/site's own real domain, same as if the member had opened it themselves - carrying
+it into the canvas afterward still goes through the extension's own Sync action
+(docs/tdr/0041), same as any other sign-in outside the canvas; nothing here reads, copies,
+or transmits anything from the popup. Not caught: a raw `location.href` assignment with no
+clickable link or form behind it (no browser event exists to intercept that).
+
+What this still cannot do (browser-enforced, not a proxy bug): a request from inside a web
+worker or a nested document isn't reached here (a Service Worker is the follow-up for that
+coverage)."""
 
 import json
 from string import Template
@@ -144,6 +155,68 @@ _TEMPLATE = Template(
     } catch(e){}
     return _setAttribute.call(this, name, value);
   };
+  // A click or form submit that goes to a real identity provider's own sign-in page
+  // (docs/tdr/0044) - Google/Microsoft/etc refuse to render that page inside any iframe
+  // at all, canvas included, so left alone the navigation just fails. Opening it in a
+  // real, separate tab instead is not a bypass of anything: it is exactly how the
+  // provider's own sign-in is designed to be reached, and it's already unrestricted here
+  // (the canvas iframe carries no `sandbox` attribute). This only ever redirects the
+  // browser's own navigation to the identity provider's own domain - it does not read,
+  // copy, or transmit anything from the resulting sign-in. Bringing the resulting
+  // session into the canvas afterward still goes through the extension's own "Sync this
+  // session" action (docs/tdr/0041), same as any other sign-in outside the canvas.
+  var SSO_HOST_LIST = ["accounts.google.com", "login.microsoftonline.com", "login.live.com",
+    "appleid.apple.com", "www.facebook.com", "github.com", "okta.com", "auth0.com",
+    "login.yahoo.com"];
+  function isSsoUrl(url){
+    try{
+      var host = new URL(url, LOC.href).hostname.toLowerCase();
+      for (var i = 0; i < SSO_HOST_LIST.length; i++){
+        var h = SSO_HOST_LIST[i];
+        if (host === h || host.slice(-(h.length + 1)) === "." + h) return true;
+      }
+      return false;
+    } catch(e){ return false; }
+  }
+  function openInNewTab(){
+    try{ return window.open("", "_blank"); } catch(e){ return null; }
+  }
+  document.addEventListener("click", function(event){
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey) return;
+    var link = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+    if (!link || (link.target && link.target !== "_self")) return;
+    if (!isSsoUrl(link.href)) return;
+    event.preventDefault();
+    var popup = openInNewTab();
+    if (popup) popup.location.href = link.href;
+  }, true);
+  document.addEventListener("submit", function(event){
+    var form = event.target;
+    if (event.defaultPrevented || !form || !form.action || !isSsoUrl(form.action)) return;
+    event.preventDefault();
+    var popup = openInNewTab();
+    if (!popup) return;
+    // Only a same-window submit() sees the form's own live input values (including
+    // ones filled in by the page's own script right before submitting) - cloning
+    // field-by-field into a form built inside the new tab preserves that, which
+    // reconstructing the URL from a plain FormData snapshot would not for a POST form.
+    try{
+      var clone = popup.document.createElement("form");
+      clone.method = form.method || "GET";
+      clone.action = form.action;
+      for (var i = 0; i < form.elements.length; i++){
+        var el = form.elements[i];
+        if (!el.name) continue;
+        var field = popup.document.createElement("input");
+        field.type = "hidden";
+        field.name = el.name;
+        field.value = el.value;
+        clone.appendChild(field);
+      }
+      popup.document.body.appendChild(clone);
+      clone.submit();
+    } catch(e){ popup.location.href = form.action; }
+  }, true);
   // A cookie the page sets from script (a CSRF token, a consent flag) is refused in the
   // cross-site canvas iframe unless it's SameSite=None; Secure, and a Domain naming the
   // real host is refused anywhere - the server-side Set-Cookie relay does the same.

@@ -1,5 +1,34 @@
 # Delivery and verification ledger
 
+## 2026-09-27: SSO sign-in clicks escape the canvas into a real tab (TDR-0044)
+
+Clicking "Sign in with Google" (or Microsoft/Apple/Facebook/GitHub/Okta/Auth0/Yahoo)
+inside the canvas failed silently - the identity provider refuses to render its own
+sign-in page in any iframe, browser-enforced, same restriction TDR-0040/0042 already
+document as unfixable by proxying. Added to `modules/proxy/interceptor.py` (injected into
+every proxied page, same file TDR-0035/0040 already extend): a capturing `click` listener
+that opens a matching `<a href>`'s target in a real `window.open()` tab instead of
+navigating the canvas to it, and a capturing `submit` listener that does the same for a
+matching `<form>` by cloning its fields into a form built inside the new tab (needed for
+POST forms, where a static URL can't carry the body). Host matching is an explicit
+allowlist, exact-suffix only (a lookalike like `accounts.google.com.evil.com` does not
+match). This only redirects where the browser navigates - it does not read, store, or
+transmit anything from the resulting sign-in; carrying that session into the canvas
+afterward is still the existing extension Sync action (TDR-0041).
+
+Verification: backend `ruff check`/`format --check`/`mypy` (strict, 175 files) and
+`tests/test_proxy_rewriter.py` (10/10) clean. Extracted the real generated interceptor
+script via `build_interceptor_script()` and syntax-checked it with `node --check`. Ran it
+in a Node VM harness against a fake DOM: a Google OAuth link click is prevented and opens
+a new tab; a same-site link click is left untouched; a link already carrying
+`target="_blank"` is left for the browser; a Microsoft OAuth POST form submit is
+prevented and its fields are cloned into a form submitted inside the new tab; a normal
+form submit is left untouched; a lookalike domain (`accounts.google.com.evil.com`) does
+not match; `github.com` matches but `githubusercontent.com` does not. Not verified: a
+real browser session against a live identity provider (would need the deployed stack and
+a real "Sign in with X" button to click). No test suite added, per this repo's Claude
+Code instruction.
+
 ## 2026-09-27: BugHunt AI becomes a real project-wide analysis (TDR-0043)
 
 - `AiTab.tsx` ("BugHunt AI") was an honest "Coming soon" placeholder since TDR-0033
