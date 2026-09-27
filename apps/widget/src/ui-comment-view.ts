@@ -74,7 +74,7 @@ function statusHtml(editable: boolean): string {
   ).join("");
   return `
     <div class="bl-cv-status-wrap">
-      <button type="button" class="bl-cv-status" aria-haspopup="menu" aria-expanded="false">${pill}${svg(CHEVRON_ICON, 2, 10)}</button>
+      <button type="button" class="bl-cv-status" aria-haspopup="menu" aria-expanded="false" title="Change status">${pill}${svg(CHEVRON_ICON, 2, 10)}</button>
       <div class="bl-cv-status-menu" role="menu" aria-label="Change status" hidden>${options}</div>
     </div>`;
 }

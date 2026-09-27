@@ -41,7 +41,7 @@ export function setupAttachments(
   composer: HTMLElement,
   uploadFile: (file: File) => Promise<AttachmentResult | null>,
   onCountChange?: (count: number) => void,
-): { getAttachments: () => AttachmentResult[]; addFiles: (files: File[]) => void; disable: () => void; reset: () => void } {
+): { getAttachments: () => AttachmentResult[]; addFiles: (files: File[]) => void; disable: () => void; enable: () => void; reset: () => void } {
   const attachmentsEl = composer.querySelector<HTMLDivElement>(".bl-attachments")!;
   const fileInput = composer.querySelector<HTMLInputElement>(".bl-attach-input")!;
   const attachButton = composer.querySelector<HTMLButtonElement>(".bl-attach-button")!;
@@ -97,6 +97,10 @@ export function setupAttachments(
     disable: () => {
       attachButton.setAttribute("disabled", "true");
       fileInput.setAttribute("disabled", "true");
+    },
+    enable: () => {
+      attachButton.removeAttribute("disabled");
+      fileInput.removeAttribute("disabled");
     },
     reset: () => {
       uploaded.length = 0;

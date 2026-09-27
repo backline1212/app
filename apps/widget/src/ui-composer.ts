@@ -117,7 +117,13 @@ export function openComposer(
   shadow: ShadowRoot,
   x: number,
   y: number,
-  onSubmit: (result: ComposerResult) => void,
+  // Resolves to whether the comment actually posted - the composer stays open and
+  // usable (not just visible) either way, since neither outcome was reachable before:
+  // a resolved `true` was never distinguished from `false`, so a successful post left
+  // every button - including its own close "x" - disabled forever (a disabled button
+  // fires no click at all, so the one control a reviewer would reach for did nothing),
+  // and a failed one was just as stuck with no way to retry or dismiss.
+  onSubmit: (result: ComposerResult) => Promise<boolean>,
   onCancel: () => void,
   uploadFile: (file: File) => Promise<AttachmentResult | null>,
   details: ComposerDetails,
@@ -195,21 +201,43 @@ export function openComposer(
     document.removeEventListener("click", outsideClickHandler, true);
   }
 
-  function cancel(): void {
+  function removeComposer(): void {
     removeOutsideClickListener();
     composer.remove();
+  }
+
+  function cancel(): void {
+    removeComposer();
     if (!submitted) onCancel();
+  }
+
+  function setFormDisabled(disabled: boolean): void {
+    for (const button of [submitButton, closeButton, cancelButton, ...tagButtons]) {
+      if (disabled) button.setAttribute("disabled", "true");
+      else button.removeAttribute("disabled");
+    }
+    if (disabled) attachments.disable();
+    else attachments.enable();
   }
 
   function submit(): void {
     const body = textarea.value.trim();
     if (!body || submitted) return;
     submitted = true;
-    for (const button of [submitButton, closeButton, cancelButton, ...tagButtons]) {
-      button.setAttribute("disabled", "true");
-    }
-    attachments.disable();
-    onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag] });
+    setFormDisabled(true);
+    onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag] }).then((posted) => {
+      if (posted) {
+        // Left up long enough to read the status line's "Comment posted." before it
+        // goes - closing immediately would cut that off, and never closing at all is
+        // the exact bug this replaces.
+        window.setTimeout(removeComposer, 1200);
+        return;
+      }
+      // Failed - back to a normal, editable composer so the reviewer can retry or
+      // dismiss it themselves, instead of a permanently disabled dead end.
+      submitted = false;
+      setFormDisabled(false);
+    });
   }
 
   closeButton.addEventListener("click", cancel);
@@ -251,9 +279,6 @@ export function openComposer(
     setStatus: (text: string) => {
       statusEl.textContent = text;
     },
-    close: () => {
-      removeOutsideClickListener();
-      composer.remove();
-    },
+    close: removeComposer,
   };
 }

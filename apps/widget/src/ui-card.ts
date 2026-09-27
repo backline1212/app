@@ -46,7 +46,7 @@ export function cardHeaderHtml(opts: {
       <span class="bl-cp-title ${opts.titleClass ?? ""}">${escapeHtml(opts.title)}</span>
       <span class="bl-cp-loc" title="${escapeHtml(opts.pagePath)}">${escapeHtml(opts.pagePath)}</span>
       ${opts.trailingHtml ?? ""}
-      <button type="button" class="bl-cancel" aria-label="${escapeHtml(opts.closeLabel)}">&times;</button>
+      <button type="button" class="bl-cancel" aria-label="${escapeHtml(opts.closeLabel)}" title="${escapeHtml(opts.closeLabel)}">&times;</button>
     </div>`;
 }
 
