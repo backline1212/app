@@ -1,5 +1,68 @@
 # Delivery and verification ledger
 
+## 2026-09-27: BugHunt AI becomes a real project-wide analysis (TDR-0043)
+
+- `AiTab.tsx` ("BugHunt AI") was an honest "Coming soon" placeholder since TDR-0033
+  deliberately deferred it (its only reference, `backline-final-draft.html`, ties it to
+  a fake AI-credits/paywall system AGENTS.md forbids). The user provisioned 5 real Groq
+  keys and asked to build it for real, scoped to exactly the checklist the panel
+  already advertised (read every open comment, prioritize by severity, summarize
+  progress), explicitly excluding any change to the two existing comment-thread AI
+  actions ("except the comments"), plus one recommended addition: duplicate-thread
+  flagging. Full decision record: docs/tdr/0043-bughunt-ai-project-analysis.md.
+- Backend: `backend/app/modules/ai/schemas.py` gained `Severity`/`BugHuntFinding`/
+  `DuplicatePair`/`ProjectAnalysisResult`; `service.py` gained `analyze_project()`
+  (resolves project → pages → open top-level comments the same way
+  `comments/service.py`'s `list_comments_for_project` already does, caps at the 40
+  newest, calls Groq in JSON mode via a new optional `json_mode` param on the shared
+  `_complete()` helper - the two existing callers pass nothing and are byte-for-byte
+  unchanged); `router.py` gained `POST .../projects/{project_id}/ai/analyze` gated by
+  the existing `comment:update_status` permission (same bar as manually setting
+  priority, since this writes that same field). No schema/migration was needed for
+  severity - it writes straight into the comment's pre-existing `priority` field.
+  Any `comment_id` the model returns that wasn't in the candidate set sent to it is
+  dropped before it can be written or returned; a non-JSON model response degrades to
+  a summary-only result instead of a 500.
+- Contracts regenerated: `uv run python scripts/export_openapi.py` then (from
+  `packages/types/`) `pnpm generate:local`; `pnpm typecheck` clean.
+- Frontend: `AiTab.tsx` rewritten from a static placeholder into a real panel (plain
+  `async`-handler + `useState`, matching `CommentThreadPanel.tsx`'s existing
+  Summarize/Suggest Replies pattern rather than `useMutation`); reuses the existing
+  `aiErrorMessage()` busy-state helper untouched. `ProjectSidePanel.tsx` now passes
+  `workspaceId`/`projectId` and an `onViewComment` callback that switches to the
+  Comments tab with the clicked finding/duplicate selected. A successful analysis with
+  any findings invalidates `qk.projectComments(projectId)` so the board reflects
+  updated priorities immediately.
+- No credit/usage metering or paywall UI was added anywhere, matching TDR-0033's
+  precedent.
+- **Follow-up bug fix, same day:** the first pass only caught a `json.loads` failure
+  (non-JSON text). A syntactically-valid-but-wrong-shaped response - a JSON array or
+  scalar instead of an object, or a `findings`/`possible_duplicates` entry that isn't
+  itself an object - would call `.get()` on the wrong type and raise an unhandled
+  `AttributeError`/`TypeError` past that narrow `except ValueError`, surfacing as a 500
+  instead of the intended graceful degradation. Fixed by widening the try/except to
+  wrap the full parse-and-extract block (`isinstance` guards on `parsed` and on each
+  list entry, catching `ValueError`/`TypeError`/`AttributeError` together) so any
+  malformed model output degrades to a summary-only result and, critically, leaves
+  `findings` empty - no partial/garbage write to a comment's `priority` can happen from
+  a bad response.
+- Verification: from `backend/`, `uv run ruff check app/`, `uv run ruff format --check
+  app/modules/ai/` (repo-wide `format --check` has 7 pre-existing files needing
+  reformat, all outside this slice and already modified by unrelated in-progress work
+  on this branch - left untouched), strict `uv run mypy app/` (175 files), and
+  `scripts/check_workspace_scoping.py` (the static tenant-isolation lint backing
+  `test_workspace_scoping_lint.py`) all clean. From `apps/web/`, `pnpm typecheck`,
+  `pnpm lint` (4 pre-existing warnings, none in touched files), and `pnpm build` all
+  clean. The existing `pytest` suite was not run to completion: this machine has no
+  local `mongod`/`redis-server` running (TDR-0001's native-binary dev setup), so the
+  DB-backed suite hangs on connection rather than failing fast - consistent with prior
+  Groq-slice entries in this ledger, which noted the same gap rather than starting
+  those services. No new test suite was written, per this task's own Claude Code
+  instructions. No live call to Groq was exercised in this session - the 5 keys are
+  supplied by the user outside it; with `GROQ_API_KEYS` unset the endpoint returns the
+  same honest disabled placeholder the other two AI actions already use, which is what
+  this session's verification exercised.
+
 ## 2026-09-27: Cloud login browser deploy, part 2 - dedicated Dockerfile (TDR-0042)
 
 Continuing the same-day deploy: the user added Railway balance and asked for the

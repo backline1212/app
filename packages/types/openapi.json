@@ -4650,6 +4650,62 @@
         }
       }
     },
+    "/api/workspaces/{workspace_id}/projects/{project_id}/ai/analyze": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Analyze Project",
+        "operationId": "analyze_project_api_workspaces__workspace_id__projects__project_id__ai_analyze_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAnalysisResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/integrations": {
       "get": {
         "tags": [
@@ -6347,6 +6403,46 @@
         ],
         "title": "Body_upload_asset_api_v1_projects__project_id__assets_post"
       },
+      "BugHuntFinding": {
+        "properties": {
+          "comment_id": {
+            "type": "string",
+            "title": "Comment Id"
+          },
+          "ticket_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "comment_id",
+          "ticket_number",
+          "severity",
+          "reason"
+        ],
+        "title": "BugHuntFinding"
+      },
       "ClickOffsetPct": {
         "properties": {
           "x": {
@@ -7359,6 +7455,53 @@
         ],
         "title": "DomFingerprintIn",
         "description": "node_hash/ancestor_path_hash use the same hash scheme as a snapshot's NodeRecord\n(09-Snapshot-Engine.md \u00a79.6) - required for modules/anchor_engine to compare an\nanchor against a snapshot's nodes_index at all\n(docs/tdr/0004-anchor-snapshot-shared-hash-scheme.md)."
+      },
+      "DuplicatePair": {
+        "properties": {
+          "comment_id_a": {
+            "type": "string",
+            "title": "Comment Id A"
+          },
+          "comment_id_b": {
+            "type": "string",
+            "title": "Comment Id B"
+          },
+          "ticket_number_a": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number A"
+          },
+          "ticket_number_b": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number B"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "comment_id_a",
+          "comment_id_b",
+          "ticket_number_a",
+          "ticket_number_b",
+          "reason"
+        ],
+        "title": "DuplicatePair"
       },
       "EmailChangeConfirm": {
         "properties": {
@@ -8459,6 +8602,38 @@
         ],
         "title": "PasswordSetRequest",
         "description": "TDR-0037: sets/replaces the caller's own password, authenticated by their\ncurrent session rather than by re-entering the old value - reached only after\nan OTP verify, which already proved control of the inbox."
+      },
+      "ProjectAnalysisResult": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/BugHuntFinding"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "possible_duplicates": {
+            "items": {
+              "$ref": "#/components/schemas/DuplicatePair"
+            },
+            "type": "array",
+            "title": "Possible Duplicates"
+          },
+          "analyzed_comment_count": {
+            "type": "integer",
+            "title": "Analyzed Comment Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "analyzed_comment_count"
+        ],
+        "title": "ProjectAnalysisResult"
       },
       "ProjectCreate": {
         "properties": {

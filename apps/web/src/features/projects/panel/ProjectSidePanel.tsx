@@ -132,7 +132,16 @@ export function ProjectSidePanel({
                 workspaceSlug={workspaceSlug}
               />
             )}
-            {activeTab === "ai" && <AiTab />}
+            {activeTab === "ai" && (
+              <AiTab
+                workspaceId={workspaceId}
+                projectId={project.id}
+                onViewComment={(commentId) => {
+                  onSelectComment?.(commentId);
+                  setActiveTab("comments");
+                }}
+              />
+            )}
           </div>
         </div>
       )}
