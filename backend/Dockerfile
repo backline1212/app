@@ -64,7 +64,14 @@ COPY packages/types ./packages/types
 RUN pnpm --filter @backline/extension build
 
 # --- Stage 2: the API ----------------------------------------------------------------
-FROM python:3.12-slim AS base
+# Pinned to Debian 12 (bookworm), not the floating `python:3.12-slim` tag - that tag has
+# since rolled onto Debian 13 (trixie), which the worker stage's `playwright install
+# --with-deps` doesn't recognize (falls back to Ubuntu 20.04 package names, two of which
+# don't exist under trixie's apt sources, failing that RUN outright - confirmed building
+# backend/Dockerfile.cloud_login, which hits the identical base image). bookworm is in
+# Playwright 1.49.1's actual supported matrix; api/app never runs playwright at all, so
+# this only makes its base image more stable, never less compatible.
+FROM python:3.12-slim-bookworm AS base
 
 RUN pip install --no-cache-dir uv==0.11.28
 

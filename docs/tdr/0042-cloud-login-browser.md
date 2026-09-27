@@ -37,6 +37,15 @@ modal, whose captured session hands off through TDR-0041's own ticket pipeline.*
   service entirely, at the cost of a small duplicated base-image setup (no shared stage
   with `backend/Dockerfile`, so nothing about `app`'s or `worker`'s own build is at risk
   from this).
+- A second build failure, after the above: `python:3.12-slim` (the floating tag, also
+  used by `backend/Dockerfile`'s shared `base` stage) has rolled onto Debian 13 (trixie)
+  since `worker` was first written. Playwright 1.49.1's `--with-deps` installer doesn't
+  recognize trixie and falls back to Ubuntu 20.04 package names, two of which
+  (`ttf-ubuntu-font-family`, `ttf-unifont`) don't exist under trixie's apt sources at all,
+  failing the build outright. Pinned both Dockerfiles to `python:3.12-slim-bookworm`
+  (Debian 12, in Playwright's actual supported matrix) - `worker`'s own next
+  from-scratch/cache-busted rebuild would hit this identically, so this fixes a latent bug
+  there too, not just here.
 - `POST /api/v1/projects/{id}/cloud-login/sessions` (`modules/cloud_login`,
   `project:manage`-gated, on the main API - it never touches Playwright) mints a
   short-lived Redis ticket and returns the separate service's `ws_url` with the ticket

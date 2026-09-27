@@ -19,7 +19,12 @@
 #
 # Unlike app.main:app, cloud_login_app.py never serves the widget/extension bundles, so
 # this skips backend/Dockerfile's widget/extension build stages entirely.
-FROM python:3.12-slim
+# Pinned to Debian 12 (bookworm), not the floating `python:3.12-slim` tag: that tag has
+# since rolled onto Debian 13 (trixie), which playwright 1.49.1's `--with-deps` installer
+# doesn't recognize - it falls back to Ubuntu 20.04 package names, two of which
+# (ttf-ubuntu-font-family, ttf-unifont) don't exist under trixie's apt sources at all,
+# failing the build outright. bookworm is in Playwright's actual supported matrix.
+FROM python:3.12-slim-bookworm
 
 RUN pip install --no-cache-dir uv==0.11.28
 
