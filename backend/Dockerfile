@@ -117,18 +117,14 @@ RUN playwright install --with-deps chromium firefox webkit
 
 CMD ["sh", "-c", "arq app.workers.main.WorkerSettings"]
 
-# --- Stage 3b: the cloud login browser (docs/tdr/0042) -------------------------------
-# A separate Railway service, not the API and not the arq worker: it holds one real,
-# interactive Chromium instance per concurrent session (streamed over its own websocket
-# to a member's browser), so it needs the same Playwright binaries `worker` already has -
-# reused as-is here rather than repeating the `playwright install` layer.
-#
-# On Railway: same repo, same Dockerfile Path, Settings -> Build -> "Docker Build Target"
-# = "cloud_login". Needs its own public domain (Settings -> Networking -> Generate
-# Domain); set CLOUD_LOGIN_WS_URL on the API service to that domain's wss:// address.
-FROM worker AS cloud_login
-
-CMD ["sh", "-c", "uvicorn app.cloud_login_app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# The cloud login browser (docs/tdr/0042) is NOT a stage in this file - see
+# backend/Dockerfile.cloud_login. It started as a `FROM worker` stage here, same as
+# `worker` itself is a stage in this file, but that needs a working "Docker Build Target"
+# selection to build anything other than the last stage - checked via the Railway
+# dashboard and the public GraphQL API, neither exposes one for this project, and
+# `Dockerfile#stage` path syntax isn't supported either (Railway just fails to find that
+# literal filename). A dedicated file for a dedicated service sidesteps needing that
+# control at all, at the cost of a duplicated (small) base-image setup.
 
 # --- Stage 4: default build target ---------------------------------------------------
 # Docker builds the LAST stage in a Dockerfile when no --target is given. With `worker`
