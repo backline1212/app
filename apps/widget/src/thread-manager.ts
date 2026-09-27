@@ -100,7 +100,8 @@ export function createThreadManager({
       openThread = null;
     }
 
-    const topComment = threadMessages.get(topId)?.[0];
+    const thread = threadMessages.get(topId);
+    const topComment = thread?.[0];
     if (!topComment) return;
 
     const updateStatus = statusUpdater();
@@ -115,6 +116,11 @@ export function createThreadManager({
         tags: topComment.tags ?? [],
         attachments: topComment.attachments,
         pagePath: pagePath(),
+        replies: (thread ?? []).slice(1).map((reply) => ({
+          authorName: reply.author_name,
+          body: reply.body,
+          createdAt: reply.created_at,
+        })),
       },
       () => {
         if (openThread?.topId === topId) openThread = null;

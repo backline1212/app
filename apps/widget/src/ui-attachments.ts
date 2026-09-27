@@ -41,18 +41,14 @@ export function setupAttachments(
   composer: HTMLElement,
   uploadFile: (file: File) => Promise<AttachmentResult | null>,
   onCountChange?: (count: number) => void,
-): { getAttachments: () => AttachmentResult[]; disable: () => void; reset: () => void } {
+): { getAttachments: () => AttachmentResult[]; addFiles: (files: File[]) => void; disable: () => void; reset: () => void } {
   const attachmentsEl = composer.querySelector<HTMLDivElement>(".bl-attachments")!;
   const fileInput = composer.querySelector<HTMLInputElement>(".bl-attach-input")!;
   const attachButton = composer.querySelector<HTMLButtonElement>(".bl-attach-button")!;
   const uploaded: AttachmentResult[] = [];
   const reportCount = () => onCountChange?.(attachmentsEl.children.length);
 
-  attachButton.addEventListener("click", () => fileInput.click());
-
-  fileInput.addEventListener("change", () => {
-    const files = Array.from(fileInput.files ?? []);
-    fileInput.value = "";
+  function addFiles(files: File[]): void {
     for (const file of files) {
       if (file.size > MAX_ATTACHMENT_BYTES) continue;
 
@@ -85,10 +81,19 @@ export function setupAttachments(
         chip.classList.remove("bl-attachment-pending");
       });
     }
+  }
+
+  attachButton.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", () => {
+    const files = Array.from(fileInput.files ?? []);
+    fileInput.value = "";
+    addFiles(files);
   });
 
   return {
     getAttachments: () => uploaded,
+    addFiles,
     disable: () => {
       attachButton.setAttribute("disabled", "true");
       fileInput.setAttribute("disabled", "true");

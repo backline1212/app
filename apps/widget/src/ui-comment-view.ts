@@ -2,6 +2,12 @@ import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES } from "./status";
 import { attachmentIcon, type AttachmentInfo } from "./ui-attachments";
 import { cardHeaderHtml, escapeHtml, placeCard, svg, TAG_ICONS } from "./ui-card";
 
+export interface CommentViewReply {
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
 export interface CommentViewData {
   authorName: string;
   body: string;
@@ -9,6 +15,7 @@ export interface CommentViewData {
   tags: string[];
   attachments: AttachmentInfo[];
   pagePath: string;
+  replies: CommentViewReply[];
 }
 
 export interface CommentViewControls {
@@ -22,6 +29,22 @@ const CHECK_ICON = '<path d="M5 12l5 5L20 7"/>';
 
 const statusLabel = (status: string): string => STATUS_LABELS[status] ?? status;
 const statusColor = (status: string): string => STATUS_COLORS[status] ?? STATUS_COLORS.todo;
+
+function replyTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function replyHtml(reply: CommentViewReply): string {
+  return `<div class="bl-cv-reply">
+    <div class="bl-cv-reply-head">
+      <span class="bl-cv-reply-author">${escapeHtml(reply.authorName)}</span>
+      <span class="bl-cv-reply-time">${escapeHtml(replyTime(reply.createdAt))}</span>
+    </div>
+    <p class="bl-cv-reply-body"></p>
+  </div>`;
+}
 
 function attachmentHtml(attachment: AttachmentInfo): string {
   const href = escapeHtml(attachment.url);
@@ -105,11 +128,20 @@ export function openCommentView(
           ? `<div class="bl-cv-files">${comment.attachments.map(attachmentHtml).join("")}</div>`
           : ""
       }
+      ${
+        comment.replies.length > 0
+          ? `<div class="bl-cv-replies">${comment.replies.map(replyHtml).join("")}</div>`
+          : ""
+      }
       ${onStatusChange ? '<p class="bl-status" role="status" aria-live="polite"></p>' : ""}
     </div>
   `;
-  // textContent, not innerHTML: the body is user-written text, shown exactly as typed.
+  // textContent, not innerHTML: comment/reply bodies are user-written text, shown
+  // exactly as typed - never parsed as markup.
   view.querySelector<HTMLParagraphElement>(".bl-cv-text")!.textContent = comment.body;
+  view.querySelectorAll<HTMLParagraphElement>(".bl-cv-reply-body").forEach((el, i) => {
+    el.textContent = comment.replies[i].body;
+  });
 
   const pill = view.querySelector<HTMLElement>(".bl-cv-status")!;
   const trigger = pill instanceof HTMLButtonElement ? pill : null;

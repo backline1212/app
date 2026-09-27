@@ -196,7 +196,7 @@ async function init(config: BacklineConfig): Promise<void> {
         if (!element || forPageId !== pageId || pinsByTopId.has(top.id)) return;
         const point = anchorPointFor(element, top.anchor);
         const pct = top.anchor.dom_fingerprint.click_offset_pct ?? { x: 0, y: 0 };
-        const pin = renderPin(shadow, point.x, point.y);
+        const pin = renderPin(shadow, point.x, point.y, top.ticket_number);
         attachPinClickHandler(pin, top.id);
         const untrack = trackPinPosition(
           pin,
@@ -380,6 +380,7 @@ async function init(config: BacklineConfig): Promise<void> {
             }),
           });
           pin.classList.remove("bl-pin-ghost");
+          if (created.ticket_number != null) pin.textContent = String(created.ticket_number);
           ownCommentIds.add(created.id);
           threadMessages.set(created.id, [created]);
           pinsByTopId.set(created.id, { pin, untrack });

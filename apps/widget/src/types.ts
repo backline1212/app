@@ -88,4 +88,7 @@ export interface CommentRecord {
   anchor: AnchorPayload;
   attachments: AttachmentRecord[];
   tags: string[];
+  // Per-workspace sequential ticket reference (comments/schemas.py's CommentOut) - null
+  // for a reply, or a record created before the backfill (scripts/migrate_ticket_numbers.py).
+  ticket_number: number | null;
 }
