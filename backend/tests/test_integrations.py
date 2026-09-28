@@ -622,9 +622,7 @@ async def test_jira_create_issue_round_trip_preserves_metadata_and_backlink(
         {
             "auth.atlassian.com/oauth/token": httpx.Response(200, json=_JIRA_TOKEN_EXCHANGE),
             "rest/api/3/issue/ISSUE-1/attachments": httpx.Response(200, json={"id": "att-1"}),
-            "rest/api/3/issue": httpx.Response(
-                200, json={"key": "ISSUE-1", "id": "10001"}
-            ),
+            "rest/api/3/issue": httpx.Response(200, json={"key": "ISSUE-1", "id": "10001"}),
         }
     ) as fake:
         resp = await client.post(

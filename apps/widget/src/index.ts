@@ -327,10 +327,11 @@ async function init(config: BacklineConfig): Promise<void> {
     }));
 
     // M-08 idempotency: generated once per pin/composer, not inside the submit
-    // callback, so a future retry affordance on this same composer (UX-AUD-027 is
-    // still pending) can resend the identical key instead of minting a new one -
-    // the backend replays the original comment for a repeated key rather than
-    // creating a duplicate (comments/repository.py's find_by_client_request_id).
+    // callback, so posting again from the same composer after a failure (it stays
+    // open and editable - ui-composer.ts) resends the identical key instead of
+    // minting a new one - the backend replays the original comment for a repeated key
+    // rather than creating a duplicate (comments/repository.py's
+    // find_by_client_request_id).
     const clientRequestId = crypto.randomUUID();
     // The page clicked on, even if an SPA routes elsewhere while the composer is open.
     const commentPageId = pageId;

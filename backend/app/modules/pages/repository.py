@@ -111,12 +111,8 @@ class PageRepository:
         return {
             "comments": await self.db.comments.count_documents(query, session=session),
             "revisions": await self.db.revisions.count_documents(query, session=session),
-            "revision_diffs": await self.db.revision_diffs.count_documents(
-                query, session=session
-            ),
-            "project_assets": await self.db.project_assets.count_documents(
-                query, session=session
-            ),
+            "revision_diffs": await self.db.revision_diffs.count_documents(query, session=session),
+            "project_assets": await self.db.project_assets.count_documents(query, session=session),
         }
 
     async def delete(

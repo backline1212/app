@@ -61,9 +61,7 @@ class ProjectRepository:
         cursor = self.db.projects.find(query).sort("created_at", -1)
         return [doc async for doc in cursor]
 
-    async def find_by_origin(
-        self, workspace_id: str, target_origin: str
-    ) -> dict[str, Any] | None:
+    async def find_by_origin(self, workspace_id: str, target_origin: str) -> dict[str, Any] | None:
         """Used by the extension's "auto-detect current site" flow (find-or-create by
         origin) - archived projects don't match, so revisiting a site whose project was
         archived creates a fresh one rather than silently resurrecting the old one."""

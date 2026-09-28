@@ -1,5 +1,65 @@
 # Delivery and verification ledger
 
+## 2026-09-29: Pending-issues sweep (TDR-0045)
+
+Every "pending" list in the repository was rechecked against current source: the
+2026-09-09 master-audit rows, the 2026-09-13 production-readiness plan, and the follow-ups
+at the end of recent entries below. Most older items are already delivered (calendar
+`Today`, ticket drag-and-drop, Jira/Asana, the MCP server, placeholder-page treatment,
+per-project Slack opt-out, the Slack "project updated" event). Still live, and fixed:
+
+- **Extension composer never closed after posting.** `content-script.ts`'s submit callback
+  returned nothing where `openComposer` expects `true`/`false` (the extension typecheck
+  failure first noted in TDR-0041's entry). It now returns the result like the widget's,
+  and its pins show ticket numbers too.
+- **Canvas hotkeys reverted the URL.** The hotkey listener in `ProjectOverviewPage.tsx`
+  held stale `setMode`/`goToPage`, which rebuild the URL from the `searchParams` of the
+  render that created them. After changing zoom, viewport or stage width, pressing C/D/V
+  or an arrow key restored the old values. The listener now calls them through a ref.
+- **Web lint at zero warnings:** besides the above, shortcut data moved to
+  `features/projects/shortcuts.ts` and the browser list to `footer/browsers.tsx`, so their
+  component modules export only components (React Fast Refresh).
+- **Backend formatting:** `ruff format` applied to the 10 files that failed the check
+  (whitespace only).
+- **Entry bundle 1,218.77 kB → 400.65 kB** (357.66 → 127.44 kB gzip): every page route in
+  `app/router.tsx` now loads lazily via react-router's `lazy`, with `LoadingScreen` as the
+  first-load fallback. pdf.js ships only in the canvas/asset-review chunk. The build no
+  longer prints the >500 kB chunk advisory.
+- **`?blBrowser=` duplicate pages (TDR-0035 follow-up):** new dry-run-first
+  `backend/scripts/migrate_canvas_param_pages.py`. It merges pages registered with the
+  canvas's `blBrowser`/`blMode` parameters into the page the same URL registers as today,
+  one transaction per duplicate, with a reference re-check before each delete. Duplicates
+  with an asset or a colliding browser render are skipped and reported. **Not run against
+  any database**; run it without `--apply` first.
+- **Stale copy:** `UsagePage` no longer claims there is no AI provider; the widget's
+  UX-AUD-027 "still pending" comment now describes the retry the composer already does.
+
+Deliberately not done (reasoning in TDR-0045): the `webhook_events`/`webhook_deliveries`
+tables (Slack retries already exist in `workers/integrations.py`), and repairing
+`tests/test_proxy.py` (its fake predates the SSRF guard, shared transport and preview
+origins; it can't run here, and no test suites are written under Claude Code).
+
+Verification: `pnpm turbo run lint typecheck build --force` passed 12/12 with no warnings
+(extension typecheck included, for the first time since TDR-0041). Backend `ruff check .`,
+`ruff format --check .` (226 files), strict `mypy app/ scripts/` (186 files) and
+`scripts/check_workspace_scoping.py` (19 repository files) passed. The merge script ran in
+a scratch harness (not checked in) against `mongomock-motor`, with transactions faked,
+covering:
+
+- a dry run that wrote nothing;
+- an apply that matched the dry run's plan;
+- a canonical page absorbing two duplicates, with exactly one current revision left;
+- a missing canonical page, where the oldest duplicate was renamed, adopted the other's
+  current revision and got `latest_revision_id` set;
+- render-conflict and asset duplicates skipped untouched;
+- an unrelated `?page=2` page ignored;
+- a re-run that was a no-op;
+- the workspace filter.
+
+Not verified: real MongoDB transactions, a browser session against a running stack (lazy
+route loading, the hotkey fix, the extension composer), and the pytest suite (no local
+MongoDB/Redis/Docker on this machine).
+
 ## 2026-09-27: SSO sign-in clicks escape the canvas into a real tab (TDR-0044)
 
 Clicking "Sign in with Google" (or Microsoft/Apple/Facebook/GitHub/Okta/Auth0/Yahoo)

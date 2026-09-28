@@ -18,7 +18,7 @@ import type { WorkspaceOut } from "../workspaces/api";
 import * as projectsApi from "./api";
 import { ProjectFooter, type CanvasMode } from "./footer/ProjectFooter";
 import { VIEWPORTS, type ViewportOption } from "./footer/ViewportMenu";
-import { BROWSERS, type BrowserOption } from "./footer/BrowserMenu";
+import { BROWSERS, type BrowserOption } from "./footer/browsers";
 import { useBrowserRenderSnapshot } from "./render-api";
 import {
   ArrowLeftIcon,
@@ -37,7 +37,8 @@ import { ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { QuickToolsDock } from "./footer/QuickToolsDock";
-import { loadShortcuts, ShortcutsModal } from "./ShortcutsModal";
+import { ShortcutsModal } from "./ShortcutsModal";
+import { loadShortcuts } from "./shortcuts";
 import { CloudLoginModal } from "./CloudLoginModal";
 
 type PageOut = Schemas["PageOut"];
@@ -276,6 +277,14 @@ export function ProjectOverviewPage() {
   // defaults) fresh on every keydown rather than once, so editing a shortcut applies
   // immediately. Suppressed while any modal is open or while typing in a field, so it
   // never hijacks normal text entry (e.g. a comment body that happens to contain "c").
+  // setMode/goToPage are read through a ref: both rebuild the URL from react-router's
+  // setSearchParams, which closes over the searchParams of the render that created it,
+  // so a copy captured when this listener was attached would write back a stale zoom/
+  // viewport/stage width the reviewer had changed since.
+  const hotkeyActionsRef = useRef({ setMode, goToPage });
+  useEffect(() => {
+    hotkeyActionsRef.current = { setMode, goToPage };
+  });
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
       if (showShare || showPages || showSettings || showShortcuts || showCloudLogin) return;
@@ -289,7 +298,7 @@ export function ProjectOverviewPage() {
 
       if (shortcut.id === "comment" || shortcut.id === "draw" || shortcut.id === "browse") {
         event.preventDefault();
-        setMode(shortcut.id);
+        hotkeyActionsRef.current.setMode(shortcut.id);
         return;
       }
       if (shortcut.id === "next-page" || shortcut.id === "prev-page") {
@@ -300,7 +309,7 @@ export function ProjectOverviewPage() {
         const currentIndex = Math.max(0, ids.indexOf(activePageIdParam ?? ""));
         const step = shortcut.id === "next-page" ? 1 : -1;
         event.preventDefault();
-        goToPage(ids[(currentIndex + step + ids.length) % ids.length]);
+        hotkeyActionsRef.current.goToPage(ids[(currentIndex + step + ids.length) % ids.length]);
       }
       // "hide-dock" (Ctrl .) is already handled by QuickToolsDock's own listener.
     }

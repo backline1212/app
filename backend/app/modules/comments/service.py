@@ -745,9 +745,7 @@ async def _build_member_name_cache(
     cache dict itself once populated, but with no cache handed in, asyncio.gather still
     fires one query per comment concurrently rather than one query total) - same fix
     as D3 (dashboard/service.py's list_tickets)."""
-    member_ids = {
-        doc["author_member_id"] for doc in docs if doc["author_type"] == "member"
-    }
+    member_ids = {doc["author_member_id"] for doc in docs if doc["author_type"] == "member"}
     if not member_ids:
         return {}
     users_by_id = await UserRepository(db).find_many_by_ids(list(member_ids))

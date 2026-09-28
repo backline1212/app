@@ -136,9 +136,7 @@ async def test_cannot_revoke_another_members_extension_token(
     )
     assert invite.status_code == 201
     member_login = await login_via_otp(client, monkeypatch, "member4@example.com", "930006")
-    member_token = await switch_workspace(
-        client, member_login["access_token"], ctx["workspace_id"]
-    )
+    member_token = await switch_workspace(client, member_login["access_token"], ctx["workspace_id"])
 
     resp = await client.delete(
         f"/api/v1/extension-tokens/{token_id}",
@@ -165,9 +163,7 @@ async def test_extension_token_stops_working_after_role_change(
     member_id = invite.json()["id"]
 
     member_login = await login_via_otp(client, monkeypatch, "member5@example.com", "930008")
-    member_token = await switch_workspace(
-        client, member_login["access_token"], ctx["workspace_id"]
-    )
+    member_token = await switch_workspace(client, member_login["access_token"], ctx["workspace_id"])
     member_headers = {"Authorization": f"Bearer {member_token}"}
 
     issued = await client.post(
@@ -178,9 +174,7 @@ async def test_extension_token_stops_working_after_role_change(
     assert issued.status_code == 201
     ext_headers = {"Authorization": f"Bearer {issued.json()['token']}"}
 
-    ok = await client.get(
-        f"/api/v1/workspaces/{ctx['workspace_id']}/projects", headers=ext_headers
-    )
+    ok = await client.get(f"/api/v1/workspaces/{ctx['workspace_id']}/projects", headers=ext_headers)
     assert ok.status_code == 200
 
     role_change = await client.patch(

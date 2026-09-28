@@ -44,9 +44,7 @@ async def test_issue_list_and_revoke_mcp_token(
     assert "token" not in listing.json()[0]
     assert body["token"] not in listing.text
 
-    revoke = await client.delete(
-        f"/api/v1/mcp/tokens/{token_id}", headers=ctx["owner_headers"]
-    )
+    revoke = await client.delete(f"/api/v1/mcp/tokens/{token_id}", headers=ctx["owner_headers"])
     assert revoke.status_code == 204
 
     listing_after = await client.get(

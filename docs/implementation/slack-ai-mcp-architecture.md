@@ -49,6 +49,12 @@ Current (`backend/app/modules/integrations/slack.py`, `router.py`, spec §17.2):
   (`type: "slack"`, `config_summary` never exposes the raw webhook URL to the
   frontend).
 
+**Status 2026-09-29 (TDR-0045):** the gaps below are historical. Failed deliveries are
+retried by `workers/integrations.py` (5s/30s/5min, then a `webhook.delivery_failed` event
+and a notification to whoever connected it), projects have `slack_notifications_enabled`,
+and `on_project_updated` is wired from `projects/service.py`. Not built: a per-member mute
+and §3's delivery tables, which only matter if custom outbound webhooks are built.
+
 **Real gaps** (both genuinely unbuilt, confirmed via repo-wide search):
 - **No delivery/retry table.** A failed Slack POST just fires a
   `WEBHOOK_DELIVERY_FAILED` activity event — nothing re-attempts it. See §3's shared

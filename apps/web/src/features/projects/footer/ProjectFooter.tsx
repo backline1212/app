@@ -14,7 +14,8 @@ import {
 } from "../panel/icons";
 import { CollaboratorsModal } from "../panel/CollaboratorsModal";
 import { ViewportMenu, type ViewportOption } from "./ViewportMenu";
-import { BrowserMenu, type BrowserOption } from "./BrowserMenu";
+import { BrowserMenu } from "./BrowserMenu";
+import type { BrowserOption } from "./browsers";
 import { VersionMenu } from "./VersionMenu";
 
 export type CanvasMode = "browse" | "comment" | "draw";

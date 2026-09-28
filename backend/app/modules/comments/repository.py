@@ -27,9 +27,7 @@ class CommentRepository:
             client_request_id = doc.get("client_request_id")
             if client_request_id is None:
                 raise
-            existing = await self.find_by_client_request_id(
-                doc["workspace_id"], client_request_id
-            )
+            existing = await self.find_by_client_request_id(doc["workspace_id"], client_request_id)
             if existing is None:
                 raise
             return existing
