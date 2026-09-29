@@ -129,6 +129,19 @@ TICKET_NUMBER_INDEXES: tuple[AdditiveIndex, ...] = (
 )
 
 
+# Tickets filed in a tracker from a comment (modules/integrations,
+# IntegrationLinkRepository). Unique so one comment can only ever be filed once per
+# connection - the send path claims this row before calling the tracker.
+INTEGRATION_LINK_INDEXES: tuple[AdditiveIndex, ...] = (
+    AdditiveIndex(
+        "integration_links",
+        (("workspace_id", 1), ("comment_id", 1), ("integration_id", 1)),
+        "integration_links_comment_integration",
+        {"unique": True},
+    ),
+)
+
+
 BROWSER_RENDER_INDEXES: tuple[AdditiveIndex, ...] = (
     # One cache/job-status document per (page, browser, viewport, orientation)
     # combination - modules/browser_render's repository upserts against exactly this
@@ -307,3 +320,4 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
     await ensure_additive_indexes(db, BROWSER_RENDER_INDEXES)
     await ensure_additive_indexes(db, AUDIT_BATCH_14_INDEXES)
     await ensure_additive_indexes(db, TICKET_NUMBER_INDEXES)
+    await ensure_additive_indexes(db, INTEGRATION_LINK_INDEXES)

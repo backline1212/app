@@ -6,6 +6,14 @@ substantially built, and there are genuinely **two different, unrelated "AI" fea
 in this codebase that the prompt's Part 10/12 conflate. This doc separates them and
 scopes only what's actually still needed.
 
+**Status 2026-09-29 ([TDR-0046](../tdr/0046-integrations-and-mcp-without-operator-setup.md)):**
+§2 is built and extended. The MCP server has seven tools plus a `fix_ticket` prompt,
+read-only and read & write tokens, a membership re-check on every request, and setup for
+eight agent clients. §3's custom outbound webhook exists as the `webhook` integration
+type, HMAC-signed and delivered through the existing retry engine rather than new
+`webhook_events`/`webhook_deliveries` tables. Discord, Teams, GitHub, GitLab and Linear
+were added, and ClickUp/Jira/Asana connect with tokens as well as OAuth.
+
 ## 0. Two different "AI" surfaces — don't conflate them
 
 1. **`backend/app/modules/ai/`** — real, shipped, Gemini-backed (`google.genai`,

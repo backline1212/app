@@ -6,6 +6,8 @@ import {
   createShadowRoot,
   createThreadManager,
   captureScreenshot,
+  composerHasDraft,
+  nudgeComposer,
   openComposer,
   parseUserAgent,
   registerCurrentPage,
@@ -138,6 +140,12 @@ function activatePointMode(ctx: AnnotationContext): () => void {
   const handleClick = (event: MouseEvent): void => {
     const target = event.target as Element | null;
     if (!target || target.closest("[data-backline-root]")) return;
+    // Same as the guest widget: a half-written comment isn't thrown away by a stray click.
+    if (composerHasDraft()) {
+      event.preventDefault();
+      nudgeComposer();
+      return;
+    }
 
     // Same reasoning as apps/widget/src/index.ts's own click handler: left unprevented,
     // commenting on a link or submit button also triggers its native action and

@@ -25,9 +25,13 @@ export function StatusChips({
           Comments ({filteredCount}
           {filteredCount !== totalCount ? ` of ${totalCount}` : ""})
         </h3>
-        <button type="button" onClick={onSelectAll} className="bl-text-link">
-          {activeStatus ? "Clear" : "Select all"}
-        </button>
+        {/* Every status already shows when none is picked, so there's nothing to "select
+            all" until one is. */}
+        {activeStatus && (
+          <button type="button" onClick={onSelectAll} className="bl-text-link">
+            Show all statuses
+          </button>
+        )}
       </div>
 
       <div className="bl-status-grid" role="group" aria-label="Filter by status">

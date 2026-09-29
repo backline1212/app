@@ -27,6 +27,7 @@ from app.modules.dashboard.router import router as dashboard_router
 from app.modules.extension_tokens.router import router as extension_tokens_router
 from app.modules.integrations.router import router as integrations_router
 from app.modules.mcp.router import router as mcp_router
+from app.modules.mcp.server import McpPathMiddleware
 from app.modules.mcp.server import mcp as mcp_server
 from app.modules.notifications.router import router as notifications_router
 from app.modules.pages.router import router as pages_router
@@ -102,6 +103,7 @@ app.add_middleware(
 register_exception_handlers(app)
 
 app.add_middleware(AuthOriginMiddleware)
+app.add_middleware(McpPathMiddleware)
 # Added last so it runs first: a preview-origin request is re-addressed to the proxy
 # before any other middleware or route sees its path.
 app.add_middleware(PreviewHostMiddleware)

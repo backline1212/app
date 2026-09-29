@@ -25,6 +25,8 @@ class TicketFilters(BaseModel):
     # the single `assignee` when given; that one stays for older clients.
     assignees: list[str] = Field(default_factory=list, max_length=50)
     view: Literal["all", "mine", "reply", "client", "overdue"] = "all"
+    # Leave out resolved and won't-fix tickets (the MCP server's default listing).
+    open_only: bool = False
     sort: Literal["newest", "oldest", "due", "priority", "status", "project", "assignee", "tag"] = (
         "newest"
     )

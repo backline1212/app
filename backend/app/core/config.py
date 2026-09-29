@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Dev-only default secrets. Must never be reachable outside `environment == "local"` -
@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     snapshot_submit_rate_limit_per_minute: int = 30
     comment_create_rate_limit_per_minute: int = 20
     upload_rate_limit_per_minute: int = 20
+    # Every MCP tool call, per personal access token. Agents loop, so this is the brake
+    # on a runaway one; writes (replies) also share comment_create's bucket above.
+    mcp_tool_rate_limit_per_minute: int = 120
     # Real per-engine headless-browser renders are actual CPU/memory cost, unlike the
     # writes above - kept deliberately low so one workspace can't queue enough
     # concurrent Playwright launches to starve the single worker process (see
@@ -152,6 +155,17 @@ class Settings(BaseSettings):
     # Fallback cooldown after Groq rejects a key (401/403) or rate-limits the whole
     # organization (429) when its Retry-After header is missing or unparseable.
     groq_rate_limit_cooldown_seconds: float = 30.0
+
+    @field_validator("integrations_encryption_key", mode="before")
+    @classmethod
+    def blank_encryption_key_is_unset(cls, value: object) -> object:
+        # The checked-in .env templates carry `INTEGRATIONS_ENCRYPTION_KEY=` with no
+        # value, which pydantic-settings reads as "" rather than "unset" - and "" isn't
+        # a Fernet key, so every integration connect failed locally. Blank means the
+        # dev default here; check_production_secrets still refuses it outside local.
+        if isinstance(value, str) and not value.strip():
+            return _DEV_INTEGRATIONS_ENCRYPTION_KEY
+        return value
 
     @model_validator(mode="after")
     def check_production_secrets(self) -> "Settings":

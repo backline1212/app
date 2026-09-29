@@ -60,6 +60,15 @@ class CommentRepository:
         # after (e.g. comments/service.py's update_comment) before acting on it.
         return await self.db.comments.find_one({"_id": oid})
 
+    async def find_by_ticket_number(
+        self, workspace_id: str, ticket_number: int
+    ) -> dict[str, Any] | None:
+        """The live comment or ticket numbered "#N" in this workspace (MCP tools accept
+        ticket numbers as well as ids)."""
+        return await self.db.comments.find_one(
+            {"workspace_id": workspace_id, "ticket_number": ticket_number, "deleted_at": None}
+        )
+
     async def list_for_member(
         self, workspace_id: str, page_id: str, *, since: datetime | None = None
     ) -> list[dict[str, Any]]:
@@ -93,7 +102,33 @@ class CommentRepository:
         if since is not None:
             query["created_at"] = {"$gt": since}
         cursor = self.db.comments.find(query).sort("created_at", 1)
-        return [doc async for doc in cursor]
+        docs = [doc async for doc in cursor]
+
+        # A client-layer reply is only visible while its thread is: a thread moved to
+        # team-only (toggle_layer), or a legacy client reply left on a team thread before
+        # create_reply made replies inherit it, would otherwise still hand its
+        # discussion to the guest.
+        visible_tops = {str(doc["_id"]) for doc in docs if doc.get("parent_id") is None}
+        unknown_parents = {
+            doc["parent_id"]
+            for doc in docs
+            if doc.get("parent_id") is not None and doc["parent_id"] not in visible_tops
+        }
+        if unknown_parents:
+            parent_oids = [oid for pid in unknown_parents if (oid := to_object_id(pid))]
+            parents = self.db.comments.find(
+                {
+                    "_id": {"$in": parent_oids},
+                    "workspace_id": workspace_id,
+                    "layer": "client",
+                    "deleted_at": None,
+                },
+                {"_id": 1},
+            )
+            visible_tops.update([str(parent["_id"]) async for parent in parents])
+        return [
+            doc for doc in docs if doc.get("parent_id") is None or doc["parent_id"] in visible_tops
+        ]
 
     async def list_for_project(
         self, workspace_id: str, page_ids: list[str]

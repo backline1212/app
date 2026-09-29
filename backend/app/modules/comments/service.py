@@ -414,7 +414,11 @@ async def create_reply(
         if existing_reply is not None:
             return await _comment_out(db, existing_reply)
 
-    effective_layer = "client" if is_guest else layer
+    # A reply on a team-only thread is team-only too, whatever the composer sent: the
+    # thread itself is hidden from guests, so a "client-visible" reply on it would be
+    # broadcast to the guest channel (_broadcast_comment_event) with nothing around it
+    # a client could ever be shown.
+    effective_layer = "client" if is_guest else "team" if parent["layer"] == "team" else layer
 
     doc: dict[str, Any] = {
         "page_id": parent["page_id"],
@@ -1140,18 +1144,30 @@ async def toggle_layer(
     comment_out = await _comment_out(db, updated)
     page = await _page_for_broadcast(db, updated["page_id"])
     if page is not None:
-        # Note: a client->team toggle has no corresponding "hide this" WS event (the
-        # spec's event table has no comment.deleted/comment.hidden type) - a guest who
-        # already has this comment in a local list (once the widget maintains one)
-        # would only stop seeing it on their next full refetch, not live. Documented in
-        # TDR-0006, not solved here: inventing new protocol surface wasn't asked for by
-        # this milestone.
+        # Members get the new layer; a team->client move also reaches the guest
+        # channel through this, where the widget adds the thread it didn't have.
         await _broadcast_comment_event(
             event_type="comment.updated",
             workspace_id=workspace_id,
             project_id=page["project_id"],
             comment=comment_out,
         )
+        if existing["layer"] == "client" and layer == "team":
+            # A guest connection already showing this comment receives nothing through
+            # the team-only broadcast above - comment.deleted (which the widget already
+            # handles by removing the pin and any open card) is sent to the client
+            # channel alone, so the thread leaves every guest's view live rather than
+            # on their next reload. Members are not told it was deleted.
+            await publish_realtime_event(
+                f"project:{page['project_id']}:client",
+                event_type=comment_events.COMMENT_DELETED,
+                workspace_id=workspace_id,
+                payload={
+                    "comment_id": comment_id,
+                    "parent_id": updated.get("parent_id"),
+                    "project_id": page["project_id"],
+                },
+            )
     return comment_out
 
 

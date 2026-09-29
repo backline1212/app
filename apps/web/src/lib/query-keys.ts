@@ -19,6 +19,10 @@ export const qk = {
   activity: (id: string) => ["workspace", id, "activity"] as const,
   activityList: (id: string, offset: number, filter: string) => ["workspace", id, "activity", offset, filter] as const,
   integrations: (workspaceId: string) => ["workspace", workspaceId, "integrations"] as const,
+  integrationDestinations: (workspaceId: string, integrationId: string) =>
+    ["workspace", workspaceId, "integrations", integrationId, "destinations"] as const,
+  oauthApps: (workspaceId: string) => ["workspace", workspaceId, "integrations", "oauth-apps"] as const,
+  commentIntegrationLinks: (commentId: string) => ["comment", commentId, "integration-links"] as const,
   extensionTokens: (workspaceId: string) => ["workspace", workspaceId, "extension-tokens"] as const,
   mcpTokens: (workspaceId: string) => ["workspace", workspaceId, "mcp-tokens"] as const,
   project: (projectId: string) => ["project", projectId] as const,

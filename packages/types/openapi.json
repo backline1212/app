@@ -2244,6 +2244,16 @@
             }
           },
           {
+            "name": "open_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Open Only"
+            }
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -4788,6 +4798,15 @@
                     "$ref": "#/components/schemas/SlackIntegrationCreate"
                   },
                   {
+                    "$ref": "#/components/schemas/DiscordIntegrationCreate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TeamsIntegrationCreate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/WebhookIntegrationCreate"
+                  },
+                  {
                     "$ref": "#/components/schemas/TrelloIntegrationCreate"
                   },
                   {
@@ -4798,16 +4817,31 @@
                   },
                   {
                     "$ref": "#/components/schemas/AsanaIntegrationCreate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GitHubIntegrationCreate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GitLabIntegrationCreate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/LinearIntegrationCreate"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
                     "slack": "#/components/schemas/SlackIntegrationCreate",
+                    "discord": "#/components/schemas/DiscordIntegrationCreate",
+                    "teams": "#/components/schemas/TeamsIntegrationCreate",
+                    "webhook": "#/components/schemas/WebhookIntegrationCreate",
                     "trello": "#/components/schemas/TrelloIntegrationCreate",
                     "clickup": "#/components/schemas/ClickUpIntegrationCreate",
                     "jira": "#/components/schemas/JiraIntegrationCreate",
-                    "asana": "#/components/schemas/AsanaIntegrationCreate"
+                    "asana": "#/components/schemas/AsanaIntegrationCreate",
+                    "github": "#/components/schemas/GitHubIntegrationCreate",
+                    "gitlab": "#/components/schemas/GitLabIntegrationCreate",
+                    "linear": "#/components/schemas/LinearIntegrationCreate"
                   }
                 },
                 "title": "Body"
@@ -4839,7 +4873,93 @@
         }
       }
     },
+    "/api/v1/integrations/oauth-apps": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "List Oauth Apps",
+        "description": "Which OAuth connect buttons to offer. Empty until an operator registers an OAuth\napp and sets its client id/secret - every provider also connects with a token.",
+        "operationId": "list_oauth_apps_api_v1_integrations_oauth_apps_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OAuthAppOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Oauth Apps Api V1 Integrations Oauth Apps Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/integrations/{integration_id}": {
+      "patch": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Update Integration",
+        "operationId": "update_integration_api_v1_integrations__integration_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Integration Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "integrations"
@@ -4865,6 +4985,212 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/{integration_id}/destinations": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "List Integration Destinations",
+        "operationId": "list_integration_destinations_api_v1_integrations__integration_id__destinations_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Integration Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DestinationOut"
+                  },
+                  "title": "Response List Integration Destinations Api V1 Integrations  Integration Id  Destinations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/{integration_id}/test": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Test Integration",
+        "operationId": "test_integration_api_v1_integrations__integration_id__test_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Integration Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comments/{comment_id}/integrations/{integration_id}/send": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Send Comment To Tracker",
+        "description": "File the comment in any connected tracker. Idempotent per (comment, connection):\na second send returns the ticket filed the first time.",
+        "operationId": "send_comment_to_tracker_api_v1_comments__comment_id__integrations__integration_id__send_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Comment Id"
+            }
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Integration Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalLinkOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comments/{comment_id}/integration-links": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "List Comment Integration Links",
+        "operationId": "list_comment_integration_links_api_v1_comments__comment_id__integration_links_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Comment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalLinkOut"
+                  },
+                  "title": "Response List Comment Integration Links Api V1 Comments  Comment Id  Integration Links Get"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -6182,22 +6508,44 @@
             "default": "asana"
           },
           "oauth_code": {
-            "type": "string",
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Oauth Code"
           },
+          "access_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Token"
+          },
           "project_gid": {
-            "type": "string",
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Project Gid"
           }
         },
         "type": "object",
-        "required": [
-          "oauth_code",
-          "project_gid"
-        ],
-        "title": "AsanaIntegrationCreate"
+        "title": "AsanaIntegrationCreate",
+        "description": "Either an OAuth `code` (needs the operator's Asana OAuth app) or a personal\naccess token (Asana -> My settings -> Apps -> Developer apps)."
       },
       "AssetCommentCreate": {
         "properties": {
@@ -6478,22 +6826,44 @@
             "default": "clickup"
           },
           "oauth_code": {
-            "type": "string",
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Oauth Code"
           },
+          "api_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Token"
+          },
           "list_id": {
-            "type": "string",
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "List Id"
           }
         },
         "type": "object",
-        "required": [
-          "oauth_code",
-          "list_id"
-        ],
-        "title": "ClickUpIntegrationCreate"
+        "title": "ClickUpIntegrationCreate",
+        "description": "Either an OAuth `code` (needs the operator's ClickUp OAuth app) or a personal\nAPI token (`pk_...`, from ClickUp Settings -> Apps) - exactly one."
       },
       "ClientCreate": {
         "properties": {
@@ -7399,6 +7769,73 @@
         ],
         "title": "DashboardOut"
       },
+      "DestinationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "DestinationOut"
+      },
+      "DiscordIntegrationCreate": {
+        "properties": {
+          "notify_status_changes": {
+            "type": "boolean",
+            "title": "Notify Status Changes",
+            "default": true
+          },
+          "notify_team_layer": {
+            "type": "boolean",
+            "title": "Notify Team Layer",
+            "default": false
+          },
+          "notify_project_updates": {
+            "type": "boolean",
+            "title": "Notify Project Updates",
+            "default": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "discord"
+            ],
+            "const": "discord",
+            "title": "Type",
+            "default": "discord"
+          },
+          "webhook_url": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Webhook Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "webhook_url"
+        ],
+        "title": "DiscordIntegrationCreate"
+      },
       "DomFingerprintIn": {
         "properties": {
           "selector_path": {
@@ -7673,15 +8110,82 @@
         "title": "ExtensionWhoAmIOut",
         "description": "Lets the extension's popup learn which workspace a pasted token belongs to.\n\nDeliberately not under /auth (unlike PATCH /auth/me) - AuthOriginMiddleware only\nallows the dashboard's own origin there, which a chrome-extension:// origin isn't\non that allowlist for. Works for either an extension token or an ordinary member\nJWT, since both resolve to the same Session shape via get_current_session."
       },
+      "ExternalLinkOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "comment_id": {
+            "type": "string",
+            "title": "Comment Id"
+          },
+          "integration_id": {
+            "type": "string",
+            "title": "Integration Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "slack",
+              "discord",
+              "teams",
+              "webhook",
+              "clickup",
+              "trello",
+              "jira",
+              "asana",
+              "github",
+              "gitlab",
+              "linear"
+            ],
+            "title": "Type"
+          },
+          "external_id": {
+            "type": "string",
+            "title": "External Id"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "comment_id",
+          "integration_id",
+          "type",
+          "external_id",
+          "url",
+          "created_by",
+          "created_at"
+        ],
+        "title": "ExternalLinkOut",
+        "description": "A ticket filed in a tracker from a Backline comment. Member-only: never part of\nCommentOut, which guests and the guest realtime channel also receive."
+      },
       "GeneratePromptRequest": {
         "properties": {
           "agent": {
             "type": "string",
             "enum": [
               "claude",
+              "claude_desktop",
               "cursor",
+              "vscode",
               "codex",
               "antigravity",
+              "windsurf",
+              "gemini",
               "other"
             ],
             "title": "Agent",
@@ -7690,7 +8194,7 @@
         },
         "type": "object",
         "title": "GeneratePromptRequest",
-        "description": "`agent` is which tool the prompt is headed for - accepted for parity with the\narchitecture doc's response shape and so the UI can label the copy target, but MVP\ndoesn't vary prompt phrasing per agent (all four consume the same plain-text\nimplementation prompt)."
+        "description": "`agent` is which tool the prompt is headed for - accepted for parity with the\narchitecture doc's response shape and so the UI can label the copy target; every\nagent consumes the same plain-text implementation prompt."
       },
       "GeneratePromptResult": {
         "properties": {
@@ -7698,9 +8202,13 @@
             "type": "string",
             "enum": [
               "claude",
+              "claude_desktop",
               "cursor",
+              "vscode",
               "codex",
               "antigravity",
+              "windsurf",
+              "gemini",
               "other"
             ],
             "title": "Agent"
@@ -7740,6 +8248,79 @@
           "implementation_prompt"
         ],
         "title": "GeneratePromptResult"
+      },
+      "GitHubIntegrationCreate": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "github"
+            ],
+            "const": "github",
+            "title": "Type",
+            "default": "github"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Token"
+          },
+          "repository": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "GitHubIntegrationCreate"
+      },
+      "GitLabIntegrationCreate": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "gitlab"
+            ],
+            "const": "gitlab",
+            "title": "Type",
+            "default": "gitlab"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Token"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url",
+            "default": "https://gitlab.com"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "GitLabIntegrationCreate"
       },
       "GoogleCallbackRequest": {
         "properties": {
@@ -7928,10 +8509,16 @@
             "type": "string",
             "enum": [
               "slack",
+              "discord",
+              "teams",
+              "webhook",
               "clickup",
               "trello",
               "jira",
-              "asana"
+              "asana",
+              "github",
+              "gitlab",
+              "linear"
             ],
             "title": "Type"
           },
@@ -7947,6 +8534,63 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "notifier",
+              "tracker"
+            ],
+            "title": "Kind",
+            "default": "notifier"
+          },
+          "auth_mode": {
+            "type": "string",
+            "enum": [
+              "webhook",
+              "api_token",
+              "oauth"
+            ],
+            "title": "Auth Mode",
+            "default": "webhook"
+          },
+          "destination_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination Id"
+          },
+          "destination_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination Label"
+          },
+          "needs_destination": {
+            "type": "boolean",
+            "title": "Needs Destination",
+            "default": false
+          },
+          "signing_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signing Secret"
           }
         },
         "type": "object",
@@ -7959,6 +8603,77 @@
           "created_at"
         ],
         "title": "IntegrationOut"
+      },
+      "IntegrationTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "title": "IntegrationTestResult"
+      },
+      "IntegrationUpdate": {
+        "properties": {
+          "destination_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination Id"
+          },
+          "notify_status_changes": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notify Status Changes"
+          },
+          "notify_team_layer": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notify Team Layer"
+          },
+          "notify_project_updates": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notify Project Updates"
+          }
+        },
+        "type": "object",
+        "title": "IntegrationUpdate",
+        "description": "Everything about a connection that can change without reconnecting. Toggles\napply to notifiers, `destination_id` to trackers (one of the ids returned by\nGET /integrations/{id}/destinations)."
       },
       "InviteMemberRequest": {
         "properties": {
@@ -7995,22 +8710,67 @@
             "default": "jira"
           },
           "oauth_code": {
-            "type": "string",
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Oauth Code"
           },
+          "site_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Url"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 320
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "api_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Token"
+          },
           "project_key": {
-            "type": "string",
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Project Key"
           }
         },
         "type": "object",
-        "required": [
-          "oauth_code",
-          "project_key"
-        ],
-        "title": "JiraIntegrationCreate"
+        "title": "JiraIntegrationCreate",
+        "description": "Either an OAuth `code` (needs the operator's Atlassian OAuth app) or the site\nURL + account email + API token (id.atlassian.com -> Security -> API tokens)."
       },
       "LayerToggleRequest": {
         "properties": {
@@ -8033,6 +8793,40 @@
           "confirm"
         ],
         "title": "LayerToggleRequest"
+      },
+      "LinearIntegrationCreate": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "linear"
+            ],
+            "const": "linear",
+            "title": "Type",
+            "default": "linear"
+          },
+          "api_key": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Api Key"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "api_key"
+        ],
+        "title": "LinearIntegrationCreate"
       },
       "LocalStorageItemIn": {
         "properties": {
@@ -8069,9 +8863,13 @@
                 "type": "string",
                 "enum": [
                   "claude",
+                  "claude_desktop",
                   "cursor",
+                  "vscode",
                   "codex",
                   "antigravity",
+                  "windsurf",
+                  "gemini",
                   "other"
                 ]
               },
@@ -8080,6 +8878,15 @@
               }
             ],
             "title": "Agent Hint"
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "read",
+              "read_write"
+            ],
+            "title": "Access",
+            "default": "read_write"
           }
         },
         "type": "object",
@@ -8108,9 +8915,13 @@
                 "type": "string",
                 "enum": [
                   "claude",
+                  "claude_desktop",
                   "cursor",
+                  "vscode",
                   "codex",
                   "antigravity",
+                  "windsurf",
+                  "gemini",
                   "other"
                 ]
               },
@@ -8119,6 +8930,13 @@
               }
             ],
             "title": "Agent Hint"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes"
           },
           "created_at": {
             "type": "string",
@@ -8153,9 +8971,13 @@
                 "type": "string",
                 "enum": [
                   "claude",
+                  "claude_desktop",
                   "cursor",
+                  "vscode",
                   "codex",
                   "antigravity",
+                  "windsurf",
+                  "gemini",
                   "other"
                 ]
               },
@@ -8168,6 +8990,13 @@
           "workspace_id": {
             "type": "string",
             "title": "Workspace Id"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes"
           },
           "created_at": {
             "type": "string",
@@ -8339,6 +9168,30 @@
           "created_at"
         ],
         "title": "NotificationOut"
+      },
+      "OAuthAppOut": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "clickup",
+              "jira",
+              "asana"
+            ],
+            "title": "Type"
+          },
+          "authorize_url": {
+            "type": "string",
+            "title": "Authorize Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "authorize_url"
+        ],
+        "title": "OAuthAppOut",
+        "description": "An OAuth connect option the operator has configured (client id and secret both\nset). The frontend appends its own anti-CSRF `state` to `authorize_url`."
       },
       "OtpRequestRequest": {
         "properties": {
@@ -10107,6 +10960,21 @@
       },
       "SlackIntegrationCreate": {
         "properties": {
+          "notify_status_changes": {
+            "type": "boolean",
+            "title": "Notify Status Changes",
+            "default": true
+          },
+          "notify_team_layer": {
+            "type": "boolean",
+            "title": "Notify Team Layer",
+            "default": false
+          },
+          "notify_project_updates": {
+            "type": "boolean",
+            "title": "Notify Project Updates",
+            "default": true
+          },
           "type": {
             "type": "string",
             "enum": [
@@ -10120,16 +10988,6 @@
             "type": "string",
             "minLength": 1,
             "title": "Webhook Url"
-          },
-          "notify_status_changes": {
-            "type": "boolean",
-            "title": "Notify Status Changes",
-            "default": true
-          },
-          "notify_team_layer": {
-            "type": "boolean",
-            "title": "Notify Team Layer",
-            "default": false
           }
         },
         "type": "object",
@@ -10239,6 +11097,44 @@
           "workspace_id"
         ],
         "title": "SwitchWorkspaceRequest"
+      },
+      "TeamsIntegrationCreate": {
+        "properties": {
+          "notify_status_changes": {
+            "type": "boolean",
+            "title": "Notify Status Changes",
+            "default": true
+          },
+          "notify_team_layer": {
+            "type": "boolean",
+            "title": "Notify Team Layer",
+            "default": false
+          },
+          "notify_project_updates": {
+            "type": "boolean",
+            "title": "Notify Project Updates",
+            "default": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "teams"
+            ],
+            "const": "teams",
+            "title": "Type",
+            "default": "teams"
+          },
+          "webhook_url": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Webhook Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "webhook_url"
+        ],
+        "title": "TeamsIntegrationCreate"
       },
       "TextFingerprintIn": {
         "properties": {
@@ -10690,16 +11586,21 @@
             "title": "Token"
           },
           "list_id": {
-            "type": "string",
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "List Id"
           }
         },
         "type": "object",
         "required": [
           "api_key",
-          "token",
-          "list_id"
+          "token"
         ],
         "title": "TrelloIntegrationCreate"
       },
@@ -10923,6 +11824,58 @@
           "height"
         ],
         "title": "ViewportIn"
+      },
+      "WebhookIntegrationCreate": {
+        "properties": {
+          "notify_status_changes": {
+            "type": "boolean",
+            "title": "Notify Status Changes",
+            "default": true
+          },
+          "notify_team_layer": {
+            "type": "boolean",
+            "title": "Notify Team Layer",
+            "default": false
+          },
+          "notify_project_updates": {
+            "type": "boolean",
+            "title": "Notify Project Updates",
+            "default": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "webhook"
+            ],
+            "const": "webhook",
+            "title": "Type",
+            "default": "webhook"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "WebhookIntegrationCreate"
       },
       "WorkspaceCreate": {
         "properties": {

@@ -7,6 +7,8 @@ import { useWSEvent } from "../../app/WSProvider";
 import { API_BASE_URL, apiFetch } from "../../lib/api-client";
 import { removeProjectComment, upsertProjectComment } from "../../lib/comment-cache";
 import { qk } from "../../lib/query-keys";
+import { useSearchParamsUpdater } from "../../lib/use-search-params-updater";
+import { ticketRef } from "../../lib/ticket-ref";
 import { WORKFLOW_STATUSES } from "../../lib/workflow";
 import { AssetReview } from "../assets/AssetReview";
 import { useAuth } from "../auth/AuthContext";
@@ -80,6 +82,16 @@ function pageLabel(page: PageOut) {
   }
 }
 
+// Where the canvas is in showing the selected comment's pin - what the frame's status
+// line reports instead of promising "locating its pin" whether or not there is one.
+type LocateState =
+  | "switching-page"
+  | "locating"
+  | "found"
+  | "not-on-page"
+  | "element-missing"
+  | "team-only";
+
 /** Normalizes a saved shortcut key ("Ctrl .", "ArrowRight", user-edited "CTRL C") and
  * a live KeyboardEvent to the same "ctrl+alt+shift+key" shape so they can be compared
  * case-insensitively - ShortcutsModal's own capture logic doesn't keep consistent
@@ -110,7 +122,10 @@ function comboFromEvent(event: globalThis.KeyboardEvent): string {
 export function ProjectOverviewPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
   const { projectId } = useParams<{ projectId: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  // Every URL change here goes through this so that two in one event compose (see
+  // use-search-params-updater.ts) - revealing a comment switches mode and page together.
+  const updateSearchParams = useSearchParamsUpdater();
   const [showShare, setShowShare] = useState(false);
   const [showPages, setShowPages] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -118,7 +133,13 @@ export function ProjectOverviewPage() {
   const [showCloudLogin, setShowCloudLogin] = useState(false);
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
-  const [commentsRevealSignal, setCommentsRevealSignal] = useState(0);
+  // A pin clicked in the canvas opens that comment's detail in the drawer. The nonce
+  // makes a second click on the same pin (after going back to the list) count again.
+  const [openCommentRequest, setOpenCommentRequest] = useState<{ commentId: string; nonce: number } | null>(null);
+  const [locate, setLocate] = useState<{ commentId: string; state: LocateState } | null>(null);
+  // A comment picked from the drawer that lives on another page: the canvas is sent to
+  // that page first, and asked to show the comment once its widget reports in.
+  const pendingRevealRef = useRef<string | null>(null);
   const [iframeStatus, setIframeStatus] = useState<"loading" | "loaded" | "error">("loading");
   // Set when the in-page widget reports it could not start (widget index.ts safeInit),
   // so the status bar stops inviting clicks that nothing will pick up.
@@ -277,10 +298,8 @@ export function ProjectOverviewPage() {
   // defaults) fresh on every keydown rather than once, so editing a shortcut applies
   // immediately. Suppressed while any modal is open or while typing in a field, so it
   // never hijacks normal text entry (e.g. a comment body that happens to contain "c").
-  // setMode/goToPage are read through a ref: both rebuild the URL from react-router's
-  // setSearchParams, which closes over the searchParams of the render that created it,
-  // so a copy captured when this listener was attached would write back a stale zoom/
-  // viewport/stage width the reviewer had changed since.
+  // setMode/goToPage are read through a ref, so the listener always runs this render's
+  // copies of them (they also reset selection state that belongs to this render).
   const hotkeyActionsRef = useRef({ setMode, goToPage });
   useEffect(() => {
     hotkeyActionsRef.current = { setMode, goToPage };
@@ -325,13 +344,23 @@ export function ProjectOverviewPage() {
     },
     [projectId, queryClient],
   );
-  useWSEvent("comment.created", upsertComment);
   useWSEvent("comment.updated", upsertComment);
+  // A new thread also changes its page's comment count (Manage pages).
+  const addComment = useCallback(
+    (payload: CommentOut & { project_id: string }) => {
+      if (payload.project_id !== projectId) return;
+      upsertProjectComment(queryClient, projectId ?? "", payload);
+      if (!payload.parent_id) void queryClient.invalidateQueries({ queryKey: qk.projectPages(projectId ?? "") });
+    },
+    [projectId, queryClient],
+  );
+  useWSEvent("comment.created", addComment);
 
   const removeComment = useCallback(
-    (payload: { comment_id: string; project_id: string }) => {
+    (payload: { comment_id: string; parent_id?: string | null; project_id: string }) => {
       if (payload.project_id !== projectId) return;
       removeProjectComment(queryClient, projectId ?? "", payload.comment_id);
+      if (!payload.parent_id) void queryClient.invalidateQueries({ queryKey: qk.projectPages(projectId ?? "") });
     },
     [projectId, queryClient],
   );
@@ -339,7 +368,8 @@ export function ProjectOverviewPage() {
 
   useEffect(() => {
     function onMessage(event: MessageEvent) {
-      if (event.source !== canvasRef.current?.contentWindow) return;
+      const canvasWindow = canvasRef.current?.contentWindow;
+      if (!canvasWindow || event.source !== canvasWindow) return;
       if (event.data?.type === "backline:widget-error") {
         setWidgetError(typeof event.data.message === "string" ? event.data.message : "Unknown error");
         return;
@@ -350,35 +380,68 @@ export function ProjectOverviewPage() {
       frameDrivenPageRef.current = pageId;
       setCurrentPageId(pageId);
       setIframeStatus("loaded");
-      setSearchParams(
-        (previous) => {
-          if (previous.get("page") === pageId) return previous;
-          const next = new URLSearchParams(previous);
-          next.set("page", pageId);
-          return next;
-        },
-        { replace: true },
-      );
+      // The page a drawer comment was on has loaded: now it can be shown.
+      const pending = pendingRevealRef.current;
+      if (pending) {
+        pendingRevealRef.current = null;
+        setLocate((current) =>
+          current?.commentId === pending && current.state !== "team-only" ? { commentId: pending, state: "locating" } : current,
+        );
+        canvasWindow.postMessage({ type: "backline:scroll-to-comment", commentId: pending }, event.origin);
+      }
+      updateSearchParams((next) => {
+        if (next.get("page") === pageId) return false;
+        next.set("page", pageId);
+      });
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [setSearchParams]);
+  }, [updateSearchParams]);
 
   // Clicking an existing pin inside the canvas (widget thread-manager.ts) opens the
-  // Comments drawer with that comment selected - the reverse of clicking a comment in
-  // the drawer to find its pin.
+  // Comments drawer on that comment's detail - the reverse of clicking a comment in the
+  // drawer to find its pin. The widget also reports how a scroll-to-comment went, and
+  // any comment posted in the canvas (so the list has it even without the websocket).
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (event.source !== canvasRef.current?.contentWindow) return;
-      if (event.data?.type !== "backline:comment-opened") return;
-      const commentId: unknown = event.data.commentId;
-      if (typeof commentId !== "string") return;
-      setSelectedCommentId(commentId);
-      setCommentsRevealSignal((count) => count + 1);
+      const data = event.data;
+      if (data?.type === "backline:comment-opened") {
+        const commentId: unknown = data.commentId;
+        if (typeof commentId !== "string") return;
+        pendingRevealRef.current = null;
+        setSelectedCommentId(commentId);
+        setLocate({ commentId, state: "found" });
+        setOpenCommentRequest({ commentId, nonce: Date.now() });
+        // A pin for a comment someone else just left can be clicked before the
+        // websocket delivers it to this list.
+        const cached = queryClient.getQueryData<CommentOut[]>(qk.projectComments(projectId ?? ""));
+        if (cached && !cached.some((comment) => comment.id === commentId)) {
+          void queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId ?? "") });
+        }
+        return;
+      }
+      if (data?.type === "backline:comment-located") {
+        const commentId: unknown = data.commentId;
+        if (typeof commentId !== "string") return;
+        const state: LocateState = data.found === true
+          ? "found"
+          : data.reason === "element-missing"
+            ? "element-missing"
+            : "not-on-page";
+        setLocate((current) =>
+          current?.commentId === commentId && current.state !== "team-only" ? { commentId, state } : current,
+        );
+        return;
+      }
+      if (data?.type === "backline:comment-created") {
+        void queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId ?? "") });
+        void queryClient.invalidateQueries({ queryKey: qk.projectPages(projectId ?? "") });
+      }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [projectId, queryClient]);
 
   // Answers the canvas widget's name request (widget guest-session.ts's
   // requestDashboardDisplayName) with the signed-in member's own name, so the widget
@@ -478,24 +541,67 @@ export function ProjectOverviewPage() {
   }, [activePageIdParam, hasProxyCandidate, projectId, retryCount]);
 
   function updateViewParams(values: Record<string, string | null>) {
-    setSearchParams(
-      (previous) => {
-        const next = new URLSearchParams(previous);
-        for (const [key, value] of Object.entries(values)) {
-          if (value === null) next.delete(key);
-          else next.set(key, value);
-        }
-        return next;
-      },
-      { replace: true },
-    );
+    updateSearchParams((next) => {
+      for (const [key, value] of Object.entries(values)) {
+        if (value === null) next.delete(key);
+        else next.set(key, value);
+      }
+    });
   }
 
-  function goToPage(pageId: string) {
+  function goToPage(pageId: string, options: { keepSelection?: boolean } = {}) {
     frameDrivenPageRef.current = null;
     setCurrentPageId(null);
-    setSelectedCommentId(null);
+    if (!options.keepSelection) {
+      setSelectedCommentId(null);
+      setLocate(null);
+      pendingRevealRef.current = null;
+    }
     updateViewParams({ page: pageId || null });
+  }
+
+  function postToCanvas(message: Record<string, unknown>) {
+    const frame = canvasRef.current;
+    frame?.contentWindow?.postMessage(message, canvasOrigin(frame));
+  }
+
+  /**
+   * "Show me this comment", from the drawer's list or detail, or BugHunt AI: selects it
+   * and takes the canvas to its pin - first to the page it was left on when that isn't
+   * the one showing, since the widget only ever holds the loaded page's comments.
+   */
+  function revealComment(commentId: string) {
+    const comment = (commentsQuery.data ?? []).find((c) => c.id === commentId);
+    // Browse hides every pin, so showing one means Comment mode.
+    if (mode === "browse") setMode("comment");
+    setSelectedCommentId(commentId);
+    // The canvas widget runs with the client's view, which never holds a team-only
+    // comment, so it can't be pinned - but its page is still shown, and the widget is
+    // still asked, so a card left open for another comment closes.
+    const teamOnly = comment?.layer === "team";
+    const commentPage = comment ? sortedPages.find((page) => page.id === comment.page_id) : undefined;
+    if (commentPage && commentPage.id !== activePage?.id) {
+      pendingRevealRef.current = commentId;
+      setLocate({ commentId, state: teamOnly ? "team-only" : "switching-page" });
+      goToPage(commentPage.id, { keepSelection: true });
+      return;
+    }
+    if (teamOnly) {
+      pendingRevealRef.current = null;
+      setLocate({ commentId, state: "team-only" });
+      postToCanvas({ type: "backline:scroll-to-comment", commentId });
+      return;
+    }
+    // The right page, but its widget hasn't reported in yet (still loading): ask once it
+    // has, since a request now would reach nothing listening.
+    if (activePage && currentPageId !== activePage.id) {
+      pendingRevealRef.current = commentId;
+      setLocate({ commentId, state: "locating" });
+      return;
+    }
+    pendingRevealRef.current = null;
+    setLocate({ commentId, state: "locating" });
+    postToCanvas({ type: "backline:scroll-to-comment", commentId });
   }
 
   function setMode(nextMode: CanvasMode) {
@@ -656,12 +762,33 @@ export function ProjectOverviewPage() {
   const iframeSrc = frameSrcRef.current.src;
   const displayUrl = activePage?.url_normalized || project.target_origin;
   const topLevelComments = (commentsQuery.data ?? []).filter((comment) => !comment.parent_id);
-  const selectedCommentNumber = selectedCommentId
-    ? topLevelComments
-        .slice()
-        .sort((a, b) => a.created_at.localeCompare(b.created_at))
-        .findIndex((comment) => comment.id === selectedCommentId) + 1
-    : 0;
+  // The same "#14" the drawer, board and pins print - not the comment's position in
+  // this project's list, which matched none of them.
+  const selectedComment = selectedCommentId
+    ? topLevelComments.find((comment) => comment.id === selectedCommentId) ?? null
+    : null;
+  const selectedLocate = selectedComment && locate?.commentId === selectedComment.id ? locate.state : null;
+  const selectedCommentPage = selectedComment
+    ? sortedPages.find((page) => page.id === selectedComment.page_id) ?? null
+    : null;
+  const selectionStatus = (() => {
+    if (!selectedComment || mode === "browse") return null;
+    const ref = `Comment ${ticketRef(selectedComment)}`;
+    switch (selectedLocate) {
+      case "switching-page":
+        return `${ref} is on ${selectedCommentPage ? pageLabel(selectedCommentPage) : "another page"} — opening it`;
+      case "locating":
+        return `${ref} selected — locating its pin`;
+      case "not-on-page":
+        return `${ref} has no pin on this page`;
+      case "element-missing":
+        return `${ref}'s element isn't on this page any more — it may have changed since`;
+      case "team-only":
+        return `${ref} is team-only — only client-visible comments are pinned in the canvas`;
+      default:
+        return `${ref} selected`;
+    }
+  })();
   const pageIds = sortedPages.map((page) => page.id);
   const effectiveFrameStatus = iframeSrc ? iframeStatus : "unavailable";
 
@@ -696,6 +823,14 @@ export function ProjectOverviewPage() {
             <button type="button" aria-pressed={mode === "comment"} onClick={() => setMode("comment")}>
               <CommentsIcon width={13} height={13} />
               Comment
+            </button>
+            {/* Draw was reachable only from the dock (and D); with it missing here, drawing
+                left this switch showing no mode at all. */}
+            <button type="button" aria-pressed={mode === "draw"} onClick={() => setMode("draw")} title="Draw an area to comment on (D)">
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeDasharray="3 2.5" aria-hidden="true">
+                <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+              </svg>
+              Draw
             </button>
           </div>
           <button type="button" className="bl-review-icon-button" aria-label="Reload preview" title="Reload preview" onClick={reloadPreview} disabled={!iframeSrc}>
@@ -902,7 +1037,7 @@ export function ProjectOverviewPage() {
                 )}
               </div>
               <div className="bl-live-frame-meta">
-                <span className={widgetError ? "bl-frame-error" : undefined} title={widgetError ?? undefined}>{widgetError ? "Commenting couldn't start on this page — reload the canvas to try again" : selectedCommentNumber > 0 && mode !== "browse" ? `Comment ${selectedCommentNumber} selected — locating its pin` : mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : "Browse mode — comments are hidden, use the site as normal"}</span>
+                <span className={widgetError ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{widgetError ? "Commenting couldn't start on this page — reload the canvas to try again" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : "Browse mode — comments are hidden, use the site as normal")}</span>
                 <span>Source: proxy</span>
               </div>
               {!viewport && (
@@ -938,16 +1073,10 @@ export function ProjectOverviewPage() {
           workspaceId={workspace.id}
           workspaceSlug={workspace.slug}
           workspaceName={workspace.name}
-          canvasRef={canvasRef}
-          currentPageId={currentPageId}
+          currentPageId={activePage?.id ?? null}
           selectedCommentId={selectedCommentId}
-          onSelectComment={(id) => {
-            // Browse hides every pin, so opening a comment from the panel switches
-            // to Comment mode where its pin can actually be shown.
-            if (id && mode === "browse") setMode("comment");
-            setSelectedCommentId(id);
-          }}
-          revealCommentsSignal={commentsRevealSignal}
+          onRevealComment={revealComment}
+          openCommentRequest={openCommentRequest}
         />
       </section>
 

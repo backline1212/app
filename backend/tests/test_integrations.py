@@ -14,6 +14,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.modules.comments.schemas import CommentOut
+from app.modules.integrations.base import EventContext, IntegrationContext
 from app.modules.integrations.slack import SlackIntegration
 from tests.helpers import create_project_with_guest_session
 
@@ -98,12 +99,17 @@ def _sample_comment(**overrides: Any) -> CommentOut:
 
 # --- SlackIntegration unit tests -------------------------------------------------
 
+_EVENT = EventContext(
+    project_name="Site", backlink_url="https://app.test/w/acme/tickets?comment=c1"
+)
+
 
 async def test_slack_posts_client_visible_comment_created() -> None:
     with mock_third_party_http({"hooks.slack.com": httpx.Response(200, text="ok")}) as fake:
         await SlackIntegration().on_comment_created(
             _sample_comment(layer="client"),
             {"webhook_url": "https://hooks.slack.com/services/x", "notify_team_layer": False},
+            _EVENT,
         )
     assert len(fake.calls) == 1
 
@@ -113,6 +119,7 @@ async def test_slack_skips_team_only_comment_unless_opted_in() -> None:
         await SlackIntegration().on_comment_created(
             _sample_comment(layer="team"),
             {"webhook_url": "https://hooks.slack.com/services/x", "notify_team_layer": False},
+            _EVENT,
         )
     assert fake.calls == []
 
@@ -122,6 +129,7 @@ async def test_slack_posts_team_only_comment_when_opted_in() -> None:
         await SlackIntegration().on_comment_created(
             _sample_comment(layer="team"),
             {"webhook_url": "https://hooks.slack.com/services/x", "notify_team_layer": True},
+            _EVENT,
         )
     assert len(fake.calls) == 1
 
@@ -131,6 +139,7 @@ async def test_slack_skips_status_change_when_toggled_off() -> None:
         await SlackIntegration().on_status_changed(
             _sample_comment(),
             {"webhook_url": "https://hooks.slack.com/services/x", "notify_status_changes": False},
+            _EVENT,
         )
     assert fake.calls == []
 
@@ -138,14 +147,14 @@ async def test_slack_skips_status_change_when_toggled_off() -> None:
 async def test_slack_test_connection_true_on_ok_response() -> None:
     with mock_third_party_http({"hooks.slack.com": httpx.Response(200, text="ok")}):
         assert await SlackIntegration().test_connection(
-            {"webhook_url": "https://hooks.slack.com/x"}
+            IntegrationContext(config={"webhook_url": "https://hooks.slack.com/x"})
         )
 
 
 async def test_slack_test_connection_false_on_error_response() -> None:
     with mock_third_party_http({"hooks.slack.com": httpx.Response(404, text="not found")}):
         assert not await SlackIntegration().test_connection(
-            {"webhook_url": "https://hooks.slack.com/x"}
+            IntegrationContext(config={"webhook_url": "https://hooks.slack.com/x"})
         )
 
 

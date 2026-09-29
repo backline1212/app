@@ -24,6 +24,7 @@ class McpTokenRepository:
         label: str,
         agent_hint: str | None,
         token_hash: str,
+        scopes: list[str],
     ) -> dict[str, Any]:
         doc = {
             "user_id": user_id,
@@ -31,6 +32,7 @@ class McpTokenRepository:
             "label": label,
             "agent_hint": agent_hint,
             "token_hash": token_hash,
+            "scopes": scopes,
             "created_at": datetime.now(UTC),
             "last_used_at": None,
             "revoked_at": None,

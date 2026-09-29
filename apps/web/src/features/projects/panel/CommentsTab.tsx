@@ -1,10 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
-import type { RefObject } from "react";
 
 import * as boardApi from "../../board/api";
 import type { CommentOut, CommentStatus } from "../../board/api";
-import { canvasOrigin } from "../canvas-origin";
 import { qk } from "../../../lib/query-keys";
 import * as pagesApi from "../../pages/api";
 import * as workspacesApi from "../../workspaces/api";
@@ -19,19 +17,24 @@ import { useCommentFilters } from "./comments/useCommentFilters";
 interface CommentsTabProps {
   projectId: string;
   workspaceId: string;
-  canvasRef: RefObject<HTMLIFrameElement | null>;
   currentPageId: string | null;
   selectedCommentId?: string | null;
-  onSelectComment?: (commentId: string) => void;
+  /** Selects a comment and takes the canvas to its pin, switching pages if it has to
+   * (ProjectOverviewPage's revealComment). */
+  onRevealComment?: (commentId: string) => void;
+  /** A pin clicked in the canvas (or a BugHunt AI finding): open that comment here. */
+  openCommentRequest?: { commentId: string; nonce: number } | null;
+  onOpenRequestHandled?: (nonce: number) => void;
 }
 
 export function CommentsTab({
   projectId,
   workspaceId,
-  canvasRef,
   currentPageId,
   selectedCommentId,
-  onSelectComment,
+  onRevealComment,
+  openCommentRequest,
+  onOpenRequestHandled,
 }: CommentsTabProps) {
   const commentsQuery = useQuery({
     queryKey: qk.projectComments(projectId),
@@ -75,9 +78,10 @@ export function CommentsTab({
     setGroupBy,
     openThreadId,
     setOpenThreadId,
+    clearFilters,
   } = useCommentFilters();
 
-  const allThreads = (comments ?? []).filter((c) => !c.parent_id);
+  const allThreads = useMemo(() => (comments ?? []).filter((c) => !c.parent_id), [comments]);
 
   // Replies (parent_id set) share the same flat list as top-level comments - grouped
   // here for the reply-count badge and the thread view, the same way BoardPage's own
@@ -102,7 +106,7 @@ export function CommentsTab({
     return map;
   }, [repliesByParent]);
 
-  const openThreadComment = (comments ?? []).find((c) => c.id === openThreadId) ?? null;
+  const openThreadComment = allThreads.find((c) => c.id === openThreadId) ?? null;
 
   const statusCounts = useMemo(() => {
     const counts: Record<CommentStatus, number> = {
@@ -121,7 +125,7 @@ export function CommentsTab({
     if (hideResolved && c.status === "resolved") return false;
     if (activeStatus && c.status !== activeStatus) return false;
     if (layerFilter !== "all" && c.layer !== layerFilter) return false;
-    if (currentPageOnly && c.page_id !== currentPageId) return false;
+    if (currentPageOnly && currentPageId && c.page_id !== currentPageId) return false;
     if (activeTags.length > 0 && !activeTags.some((t) => c.tags?.includes(t as NonNullable<CommentOut["tags"]>[number]))) return false;
     if (activeDeviceTypes.length > 0 && !activeDeviceTypes.includes(commentDeviceType(c) ?? "")) return false;
     if (activeBrowsers.length > 0 && !activeBrowsers.includes(commentBrowser(c) ?? "")) return false;
@@ -145,34 +149,31 @@ export function CommentsTab({
     setActiveStatus((prev) => (prev === status ? null : status));
   }
 
-  // The canvas iframe is served from the share link's preview origin (proxy mode), not
-  // the dashboard's - postMessage is the only way to reach into it (apps/widget/src/index.ts
-  // listens for this exact message). Not just cosmetic: a comment whose pin never
-  // rendered (off-screen, or the target hadn't loaded yet) can still genuinely exist -
-  // this is how a reviewer actually finds it again.
-  function showOnPage(commentId: string) {
-    onSelectComment?.(commentId);
-    canvasRef.current?.contentWindow?.postMessage(
-      { type: "backline:scroll-to-comment", commentId },
-      canvasOrigin(canvasRef.current),
-    );
-  }
-
   // Clicking a comment opens its detail here *and* takes the canvas to its pin, the
-  // two halves of "show me this comment".
+  // two halves of "show me this comment". The canvas side (ProjectOverviewPage) knows
+  // which page is loaded and switches to the comment's own page when it isn't that one.
   function openComment(commentId: string) {
     setOpenThreadId(commentId);
-    showOnPage(commentId);
+    onRevealComment?.(commentId);
   }
 
-  // A pin clicked in the canvas selects that comment (ProjectOverviewPage's
-  // backline:comment-opened handler). With the detail open, follow it there rather
-  // than leaving a different comment's detail on screen.
+  // A pin clicked in the canvas (or a BugHunt AI finding) opens that comment's detail,
+  // whether the list or another comment's detail was showing.
   useEffect(() => {
-    if (openThreadId && selectedCommentId && selectedCommentId !== openThreadId) {
-      setOpenThreadId(selectedCommentId);
-    }
-  }, [openThreadId, selectedCommentId, setOpenThreadId]);
+    if (!openCommentRequest) return;
+    setOpenThreadId(openCommentRequest.commentId);
+    onOpenRequestHandled?.(openCommentRequest.nonce);
+  }, [openCommentRequest, onOpenRequestHandled, setOpenThreadId]);
+
+  // A ?thread= link (or an open detail) whose comment was deleted - here or by someone
+  // else - falls back to the list instead of keeping a dead id in the URL.
+  // Not while a refetch is in flight: a comment just posted in the canvas can be asked
+  // for a moment before it reaches this list.
+  const settled = commentsQuery.isSuccess && !commentsQuery.isFetching;
+  useEffect(() => {
+    if (!openThreadId || !settled) return;
+    if (!allThreads.some((c) => c.id === openThreadId)) setOpenThreadId(null);
+  }, [openThreadId, settled, allThreads, setOpenThreadId]);
 
   if (openThreadComment) {
     return (
@@ -184,7 +185,7 @@ export function CommentsTab({
         members={members}
         pages={pages}
         onBack={() => setOpenThreadId(null)}
-        onShowOnPage={showOnPage}
+        onShowOnPage={(commentId) => onRevealComment?.(commentId)}
       />
     );
   }
@@ -244,6 +245,7 @@ export function CommentsTab({
         replyCountByCommentId={replyCountByCommentId}
         onNavigate={openComment}
         onOpenThread={openComment}
+        onClearFilters={clearFilters}
         selectedCommentId={selectedCommentId}
       />
     </div>

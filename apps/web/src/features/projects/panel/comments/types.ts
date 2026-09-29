@@ -41,18 +41,22 @@ export interface DueMeta {
 // Mirrors the reference's dueLabel(): overdue/today/tomorrow read as plain language,
 // everything else as a short date; a closed comment's date reads as "Done" rather
 // than a stale countdown.
+//
+// A due date is a calendar day, stored as midnight UTC (DatePicker), so its day is
+// read in UTC - read in local time it's the day before for anyone west of Greenwich,
+// and "Due today" here disagreed with the date the detail printed beside it.
 export function dueMeta(dueAt: string | null | undefined, closed: boolean): DueMeta | null {
   if (!dueAt) return null;
   if (closed) return { text: "Done", tone: "ok" };
   const due = new Date(dueAt);
   const now = new Date();
-  const startOfDue = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  const startOfDue = new Date(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate());
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const diffDays = Math.round((startOfDue.getTime() - startOfToday.getTime()) / 86_400_000);
   if (diffDays < 0) return { text: `${Math.abs(diffDays)}d overdue`, tone: "late" };
   if (diffDays === 0) return { text: "Due today", tone: "soon" };
   if (diffDays === 1) return { text: "Due tomorrow", tone: "soon" };
-  return { text: `Due ${due.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`, tone: "" };
+  return { text: `Due ${startOfDue.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`, tone: "" };
 }
 
 export function commentDeviceType(comment: CommentOut): string | undefined {

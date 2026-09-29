@@ -1,5 +1,202 @@
 # Delivery and verification ledger
 
+## 2026-09-29: Seamless commenting on the review canvas (TDR-0047)
+
+The user asked for the project editor page, where comments are placed, to work
+seamlessly, with every comment and UI problem on it fixed. The page was audited by
+reading the source and by driving it in headless Chromium against a stateful mock of
+the API, proxy and realtime socket (scratch harness, not checked in). Full list and
+reasoning are in TDR-0047. Delivered:
+
+**Canvas ↔ drawer**
+- Showing a comment from the drawer (or from BugHunt AI) switches the canvas to the page
+  the comment is on, then shows its pin.
+- A card left open for a different comment closes.
+- The status line gives the `#` reference and the real outcome: found, no pin on this
+  page, element changed, or team-only.
+- Clicking a pin opens that comment's detail in the drawer.
+- Comments posted in the canvas refresh the list even without the websocket.
+- URL updates on the page compose. React-router's functional `setSearchParams` was
+  dropping one of two updates made in the same click (new
+  `lib/use-search-params-updater.ts`).
+
+**Widget**
+- Live comments and replies from other people: pins, and replies added to an open card.
+- Threads made team-only leave the client view live; threads made client-visible
+  appear.
+- An unfinished comment is no longer discarded by a stray click (the composer is
+  nudged instead). Escape discards an empty composer, and a written one on the second
+  press.
+- Uploads: posting waits for them, a file removed mid-upload is dropped, and a failed
+  or oversized file gets a message.
+- Region comments:
+  - anchored to the element containing the whole drawn box;
+  - outline follows the element and is hidden in Browse mode;
+  - pin restored at the region corner after reload;
+  - a freshly drawn region's pin no longer hides itself.
+- Closed comments get dimmer pins, and the open comment's pin is highlighted.
+- Avatar initials ignore punctuation.
+- Cards, the tooltip and toasts keep clear of the dashboard dock.
+
+**Drawer**
+- Optimistic field edits: quick successive tag/assignee toggles no longer undo each
+  other.
+- Replies on team-only threads are team-only.
+- A layer toggle, behind a confirmation.
+- Delete asks for confirmation and reports errors.
+- Keyboard Enter/Space on a row's own buttons works.
+- Real compact mode, a "Clear filters" action, and "Reopen" for any closed status.
+- Errors reset per comment, and the thread scrolls to a new reply.
+- Escape no longer closes the drawer (losing the draft) while typing, in a menu,
+  dialog or date picker.
+- Due labels read dates in UTC, matching the printed date.
+
+**Layout**
+- No sideways page shift (`overflow: clip`), and no clipped footer control.
+- The footer stays on screen at 1024×700.
+- Footer menus open above the dock, and the dock is legible in dark theme.
+- The thread gets more room on laptop-height screens.
+- Draw is in the header mode switch.
+
+**Backend** (no schema, index or contract change)
+- `create_reply` keeps replies on team-only threads team-only, so they are never
+  broadcast to guests.
+- `toggle_layer` sends guests `comment.deleted` when a thread becomes team-only.
+- `list_for_guest_session` drops client replies on threads that aren't
+  client-visible.
+
+Verification:
+- `pnpm turbo run lint typecheck build --force` passed 12/12 with no warnings.
+- Backend `ruff check` and `ruff format --check` passed on `modules/comments`, strict
+  `mypy app/` passed (182 files), and `scripts/check_workspace_scoping.py` passed.
+- Scratch backend harness (`mongomock-motor`, realtime publishing captured), 12/12:
+  - guest listing hides a hidden thread's replies, including with `since`;
+  - a member reply on a team thread is forced team-only and not sent to the guest
+    channel;
+  - a client-thread reply is;
+  - client→team sends guests only `comment.deleted`, and members `comment.updated`;
+  - team→client sends guests `comment.updated`;
+  - guest replies stay client.
+- Scratch browser harness, 23/23 checks plus the scenarios above, with screenshots at
+  1440/1366/1280/1100/1024 widths in light and dark themes.
+- Existing tests in `tests/test_comments.py` encode behaviour this change keeps: a team
+  reply on a client thread stays team, and guests never receive team content.
+
+Not verified: the pytest suite and the `apps/e2e` Playwright journeys (no local
+MongoDB/Redis), and a real proxied site through a deployed stack. No test suite was
+written, per this repository's Claude Code instruction.
+
+## 2026-09-29: Every integration and MCP client works without operator setup (TDR-0046)
+
+The user asked for all integrations and MCPs to be set up and working, with anything
+needing their input skipped.
+
+**Integrations.** Eleven providers, every one connectable from the Integrations page with
+a pasted token or webhook URL, so no OAuth app registration is needed:
+
+- Notify: Slack, Discord, Microsoft Teams, and a signed webhook (Zapier, Make, n8n, custom).
+- File tickets: Jira, Linear, GitHub, GitLab, Asana, ClickUp, Trello.
+- ClickUp, Jira and Asana gained token modes. OAuth remains, offered only when the
+  operator configures it (`GET /integrations/oauth-apps`, authorize URLs built
+  server-side).
+- New providers: Discord, Teams, webhook, GitHub, GitLab, Linear.
+
+Around the connections:
+
+- Trackers pick their list, project, repo or team from what the credential can reach
+  (`GET /integrations/{id}/destinations`, `PATCH /integrations/{id}`), including a valid
+  Jira issue type.
+- One unified send, `POST /comments/{id}/integrations/{integration_id}/send`, recorded
+  once per comment and connection in the new `integration_links` collection.
+- The comment drawer has "Send to tracker" and a "FILED IN" row.
+- Admins get "Send test"/"Check" and editable notification toggles. Members can see what's
+  connected.
+
+**MCP.** Seven tools (`list_projects`, `list_tickets`, `get_ticket`,
+`generate_implementation_prompt`, `reply_to_ticket`, `update_ticket`,
+`send_ticket_to_tracker`) and a `fix_ticket` prompt.
+
+- Tokens are read-only or read & write.
+- The owner's membership and role are re-checked on every request.
+- Tool calls are rate-limited per token.
+- The MCP page gives copy-paste setup (and install links where they exist) for Claude
+  Code, Cursor, Codex, Antigravity, VS Code, Claude Desktop, Windsurf and Gemini CLI.
+
+**Fixed along the way:**
+
+- Bare `/mcp`, the URL the MCP page handed out, fell through to the proxy's catch-all
+  instead of the MCP app.
+- Tracker backlinks pointed at the removed `/p/{project}/board` route.
+- Slack posts didn't escape `<!channel>`-style sequences in client-written comments.
+- A blank `INTEGRATIONS_ENCRYPTION_KEY` in `.env` broke every credential-storing connect
+  locally.
+- A project's mute now covers every notifier, not only Slack.
+- A provider answering with something unreadable (an HTML error page, an empty body)
+  returned a raw 500 with no CORS headers, so the browser showed only "Failed to fetch".
+  It is now a 502 that names the provider, and a failed send releases its claim.
+- A checked `.bl-switch` was white-on-white in dark mode.
+- In `pnpm dev`, every page reload signed you out. StrictMode ran AuthProvider's restore
+  effect twice, and the second concurrent `/auth/refresh` tripped the server's
+  refresh-token reuse detection, which revokes the session. `refreshSession` now shares
+  one in-flight request. Production builds were unaffected.
+
+**Contracts.** `packages/types` regenerated (`scripts/export_openapi.py`, then
+`pnpm generate:local`). All changes are additive; legacy integration documents and the
+four per-provider create endpoints keep working. `VITE_*_OAUTH_CLIENT_ID` is no longer
+read. `.env.example`, `.env.production.example` and `DEPLOYMENT.md` were updated.
+
+**Verification.**
+
+- `pnpm turbo run lint typecheck build --force`: 12/12 tasks passed with zero lint
+  warnings.
+- Backend: `ruff check`, `ruff format --check` (233 files), strict `mypy app/ scripts/`
+  (193 files) and `scripts/check_workspace_scoping.py` passed.
+- Two scratch harnesses (not checked in) used in-memory `mongomock-motor` and `fakeredis`
+  in place of the `.env` services. mongomock lacks `$convert` and `$indexOfArray`, so the
+  harness shims only the object-id and array-index forms the dashboard pipelines use.
+- **MCP, 42/42.** A real uvicorn server was driven by the official MCP SDK client over
+  Streamable HTTP. It covered:
+  - `/mcp` and `/mcp/` both working with no redirect;
+  - 401 for a missing, bad or revoked token, and for an owner downgraded to a role
+    without team access;
+  - every tool and the prompt;
+  - `#N`, ID, reply-ID and link ticket references;
+  - no access to another workspace's ticket;
+  - read-only tokens refused on writes, and legacy tokens read-only;
+  - replies stored as the owner on the team layer;
+  - the per-token rate limit.
+- **Integrations, 83/83.** Every provider was exercised against respx-mocked provider APIs.
+  It covered:
+  - connect, check, destinations, send, and dedupe (including three concurrent sends
+    filing one card, and a failed send releasing its claim);
+  - schema SSRF rejections, plus refusal of a public hostname that resolves to 127.0.0.1;
+  - that screenshot fetches never carry tracker tokens;
+  - Jira's refresh-token rotation, now persisted;
+  - Slack escaping, the Discord mention guard and Teams card shape;
+  - webhook signature verification;
+  - the team-only and per-project mute gates;
+  - retry at 5s, then dead-letter plus notification;
+  - the "project updated" fan-out;
+  - route permissions (members list and send, but can't connect or browse destinations);
+  - unreadable provider responses becoming readable 502s.
+- **Browser pass.** A throwaway API ran on the same fakes, with its own Vite on a spare
+  port, driven by headless Chromium. It covered:
+  - the Integrations page (light, dark, and 390px wide with no horizontal overflow);
+  - choosing a Trello list, Slack settings, and the Jira token form with its error path;
+  - the MCP page: creating a token, the Cursor config with the token embedded, the install
+    link, and the Codex tab;
+  - "Send to tracker" in the project's comment drawer filing to Linear, and the resulting
+    "FILED IN" chip.
+  The only console error was the expected 422 from the deliberately bad Jira token.
+- `tests/test_integrations.py` and `tests/test_mcp.py` had their call sites updated to the
+  new signatures (no new tests). The eight that need no database pass. The rest need
+  MongoDB/Redis, and were not run because the conftest `db` fixture wipes whatever
+  `MONGO_URI` points at.
+
+Not verified: live calls to real Slack, Discord, Teams, Jira, Linear, GitHub, GitLab,
+Asana, ClickUp or Trello accounts; real OAuth consent screens; each agent client's own
+config parser against the published snippets.
+
 ## 2026-09-29: Pending-issues sweep (TDR-0045)
 
 Every "pending" list in the repository was rechecked against current source: the

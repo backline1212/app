@@ -102,7 +102,7 @@ class DashboardRepository:
                 "$lt": datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0),
                 "$ne": None,
             }
-        if filters.view in ("reply", "client", "overdue"):
+        if filters.view in ("reply", "client", "overdue") or filters.open_only:
             match.setdefault("$and", []).append({"status": {"$nin": ["resolved", "wont_fix"]}})
         pipeline.append({"$match": match})
         pipeline.append(

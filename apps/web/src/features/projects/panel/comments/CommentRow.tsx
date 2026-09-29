@@ -5,7 +5,10 @@ import { createPortal } from "react-dom";
 
 import * as boardApi from "../../../board/api";
 import type { CommentOut, CommentStatus } from "../../../board/api";
+import { ConfirmDialog } from "../../../../components/ConfirmDialog";
+import { useToast } from "../../../../components/Toast";
 import { qk } from "../../../../lib/query-keys";
+import { upsertProjectComment } from "../../../../lib/comment-cache";
 import { useFloatingPosition } from "../../../../lib/use-floating-position";
 import { useOnClickOutside } from "../../../../lib/use-click-outside";
 import { renderWithMentions } from "../../../../lib/mentions";
@@ -24,11 +27,14 @@ export interface CommentRowProps {
   onNavigate: (commentId: string) => void;
   onOpenThread: (commentId: string) => void;
   selected?: boolean;
+  /** The list's "Compact" display: the text clamped to two lines, no screenshot or
+   * attachment row, tighter spacing. */
+  compact?: boolean;
 }
 
 function memberName(members: MemberOut[], userId: string): string {
   const member = members.find((m) => m.user_id === userId);
-  return member?.name || member?.email || "Unassigned member";
+  return member?.name || member?.email || "Former member";
 }
 
 export function CommentRow({
@@ -39,14 +45,15 @@ export function CommentRow({
   onNavigate,
   onOpenThread,
   selected = false,
+  compact = false,
 }: CommentRowProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId) });
+  const { toast } = useToast();
 
   // Portaled to <body> (see the render below) so it can escape the review drawer's
   // own overflow-y:auto - a plain absolutely-positioned child gets clipped for any
@@ -57,28 +64,39 @@ export function CommentRow({
   useEffect(() => {
     if (!showMenu) return;
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setShowMenu(false);
+      if (event.key !== "Escape") return;
+      // Captured and stopped here, ahead of the review drawer's own Escape (which would
+      // close the whole panel): Escape only closes this menu.
+      event.stopPropagation();
+      setShowMenu(false);
+      triggerRef.current?.focus();
     }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [showMenu]);
 
-  const resolveMutation = useMutation({
-    mutationFn: () =>
-      boardApi.updateComment(comment.id, {
-        status: comment.status === "resolved" ? "todo" : "resolved",
-      }),
-    onSuccess: invalidate,
-  });
-
-  const setStatusMutation = useMutation({
+  // Merged into the cached list straight away, like the detail's edits, rather than
+  // refetching every comment in the project for one changed status.
+  const statusMutation = useMutation({
     mutationFn: (status: CommentStatus) => boardApi.updateComment(comment.id, { status }),
-    onSuccess: invalidate,
+    onSuccess: (updated) => upsertProjectComment(queryClient, projectId, updated),
+    onError: () => toast("Couldn't change that comment's status. Try again.", "error"),
   });
 
   const deleteThreadMutation = useMutation({
     mutationFn: () => boardApi.deleteThread(comment.id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setConfirmDelete(false);
+      queryClient.setQueryData<CommentOut[]>(qk.projectComments(projectId), (old) =>
+        old ? old.filter((c) => c.id !== comment.id && c.parent_id !== comment.id) : old,
+      );
+      void queryClient.invalidateQueries({ queryKey: qk.projectPages(projectId) });
+      toast(`Deleted ${ticketRef(comment)}`, "success");
+    },
+    onError: () => {
+      setConfirmDelete(false);
+      toast("Couldn't delete that thread. Try again.", "error");
+    },
   });
 
   // A comment selected from its pin in the canvas (not from this list) can be scrolled
@@ -99,6 +117,7 @@ export function CommentRow({
       : [];
   const deviceType = commentDeviceType(comment);
   const orphaned = comment.recovery_status !== "ok";
+  const resolved = comment.status === "resolved";
 
   return (
     <div
@@ -107,7 +126,13 @@ export function CommentRow({
       role="button"
       tabIndex={0}
       aria-current={selected ? "true" : undefined}
+      aria-label={`${ticketRef(comment)} by ${comment.author_name}: ${comment.body.slice(0, 80)}`}
       onKeyDown={(event) => {
+        // Only the row's own key presses: Enter/Space on a button inside it (resolve,
+        // the options menu - portaled, but still a React child of this row) belong to
+        // that button, and preventing them here stopped those buttons working from the
+        // keyboard at all.
+        if (event.target !== event.currentTarget) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onNavigate(comment.id);
@@ -118,13 +143,13 @@ export function CommentRow({
           ? "This comment's position on the page could not be confirmed after a page change"
           : "Open this comment"
       }
-      className={`bl-comment-row ${selected ? "is-selected" : ""} ${orphaned ? "bl-comment-orphaned" : ""}`}
+      className={`bl-comment-row ${selected ? "is-selected" : ""} ${orphaned ? "bl-comment-orphaned" : ""} ${compact ? "is-compact" : ""} ${isClosed(comment.status) ? "is-closed" : ""}`}
     >
       <div className="bl-comment-head">
         <span className="bl-comment-badge" title={meta.label}>
           {ticketRef(comment)}
         </span>
-        <Avatar name={comment.author_name} size={24} />
+        <Avatar name={comment.author_name} size={compact ? 20 : 24} />
         <div className="bl-comment-person">
           <span className="bl-comment-who">{comment.author_name}</span>
           <span className="bl-comment-when">{timeAgo(comment.created_at)}</span>
@@ -139,13 +164,13 @@ export function CommentRow({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              resolveMutation.mutate();
+              statusMutation.mutate(resolved ? "todo" : "resolved");
             }}
-            disabled={resolveMutation.isPending}
-            aria-pressed={comment.status === "resolved"}
-            aria-label={comment.status === "resolved" ? "Reopen this comment" : "Mark as resolved"}
-            title={comment.status === "resolved" ? "Resolved — click to reopen" : "Mark as resolved"}
-            className={`bl-comment-resolve ${comment.status === "resolved" ? "is-resolved" : ""}`}
+            disabled={statusMutation.isPending}
+            aria-pressed={resolved}
+            aria-label={resolved ? "Reopen this comment" : "Mark as resolved"}
+            title={resolved ? "Resolved — click to reopen" : "Mark as resolved"}
+            className={`bl-comment-resolve ${resolved ? "is-resolved" : ""}`}
           >
             <svg viewBox="0 0 16 16" width="10" height="10" fill="none" aria-hidden="true">
               <path
@@ -163,7 +188,7 @@ export function CommentRow({
               type="button"
               onClick={() => setShowMenu((prev) => !prev)}
               aria-label="Comment options"
-              aria-haspopup="true"
+              aria-haspopup="menu"
               aria-expanded={showMenu}
               className="bl-icon"
               style={{ width: 24, height: 24, fontSize: 14 }}
@@ -179,6 +204,7 @@ export function CommentRow({
                 ref={popoverRef}
                 className="bl-comment-popover bl-comment-menu"
                 role="menu"
+                aria-label="Comment options"
                 style={{
                   position: "fixed",
                   top: popoverPos?.top ?? -9999,
@@ -191,28 +217,33 @@ export function CommentRow({
                   <button
                     key={status}
                     type="button"
+                    role="menuitemradio"
+                    aria-checked={status === comment.status}
                     onClick={() => {
                       setShowMenu(false);
-                      setStatusMutation.mutate(status);
+                      triggerRef.current?.focus();
+                      if (status !== comment.status) statusMutation.mutate(status);
                     }}
-                    disabled={status === comment.status}
                     className="bl-review-menu-row"
                   >
-                    <span className="bl-status-dot" style={{ background: STATUS_META[status].color }} />
-                    {STATUS_META[status].label}
+                    <span className="bl-cd-opt">
+                      <span className="bl-status-dot" style={{ background: STATUS_META[status].color }} />
+                      {STATUS_META[status].label}
+                    </span>
                   </button>
                 ))}
                 <div style={{ borderTop: "1px solid var(--line-soft)", margin: "4px 0" }} />
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => {
                     setShowMenu(false);
-                    deleteThreadMutation.mutate();
+                    setConfirmDelete(true);
                   }}
                   className="bl-review-menu-row"
                   style={{ color: "var(--bl-error)" }}
                 >
-                  Delete thread
+                  Delete thread…
                 </button>
               </div>,
               document.body
@@ -223,20 +254,21 @@ export function CommentRow({
 
       <p className="bl-comment-body">{renderWithMentions(comment.body)}</p>
 
-      {comment.screenshot_url ? (
+      {!compact && (comment.screenshot_url ? (
         <a
           href={comment.screenshot_url}
           target="_blank"
           rel="noreferrer"
           onClick={(event) => event.stopPropagation()}
+          className="bl-comment-shot-link"
         >
           <img src={comment.screenshot_url} alt="Captured review context" className="bl-comment-shot" />
         </a>
       ) : comment.capture_status === "failed" ? (
         <span className="bl-comment-shot-failed">Screenshot capture failed</span>
-      ) : null}
+      ) : null)}
 
-      {comment.attachments.length > 0 && (
+      {!compact && comment.attachments.length > 0 && (
         <div className="bl-chip-row">
           {comment.attachments.map((attachment) => (
             <a
@@ -272,11 +304,12 @@ export function CommentRow({
         )}
         <LayerBadge layer={comment.layer} />
         {orphaned && <RecoveryBadge status={comment.recovery_status} />}
-        {comment.tags?.map((tag) => (
-          <span key={tag} className="bl-chip">
-            {tag}
-          </span>
-        ))}
+        {!compact &&
+          comment.tags?.map((tag) => (
+            <span key={tag} className="bl-chip">
+              {tag}
+            </span>
+          ))}
         {assigneeIds.length > 0 && (
           <span
             className="flex items-center"
@@ -296,7 +329,7 @@ export function CommentRow({
             onOpenThread(comment.id);
           }}
           className="bl-comment-reply-count"
-          title="Open this thread"
+          title={replyCount > 0 ? `${replyCount} ${replyCount === 1 ? "reply" : "replies"} — open the thread` : "Reply"}
         >
           <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M21 11.5a8.4 8.4 0 01-9 8.4L3 21l1.1-8.9A8.4 8.4 0 1121 11.5z" />
@@ -304,6 +337,27 @@ export function CommentRow({
           {replyCount > 0 ? replyCount : "Reply"}
         </button>
       </div>
+
+      {confirmDelete && createPortal(
+        // Portaled out of the row's DOM, but React still bubbles its events through the
+        // row: stop them here, or a click in the dialog opens this comment underneath.
+        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+          <ConfirmDialog
+            title={`Delete ${ticketRef(comment)}?`}
+            message={
+              replyCount > 0
+                ? `This deletes the comment and its ${replyCount} ${replyCount === 1 ? "reply" : "replies"} for everyone, including the client.`
+                : "This deletes the comment for everyone, including the client."
+            }
+            confirmLabel="Delete thread"
+            destructive
+            pending={deleteThreadMutation.isPending}
+            onConfirm={() => deleteThreadMutation.mutate()}
+            onCancel={() => setConfirmDelete(false)}
+          />
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

@@ -1,10 +1,5 @@
 import { createApiClient, WidgetApiError } from "./api-client";
-import {
-  anchorPointFor,
-  computeAnchor,
-  resolveAnchorElement,
-  waitForAnchorElement,
-} from "./anchor";
+import { anchorPointFor, computeAnchor, waitForAnchorElement } from "./anchor";
 import { uploadAttachment, uploadScreenshot } from "./attachment-upload";
 import { connectDashboardStatusBridge } from "./dashboard-bridge";
 import { ensureGuestSession, requestDashboardDisplayName } from "./guest-session";
@@ -21,6 +16,8 @@ import {
   showTooltip,
   type ComposerDetails,
 } from "./ui";
+import { setCardBottomInset } from "./ui-card";
+import { composerHasDraft, nudgeComposer } from "./ui-composer";
 import { parseUserAgent } from "./user-agent";
 import { setupRegionDrawer } from "./region-drawer";
 
@@ -64,6 +61,12 @@ async function init(config: BacklineConfig): Promise<void> {
   // re-fetched the whole site on each toggle.
   const modeParams = new URLSearchParams(window.location.search);
   const blMode = modeParams.get("blMode");
+  // Only the dashboard's canvas sets blMode: there its quick-tools dock floats over the
+  // bottom of this frame, so cards, the tooltip and toasts keep clear of it.
+  if (blMode) {
+    (shadow.host as HTMLElement).dataset.embedded = "true";
+    setCardBottomInset(88);
+  }
   // Real guest reviewers (the /review/:shareToken flow, redirected straight to the
   // proxied site) never carry a blMode param at all - only the dashboard's own canvas
   // iframe sets one, always to one of "browse"/"comment"/"draw" (ProjectOverviewPage's
@@ -136,13 +139,6 @@ async function init(config: BacklineConfig): Promise<void> {
   // the click handler existed and commenting silently never switched on.
   void submitPageSnapshot(api, pageId).catch(() => undefined);
 
-  // Tells the dashboard (if it's embedding this in the canvas iframe) which page is
-  // currently loaded, so its Comments panel can offer "show comments on current page
-  // only." "*" rather than a specific target origin: this script is served from
-  // whatever proxy origin the project's share link points at, so it has no fixed,
-  // known dashboard origin to address - and a page id isn't sensitive.
-  window.parent.postMessage({ type: "backline:page-registered", pageId }, "*");
-
   // Never invites a comment that clicking wouldn't actually accept - and it's shown
   // again each time the reviewer switches back into comment mode, so what the composer
   // and the region drawer hold has to be this stable handle rather than one tooltip.
@@ -173,41 +169,36 @@ async function init(config: BacklineConfig): Promise<void> {
   const threadManager = createThreadManager({ shadow, pagePath: currentPagePath, statusUpdater });
   const { threadMessages, pinsByTopId, trackPinPosition, openThreadForComment, attachPinClickHandler } =
     threadManager;
+  const inDashboard = window.parent !== window;
 
   // Existing comments on this page (guest-accessible, already server-side layer-filtered)
-  // get a pin each. Client-rendered pages often hydrate after this widget starts, so
-  // anchor resolution waits for late DOM content instead of taking one race-prone
-  // synchronous shot.
-  const loadPagePins = async (forPageId: string): Promise<void> => {
+  // get a pin each, once their element has rendered (thread-manager.ts's addThread).
+  // `onlyThread` loads just that one thread - one that was made client-visible while
+  // this page was open.
+  const loadPagePins = async (forPageId: string, onlyThread?: string): Promise<void> => {
     const existingComments = await api.request<CommentRecord[]>(
       `/api/v1/pages/${forPageId}/comments`,
     );
     // A later route change may have moved the widget on while this was in flight.
     if (forPageId !== pageId) return;
-    const topLevelComments = existingComments.filter((c) => c.parent_id === null);
+    const topLevelComments = existingComments.filter(
+      (c) => c.parent_id === null && (!onlyThread || c.id === onlyThread) && !threadMessages.has(c.id),
+    );
     for (const top of topLevelComments) {
       const replies = existingComments
         .filter((c) => c.parent_id === top.id)
         .sort((a, b) => a.created_at.localeCompare(b.created_at));
-      threadMessages.set(top.id, [top, ...replies]);
-
-      void waitForAnchorElement(top.anchor).then((element) => {
-        // A route change can finish while this anchor is waiting to render.
-        if (!element || forPageId !== pageId || pinsByTopId.has(top.id)) return;
-        const point = anchorPointFor(element, top.anchor);
-        const pct = top.anchor.dom_fingerprint.click_offset_pct ?? { x: 0, y: 0 };
-        const pin = renderPin(shadow, point.x, point.y, top.ticket_number);
-        attachPinClickHandler(pin, top.id);
-        const untrack = trackPinPosition(
-          pin,
-          () => resolveAnchorElement(top.anchor),
-          (box) => ({ x: box.width * pct.x, y: box.height * pct.y }),
-        );
-        pinsByTopId.set(top.id, { pin, untrack });
-      });
+      threadManager.addThread(top, replies, () => forPageId === pageId);
     }
   };
   await loadPagePins(pageId);
+
+  // Answers the dashboard's scroll-to-comment below, so its status line can say what
+  // happened instead of "locating its pin" forever.
+  const reportLocated = (commentId: string, found: boolean, reason?: "not-on-page" | "element-missing") => {
+    if (!inDashboard) return;
+    window.parent.postMessage({ type: "backline:comment-located", commentId, found, reason }, "*");
+  };
 
   // The dashboard's Comments panel (outside this iframe, cross-origin - the canvas is
   // served from the API's own origin, not the dashboard's) can't reach into this page's
@@ -220,25 +211,56 @@ async function init(config: BacklineConfig): Promise<void> {
   window.addEventListener("message", (event) => {
     if (event.data?.type !== "backline:scroll-to-comment") return;
     const topId = event.data.commentId as string | undefined;
-    const messages = topId ? threadMessages.get(topId) : undefined;
-    if (!topId || !messages || messages.length === 0) return;
+    if (!topId) return;
+    const messages = threadMessages.get(topId);
+    if (!messages || messages.length === 0) {
+      // Another page's comment, or a team-only one (never sent to this guest widget):
+      // whatever card is open belongs to a different comment than the one now
+      // selected, so it goes rather than sit there looking like the answer.
+      threadManager.closeOpenThread();
+      reportLocated(topId, false, "not-on-page");
+      return;
+    }
 
     const requestedPageId = pageId;
     const anchor = messages[0].anchor;
     void waitForAnchorElement(anchor).then((element) => {
-      if (!element || requestedPageId !== pageId || !threadMessages.has(topId)) return;
+      if (requestedPageId !== pageId || !threadMessages.has(topId)) return;
+      if (!element) {
+        threadManager.closeOpenThread();
+        reportLocated(topId, false, "element-missing");
+        return;
+      }
       element.scrollIntoView({ behavior: "smooth", block: "center" });
+      reportLocated(topId, true);
       // Give the scroll (and position-tracker's own viewport re-check) a moment to
       // settle before opening the thread.
       setTimeout(() => {
         const pin = pinsByTopId.get(topId)?.pin;
         const point = anchorPointFor(element, anchor);
-        const x = pin ? parseFloat(pin.style.left) : point.x;
-        const y = pin ? parseFloat(pin.style.top) : point.y;
+        const x = pin && pin.style.display !== "none" ? parseFloat(pin.style.left) : point.x;
+        const y = pin && pin.style.display !== "none" ? parseFloat(pin.style.top) : point.y;
         openThreadForComment(topId, x, y);
       }, 400);
     });
   });
+
+  // Tells the dashboard (if it's embedding this in the canvas iframe) which page is
+  // currently loaded, so its Comments panel can offer "show comments on current page
+  // only." "*" rather than a specific target origin: this script is served from
+  // whatever proxy origin the project's share link points at, so it has no fixed,
+  // known dashboard origin to address - and a page id isn't sensitive. Sent only now,
+  // with this page's comments loaded and scroll-to-comment listening: the dashboard
+  // answers it by asking for the comment it switched pages to show, and a request
+  // before this point found nothing to show.
+  window.parent.postMessage({ type: "backline:page-registered", pageId }, "*");
+
+  // The dashboard around the canvas learns of a comment posted here straight away,
+  // without waiting on its own realtime connection.
+  const announceCreated = (created: CommentRecord) => {
+    if (!inDashboard) return;
+    window.parent.postMessage({ type: "backline:comment-created", commentId: created.id, pageId: created.page_id }, "*");
+  };
 
   // What the composer's header and facts row show.
   const composerDetails = (regionSize?: string): ComposerDetails => ({
@@ -249,6 +271,11 @@ async function init(config: BacklineConfig): Promise<void> {
   });
 
   const ownCommentIds = new Set<string>();
+  // A thread made client-visible while this page is open arrives as an update to a
+  // comment the page never had; its replies come with a fresh load of that one thread.
+  const loadThreadMadeVisible = (record: CommentRecord) => {
+    void loadPagePins(pageId, record.id).catch(() => undefined);
+  };
   let stopRealtime = wireRealtimeUpdates(
     shadow,
     config.apiBaseUrl,
@@ -256,6 +283,7 @@ async function init(config: BacklineConfig): Promise<void> {
     pageId,
     threadManager,
     ownCommentIds,
+    loadThreadMadeVisible,
   );
 
   // Everything above this point is mode-independent (pins for existing comments,
@@ -282,6 +310,7 @@ async function init(config: BacklineConfig): Promise<void> {
         ownCommentIds,
         tooltip,
         composerDetails,
+        onCommentCreated: announceCreated,
       });
     }
   };
@@ -291,6 +320,14 @@ async function init(config: BacklineConfig): Promise<void> {
     if (currentMode !== "comment") return;
     const target = event.target as Element | null;
     if (!target || target.closest("[data-backline-root]")) return;
+    // A comment is half-written somewhere else on the page: this click would have thrown
+    // it away and started another. Point back at it instead (and still keep the click
+    // from following a link underneath).
+    if (composerHasDraft()) {
+      event.preventDefault();
+      nudgeComposer();
+      return;
+    }
 
     // Commenting on a link or a submit button must not also trigger its native
     // action - left unprevented, clicking a nav link (or "Book a call", or anything
@@ -384,10 +421,11 @@ async function init(config: BacklineConfig): Promise<void> {
           if (created.ticket_number != null) pin.textContent = String(created.ticket_number);
           ownCommentIds.add(created.id);
           threadMessages.set(created.id, [created]);
-          pinsByTopId.set(created.id, { pin, untrack });
+          threadManager.adoptPin(created.id, pin, untrack);
           attachPinClickHandler(pin, created.id);
           tooltip.dismiss();
           controls.setStatus("Comment posted.");
+          announceCreated(created);
           return true;
         } catch {
           controls.setStatus("Could not post your comment. Please try again.");
@@ -429,11 +467,14 @@ async function init(config: BacklineConfig): Promise<void> {
       pageId,
       threadManager,
       ownCommentIds,
+      loadThreadMadeVisible,
     );
-    window.parent.postMessage({ type: "backline:page-registered", pageId }, "*");
     // The region drawer is bound to a page id when it's set up.
     if (currentMode === "draw") applyMode(currentMode);
     await loadPagePins(pageId);
+    if (nextUrl !== followedUrl) return;
+    // After the pins, for the same reason as the first page-registered above.
+    window.parent.postMessage({ type: "backline:page-registered", pageId }, "*");
     await submitPageSnapshot(api, pageId).catch(() => undefined);
   };
   window.setInterval(() => {

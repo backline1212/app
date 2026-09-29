@@ -2,10 +2,35 @@ import type { ApiClient } from "./api-client";
 import type { CommentRecord } from "./types";
 import { computeRegionAnchor } from "./anchor";
 import { renderPin, openComposer, type ComposerDetails } from "./ui";
+import { composerHasDraft, nudgeComposer } from "./ui-composer";
 import { captureScreenshot } from "./screenshot";
 import { uploadScreenshot, uploadAttachment } from "./attachment-upload";
 import { parseUserAgent } from "./user-agent";
 import type { createThreadManager } from "./thread-manager";
+
+/**
+ * The element a drawn area is anchored to: the innermost one, from where the drag
+ * started outwards, whose box holds the whole area. The anchor stores the area as
+ * fractions of that element's box, clamped to it - anchored to the element under the
+ * pointer (a button, say) an area drawn past its edges was squashed onto it.
+ */
+function containerFor(start: Element, rect: { x: number; y: number; width: number; height: number }): Element {
+  const slack = 1;
+  for (let el: Element | null = start; el && el !== document.documentElement; el = el.parentElement) {
+    const box = el.getBoundingClientRect();
+    const left = box.left + window.scrollX;
+    const top = box.top + window.scrollY;
+    if (
+      left <= rect.x + slack &&
+      top <= rect.y + slack &&
+      left + box.width >= rect.x + rect.width - slack &&
+      top + box.height >= rect.y + rect.height - slack
+    ) {
+      return el;
+    }
+  }
+  return document.body;
+}
 
 export function setupRegionDrawer({
   shadow,
@@ -17,6 +42,7 @@ export function setupRegionDrawer({
   ownCommentIds,
   tooltip,
   composerDetails,
+  onCommentCreated,
 }: {
   shadow: ShadowRoot;
   api: ApiClient;
@@ -27,6 +53,9 @@ export function setupRegionDrawer({
   ownCommentIds: Set<string>;
   tooltip: { dismiss: () => void };
   composerDetails: (regionSize?: string) => ComposerDetails;
+  /** Told about each comment this drawer posts (the guest widget passes it on to the
+   * dashboard around the canvas). */
+  onCommentCreated?: (created: CommentRecord) => void;
 }) {
   let startX = 0;
   let startY = 0;
@@ -43,23 +72,28 @@ export function setupRegionDrawer({
   function onMouseDown(e: MouseEvent) {
     target = e.target as Element | null;
     if (!target || target.closest("[data-backline-root]")) return;
+    // Starting a new area would leave a half-written comment behind; point back at it.
+    if (composerHasDraft()) {
+      e.preventDefault();
+      nudgeComposer();
+      target = null;
+      return;
+    }
 
     e.preventDefault();
     isDrawing = true;
     startX = e.pageX;
     startY = e.pageY;
 
+    // Inside the widget's shadow root (ui-styles.ts's .bl-region), so Browse mode hides
+    // it along with the pins instead of leaving a box drawn over the site.
     overlay = document.createElement("div");
-    overlay.style.position = "absolute";
-    overlay.style.border = "2px solid #0052cc";
-    overlay.style.backgroundColor = "rgba(0, 82, 204, 0.1)";
-    overlay.style.pointerEvents = "none";
-    overlay.style.zIndex = "999999";
+    overlay.className = "bl-region bl-region-draft";
     overlay.style.left = `${startX}px`;
     overlay.style.top = `${startY}px`;
     overlay.style.width = "0px";
     overlay.style.height = "0px";
-    document.body.appendChild(overlay);
+    shadow.appendChild(overlay);
   }
 
   function onMouseMove(e: MouseEvent) {
@@ -80,6 +114,7 @@ export function setupRegionDrawer({
   function onMouseUp() {
     if (!isDrawing || !overlay || !target) return;
     isDrawing = false;
+    overlay.classList.remove("bl-region-draft");
     
     const finalLeft = parseFloat(overlay.style.left);
     const finalTop = parseFloat(overlay.style.top);
@@ -93,12 +128,16 @@ export function setupRegionDrawer({
     }
 
     const rect = { x: finalLeft, y: finalTop, width: finalWidth, height: finalHeight };
+    // Captured now: the drawer's own `target` is reassigned by the very next mousedown -
+    // including the one on "Post comment", which is the widget's host element - so a
+    // tracker reading it followed that (invisible) host and hid the new pin.
+    const activeTarget = containerFor(target, rect);
 
     // Create a pin at the top-left of the region
     const pin = renderPin(shadow, finalLeft, finalTop);
     pin.classList.add("bl-pin-ghost");
-    
-    const targetRect = target.getBoundingClientRect();
+
+    const targetRect = activeTarget.getBoundingClientRect();
     const offsetPct = {
       x: targetRect.width > 0
         ? (finalLeft - (targetRect.left + window.scrollX)) / targetRect.width
@@ -107,13 +146,12 @@ export function setupRegionDrawer({
         ? (finalTop - (targetRect.top + window.scrollY)) / targetRect.height
         : 0,
     };
-    const untrack = threadManager.trackPinPosition(pin, () => target, (box) => ({
+    const untrack = threadManager.trackPinPosition(pin, () => activeTarget, (box) => ({
       x: box.width * offsetPct.x,
       y: box.height * offsetPct.y,
     }));
 
     const clientRequestId = crypto.randomUUID();
-    const activeTarget = target;
     const activeOverlay = overlay;
 
     const controls = openComposer(
@@ -163,10 +201,23 @@ export function setupRegionDrawer({
           if (created.ticket_number != null) pin.textContent = String(created.ticket_number);
           ownCommentIds.add(created.id);
           threadManager.threadMessages.set(created.id, [created]);
-          threadManager.pinsByTopId.set(created.id, { pin, untrack, regionOverlay: activeOverlay });
+          // The drawn box was placed once, at the drag's page coordinates; from here on
+          // the saved area follows its element the way a reloaded one does.
+          const tracked = threadManager.createRegionOverlay(created.anchor ?? anchor, () => activeTarget);
+          if (tracked) activeOverlay.remove();
+          threadManager.adoptPin(
+            created.id,
+            pin,
+            () => {
+              untrack();
+              tracked?.untrack();
+            },
+            tracked?.overlay ?? activeOverlay,
+          );
           threadManager.attachPinClickHandler(pin, created.id);
           tooltip.dismiss();
           controls.setStatus("Comment posted.");
+          onCommentCreated?.(created);
           return true;
         } catch {
           controls.setStatus("Could not post your comment. Please try again.");

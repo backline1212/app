@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import type { RefObject } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import type { ProjectOut } from "../api";
@@ -38,13 +37,28 @@ interface ProjectSidePanelProps {
   workspaceId: string;
   workspaceSlug: string;
   workspaceName: string;
-  canvasRef: RefObject<HTMLIFrameElement | null>;
+  /** The page selected in the canvas. */
   currentPageId: string | null;
   selectedCommentId?: string | null;
-  onSelectComment?: (commentId: string) => void;
-  /** Bumped each time a pin is clicked in the canvas - switches the drawer to the
-   * Comments tab so the comment that click selected is in view. */
-  revealCommentsSignal?: number;
+  /** Selects a comment and takes the canvas to its pin (ProjectOverviewPage). */
+  onRevealComment?: (commentId: string) => void;
+  /** Set each time a pin is clicked in the canvas - brings up the Comments tab on that
+   * comment's detail. */
+  openCommentRequest?: { commentId: string; nonce: number } | null;
+}
+
+// Escape closes the drawer - except while it's being used for something Escape already
+// means something else to: a field with text in it (which the drawer closing would
+// throw away), a menu or date picker that handled the key itself, or a dialog on top.
+function escapeClosesDrawer(event: KeyboardEvent): boolean {
+  if (event.key !== "Escape" || event.defaultPrevented) return false;
+  const target = event.target as HTMLElement | null;
+  if (!target) return true;
+  if (target.closest("dialog, [role='dialog'], .bl-dp, .bl-comment-popover")) return false;
+  if (target instanceof HTMLTextAreaElement || (target instanceof HTMLInputElement && target.type !== "checkbox")) {
+    return target.value.trim() === "";
+  }
+  return !target.isContentEditable;
 }
 
 // Collapsed by default (just the icon rail) - clicking a tab opens its panel; clicking
@@ -55,11 +69,10 @@ export function ProjectSidePanel({
   workspaceId,
   workspaceSlug,
   workspaceName,
-  canvasRef,
   currentPageId,
   selectedCommentId,
-  onSelectComment,
-  revealCommentsSignal,
+  onRevealComment,
+  openCommentRequest,
 }: ProjectSidePanelProps) {
   // A shared `?thread=<id>` link (Comments tab's own URL-owned state, see
   // useCommentFilters.ts) must reopen this drawer on a fresh load - otherwise the id
@@ -71,10 +84,22 @@ export function ProjectSidePanel({
     searchParams.get("thread") ? "comments" : null,
   );
 
+  // BugHunt AI's "view" on a finding opens that comment's detail the same way a pin
+  // click does; whichever asked last wins.
+  const [aiOpenRequest, setAiOpenRequest] = useState<{ commentId: string; nonce: number } | null>(null);
+  // A request is acted on once: reopening the Comments tab later mustn't jump back to
+  // the comment some earlier pin click asked for.
+  const [handledNonce, setHandledNonce] = useState(0);
+  const newestRequest =
+    aiOpenRequest && (!openCommentRequest || aiOpenRequest.nonce > openCommentRequest.nonce)
+      ? aiOpenRequest
+      : openCommentRequest ?? null;
+  const latestOpenRequest = newestRequest && newestRequest.nonce > handledNonce ? newestRequest : null;
+
   // Whatever tab (if any) was open before, a pin click brings up Comments.
   useEffect(() => {
-    if (revealCommentsSignal) setActiveTab("comments");
-  }, [revealCommentsSignal]);
+    if (openCommentRequest) setActiveTab("comments");
+  }, [openCommentRequest]);
 
   function toggleTab(id: TabId) {
     setActiveTab((current) => (current === id ? null : id));
@@ -83,7 +108,7 @@ export function ProjectSidePanel({
   useEffect(() => {
     if (!activeTab) return;
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setActiveTab(null);
+      if (escapeClosesDrawer(event)) setActiveTab(null);
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -116,10 +141,11 @@ export function ProjectSidePanel({
               <CommentsTab
                 projectId={project.id}
                 workspaceId={workspaceId}
-                canvasRef={canvasRef}
                 currentPageId={currentPageId}
                 selectedCommentId={selectedCommentId}
-                onSelectComment={onSelectComment}
+                onRevealComment={onRevealComment}
+                openCommentRequest={latestOpenRequest}
+                onOpenRequestHandled={setHandledNonce}
               />
             )}
             {activeTab === "mcp" && (
@@ -137,7 +163,8 @@ export function ProjectSidePanel({
                 workspaceId={workspaceId}
                 projectId={project.id}
                 onViewComment={(commentId) => {
-                  onSelectComment?.(commentId);
+                  onRevealComment?.(commentId);
+                  setAiOpenRequest({ commentId, nonce: Date.now() });
                   setActiveTab("comments");
                 }}
               />

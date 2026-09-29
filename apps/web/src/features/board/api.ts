@@ -20,6 +20,16 @@ export function updateComment(
   });
 }
 
+// Who can see a comment - the client too, or the team only. The API insists on an
+// explicit confirm (comments/service.py's toggle_layer); the caller asks the member first.
+export function setCommentLayer(commentId: string, layer: CommentLayer): Promise<CommentOut> {
+  const body: Schemas["LayerToggleRequest"] = { layer, confirm: true };
+  return apiFetch<CommentOut>(`/api/v1/comments/${commentId}/layer`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export function createReply(
   commentId: string,
   body: string,

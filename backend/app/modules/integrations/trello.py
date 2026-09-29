@@ -5,49 +5,71 @@ import httpx
 from app.core.encryption import decrypt_secret
 from app.core.errors import ExternalServiceError
 from app.modules.comments.schemas import CommentOut
+from app.modules.integrations.base import (
+    Destination,
+    IntegrationContext,
+    fetch_screenshot,
+    http_error_detail,
+    issue_title,
+    plain_description,
+)
 
 TRELLO_API_BASE = "https://api.trello.com/1"
 
 
-def _description_block(comment: CommentOut, backlink_url: str) -> str:
-    """Mirrors ClickUp's structured block exactly (17.4: "card description mirrors the
-    ClickUp task's structured block")."""
-    context = comment.context or {}
-    lines = [
-        comment.body,
-        "",
-        "---",
-        f"Page: {context.get('url', 'unknown')}",
-        f"Browser/OS: {context.get('browser', 'unknown')} / {context.get('os', 'unknown')}",
-        f"Device: {context.get('device_type', 'unknown')}",
-        f"Backline comment: {backlink_url}",
-    ]
-    return "\n".join(lines)
+def _auth(config: dict[str, Any]) -> dict[str, str]:
+    return {
+        "key": decrypt_secret(config["api_key_encrypted"]),
+        "token": decrypt_secret(config["token_encrypted"]),
+    }
 
 
 class TrelloIntegration:
-    """17.4 - same interface, API-key + token connect (no OAuth dance specified for
-    Trello in the spec, unlike ClickUp - the agency pastes both from Trello's own
-    token-generation page, mirroring Slack's "simplest possible connection" precedent)."""
+    """17.4 - API-key + token connect (the agency pastes both from Trello's own
+    token-generation page, mirroring Slack's "simplest possible connection"
+    precedent). Cards go into one chosen list."""
 
-    async def create_card(
-        self, comment: CommentOut, config: dict[str, Any], *, backlink_url: str
-    ) -> tuple[str, str]:
-        """Returns (card_id, card_url). Manual, member-triggered - not part of the
-        automatic Integration Protocol, same as ClickUp's create_task."""
+    destination_key = "list_id"
+
+    async def list_destinations(self, ctx: IntegrationContext) -> list[Destination]:
         try:
-            auth = {
-                "key": decrypt_secret(config["api_key_encrypted"]),
-                "token": decrypt_secret(config["token_encrypted"]),
-            }
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(
+                    f"{TRELLO_API_BASE}/members/me/boards",
+                    params={
+                        **_auth(ctx.config),
+                        "filter": "open",
+                        "fields": "name",
+                        "lists": "open",
+                        "list_fields": "name",
+                    },
+                )
+                response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise ExternalServiceError(
+                f"Could not load Trello boards: {http_error_detail(exc)}"
+            ) from exc
+        return [
+            Destination(id=trello_list["id"], name=trello_list["name"], group=board["name"])
+            for board in response.json()
+            for trello_list in board.get("lists", [])
+        ]
+
+    async def create_item(
+        self, comment: CommentOut, ctx: IntegrationContext, *, backlink_url: str
+    ) -> tuple[str, str]:
+        """Returns (card_id, card_url)."""
+        config = ctx.config
+        try:
+            auth = _auth(config)
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
                     f"{TRELLO_API_BASE}/cards",
                     params={
                         **auth,
                         "idList": config["list_id"],
-                        "name": comment.body[:100] or "Backline comment",
-                        "desc": _description_block(comment, backlink_url),
+                        "name": issue_title(comment),
+                        "desc": plain_description(comment, backlink_url),
                     },
                 )
                 response.raise_for_status()
@@ -55,7 +77,7 @@ class TrelloIntegration:
 
                 if comment.screenshot_url:
                     try:
-                        screenshot_bytes = (await client.get(comment.screenshot_url)).content
+                        screenshot_bytes = await fetch_screenshot(comment.screenshot_url)
                         await client.post(
                             f"{TRELLO_API_BASE}/cards/{card['id']}/attachments",
                             params=auth,
@@ -74,27 +96,17 @@ class TrelloIntegration:
                         raise ExternalServiceError(f"Trello card creation failed: {exc}") from exc
                 return card["id"], card["shortUrl"]
         except httpx.HTTPError as exc:
-            raise ExternalServiceError(f"Trello card creation failed: {exc}") from exc
+            raise ExternalServiceError(
+                f"Trello card creation failed: {http_error_detail(exc)}"
+            ) from exc
         except KeyError as exc:
             raise ExternalServiceError(f"Trello returned an unexpected response: {exc}") from exc
 
-    async def on_comment_created(self, comment: CommentOut, config: dict[str, Any]) -> None:
-        # No automatic status sync in MVP (§17.4: "one-directional: Backline -> Trello
-        # only," and even that only happens via the manual create-card trigger).
-        return None
-
-    async def on_status_changed(self, comment: CommentOut, config: dict[str, Any]) -> None:
-        return None
-
-    async def test_connection(self, config: dict[str, Any]) -> bool:
+    async def test_connection(self, ctx: IntegrationContext) -> bool:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(
-                    f"{TRELLO_API_BASE}/members/me",
-                    params={
-                        "key": decrypt_secret(config["api_key_encrypted"]),
-                        "token": decrypt_secret(config["token_encrypted"]),
-                    },
+                    f"{TRELLO_API_BASE}/members/me", params=_auth(ctx.config)
                 )
             return response.status_code == 200
         except httpx.HTTPError:

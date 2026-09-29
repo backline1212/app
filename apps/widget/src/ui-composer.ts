@@ -102,16 +102,37 @@ function autoGrowTextarea(textarea: HTMLTextAreaElement, onResize: () => void): 
   fit();
 }
 
+// At most one composer is ever being written in. Its handle is kept here so the page's
+// own click handlers (index.ts, region-drawer.ts, the extension's content script) can
+// ask whether a new click would throw away something the reviewer typed.
+let activeComposer: { hasDraft: () => boolean; nudge: () => void } | null = null;
+
+/** Whether a composer is open with something in it that isn't posted yet - text, an
+ * attachment, or a post still on its way. Clicking elsewhere then keeps it open. */
+export function composerHasDraft(): boolean {
+  return activeComposer?.hasDraft() ?? false;
+}
+
+/** Draws the reviewer back to the composer they left unfinished. */
+export function nudgeComposer(): void {
+  activeComposer?.nudge();
+}
+
 /**
  * x/y are page (document) coordinates, same as renderPin (see placeCard).
  *
  * `onCancel` fires exactly once whenever the composer is dismissed *without* a
- * successful submit - the explicit "x" or Cancel button, or a click elsewhere on the
- * page - never after a real submit. The caller (index.ts) uses it to remove this
+ * successful submit - the explicit "x" or Cancel button, Escape, or a click elsewhere on
+ * the page - never after a real submit. The caller (index.ts) uses it to remove this
  * attempt's pin, the other half of a real bug found by hand: every click created a pin
  * with no cleanup path at all, so an abandoned or click-elsewhere-cancelled comment left
  * a permanent, unremovable stray pin behind - clicking around a page a few times filled
  * it with pins nothing could ever get rid of.
+ *
+ * A click elsewhere only dismisses an *empty* composer. Once something is typed or
+ * attached, the click is refused and the composer is pointed out instead: one stray
+ * click used to throw the whole unsent comment away without a word. Escape discards an
+ * empty composer at once, and a written one on a second press.
  */
 export function openComposer(
   shadow: ShadowRoot,
@@ -184,11 +205,45 @@ export function openComposer(
   const attachLabel = composer.querySelector<HTMLSpanElement>(".bl-cp-attach-label")!;
   const tagButtons = Array.from(composer.querySelectorAll<HTMLButtonElement>(".bl-cp-tag"));
   const textarea = composer.querySelector("textarea")!;
-  const attachments = setupAttachments(composer, uploadFile, (count) => {
-    attachLabel.textContent = count > 0 ? "Add another" : "Attach a screenshot";
-  });
+  const attachments = setupAttachments(
+    composer,
+    uploadFile,
+    (count) => {
+      attachLabel.textContent = count > 0 ? "Add another" : "Attach a screenshot";
+    },
+    (message) => {
+      statusEl.textContent = message;
+    },
+  );
   let selectedTag: ComposerTag = COMPOSER_TAGS[0];
   let submitted = false;
+  // Set once the post succeeded: the card lingers a moment to show "Comment posted.",
+  // and nothing in it is a draft any more.
+  let posted = false;
+  let closed = false;
+  // Escape on a written comment arms a discard for a few seconds instead of dropping it.
+  let discardArmedUntil = 0;
+
+  const hasDraft = (): boolean =>
+    !closed &&
+    !posted &&
+    (submitted || textarea.value.trim() !== "" || attachments.getAttachments().length > 0 || attachments.pendingCount() > 0);
+
+  function nudge(): void {
+    if (closed) return;
+    composer.classList.remove("bl-nudge");
+    // Reflow so a second nudge in a row plays the animation again.
+    void composer.offsetWidth;
+    composer.classList.add("bl-nudge");
+    if (!submitted) {
+      statusEl.textContent = "Post or cancel this comment first.";
+      textarea.focus({ preventScroll: true });
+    }
+    composer.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
+  const handle = { hasDraft, nudge };
+  activeComposer = handle;
 
   for (const button of tagButtons) {
     button.addEventListener("click", () => {
@@ -202,6 +257,8 @@ export function openComposer(
   }
 
   function removeComposer(): void {
+    closed = true;
+    if (activeComposer === handle) activeComposer = null;
     removeOutsideClickListener();
     composer.remove();
   }
@@ -222,11 +279,24 @@ export function openComposer(
 
   function submit(): void {
     const body = textarea.value.trim();
-    if (!body || submitted) return;
+    if (submitted) return;
+    if (!body) {
+      statusEl.textContent = "Write a comment before posting.";
+      textarea.focus({ preventScroll: true });
+      return;
+    }
+    // Posting now would silently leave a still-uploading file off the comment.
+    if (attachments.pendingCount() > 0) {
+      statusEl.textContent = "Wait for the attachment to finish uploading.";
+      return;
+    }
     submitted = true;
+    discardArmedUntil = 0;
     setFormDisabled(true);
-    onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag] }).then((posted) => {
-      if (posted) {
+    onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag] }).then((ok) => {
+      if (ok) {
+        posted = true;
+        if (activeComposer === handle) activeComposer = null;
         // Left up long enough to read the status line's "Comment posted." before it
         // goes - closing immediately would cut that off, and never closing at all is
         // the exact bug this replaces.
@@ -249,6 +319,21 @@ export function openComposer(
       submit();
     }
   });
+  textarea.addEventListener("input", () => {
+    discardArmedUntil = 0;
+    if (statusEl.textContent === "Post or cancel this comment first.") statusEl.textContent = "";
+  });
+  composer.addEventListener("animationend", () => composer.classList.remove("bl-nudge"));
+  composer.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || submitted) return;
+    event.preventDefault();
+    if (!hasDraft() || Date.now() < discardArmedUntil) {
+      cancel();
+      return;
+    }
+    discardArmedUntil = Date.now() + 3000;
+    statusEl.textContent = "Press Esc again to discard this comment.";
+  });
   textarea.addEventListener("paste", (event) => {
     const files = pastedImageFiles(event.clipboardData);
     if (files.length === 0) return;
@@ -268,9 +353,12 @@ export function openComposer(
     // shadow tree (Shadow DOM's event retargeting), so `composer.contains(event.target)`
     // is always false here - even for clicks genuinely inside the composer. composedPath()
     // returns the real, un-retargeted path, which is what this check actually needs.
-    if (!event.composedPath().includes(composer)) {
-      cancel();
-    }
+    if (event.composedPath().includes(composer)) return;
+    // Hidden (Browse mode keeps it for later): the click is the site's, not a signal to
+    // throw the comment away or to point at a card that can't be seen.
+    if (composer.offsetParent === null) return;
+    if (hasDraft()) nudge();
+    else cancel();
   };
   setTimeout(() => document.addEventListener("click", outsideClickHandler, true), 0);
   setTimeout(() => textarea.focus({ preventScroll: true }), 30);
