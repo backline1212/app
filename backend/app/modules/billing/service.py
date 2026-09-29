@@ -91,8 +91,21 @@ async def get_available_plans(
 
     categories_list: list[ComparisonCategoryOut] = []
     for cat in COMPARISON_CATEGORIES:
-        rows = [ComparisonRowOut(**r) for r in cat["rows"]]
-        categories_list.append(ComparisonCategoryOut(category=cat["category"], rows=rows))
+        cat_name = str(cat.get("category", ""))
+        raw_rows = cat.get("rows", [])
+        if isinstance(raw_rows, list):
+            rows = [
+                ComparisonRowOut(
+                    name=str(r.get("name", "")),
+                    free=str(r.get("free", "")),
+                    solo=str(r.get("solo", "")),
+                    team=str(r.get("team", "")),
+                    enterprise=str(r.get("enterprise", "")),
+                )
+                for r in raw_rows
+                if isinstance(r, dict)
+            ]
+            categories_list.append(ComparisonCategoryOut(category=cat_name, rows=rows))
 
     return PlansResponseOut(
         plans=plans_list,
@@ -178,8 +191,8 @@ async def create_checkout_session(
     *,
     workspace_id: str,
     user_id: str,
-    user_email: str,
     request: CheckoutRequest,
+    user_email: str | None = None,
 ) -> CheckoutResponse:
     settings = get_settings()
     try:
@@ -190,21 +203,25 @@ async def create_checkout_session(
     if ws_doc is None:
         raise NotFoundError("Workspace not found.")
 
+    if user_email is None:
+        try:
+            u_doc = await db.users.find_one({"_id": ObjectId(user_id)})
+            if u_doc and "email" in u_doc:
+                user_email = str(u_doc["email"])
+        except Exception:
+            pass
+
     workspace_slug = ws_doc.get("slug", workspace_id)
     plan = get_plan_definition(request.plan_id)
     total_amount = _compute_price(request.plan_id, request.interval, request.currency)
 
     dashboard_base = settings.public_dashboard_base_url.rstrip("/")
-    success_url = (
-        request.success_url
-        or (
-            f"{dashboard_base}/w/{workspace_slug}/billing"
-            f"?checkout=success&plan={request.plan_id}&interval={request.interval}"
-        )
+    success_url = request.success_url or (
+        f"{dashboard_base}/w/{workspace_slug}/billing"
+        f"?checkout=success&plan={request.plan_id}&interval={request.interval}"
     )
     cancel_url = (
-        request.cancel_url
-        or f"{dashboard_base}/w/{workspace_slug}/billing?checkout=canceled"
+        request.cancel_url or f"{dashboard_base}/w/{workspace_slug}/billing?checkout=canceled"
     )
 
     # 1. Real Stripe Integration if provider is stripe and secret key is set
@@ -217,7 +234,6 @@ async def create_checkout_session(
                 "success_url": success_url + "&session_id={CHECKOUT_SESSION_ID}",
                 "cancel_url": cancel_url,
                 "mode": "payment",
-                "customer_email": user_email,
                 "client_reference_id": workspace_id,
                 "payment_method_types[0]": "card",
                 "line_items[0][price_data][currency]": request.currency.lower(),
@@ -232,15 +248,15 @@ async def create_checkout_session(
                 "metadata[interval]": request.interval,
                 "metadata[currency]": request.currency,
             }
+            if user_email:
+                form_data["customer_email"] = user_email
             res = await client.post(
                 "https://api.stripe.com/v1/checkout/sessions",
                 data=form_data,
                 auth=(settings.stripe_secret_key, ""),
             )
             if res.status_code != 200:
-                raise ExternalServiceError(
-                    f"Stripe checkout creation failed: {res.text}"
-                )
+                raise ExternalServiceError(f"Stripe checkout creation failed: {res.text}")
             data = res.json()
             return CheckoutResponse(
                 provider="stripe",
@@ -273,9 +289,7 @@ async def create_checkout_session(
                 auth=(settings.razorpay_key_id, settings.razorpay_key_secret),
             )
             if res.status_code != 200:
-                raise ExternalServiceError(
-                    f"Razorpay order creation failed: {res.text}"
-                )
+                raise ExternalServiceError(f"Razorpay order creation failed: {res.text}")
             data = res.json()
             return CheckoutResponse(
                 provider="razorpay",
@@ -330,9 +344,7 @@ async def verify_and_activate_payment(
     # 1. Verify Razorpay Signature if real Razorpay transaction
     if request.provider == "razorpay" and not request.simulated:
         if not (
-            request.razorpay_order_id
-            and request.razorpay_payment_id
-            and request.razorpay_signature
+            request.razorpay_order_id and request.razorpay_payment_id and request.razorpay_signature
         ):
             raise ValidationError("Missing Razorpay verification parameters.")
         if settings.razorpay_key_secret:
@@ -382,9 +394,7 @@ async def verify_and_activate_payment(
     # Generate next invoice
     invoice_number = await repo.generate_next_invoice_number(workspace_id)
     provider_invoice_id = (
-        request.razorpay_payment_id
-        or request.stripe_session_id
-        or f"inv_{uuid4().hex[:12]}"
+        request.razorpay_payment_id or request.stripe_session_id or f"inv_{uuid4().hex[:12]}"
     )
     await repo.create_invoice(
         workspace_id=workspace_id,

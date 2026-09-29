@@ -43,9 +43,7 @@ async def get_subscription(
     session: Session = Depends(require_permission("workspace:view_settings")),
 ) -> SubscriptionOut:
     require_workspace_match(session, workspace_id)
-    return await billing_service.get_workspace_subscription(
-        get_db(), workspace_id, session.user_id
-    )
+    return await billing_service.get_workspace_subscription(get_db(), workspace_id, session.user_id)
 
 
 @router.post(
@@ -62,7 +60,6 @@ async def create_checkout(
         get_db(),
         workspace_id=workspace_id,
         user_id=session.user_id,
-        user_email=session.email or "billing@example.com",
         request=body,
     )
 

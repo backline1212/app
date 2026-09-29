@@ -25,7 +25,7 @@ async def get_workspace_limits_and_usage(
 
     plan_id = ws_doc.get("plan", "free")
     default_plan = get_plan_definition(plan_id)
-    
+
     # Use denormalized snapshot if present, otherwise default plan definition
     limits = ws_doc.get("plan_limits_json") or {
         "plan_id": default_plan["id"],

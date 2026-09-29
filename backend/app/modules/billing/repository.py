@@ -41,9 +41,7 @@ class BillingRepository:
         doc["_id"] = result.inserted_id
         return doc
 
-    async def list_billing_events(
-        self, workspace_id: str, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    async def list_billing_events(self, workspace_id: str, limit: int = 50) -> list[dict[str, Any]]:
         cursor = (
             self.db.billing_events.find({"workspace_id": workspace_id})
             .sort("created_at", -1)
@@ -92,9 +90,7 @@ class BillingRepository:
         doc["_id"] = result.inserted_id
         return doc
 
-    async def list_invoices(
-        self, workspace_id: str, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    async def list_invoices(self, workspace_id: str, limit: int = 50) -> list[dict[str, Any]]:
         cursor = (
             self.db.invoices.find({"workspace_id": workspace_id})
             .sort("created_at", -1)
