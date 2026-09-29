@@ -14,6 +14,17 @@ from app.modules.pages.url_normalize import normalize_url
 from app.modules.projects.repository import ProjectRepository
 
 
+def _is_site_page(doc: dict[str, Any]) -> bool:
+    """False for the hidden holder of a project's team tickets (dashboard
+    repository's standalone_page, `backline://projects/{id}/tickets`). It is no
+    page of the site: the canvas can't load it, it can't be picked for a new
+    ticket, and renaming or reordering it means nothing. Its tickets are still
+    listed through the comment endpoints, which read pages from the repository."""
+    return doc.get("kind") != "standalone" and not str(doc.get("url_normalized", "")).startswith(
+        "backline://"
+    )
+
+
 def _page_out(doc: dict[str, Any], *, comment_count: int = 0) -> PageOut:
     return PageOut(
         id=str(doc["_id"]),
@@ -125,7 +136,11 @@ async def list_pages(
     if project is None or project["workspace_id"] != workspace_id:
         raise NotFoundError("Project not found.")
 
-    docs = await PageRepository(db).list_for_project(workspace_id, project_id)
+    docs = [
+        doc
+        for doc in await PageRepository(db).list_for_project(workspace_id, project_id)
+        if _is_site_page(doc)
+    ]
     # Sort by sort_order ascending, then first_seen_at descending
     docs.sort(key=lambda x: (x.get("sort_order", 0), -x["first_seen_at"].timestamp()))
     counts = await PageRepository(db).comment_counts(
@@ -154,7 +169,7 @@ async def update_page(
     whatever dict a future caller happens to construct."""
     repo = PageRepository(db)
     existing = await repo.find_by_id(page_id)
-    if not existing or existing["workspace_id"] != workspace_id:
+    if not existing or existing["workspace_id"] != workspace_id or not _is_site_page(existing):
         raise NotFoundError("Page not found.")
 
     patch = changes.model_dump(exclude_unset=True)
@@ -192,7 +207,7 @@ async def reorder_pages(
     if project is None or project["workspace_id"] != workspace_id:
         raise NotFoundError("Project not found.")
     docs = await PageRepository(db).list_for_project(workspace_id, project_id)
-    existing_ids = {str(doc["_id"]) for doc in docs}
+    existing_ids = {str(doc["_id"]) for doc in docs if _is_site_page(doc)}
     requested_ids = body.page_ids
     if len(requested_ids) != len(set(requested_ids)) or set(requested_ids) != existing_ids:
         raise ValidationError("Page order must include every project page exactly once.")

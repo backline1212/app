@@ -9,6 +9,7 @@ import { qk } from "../../lib/query-keys";
 import { timeAgo } from "../../lib/time";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { listProjects } from "../projects/api";
+import { ProjectForm } from "../projects/ProjectForm";
 import type { WorkspaceOut } from "../workspaces/api";
 import * as api from "./api";
 
@@ -23,6 +24,7 @@ export function ClientsPage() {
   const [archive, setArchive] = useState<api.Client | null>(null);
   const [restore, setRestore] = useState<api.Client | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [newProjectFor, setNewProjectFor] = useState<api.Client | null>(null);
   const clients = useQuery({
     queryKey: qk.clientsList(workspace.id, showArchived),
     queryFn: () => api.listClients(workspace.id, showArchived),
@@ -128,7 +130,7 @@ export function ClientsPage() {
                           if (v === 'edit') setEdit(client);
                           else if (v === 'archive') setArchive(client);
                           else if (v === 'export') exportClients.mutate();
-                          else if (v === 'new') toast('Start a new project from Projects → New project — this workflow entry point is not wired up yet.', 'warning');
+                          else if (v === 'new') setNewProjectFor(client);
                         }}
                       >
                         <option value="" disabled>Options…</option>
@@ -162,10 +164,12 @@ export function ClientsPage() {
               {archivedVisible.map((client) => (
                 <tr key={client.id}>
                   <td>
-                    <span className="bl-avatar">{client.name.slice(0, 2).toUpperCase()}</span>
-                    <span>
-                      <strong>{client.name}</strong>
-                      <small>{client.contact_name || "No contact"}{client.email ? ` · ${client.email}` : ""}</small>
+                    <span className="bl-text-button">
+                      <span className="bl-avatar">{client.name.slice(0, 2).toUpperCase()}</span>
+                      <span>
+                        <strong>{client.name}</strong>
+                        <small>{client.contact_name || "No contact"}{client.email ? ` · ${client.email}` : ""}</small>
+                      </span>
                     </span>
                   </td>
                   <td>{client.archived_at ? timeAgo(client.archived_at) : ""}</td>
@@ -179,6 +183,8 @@ export function ClientsPage() {
         </div>
       </section>
     )}
+
+    {newProjectFor && <ProjectForm workspace={workspace} initialClientId={newProjectFor.id} onClose={() => setNewProjectFor(null)} />}
 
     {edit && <ClientForm key={edit === "new" ? "new" : edit.id} workspaceId={workspace.id} client={edit === "new" ? undefined : edit} onClose={() => setEdit(null)} />}
 

@@ -74,10 +74,12 @@ function detectEnvironment(value: string): "live" | "staging" {
   return /(^|[./-])(staging|stage|dev|preview|test|localhost)([./:-]|$)|vercel\.app|netlify\.app|webflow\.io/i.test(value) ? "staging" : "live";
 }
 
-export function ProjectForm({ workspace, project, initialType, onClose }: {
+export function ProjectForm({ workspace, project, initialType, initialClientId, onClose }: {
   workspace: WorkspaceOut;
   project?: api.ProjectOut;
   initialType?: ProjectType;
+  /** Preselects the client, for "New project" started from that client's row. */
+  initialClientId?: string;
   onClose: () => void;
 }) {
   const cache = useQueryClient();
@@ -90,7 +92,7 @@ export function ProjectForm({ workspace, project, initialType, onClose }: {
   const [typeChosen, setTypeChosen] = useState(Boolean(project || initialType));
   const [name, setName] = useState(project?.name ?? "");
   const [url, setUrl] = useState(project?.target_origin ?? "");
-  const [client, setClient] = useState(project?.client_id ?? "");
+  const [client, setClient] = useState(project?.client_id ?? initialClientId ?? "");
   const [environment, setEnvironment] = useState<"live" | "staging">(project?.environment ?? "live");
   const [environmentEdited, setEnvironmentEdited] = useState(Boolean(project));
   const [captureDeviceDetails, setCaptureDeviceDetails] = useState(project?.settings.capture_device_details ?? false);
