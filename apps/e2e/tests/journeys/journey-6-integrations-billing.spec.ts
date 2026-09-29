@@ -25,18 +25,20 @@ test("agency manages integrations and views billing placeholder", async ({ page 
   // Navigate to billing page
   await page.goto(`/w/${workspaceSlug}/billing`);
 
-  const billingHeader = page.getByRole("heading", { name: "Billing" });
+  const billingHeader = page.getByRole("heading", { name: "Plans & Billing" });
   await expect(billingHeader).toBeVisible();
 
-  // Verify the non-functional placeholder warning is present
-  await expect(page.getByText(/Prices, checkout, invoices, and server-enforced plan limits are coming soon/i)).toBeVisible();
-  
-  // Click About future plans
-  const futurePlansButton = page.getByRole("button", { name: "About future plans" });
-  await expect(futurePlansButton).toBeVisible();
-  await futurePlansButton.click();
+  // Verify Current Plan Banner and Tier Cards
+  await expect(page.getByText("Free Plan")).toBeVisible();
+  await expect(page.getByText("Solo Pro")).toBeVisible();
+  await expect(page.getByText("Team Standard")).toBeVisible();
 
-  // Verify modal opens
+  // Click Upgrade to Solo to verify Checkout modal opens
+  const upgradeSoloButton = page.getByRole("button", { name: "Upgrade to Solo" });
+  await expect(upgradeSoloButton).toBeVisible();
+  await upgradeSoloButton.click();
+
+  // Verify checkout modal opens
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByText(/Pro and Team Plans/i)).toBeVisible();
+  await expect(page.getByText("Solo Pro Plan")).toBeVisible();
 });

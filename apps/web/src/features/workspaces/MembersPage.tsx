@@ -1,7 +1,7 @@
 import { Avatar } from "@backline/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 import { qk } from "../../lib/query-keys";
@@ -23,11 +23,12 @@ import { SearchIcon } from "../../components/icons";
 import type { MemberOut } from "./api";
 
 interface AddMemberModalProps {
+  workspaceSlug: string;
   onInvite: (email: string, role: "admin" | "member") => Promise<void>;
   onClose: () => void;
 }
 
-function AddMemberModal({ onInvite, onClose }: AddMemberModalProps) {
+function AddMemberModal({ workspaceSlug, onInvite, onClose }: AddMemberModalProps) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "member">("member");
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +75,23 @@ function AddMemberModal({ onInvite, onClose }: AddMemberModalProps) {
             <option value="admin">Admin</option>
           </select>
         </label>
-        {error && <div className="bl-error">{error}</div>}
+        {error && (
+          <div>
+            <div className="bl-error">{error}</div>
+            {error.toLowerCase().includes("limit") && (
+              <div style={{ marginTop: "8px" }}>
+                <Link
+                  to={`/w/${workspaceSlug}/billing?upgrade=solo`}
+                  className="bl-button mint"
+                  style={{ display: "inline-flex" }}
+                  onClick={onClose}
+                >
+                  ⭐ Upgrade Plan to Add More Members
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
         <footer className="bl-form-actions">
           <button type="button" className="bl-quiet" onClick={onClose}>Cancel</button>
           <button type="submit" className="bl-button mint" disabled={isSubmitting}>
@@ -253,6 +270,7 @@ export function MembersPage() {
 
       {showAddMember && (
         <AddMemberModal
+          workspaceSlug={workspace.slug}
           onInvite={async (email, role) => {
             await inviteMutation.mutateAsync({ email, role });
           }}

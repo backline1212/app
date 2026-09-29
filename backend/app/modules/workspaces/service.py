@@ -9,6 +9,7 @@ from app.core.email import send_email
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
 from app.modules.auth.repository import UserRepository
+from app.modules.billing.limits import require_within_plan_limit
 from app.modules.workspaces import events as workspace_events
 from app.modules.workspaces.onboarding import seed_sample_project
 from app.modules.workspaces.repository import MembershipRepository, WorkspaceRepository
@@ -186,6 +187,8 @@ async def invite_member(
     user_id = str(user_doc["_id"])
     if await membership_repo.find(workspace_id=workspace_id, user_id=user_id) is not None:
         raise ConflictError("User is already a member of this workspace.")
+
+    await require_within_plan_limit(db, workspace_id, "members")
 
     try:
         membership = await membership_repo.create(

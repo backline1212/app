@@ -209,6 +209,49 @@ DELETION_SUPPORT_INDEXES: tuple[AdditiveIndex, ...] = (
     ),
 )
 
+BILLING_INDEXES: tuple[AdditiveIndex, ...] = (
+    AdditiveIndex(
+        "billing_events",
+        (("workspace_id", 1), ("created_at", -1)),
+        "billing_events_workspace_created",
+    ),
+    AdditiveIndex(
+        "invoices",
+        (("workspace_id", 1), ("created_at", -1)),
+        "invoices_workspace_created",
+    ),
+    AdditiveIndex(
+        "invoices",
+        (("invoice_number", 1),),
+        "invoices_number_unique",
+        {"unique": True, "sparse": True},
+    ),
+    AdditiveIndex(
+        "workspaces",
+        (("stripe_customer_id", 1),),
+        "workspaces_stripe_customer_id",
+        {"sparse": True},
+    ),
+    AdditiveIndex(
+        "workspaces",
+        (("razorpay_customer_id", 1),),
+        "workspaces_razorpay_customer_id",
+        {"sparse": True},
+    ),
+    AdditiveIndex(
+        "workspaces",
+        (("stripe_subscription_id", 1),),
+        "workspaces_stripe_subscription_id",
+        {"sparse": True},
+    ),
+    AdditiveIndex(
+        "workspaces",
+        (("razorpay_subscription_id", 1),),
+        "workspaces_razorpay_subscription_id",
+        {"sparse": True},
+    ),
+)
+
 
 async def ensure_additive_indexes(
     db: AsyncIOMotorDatabase[dict[str, Any]], indexes: tuple[AdditiveIndex, ...]
@@ -321,3 +364,4 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
     await ensure_additive_indexes(db, AUDIT_BATCH_14_INDEXES)
     await ensure_additive_indexes(db, TICKET_NUMBER_INDEXES)
     await ensure_additive_indexes(db, INTEGRATION_LINK_INDEXES)
+    await ensure_additive_indexes(db, BILLING_INDEXES)

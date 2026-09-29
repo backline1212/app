@@ -1,5 +1,40 @@
 # Delivery and verification ledger
 
+## 2026-09-29: Real-Ready Billing Plans, Competitor Matrix, Stripe, Razorpay & UPI Integration (TDR-0048)
+
+The user asked to create a new branch, build realistic SaaS pricing plans benchmarking competitors (BugHerd, Marker.io, Linear, Jam), integrate Stripe and Razorpay/UPI payment flows (supporting real gateway keys and sandbox fallback), build end-to-end frontend/backend/DB/SQL migrations, and connect all upgrade/redirect entrypoints. Full reasoning in TDR-0048. Delivered:
+
+**Pricing & Competitor Tiering**
+- 4 tiers configured with monthly/annual intervals and dual USD ($) / INR (₹) currencies:
+  - Free Starter ($0 / ₹0): 2 projects, 2 members, 20 AI credits.
+  - Solo Pro ($24/$19 / ₹1,899/₹1,499): 5 projects, 5 members, 200 AI credits, video screen recording, session console replay.
+  - Team Standard ($59/$49 / ₹4,699/₹3,899): 20 projects, 15 members, 1,000 AI credits, full integration suite, custom domain.
+  - Agency Enterprise ($179/$149 / ₹14,299/₹11,999): Unlimited projects, 100 members, 10,000 AI credits, priority support, 99.9% SLA.
+- Detailed Competitor Feature Matrix comparing Backline against BugHerd, Marker.io, Jam.dev, and Linear across 4 functional domains.
+
+**Payment Gateways & Simulation**
+- **Stripe Integration**: Checkout session initiation (`POST /billing/checkout`) and webhook processing (`/billing/webhooks/stripe`).
+- **Razorpay + UPI Integration**: Razorpay order generation (`POST /billing/checkout`), HMAC-SHA256 signature verification (`POST /billing/verify-payment`), and webhook handling (`/billing/webhooks/razorpay`).
+- **Sandbox Fallback**: Seamless mock payment completion in local/review environments that creates real database records, sequential invoice IDs (`INV-YYYY-XXXX`), and billing audit events.
+
+**Server-Side Limit Enforcement**
+- Added HTTP 402 `PlanLimitExceededError` in `app.core.errors`.
+- Enforced project limits on `create_project` and member limits on `invite_member`.
+- Added frontend upgrade banners, CTA modals, and query parameter handlers (`?upgrade=...`, `?checkout=success`).
+
+**Database Schema & Invoices**
+- Additive MongoDB indexes in `app.core.indexes` for `billing_events`, `invoices`, and customer IDs.
+- Relational schema DDL in `backend/scripts/schema_billing.sql`.
+- MongoDB schema backfill migration in `backend/scripts/migrate_billing_schema.py`.
+- Downloadable invoice receipts and billing history table in UI.
+
+**Verification**:
+- Monorepo TypeScript check (`pnpm typecheck`): 6/6 packages passed.
+- Frontend Lint (`pnpm lint`): 4/4 packages passed with 0 errors/warnings.
+- Backend Ruff (`ruff check app scripts`): Passed with 0 errors.
+- Unit tests (`pytest tests/test_billing.py`): 4/4 passed.
+- E2E tests: Added `apps/e2e/tests/billing-plans-payments.spec.ts` and updated `journey-6-integrations-billing.spec.ts`.
+
 ## 2026-09-29: Seamless commenting on the review canvas (TDR-0047)
 
 The user asked for the project editor page, where comments are placed, to work

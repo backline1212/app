@@ -5806,6 +5806,482 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_id}/billing/plans": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Get Plans",
+        "operationId": "get_plans_api_v1_workspaces__workspace_id__billing_plans_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlansResponseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/billing/subscription": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Get Subscription",
+        "operationId": "get_subscription_api_v1_workspaces__workspace_id__billing_subscription_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/billing/checkout": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Create Checkout",
+        "operationId": "create_checkout_api_v1_workspaces__workspace_id__billing_checkout_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/billing/verify-payment": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Verify Payment",
+        "operationId": "verify_payment_api_v1_workspaces__workspace_id__billing_verify_payment_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPaymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/billing/cancel": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Cancel Subscription",
+        "operationId": "cancel_subscription_api_v1_workspaces__workspace_id__billing_cancel_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CancelSubscriptionRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/billing/portal": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Customer Portal",
+        "operationId": "customer_portal_api_v1_workspaces__workspace_id__billing_portal_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/billing/invoices": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "List Invoices",
+        "operationId": "list_invoices_api_v1_workspaces__workspace_id__billing_invoices_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvoiceOut"
+                  },
+                  "title": "Response List Invoices Api V1 Workspaces  Workspace Id  Billing Invoices Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/webhooks/stripe": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Stripe Webhook",
+        "operationId": "stripe_webhook_api_v1_billing_webhooks_stripe_post",
+        "parameters": [
+          {
+            "name": "Stripe-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stripe-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Stripe Webhook Api V1 Billing Webhooks Stripe Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/webhooks/razorpay": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Razorpay Webhook",
+        "operationId": "razorpay_webhook_api_v1_billing_webhooks_razorpay_post",
+        "parameters": [
+          {
+            "name": "X-Razorpay-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Razorpay-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Razorpay Webhook Api V1 Billing Webhooks Razorpay Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notifications": {
       "get": {
         "tags": [
@@ -6791,6 +7267,195 @@
         ],
         "title": "BugHuntFinding"
       },
+      "CancelSubscriptionRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback"
+          }
+        },
+        "type": "object",
+        "title": "CancelSubscriptionRequest"
+      },
+      "CheckoutRequest": {
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "enum": [
+              "solo",
+              "team",
+              "enterprise"
+            ],
+            "title": "Plan Id"
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ],
+            "title": "Interval",
+            "default": "monthly"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "usd",
+              "inr"
+            ],
+            "title": "Currency",
+            "default": "usd"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "razorpay",
+              "sandbox"
+            ],
+            "title": "Provider",
+            "default": "stripe"
+          },
+          "success_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Url"
+          },
+          "cancel_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan_id"
+        ],
+        "title": "CheckoutRequest"
+      },
+      "CheckoutResponse": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "checkout_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkout Url"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "key_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Id"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "plan_id": {
+            "type": "string",
+            "title": "Plan Id"
+          },
+          "interval": {
+            "type": "string",
+            "title": "Interval"
+          },
+          "sandbox_mode": {
+            "type": "boolean",
+            "title": "Sandbox Mode",
+            "default": false
+          },
+          "simulated_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simulated Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "amount",
+          "currency",
+          "plan_id",
+          "interval"
+        ],
+        "title": "CheckoutResponse"
+      },
       "ClickOffsetPct": {
         "properties": {
           "x": {
@@ -7557,6 +8222,60 @@
         },
         "type": "object",
         "title": "CommentUpdate"
+      },
+      "ComparisonCategoryOut": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ComparisonRowOut"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "rows"
+        ],
+        "title": "ComparisonCategoryOut"
+      },
+      "ComparisonRowOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "free": {
+            "type": "string",
+            "title": "Free"
+          },
+          "solo": {
+            "type": "string",
+            "title": "Solo"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "enterprise": {
+            "type": "string",
+            "title": "Enterprise"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "free",
+          "solo",
+          "team",
+          "enterprise"
+        ],
+        "title": "ComparisonRowOut"
       },
       "ContextIn": {
         "properties": {
@@ -8698,6 +9417,99 @@
         ],
         "title": "InviteMemberRequest"
       },
+      "InvoiceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "invoice_number": {
+            "type": "string",
+            "title": "Invoice Number"
+          },
+          "amount_paid": {
+            "type": "number",
+            "title": "Amount Paid"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "plan_name": {
+            "type": "string",
+            "title": "Plan Name"
+          },
+          "interval": {
+            "type": "string",
+            "title": "Interval"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Period Start"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Period End"
+          },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Paid At"
+          },
+          "pdf_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Url"
+          },
+          "hosted_invoice_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hosted Invoice Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace_id",
+          "invoice_number",
+          "amount_paid",
+          "currency",
+          "status",
+          "provider",
+          "plan_name",
+          "interval",
+          "period_start",
+          "period_end",
+          "paid_at"
+        ],
+        "title": "InvoiceOut"
+      },
       "JiraIntegrationCreate": {
         "properties": {
           "type": {
@@ -9455,6 +10267,165 @@
         ],
         "title": "PasswordSetRequest",
         "description": "TDR-0037: sets/replaces the caller's own password, authenticated by their\ncurrent session rather than by re-entering the old value - reached only after\nan OTP verify, which already proved control of the inbox."
+      },
+      "PlanTierOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "badge": {
+            "type": "string",
+            "title": "Badge"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "popular": {
+            "type": "boolean",
+            "title": "Popular",
+            "default": false
+          },
+          "price_monthly_usd": {
+            "type": "integer",
+            "title": "Price Monthly Usd"
+          },
+          "price_annual_usd": {
+            "type": "integer",
+            "title": "Price Annual Usd"
+          },
+          "price_monthly_inr": {
+            "type": "integer",
+            "title": "Price Monthly Inr"
+          },
+          "price_annual_inr": {
+            "type": "integer",
+            "title": "Price Annual Inr"
+          },
+          "project_limit": {
+            "type": "integer",
+            "title": "Project Limit"
+          },
+          "member_limit": {
+            "type": "integer",
+            "title": "Member Limit"
+          },
+          "guest_limit_label": {
+            "type": "string",
+            "title": "Guest Limit Label"
+          },
+          "ai_credits_monthly": {
+            "type": "integer",
+            "title": "Ai Credits Monthly"
+          },
+          "storage_gb": {
+            "type": "integer",
+            "title": "Storage Gb"
+          },
+          "integrations_allowed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Integrations Allowed"
+          },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "highlights": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Highlights"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "badge",
+          "description",
+          "price_monthly_usd",
+          "price_annual_usd",
+          "price_monthly_inr",
+          "price_annual_inr",
+          "project_limit",
+          "member_limit",
+          "guest_limit_label",
+          "ai_credits_monthly",
+          "storage_gb",
+          "integrations_allowed",
+          "features",
+          "highlights"
+        ],
+        "title": "PlanTierOut"
+      },
+      "PlansResponseOut": {
+        "properties": {
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/PlanTierOut"
+            },
+            "type": "array",
+            "title": "Plans"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/ComparisonCategoryOut"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "current_plan_id": {
+            "type": "string",
+            "title": "Current Plan Id"
+          },
+          "sandbox_enabled": {
+            "type": "boolean",
+            "title": "Sandbox Enabled",
+            "default": true
+          },
+          "stripe_configured": {
+            "type": "boolean",
+            "title": "Stripe Configured",
+            "default": false
+          },
+          "razorpay_configured": {
+            "type": "boolean",
+            "title": "Razorpay Configured",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "plans",
+          "categories",
+          "current_plan_id"
+        ],
+        "title": "PlansResponseOut"
+      },
+      "PortalResponse": {
+        "properties": {
+          "portal_url": {
+            "type": "string",
+            "title": "Portal Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "portal_url"
+        ],
+        "title": "PortalResponse"
       },
       "ProjectAnalysisResult": {
         "properties": {
@@ -11056,6 +12027,118 @@
         ],
         "title": "StructuredPlan"
       },
+      "SubscriptionOut": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "plan_id": {
+            "type": "string",
+            "title": "Plan Id"
+          },
+          "plan_name": {
+            "type": "string",
+            "title": "Plan Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "trialing",
+              "past_due",
+              "canceled",
+              "incomplete"
+            ],
+            "title": "Status",
+            "default": "active"
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ],
+            "title": "Interval",
+            "default": "monthly"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "usd",
+              "inr"
+            ],
+            "title": "Currency",
+            "default": "usd"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount",
+            "default": 0.0
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "free"
+          },
+          "current_period_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Period Start"
+          },
+          "current_period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Period End"
+          },
+          "cancel_at_period_end": {
+            "type": "boolean",
+            "title": "Cancel At Period End",
+            "default": false
+          },
+          "usage": {
+            "$ref": "#/components/schemas/UsageMetricsOut"
+          },
+          "payment_method_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Method Summary"
+          },
+          "is_owner": {
+            "type": "boolean",
+            "title": "Is Owner",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "plan_id",
+          "plan_name",
+          "usage"
+        ],
+        "title": "SubscriptionOut"
+      },
       "SuggestReplyResult": {
         "properties": {
           "suggestions": {
@@ -11648,6 +12731,54 @@
         ],
         "title": "UploadRequest"
       },
+      "UsageMetricsOut": {
+        "properties": {
+          "projects_used": {
+            "type": "integer",
+            "title": "Projects Used"
+          },
+          "projects_limit": {
+            "type": "integer",
+            "title": "Projects Limit"
+          },
+          "members_used": {
+            "type": "integer",
+            "title": "Members Used"
+          },
+          "members_limit": {
+            "type": "integer",
+            "title": "Members Limit"
+          },
+          "ai_credits_used": {
+            "type": "integer",
+            "title": "Ai Credits Used"
+          },
+          "ai_credits_limit": {
+            "type": "integer",
+            "title": "Ai Credits Limit"
+          },
+          "storage_gb_used": {
+            "type": "number",
+            "title": "Storage Gb Used",
+            "default": 0.0
+          },
+          "storage_gb_limit": {
+            "type": "integer",
+            "title": "Storage Gb Limit",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "projects_used",
+          "projects_limit",
+          "members_used",
+          "members_limit",
+          "ai_credits_used",
+          "ai_credits_limit"
+        ],
+        "title": "UsageMetricsOut"
+      },
       "UserOut": {
         "properties": {
           "id": {
@@ -11802,6 +12933,106 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerifyPaymentRequest": {
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "enum": [
+              "solo",
+              "team",
+              "enterprise"
+            ],
+            "title": "Plan Id"
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ],
+            "title": "Interval",
+            "default": "monthly"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "usd",
+              "inr"
+            ],
+            "title": "Currency",
+            "default": "usd"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "razorpay",
+              "sandbox"
+            ],
+            "title": "Provider",
+            "default": "sandbox"
+          },
+          "razorpay_payment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Razorpay Payment Id"
+          },
+          "razorpay_order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Razorpay Order Id"
+          },
+          "razorpay_signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Razorpay Signature"
+          },
+          "stripe_session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Session Id"
+          },
+          "simulated": {
+            "type": "boolean",
+            "title": "Simulated",
+            "default": false
+          },
+          "payment_method": {
+            "type": "string",
+            "title": "Payment Method",
+            "default": "card"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan_id"
+        ],
+        "title": "VerifyPaymentRequest"
       },
       "ViewportIn": {
         "properties": {

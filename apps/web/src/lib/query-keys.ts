@@ -42,6 +42,9 @@ export const qk = {
   guestBoard: (projectId: string, guestToken: string) => ["guest-board", projectId, guestToken] as const,
   notificationsUnread: () => ["notifications", "unread-count"] as const,
   notificationsList: () => ["notifications", "list"] as const,
+  billingPlans: (workspaceId: string) => ["workspace", workspaceId, "billing", "plans"] as const,
+  subscription: (workspaceId: string) => ["workspace", workspaceId, "billing", "subscription"] as const,
+  invoices: (workspaceId: string) => ["workspace", workspaceId, "billing", "invoices"] as const,
 };
 
 // A single ticket status/reply/priority change only ever affects the ticket list

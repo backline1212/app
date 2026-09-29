@@ -43,6 +43,11 @@ class ConflictError(BacklineError):
     status_code = status.HTTP_409_CONFLICT
 
 
+class PlanLimitExceededError(BacklineError):
+    code = "PLAN_LIMIT_EXCEEDED"
+    status_code = status.HTTP_402_PAYMENT_REQUIRED
+
+
 class ExternalServiceError(BacklineError):
     code = "EXTERNAL_SERVICE_ERROR"
     status_code = status.HTTP_502_BAD_GATEWAY

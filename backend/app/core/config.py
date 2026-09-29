@@ -54,6 +54,20 @@ class Settings(BaseSettings):
     asana_oauth_client_secret: str = ""
     asana_oauth_redirect_uri: str = "http://localhost:5173/integrations/asana/callback"
 
+    # Stripe configuration for international card & payment processing
+    stripe_secret_key: str = ""
+    stripe_publishable_key: str = ""
+    stripe_webhook_secret: str = ""
+
+    # Razorpay configuration for UPI, Netbanking and Indian cards
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+
+    # Billing sandbox fallback - allows immediate testing and simulated verification
+    # when live API keys are not provided
+    billing_sandbox_enabled: bool = True
+
     # Fernet key (32 url-safe base64-encoded bytes) for encrypting OAuth tokens at the
     # application layer before they reach Mongo (Rule 6, §17.3's "encrypted at the
     # application layer" requirement) - `Fernet.generate_key()` for a real one.

@@ -7,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.events import append_event
+from app.modules.billing.limits import require_within_plan_limit
 from app.modules.clients.repository import ClientRepository
 from app.modules.pages.repository import PageRepository
 from app.modules.projects import events as project_events
@@ -73,6 +74,8 @@ async def create_project(
     # scope here would be a circular import. Breaking it this way, rather than
     # duplicating share-link creation logic, keeps "one way to create a share link."
     from app.modules.share_links import service as share_link_service
+
+    await require_within_plan_limit(db, workspace_id, "projects")
 
     repo = ProjectRepository(db)
     if client_id and not await ClientRepository(db).find(workspace_id, client_id):

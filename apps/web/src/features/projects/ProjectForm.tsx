@@ -259,7 +259,23 @@ export function ProjectForm({ workspace, project, initialType, onClose }: {
 
         </fieldset>
         {phase === "saving" && <p role="status">{files.length ? `${uploaded.length} of ${files.length} files uploaded. Processing remaining files…` : "Saving project…"}</p>}
-        {save.error && <p role="alert" className="bl-error">{save.error.message}{created && " The project was saved. Retry to finish the remaining uploads, or open it from Projects."}</p>}
+        {save.error && (
+          <div style={{ marginTop: "12px" }}>
+            <p role="alert" className="bl-error">{save.error.message}{created && " The project was saved. Retry to finish the remaining uploads, or open it from Projects."}</p>
+            {save.error.message.toLowerCase().includes("limit") && (
+              <div style={{ marginTop: "8px" }}>
+                <Link
+                  to={`/w/${workspace.slug}/billing?upgrade=solo`}
+                  className="bl-button mint"
+                  style={{ display: "inline-flex" }}
+                  onClick={onClose}
+                >
+                  ⭐ Upgrade Plan to Add More Projects
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
         <footer className="bl-dialog-actions bl-dialog-actions-in-form"><button type="button" className="bl-quiet" disabled={save.isPending || Boolean(created)} onClick={project ? close : () => setPhase("type")}>{project ? "Cancel" : "Back"}</button><button className="bl-button mint" disabled={save.isPending || !canSubmit}>{save.isPending ? (uploaded.length ? `Uploading ${uploaded.length + 1} of ${files.length}…` : "Saving…") : project ? "Save changes" : created ? "Finish uploads" : "Create project"}</button></footer>
       </form>
     </Dialog>
