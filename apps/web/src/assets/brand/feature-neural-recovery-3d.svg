@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="neuralBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#050711" />
+      <stop offset="50%" stop-color="#0c0e1e" />
+      <stop offset="100%" stop-color="#030408" />
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="glowPulse" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="healSparkle" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b1" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="b2" />
+      <feMerge>
+        <feMergeNode in="b2" />
+        <feMergeNode in="b1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <linearGradient id="neuralBeam" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="45%" stop-color="#f59e0b" />
+      <stop offset="55%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+
+    <linearGradient id="healedNodeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+  </defs>
+
+  <style>
+    @keyframes dashStream {
+      to { stroke-dashoffset: -40; }
+    }
+    @keyframes pulseNode {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+    .stream-line {
+      animation: dashStream 1.5s linear infinite;
+    }
+    .node-pulse {
+      animation: pulseNode 2.5s ease-in-out infinite;
+      transform-origin: center;
+    }
+  </style>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="url(#neuralBg)" />
+
+  <!-- Ambient Light -->
+  <circle cx="240" cy="300" r="160" fill="#ef4444" opacity="0.08" filter="url(#glowPulse)" />
+  <circle cx="560" cy="300" r="180" fill="#10b981" opacity="0.12" filter="url(#glowPulse)" />
+
+  <!-- Central Heuristic Flow Structure -->
+  <g transform="translate(0, 40)">
+    
+    <!-- Left Stage: Mutated / Displaced DOM Node (Red / Warning) -->
+    <g transform="translate(180, 240)">
+      <!-- Broken Node Container -->
+      <rect x="-100" y="-80" width="200" height="160" rx="16" fill="#18111e" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 4" />
+      
+      <!-- Warning Badge -->
+      <g transform="translate(0, -96)">
+        <rect x="-55" y="0" width="110" height="24" rx="12" fill="#7f1d1d" stroke="#ef4444" stroke-width="1" />
+        <text x="0" y="16" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#fca5a5">DOM MUTATED</text>
+      </g>
+
+      <!-- Broken DOM Tree Mock -->
+      <g transform="translate(-75, -45)">
+        <rect x="0" y="0" width="150" height="22" rx="4" fill="#2d1522" />
+        <text x="10" y="15" font-family="'JetBrains Mono', monospace" font-size="10" fill="#ef4444">✕ .old-btn-v1</text>
+
+        <rect x="0" y="32" width="150" height="22" rx="4" fill="#2d1522" />
+        <text x="10" y="47" font-family="'JetBrains Mono', monospace" font-size="10" fill="#fca5a5">XPath: NullReference</text>
+
+        <rect x="0" y="64" width="150" height="22" rx="4" fill="#2d1522" />
+        <text x="10" y="79" font-family="'JetBrains Mono', monospace" font-size="10" fill="#94a3b8">Confidence: 0.0%</text>
+      </g>
+    </g>
+
+    <!-- Neural Recovery Bridge (Connecting Energy Lines) -->
+    <g>
+      <!-- Neural Connection Wave Beams -->
+      <path d="M 280 200 C 340 160, 440 160, 500 200" fill="none" stroke="url(#neuralBeam)" stroke-width="3" stroke-dasharray="8 6" class="stream-line" filter="url(#glowPulse)" />
+      <path d="M 280 240 C 360 220, 420 220, 500 240" fill="none" stroke="url(#neuralBeam)" stroke-width="4" stroke-dasharray="12 6" class="stream-line" filter="url(#glowPulse)" />
+      <path d="M 280 280 C 340 320, 440 320, 500 280" fill="none" stroke="url(#neuralBeam)" stroke-width="3" stroke-dasharray="8 6" class="stream-line" filter="url(#glowPulse)" />
+
+      <!-- Central Heuristic Sync Core -->
+      <g transform="translate(390, 240)" class="node-pulse">
+        <circle cx="0" cy="0" r="38" fill="#0f172a" stroke="#8b5cf6" stroke-width="2.5" filter="url(#healSparkle)" />
+        <circle cx="0" cy="0" r="22" fill="#7c3aed" opacity="0.3" />
+        <polygon points="0,-16 14,0 0,16 -14,0" fill="#38bdf8" />
+        <circle cx="0" cy="0" r="4" fill="#ffffff" />
+        
+        <text x="0" y="55" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#c084fc">
+          RECOVERY ENGINE
+        </text>
+        <text x="0" y="70" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94a3b8">
+          Multi-Path Proximity
+        </text>
+      </g>
+    </g>
+
+    <!-- Right Stage: Healed / Relocated DOM Node (Green / Active) -->
+    <g transform="translate(600, 240)">
+      <!-- Healed Node Container -->
+      <rect x="-100" y="-80" width="200" height="160" rx="16" fill="#0c1f1d" stroke="#10b981" stroke-width="2" filter="url(#glowPulse)" />
+      
+      <!-- Resolved Badge -->
+      <g transform="translate(0, -96)">
+        <rect x="-60" y="0" width="120" height="24" rx="12" fill="#064e3b" stroke="#10b981" stroke-width="1" />
+        <text x="0" y="16" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#6ee7b7">✓ HEALED 99.4%</text>
+      </g>
+
+      <!-- Healed DOM Tree Mock -->
+      <g transform="translate(-75, -45)">
+        <rect x="0" y="0" width="150" height="22" rx="4" fill="#062d27" />
+        <text x="10" y="15" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#34d399">✓ .btn-v2-primary</text>
+
+        <rect x="0" y="32" width="150" height="22" rx="4" fill="#062d27" />
+        <text x="10" y="47" font-family="'JetBrains Mono', monospace" font-size="10" fill="#6ee7b7">Parent: #cta-container</text>
+
+        <rect x="0" y="64" width="150" height="22" rx="4" fill="#062d27" />
+        <text x="10" y="79" font-family="'JetBrains Mono', monospace" font-size="10" fill="#38bdf8">Position Auto-Updated</text>
+      </g>
+    </g>
+
+  </g>
+
+  <!-- Title & Subtitle -->
+  <text x="40" y="60" font-family="'Inter', sans-serif" font-size="20" font-weight="900" fill="#ffffff" letter-spacing="1">
+    AUTONOMOUS HEURISTIC SELF-HEALING
+  </text>
+  <text x="40" y="84" font-family="'JetBrains Mono', monospace" font-size="12" fill="#94a3b8">
+    Zero Broken Feedback Pins Even Across Complete UI Redesigns
+  </text>
+</svg>

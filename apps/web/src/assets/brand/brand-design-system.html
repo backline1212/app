@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Backline — Master Brand &amp; Motion Design System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #030611;
+      --surface: #0a0e1c;
+      --surface-elevated: #11182c;
+      --border: rgba(99, 102, 241, 0.2);
+      --border-hover: rgba(139, 92, 246, 0.5);
+      --purple: #8b5cf6;
+      --indigo: #6366f1;
+      --cyan: #06b6d4;
+      --emerald: #10b981;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* Ambient Glow */
+    .ambient-glow {
+      position: fixed;
+      inset: 0;
+      background: 
+        radial-gradient(circle at 15% 15%, rgba(139, 92, 246, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.1) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Top Sticky Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(3, 6, 17, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      background: linear-gradient(135deg, #fff, #a5b4fc, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .nav-links a {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: #fff;
+    }
+
+    /* Main Content Container */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 48px 32px 100px;
+    }
+
+    /* Hero Banner */
+    .hero-box {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 9999px;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #a5b4fc;
+      margin-bottom: 20px;
+    }
+
+    .hero-title {
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #ffffff 40%, #c084fc 70%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      color: var(--text-muted);
+      font-size: 17px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    /* Section Headings */
+    .section-head {
+      margin-bottom: 28px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 12px;
+    }
+
+    .section-head h2 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: #fff;
+    }
+
+    .section-head span {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Interactive Embed Showcase Grid */
+    .embed-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      margin-bottom: 64px;
+    }
+
+    @media (max-width: 900px) {
+      .embed-grid { grid-template-columns: 1fr; }
+    }
+
+    .embed-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      transition: border-color 0.25s, transform 0.25s;
+    }
+
+    .embed-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+    }
+
+    .embed-frame {
+      width: 100%;
+      height: 380px;
+      border: none;
+      background: #02040a;
+    }
+
+    .embed-info {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--surface-elevated);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .embed-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .embed-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .btn-launch {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #a5b4fc;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      width: fit-content;
+      transition: all 0.2s;
+    }
+
+    .btn-launch:hover {
+      background: var(--purple);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    /* Vector Gallery Grid */
+    .vector-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 64px;
+    }
+
+    .vector-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.25s ease;
+    }
+
+    .vector-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-3px);
+    }
+
+    .vector-preview {
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #060913;
+      padding: 20px;
+      position: relative;
+    }
+
+    .vector-preview img, .vector-preview object {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .vector-details {
+      padding: 18px 20px;
+      background: var(--surface-elevated);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .vector-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .vector-filename {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--cyan);
+    }
+
+    /* Color Palette Grid */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 64px;
+    }
+
+    .color-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .color-swatch {
+      height: 80px;
+      width: 100%;
+    }
+
+    .color-meta {
+      padding: 12px;
+      font-size: 12px;
+    }
+
+    .color-label {
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+
+    .color-hex {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-glow"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand-group">
+      <svg width="32" height="32" viewBox="0 0 100 100">
+        <path d="M 22 24 C 22 14, 34 8, 50 8 C 66 8, 78 14, 78 24 C 78 34, 70 42, 58 44 L 60 52 L 48 45 C 34 45, 22 36, 22 24 Z" fill="url(#brandGrad)" stroke="#fff" stroke-width="2.5" />
+        <defs>
+          <linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#8b5cf6" />
+            <stop offset="100%" stop-color="#06b6d4" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <span class="brand-title">BACKLINE DESIGN SYSTEM</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#interactive">3D Interactive</a>
+      <a href="#loaders">Cinematic Loaders</a>
+      <a href="#vectors">Vector Brand Marks</a>
+      <a href="#colors">Color Tokens</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Hero Banner -->
+    <section class="hero-box">
+      <div class="badge-pill">✦ COMPLETE ASSET &amp; MOTION DIRECTORY</div>
+      <h1 class="hero-title">Backline Visual Identity &amp; Motion Assets</h1>
+      <p class="hero-desc">
+        A unified gallery of all 3D emblems, Factory.ai-style animated loaders, interactive WebGL insignias, and resilient DOM spatial illustrations.
+      </p>
+    </section>
+
+    <!-- Interactive 3D & Explainer Embeds -->
+    <section id="interactive">
+      <div class="section-head">
+        <h2>Interactive 3D Insignia &amp; Visual QA Explainer</h2>
+        <span>/assets/brand/*.html</span>
+      </div>
+
+      <div class="embed-grid">
+        <!-- 3D Three.js WebGL Insignia -->
+        <div class="embed-card">
+          <iframe class="embed-frame" src="logo-3d-interactive.html"></iframe>
+          <div class="embed-info">
+            <div class="embed-title">
+              <span>Interactive 3D WebGL Insignia</span>
+              <span style="font-size: 11px; color: #22c55e; font-family: 'JetBrains Mono', monospace;">WebGL / Three.js</span>
+            </div>
+            <p class="embed-desc">
+              Real-time 3D orbit controls, material switcher (Glass / Titanium / Holo), exploded layer views, and live telemetry.
+            </p>
+            <a class="btn-launch" href="logo-3d-interactive.html" target="_blank">Open Fullscreen ↗</a>
+          </div>
+        </div>
+
+        <!-- 3D Explainer & Playground -->
+        <div class="embed-card">
+          <iframe class="embed-frame" src="explainer-how-it-works-3d.html"></iframe>
+          <div class="embed-info">
+            <div class="embed-title">
+              <span>Core Architecture 3D Explainer</span>
+              <span style="font-size: 11px; color: #38bdf8; font-family: 'JetBrains Mono', monospace;">Interactive DOM</span>
+            </div>
+            <p class="embed-desc">
+              Visualizes point-and-click pinning, triple-layer fingerprinting, and autonomous heuristic DOM self-healing across redesigns.
+            </p>
+            <a class="btn-launch" href="explainer-how-it-works-3d.html" target="_blank">Open Fullscreen ↗</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Factory.ai / Fable Style Cinematic Loaders -->
+    <section id="loaders">
+      <div class="section-head">
+        <h2>Factory.ai &amp; Fable Style Cinematic Loaders</h2>
+        <span>Morphing Insignia &amp; Command Line Feeds</span>
+      </div>
+
+      <div class="embed-grid">
+        <!-- Multi-Sequence Command Loader -->
+        <div class="embed-card">
+          <iframe class="embed-frame" src="factory-cinematic-loader.html"></iframe>
+          <div class="embed-info">
+            <div class="embed-title">
+              <span>Factory.ai Morphing Command Loader</span>
+              <span style="font-size: 11px; color: #c084fc; font-family: 'JetBrains Mono', monospace;">Multi-Sequence</span>
+            </div>
+            <p class="embed-desc">
+              4-phase morphing symbols (Scope → DOM Box → Spatial Pin → Master Emblem) paired with kinetic command telemetry.
+            </p>
+            <a class="btn-launch" href="factory-cinematic-loader.html" target="_blank">Open Fullscreen ↗</a>
+          </div>
+        </div>
+
+        <!-- Classic Animated Splash Loader -->
+        <div class="embed-card">
+          <iframe class="embed-frame" src="splash-loader.html"></iframe>
+          <div class="embed-info">
+            <div class="embed-title">
+              <span>Cinematic SVG Stroke Splash</span>
+              <span style="font-size: 11px; color: #f59e0b; font-family: 'JetBrains Mono', monospace;">SVG Stroke Draw</span>
+            </div>
+            <p class="embed-desc">
+              Self-drawing SVG stroke animations, staggered letter slide-ins, and smooth transition bar.
+            </p>
+            <a class="btn-launch" href="splash-loader.html" target="_blank">Open Fullscreen ↗</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vector Brand Marks & Illustrations Gallery -->
+    <section id="vectors">
+      <div class="section-head">
+        <h2>Brand Vectors &amp; Feature Illustrations</h2>
+        <span>SVG / JPG Assets</span>
+      </div>
+
+      <div class="vector-grid">
+        <!-- Photoreal 3D SVG -->
+        <div class="vector-card">
+          <div class="vector-preview">
+            <img src="logo-3d-photoreal.svg" alt="3D Photoreal SVG" />
+          </div>
+          <div class="vector-details">
+            <div class="vector-name">Photoreal 3D Emblem</div>
+            <div class="vector-filename">logo-3d-photoreal.svg</div>
+          </div>
+        </div>
+
+        <!-- Spatial Pinning 3D -->
+        <div class="vector-card">
+          <div class="vector-preview">
+            <img src="feature-spatial-pinning-3d.svg" alt="Spatial Pinning 3D" />
+          </div>
+          <div class="vector-details">
+            <div class="vector-name">Spatial Pinning 3D</div>
+            <div class="vector-filename">feature-spatial-pinning-3d.svg</div>
+          </div>
+        </div>
+
+        <!-- Neural Recovery 3D -->
+        <div class="vector-card">
+          <div class="vector-preview">
+            <img src="feature-neural-recovery-3d.svg" alt="Neural Recovery 3D" />
+          </div>
+          <div class="vector-details">
+            <div class="vector-name">Neural Heuristic Recovery</div>
+            <div class="vector-filename">feature-neural-recovery-3d.svg</div>
+          </div>
+        </div>
+
+        <!-- Full Gradient Logo -->
+        <div class="vector-card">
+          <div class="vector-preview">
+            <img src="logo-full.svg" alt="Full Logo" />
+          </div>
+          <div class="vector-details">
+            <div class="vector-name">Full Wordmark &amp; Icon</div>
+            <div class="vector-filename">logo-full.svg</div>
+          </div>
+        </div>
+
+        <!-- Realtime Collaboration -->
+        <div class="vector-card">
+          <div class="vector-preview">
+            <img src="feature-realtime.svg" alt="Realtime Collab" />
+          </div>
+          <div class="vector-details">
+            <div class="vector-name">Realtime Collaboration</div>
+            <div class="vector-filename">feature-realtime.svg</div>
+          </div>
+        </div>
+
+        <!-- Contextual Comments -->
+        <div class="vector-card">
+          <div class="vector-preview">
+            <img src="feature-comments.svg" alt="Comments" />
+          </div>
+          <div class="vector-details">
+            <div class="vector-name">Contextual Comments</div>
+            <div class="vector-filename">feature-comments.svg</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Color Tokens -->
+    <section id="colors">
+      <div class="section-head">
+        <h2>Brand Color System</h2>
+        <span>HSL &amp; Hex Tokens</span>
+      </div>
+
+      <div class="color-grid">
+        <div class="color-card">
+          <div class="color-swatch" style="background: #7c3aed;"></div>
+          <div class="color-meta">
+            <div class="color-label">Primary Purple</div>
+            <div class="color-hex">#7c3aed</div>
+          </div>
+        </div>
+
+        <div class="color-card">
+          <div class="color-swatch" style="background: #6366f1;"></div>
+          <div class="color-meta">
+            <div class="color-label">Electric Indigo</div>
+            <div class="color-hex">#6366f1</div>
+          </div>
+        </div>
+
+        <div class="color-card">
+          <div class="color-swatch" style="background: #06b6d4;"></div>
+          <div class="color-meta">
+            <div class="color-label">Laser Cyan</div>
+            <div class="color-hex">#06b6d4</div>
+          </div>
+        </div>
+
+        <div class="color-card">
+          <div class="color-swatch" style="background: #10b981;"></div>
+          <div class="color-meta">
+            <div class="color-label">Success Emerald</div>
+            <div class="color-hex">#10b981</div>
+          </div>
+        </div>
+
+        <div class="color-card">
+          <div class="color-swatch" style="background: #030611;"></div>
+          <div class="color-meta">
+            <div class="color-label">Deep Obsidian</div>
+            <div class="color-hex">#030611</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+</body>
+</html>

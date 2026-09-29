@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Backline — Interactive 3D Explainer &amp; Visual QA Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #04060d;
+      --surface: #0a0e1c;
+      --surface-glass: rgba(15, 23, 42, 0.75);
+      --border: rgba(99, 102, 241, 0.25);
+      --purple: #8b5cf6;
+      --indigo: #6366f1;
+      --cyan: #06b6d4;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Glow & Grid */
+    .ambient-bg {
+      position: fixed;
+      inset: 0;
+      background: 
+        radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 40%),
+        linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Navigation Header */
+    header {
+      position: sticky;
+      top: 0;
+      height: 64px;
+      background: rgba(4, 6, 13, 0.8);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 50;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      font-size: 18px;
+      letter-spacing: 0.08em;
+    }
+
+    /* Main Container */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      flex: 1;
+      width: 100%;
+    }
+
+    /* Explainer Hero Intro */
+    .hero-section {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 9999px;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #a5b4fc;
+      margin-bottom: 16px;
+    }
+
+    .hero-title {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, #ffffff 40%, #c084fc 70%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      color: var(--text-muted);
+      font-size: 16px;
+      max-width: 680px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Step Navigation Tabs */
+    .step-navigator {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    .step-btn {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.25s ease;
+    }
+
+    .step-btn:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #fff;
+    }
+
+    .step-btn.active {
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.35), rgba(99, 102, 241, 0.35));
+      border-color: var(--purple);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.25);
+    }
+
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .step-btn.active .step-number {
+      background: var(--purple);
+      color: #fff;
+    }
+
+    /* Interactive 3D Stage Arena */
+    .stage-arena {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+      .stage-arena { grid-template-columns: 1fr; }
+    }
+
+    /* 3D Viewport Canvas Card */
+    .viewport-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .viewport-controls-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .window-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .window-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #22c55e; }
+
+    /* Interactive Mock Webpage Inside Viewport */
+    .mock-browser {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 24px;
+      min-height: 480px;
+      position: relative;
+      perspective: 1200px;
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: crosshair;
+    }
+
+    .mock-browser.isometric-3d {
+      transform: rotateX(24deg) rotateY(-12deg) rotateZ(4deg) scale(0.92);
+      box-shadow: -20px 30px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Interactive Web Elements */
+    .mock-navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px;
+      background: rgba(30, 41, 59, 0.7);
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .mock-hero-box {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.08));
+      border: 1px dashed rgba(99, 102, 241, 0.4);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .mock-grid-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .mock-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 16px;
+      position: relative;
+    }
+
+    /* Spatial Pin Marker & Holographic Beacon */
+    .spatial-pin {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      transform: translate(-50%, -100%);
+      z-index: 30;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+    }
+
+    .pin-head {
+      width: 32px;
+      height: 32px;
+      border-radius: 50% 50% 50% 0;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.8);
+      border: 2px solid #fff;
+    }
+
+    .pin-pulse {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      width: 48px;
+      height: 48px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 2px solid #06b6d4;
+      animation: pinWave 2s infinite;
+    }
+
+    @keyframes pinWave {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+    }
+
+    /* Comment Popover Bubble */
+    .pin-comment-box {
+      position: absolute;
+      left: 42px;
+      top: -12px;
+      width: 240px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--purple);
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(12px);
+      font-size: 11px;
+      pointer-events: auto;
+    }
+
+    /* Explanation & Telemetry Side Card */
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .info-header h3 {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .info-header p {
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .code-telemetry-box {
+      background: #060913;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      line-height: 1.7;
+      color: #cbd5e1;
+    }
+
+    .code-prop { color: #c084fc; font-weight: 600; }
+    .code-val { color: #38bdf8; }
+    .code-highlight { color: #34d399; font-weight: 700; }
+
+    /* Action Buttons */
+    .action-btn-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-action {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: var(--indigo);
+    }
+
+    .btn-action.primary {
+      background: linear-gradient(135deg, var(--purple), var(--indigo));
+      border: none;
+      box-shadow: 0 0 16px rgba(139, 92, 246, 0.4);
+    }
+
+    .btn-action.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 24px rgba(139, 92, 246, 0.7);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-bg"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand-logo">
+      <svg width="28" height="28" viewBox="0 0 100 100">
+        <path d="M 22 24 C 22 14, 34 8, 50 8 C 66 8, 78 14, 78 24 C 78 34, 70 42, 58 44 L 60 52 L 48 45 C 34 45, 22 36, 22 24 Z" fill="url(#bgGradIcon)" stroke="#fff" stroke-width="2.5" />
+        <defs>
+          <linearGradient id="bgGradIcon" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#8b5cf6" />
+            <stop offset="100%" stop-color="#06b6d4" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <span>BACKLINE 3D EXPLAINER</span>
+    </div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #94a3b8;">
+      CORE ARCHITECTURE ENGINE v2.4
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Intro -->
+    <section class="hero-section">
+      <div class="badge-pill">✦ HOW BACKLINE SOLVES VISUAL FEEDBACK</div>
+      <h1 class="hero-title">Spatial DOM Anchoring &amp; Heuristic Self-Healing</h1>
+      <p class="hero-subtitle">
+        Traditional screenshot tools break when CSS changes. Backline locks directly into the DOM tree with multi-path selectors that never lose their position.
+      </p>
+    </section>
+
+    <!-- Step Navigation Tabs -->
+    <nav class="step-navigator">
+      <button class="step-btn active" onclick="activateStep(1)">
+        <span class="step-number">1</span>
+        <span>Point &amp; Precision Pin</span>
+      </button>
+      <button class="step-btn" onclick="activateStep(2)">
+        <span class="step-number">2</span>
+        <span>Triple-Layer Fingerprinting</span>
+      </button>
+      <button class="step-btn" onclick="activateStep(3)">
+        <span class="step-number">3</span>
+        <span>Real-Time Multi-User Sync</span>
+      </button>
+      <button class="step-btn" onclick="activateStep(4)">
+        <span class="step-number">4</span>
+        <span>Autonomous Heuristic Recovery</span>
+      </button>
+    </nav>
+
+    <!-- Interactive 3D Arena -->
+    <div class="stage-arena">
+      
+      <!-- Left: Interactive Browser Viewport -->
+      <div class="viewport-card">
+        <div class="viewport-controls-top">
+          <div class="window-dots">
+            <div class="window-dot dot-red"></div>
+            <div class="window-dot dot-yellow"></div>
+            <div class="window-dot dot-green"></div>
+          </div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #64748b;">
+            https://customer-app.example.com/checkout
+          </div>
+          <button class="btn-action" style="padding: 4px 10px; font-size: 11px;" onclick="toggle3DView()">
+            Toggle 3D View
+          </button>
+        </div>
+
+        <!-- The Mock Interactive Web Page -->
+        <div class="mock-browser" id="mock-page" onclick="handleMockPageClick(event)">
+          
+          <!-- Mock Nav -->
+          <div class="mock-navbar" id="elem-nav">
+            <div style="font-weight: 700; font-size: 13px; color: #fff;">Acme Store</div>
+            <div style="display: flex; gap: 12px; font-size: 11px; color: #94a3b8;">
+              <span>Products</span>
+              <span>Pricing</span>
+              <span style="color: #06b6d4;">Cart (2)</span>
+            </div>
+          </div>
+
+          <!-- Mock Hero Banner -->
+          <div class="mock-hero-box" id="elem-hero">
+            <div style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 6px;" id="hero-heading">
+              Complete Your Subscription Order
+            </div>
+            <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">
+              Enterprise Plan — 14-day zero risk free trial included.
+            </div>
+            <button id="cta-button" style="background: linear-gradient(135deg, #7c3aed, #6366f1); color: #fff; border: none; padding: 8px 18px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;">
+              Confirm &amp; Launch ($199/mo)
+            </button>
+          </div>
+
+          <!-- Mock Grid Cards -->
+          <div class="mock-grid-row">
+            <div class="mock-card" id="elem-card-1">
+              <div style="font-weight: 700; font-size: 12px; color: #fff; margin-bottom: 4px;">Payment Method</div>
+              <div style="font-size: 11px; color: #64748b;">Visa ending in •••• 4242</div>
+            </div>
+            <div class="mock-card" id="elem-card-2">
+              <div style="font-weight: 700; font-size: 12px; color: #fff; margin-bottom: 4px;">Billing Address</div>
+              <div style="font-size: 11px; color: #64748b;">San Francisco, CA 94107</div>
+            </div>
+          </div>
+
+          <!-- The Floating Active Spatial Pin -->
+          <div class="spatial-pin" id="active-pin" style="left: 240px; top: 195px;">
+            <div class="pin-pulse"></div>
+            <div class="pin-head">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </div>
+            
+            <!-- Comment Card -->
+            <div class="pin-comment-box" id="pin-comment">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <strong style="color: #38bdf8;">@sarah_qa</strong>
+                <span style="color: #64748b;">Just now</span>
+              </div>
+              <p style="color: #e2e8f0; line-height: 1.4;">
+                The CTA button text wrapping looks misaligned on tablet viewports. Can we add 4px padding?
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Right: Technical Explainer & Telemetry Card -->
+      <div class="info-card">
+        <div class="info-header">
+          <h3 id="step-title">Step 1: Point &amp; Precision Pin</h3>
+          <p id="step-desc">
+            Users click directly on any UI element inside the live web application. Backline locks onto the exact DOM node rather than flat pixel coordinates.
+          </p>
+        </div>
+
+        <!-- Telemetry & Fingerprint Inspector -->
+        <div class="code-telemetry-box" id="telemetry-box">
+          <div><span class="code-prop">Target Node:</span> <span class="code-val">&lt;button id="cta-button"&gt;</span></div>
+          <div><span class="code-prop">XPath:</span> <span class="code-val">/html/body/div[1]/div[2]/button</span></div>
+          <div><span class="code-prop">CSS Path:</span> <span class="code-val">.mock-hero-box &gt; #cta-button</span></div>
+          <div><span class="code-prop">Text Hash:</span> <span class="code-val">"Confirm &amp; Launch..." (0x9AF4)</span></div>
+          <div><span class="code-prop">Sibling Index:</span> <span class="code-val">2 of 3</span></div>
+          <div><span class="code-prop">Bounding Box:</span> <span class="code-val">{ x: 192, y: 168, w: 180, h: 36 }</span></div>
+          <div><span class="code-prop">Recovery State:</span> <span class="code-highlight">100% HEALTHY</span></div>
+        </div>
+
+        <div class="action-btn-row">
+          <button class="btn-action primary" onclick="simulatePageRedesign()">
+            ⚡ Simulate DOM Redesign (Test Self-Healing)
+          </button>
+        </div>
+
+        <div style="font-size: 11px; color: #64748b; font-family: 'JetBrains Mono', monospace; line-height: 1.5;">
+          ✦ Tip: Click anywhere on the browser window to plant a new pin and inspect live selector extraction.
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    const stepsData = {
+      1: {
+        title: "Step 1: Point & Precision Pin",
+        desc: "Users click directly on any UI element inside the live web application. Backline locks onto the exact DOM node rather than flat pixel coordinates.",
+        node: '<button id="cta-button">',
+        xpath: "/html/body/div[1]/div[2]/button",
+        css: ".mock-hero-box > #cta-button",
+        textHash: '"Confirm & Launch..." (0x9AF4)',
+        state: "100% HEALTHY"
+      },
+      2: {
+        title: "Step 2: Triple-Layer Fingerprinting",
+        desc: "Backline extracts multiple redundant identifiers: strict CSS selector, semantic text proximity, bounding box ratios, and hierarchical parent trees.",
+        node: '<div class="mock-hero-box">',
+        xpath: "/html/body/div[1]/div[2]",
+        css: ".mock-browser > .mock-hero-box",
+        textHash: '"Complete Your Subscription..." (0x4E1A)',
+        state: "MULTI-LAYER ATTACHED"
+      },
+      3: {
+        title: "Step 3: Real-Time Multi-User Sync",
+        desc: "Teammates see live spatial cursor beacons and instant comment sync via WebSocket mesh with zero layout shifts or audio delay.",
+        node: '<div class="pin-comment-box">',
+        xpath: "/html/body/div[1]/div[2]/div[3]",
+        css: ".spatial-pin > .pin-comment-box",
+        textHash: '"@sarah_qa: CTA button..." (0xBC20)',
+        state: "WEBSOCKET STREAMING"
+      },
+      4: {
+        title: "Step 4: Autonomous Heuristic Recovery",
+        desc: "When a developer modifies CSS class names, refactors markup, or changes responsive breakpoints, Backline's recovery engine relocates the pin with a 99.4% confidence score.",
+        node: '<button class="v2-btn-accent">',
+        xpath: "/html/body/div[1]/section/button",
+        css: ".v2-container > .v2-btn-accent",
+        textHash: '"Confirm & Launch..." (0x9AF4)',
+        state: "SELF-HEALED (MATCH: 99.4%)"
+      }
+    };
+
+    let is3D = false;
+
+    function activateStep(stepNum) {
+      document.querySelectorAll('.step-btn').forEach((btn, idx) => {
+        btn.classList.toggle('active', idx + 1 === stepNum);
+      });
+
+      const s = stepsData[stepNum];
+      document.getElementById('step-title').innerText = s.title;
+      document.getElementById('step-desc').innerText = s.desc;
+
+      document.getElementById('telemetry-box').innerHTML = `
+        <div><span class="code-prop">Target Node:</span> <span class="code-val">${s.node}</span></div>
+        <div><span class="code-prop">XPath:</span> <span class="code-val">${s.xpath}</span></div>
+        <div><span class="code-prop">CSS Path:</span> <span class="code-val">${s.css}</span></div>
+        <div><span class="code-prop">Text Hash:</span> <span class="code-val">${s.textHash}</span></div>
+        <div><span class="code-prop">Sibling Index:</span> <span class="code-val">2 of 3</span></div>
+        <div><span class="code-prop">Recovery State:</span> <span class="code-highlight">${s.state}</span></div>
+      `;
+    }
+
+    function toggle3DView() {
+      is3D = !is3D;
+      document.getElementById('mock-page').classList.toggle('isometric-3d', is3D);
+    }
+
+    function handleMockPageClick(e) {
+      const rect = document.getElementById('mock-page').getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const pin = document.getElementById('active-pin');
+      pin.style.left = `${x}px`;
+      pin.style.top = `${y}px`;
+
+      // Update telemetry with targeted element
+      const target = e.target.id || e.target.tagName.toLowerCase();
+      document.getElementById('telemetry-box').innerHTML = `
+        <div><span class="code-prop">Target Node:</span> <span class="code-val">&lt;${target}&gt;</span></div>
+        <div><span class="code-prop">Pin Position:</span> <span class="code-val">{ x: ${Math.round(x)}, y: ${Math.round(y)} }</span></div>
+        <div><span class="code-prop">DOM Path:</span> <span class="code-val">.mock-browser &gt; #${target}</span></div>
+        <div><span class="code-prop">Text Proximity:</span> <span class="code-val">"${(e.target.innerText || '').slice(0, 24)}..."</span></div>
+        <div><span class="code-prop">Recovery State:</span> <span class="code-highlight">LOCKED &amp; VERIFIED</span></div>
+      `;
+    }
+
+    function simulatePageRedesign() {
+      const hero = document.getElementById('elem-hero');
+      const heading = document.getElementById('hero-heading');
+      const cta = document.getElementById('cta-button');
+
+      // Mutate layout and styles dynamically
+      hero.style.padding = '36px';
+      hero.style.background = 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.15))';
+      heading.innerText = '⚡ Upgraded Instant Access Checkout';
+      cta.style.background = 'linear-gradient(135deg, #06b6d4, #3b82f6)';
+      cta.innerText = 'Launch Instantly →';
+
+      // Animate pin repositioning to follow button
+      setTimeout(() => {
+        const ctaRect = cta.getBoundingClientRect();
+        const pageRect = document.getElementById('mock-page').getBoundingClientRect();
+        const pin = document.getElementById('active-pin');
+        
+        pin.style.left = `${(ctaRect.left - pageRect.left) + ctaRect.width / 2}px`;
+        pin.style.top = `${ctaRect.top - pageRect.top}px`;
+
+        activateStep(4);
+      }, 300);
+    }
+  </script>
+</body>
+</html>

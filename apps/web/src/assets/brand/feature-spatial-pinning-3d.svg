@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0f19" />
+      <stop offset="50%" stop-color="#070a12" />
+      <stop offset="100%" stop-color="#030508" />
+    </linearGradient>
+
+    <!-- Glow Filters -->
+    <filter id="neonGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="laserBeam" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="blur1" />
+      <feGaussianBlur stdDeviation="15" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Isometric Surface Gradients -->
+    <linearGradient id="isoPlaneGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.9" />
+    </linearGradient>
+
+    <linearGradient id="purpleCyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+
+    <!-- Grid Pattern -->
+    <pattern id="isoDotGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="20" cy="20" r="1" fill="#475569" fill-opacity="0.4" />
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="url(#bgGrad)" />
+  <rect width="100%" height="100%" fill="url(#isoDotGrid)" />
+
+  <!-- Ambient Light Halos -->
+  <circle cx="400" cy="320" r="220" fill="#7c3aed" opacity="0.15" filter="url(#neonGlow)" />
+  <circle cx="460" cy="280" r="160" fill="#06b6d4" opacity="0.12" filter="url(#neonGlow)" />
+
+  <!-- Isometric Base Plane (Mock Webpage Surface) -->
+  <g transform="translate(400, 360)">
+    <!-- Base 3D Shadow -->
+    <polygon points="0,-160 300,-10 0,140 -300,-10" fill="#000000" opacity="0.7" filter="url(#neonGlow)" />
+
+    <!-- 3D Extrusion Side Left -->
+    <polygon points="-300,-10 0,140 0,165 -300,15" fill="#0c1222" stroke="#334155" stroke-width="1" />
+    <!-- 3D Extrusion Side Right -->
+    <polygon points="0,140 300,-10 300,15 0,165" fill="#151d32" stroke="#334155" stroke-width="1" />
+
+    <!-- Top Surface Plane -->
+    <polygon points="0,-160 300,-10 0,140 -300,-10" fill="url(#isoPlaneGrad)" stroke="#6366f1" stroke-width="1.5" />
+
+    <!-- Isometric Grid Lines on Surface -->
+    <path d="M -200,-60 L 100,90 M -100,-110 L 200,40 M -100,90 L 200,-60 M -200,40 L 100,-110" 
+          stroke="#475569" stroke-width="1" stroke-opacity="0.3" stroke-dasharray="4 4" />
+
+    <!-- UI Element 1: Isometric Card -->
+    <g transform="translate(-120, -20)">
+      <polygon points="0,-40 80,0 0,40 -80,0" fill="#1e293b" stroke="#475569" stroke-width="1.2" />
+      <polygon points="-50,-5 0,20 0,26 -50,1" fill="#38bdf8" opacity="0.6" />
+    </g>
+
+    <!-- UI Element 2: Target Button (The Anchor Point) -->
+    <g transform="translate(40, -10)">
+      <!-- Target Area Glow -->
+      <polygon points="0,-45 90,0 0,45 -90,0" fill="rgba(124, 58, 237, 0.25)" stroke="#06b6d4" stroke-width="2" filter="url(#neonGlow)" />
+      
+      <!-- Target Reticle Rings on Ground -->
+      <ellipse cx="0" cy="0" rx="45" ry="22" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 4" />
+      <ellipse cx="0" cy="0" rx="24" ry="12" fill="none" stroke="#a855f7" stroke-width="1.5" />
+      <ellipse cx="0" cy="0" rx="8" ry="4" fill="#ffffff" filter="url(#laserBeam)" />
+
+      <!-- Vertical Laser Coordinate Beams -->
+      <line x1="0" y1="0" x2="0" y2="-170" stroke="#06b6d4" stroke-width="2" stroke-dasharray="8 4" opacity="0.85" filter="url(#laserBeam)" />
+
+      <!-- Hovering 3D Spatial Pin -->
+      <g transform="translate(0, -170)">
+        <!-- Vertical Pulsing Beacon -->
+        <circle cx="0" cy="0" r="16" fill="url(#purpleCyanGrad)" filter="url(#laserBeam)" />
+        <circle cx="0" cy="0" r="8" fill="#ffffff" />
+        
+        <!-- Crosshairs on Pin Beacon -->
+        <line x1="-24" y1="0" x2="24" y2="0" stroke="#ffffff" stroke-width="2" filter="url(#laserBeam)" />
+        <line x1="0" y1="-24" x2="0" y2="24" stroke="#ffffff" stroke-width="2" filter="url(#laserBeam)" />
+
+        <!-- Floating Context Card (Glass HUD) -->
+        <g transform="translate(36, -45)" filter="url(#neonGlow)">
+          <rect x="0" y="0" width="180" height="75" rx="10" fill="#0f172a" fill-opacity="0.9" stroke="#8b5cf6" stroke-width="1.5" />
+          
+          <circle cx="18" cy="20" r="6" fill="#22c55e" />
+          <text x="32" y="24" font-family="'Inter', sans-serif" font-size="11" font-weight="700" fill="#ffffff">CTA_ANCHOR_LOCKED</text>
+          
+          <text x="18" y="44" font-family="'JetBrains Mono', monospace" font-size="9" fill="#94a3b8">XPath: //button[@id='launch']</text>
+          <text x="18" y="58" font-family="'JetBrains Mono', monospace" font-size="9" fill="#38bdf8">Confidence: 99.8% (Exact)</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Holographic Telemetry Rings -->
+    <g transform="translate(-160, 40)">
+      <ellipse cx="0" cy="0" rx="55" ry="26" fill="none" stroke="#6366f1" stroke-width="1" stroke-dasharray="4 4" opacity="0.5" />
+      <circle cx="0" cy="0" r="3" fill="#6366f1" />
+    </g>
+  </g>
+
+  <!-- Illustration Title Header -->
+  <text x="40" y="60" font-family="'Inter', sans-serif" font-size="20" font-weight="900" fill="#ffffff" letter-spacing="1">
+    PERSISTENT SPATIAL ANCHORING
+  </text>
+  <text x="40" y="84" font-family="'JetBrains Mono', monospace" font-size="12" fill="#94a3b8">
+    DOM Tree Multi-Path Coordinate Pinning Engine
+  </text>
+</svg>

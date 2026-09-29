@@ -1,0 +1,302 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="100%" height="100%">
+  <defs>
+    <!-- Background Radial Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#161b33" />
+      <stop offset="50%" stop-color="#0a0d1a" />
+      <stop offset="100%" stop-color="#04060b" />
+    </radialGradient>
+
+    <!-- Glow Core Filters -->
+    <filter id="superGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="24" result="blur1" />
+      <feGaussianBlur stdDeviation="48" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="laserGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+      <feComponentTransfer in="blur" result="boost">
+        <feFuncA type="linear" slope="2" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="boost" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- 3D Bevel & Lighting Filter -->
+    <filter id="bevel3D" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="blur" />
+      <feSpecularLighting in="blur" surfaceScale="7" specularConstant="1.4" specularExponent="35" lighting-color="#ffffff" result="specular">
+        <fePointLight x="250" y="150" z="350" />
+      </feSpecularLighting>
+      <feComposite in="specular" in2="SourceAlpha" operator="in" result="specularCut" />
+      <feDiffuseLighting in="blur" surfaceScale="5" diffuseConstant="1.2" lighting-color="#8b5cf6" result="diffuse">
+        <fePointLight x="400" y="250" z="300" />
+      </feDiffuseLighting>
+      <feComposite in="SourceGraphic" in2="diffuse" operator="arithmetic" k1="1" k2="0.6" k3="0" k4="0" result="litGraphic" />
+      <feMerge>
+        <feMergeNode in="litGraphic" />
+        <feMergeNode in="specularCut" />
+      </feMerge>
+    </filter>
+
+    <!-- Drop Shadows -->
+    <filter id="shadow3D" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="36" stdDeviation="30" flood-color="#000000" flood-opacity="0.75" />
+      <feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#7c3aed" flood-opacity="0.35" />
+    </filter>
+
+    <!-- Metallic & Glass Gradients -->
+    <linearGradient id="bodyGrad3D" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9333ea" />
+      <stop offset="35%" stop-color="#7c3aed" />
+      <stop offset="70%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+
+    <linearGradient id="glassFacet" x1="0%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45" />
+      <stop offset="40%" stop-color="#ffffff" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="chromeBevel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c084fc" />
+      <stop offset="25%" stop-color="#ffffff" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="75%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#1e1b4b" />
+    </linearGradient>
+
+    <linearGradient id="reticleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#c084fc" />
+    </linearGradient>
+
+    <radialGradient id="coreEnergy" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="20%" stop-color="#38bdf8" />
+      <stop offset="60%" stop-color="#8b5cf6" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Isometric Floor Grid Pattern -->
+    <pattern id="isoGrid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 60 M 0 0 L 60 60" fill="none" stroke="#334155" stroke-width="0.75" stroke-opacity="0.25" />
+      <circle cx="30" cy="30" r="1.5" fill="#6366f1" fill-opacity="0.4" />
+    </pattern>
+  </defs>
+
+  <style>
+    @keyframes floatBob {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-16px) rotate(0.8deg); }
+    }
+    @keyframes pulseRing {
+      0%, 100% { transform: scale(1); opacity: 0.85; }
+      50% { transform: scale(1.06); opacity: 0.45; }
+    }
+    @keyframes radarSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes coreGlow {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px #38bdf8); }
+      50% { transform: scale(1.15); filter: drop-shadow(0 0 28px #a855f7); }
+    }
+    .floating-body {
+      animation: floatBob 6s ease-in-out infinite;
+      transform-origin: 400px 400px;
+    }
+    .pulsing-ring {
+      animation: pulseRing 3.5s ease-in-out infinite;
+      transform-origin: 400px 365px;
+    }
+    .spinning-radar {
+      animation: radarSpin 12s linear infinite;
+      transform-origin: 400px 365px;
+    }
+    .pulsing-core {
+      animation: coreGlow 2.5s ease-in-out infinite;
+      transform-origin: 400px 365px;
+    }
+  </style>
+
+  <!-- Canvas Background -->
+  <rect width="100%" height="100%" fill="url(#bgGrad)" />
+  <rect width="100%" height="100%" fill="url(#isoGrid)" opacity="0.6" />
+
+  <!-- Ambient Light Orbs -->
+  <circle cx="400" cy="360" r="280" fill="#7c3aed" opacity="0.18" filter="url(#superGlow)" />
+  <circle cx="480" cy="320" r="180" fill="#06b6d4" opacity="0.15" filter="url(#superGlow)" />
+
+  <!-- 3D Ground Shadow Ring -->
+  <ellipse cx="400" cy="650" rx="260" ry="42" fill="#000000" opacity="0.7" filter="url(#superGlow)" />
+  <ellipse cx="400" cy="650" rx="160" ry="24" fill="#6366f1" opacity="0.25" filter="url(#laserGlow)" />
+
+  <!-- Main 3D Floating Emblem Group -->
+  <g class="floating-body">
+    
+    <!-- 3D Extrusion Back Layer (Depth) -->
+    <path d="M 215 175 
+             C 215 95, 290 35, 400 35
+             C 510 35, 585 95, 585 175
+             C 585 245, 525 305, 435 315
+             L 450 380
+             L 370 320
+             C 275 320, 215 255, 215 175 Z"
+          transform="translate(0, 32)"
+          fill="#1e1338"
+          stroke="#4c1d95"
+          stroke-width="8"
+          opacity="0.95" />
+
+    <!-- 3D Mid Bevel Shadow Layer -->
+    <path d="M 215 175 
+             C 215 95, 290 35, 400 35
+             C 510 35, 585 95, 585 175
+             C 585 245, 525 305, 435 315
+             L 450 380
+             L 370 320
+             C 275 320, 215 255, 215 175 Z"
+          transform="translate(0, 16)"
+          fill="#3b0764"
+          stroke="#7c3aed"
+          stroke-width="4"
+          opacity="0.8" />
+
+    <!-- Main Front Bubble Body -->
+    <g filter="url(#shadow3D)">
+      <path d="M 215 175 
+               C 215 95, 290 35, 400 35
+               C 510 35, 585 95, 585 175
+               C 585 245, 525 305, 435 315
+               L 450 380
+               L 370 320
+               C 275 320, 215 255, 215 175 Z"
+            fill="url(#bodyGrad3D)"
+            stroke="url(#chromeBevel)"
+            stroke-width="7"
+            filter="url(#bevel3D)" />
+
+      <!-- Inner Glass Gloss Highlight (Curved Shield) -->
+      <path d="M 230 165
+               C 230 100, 295 55, 395 50
+               C 490 45, 555 90, 565 155
+               C 490 120, 330 110, 230 165 Z"
+            fill="url(#glassFacet)" />
+
+      <!-- Inner Holographic Ring Chamber -->
+      <ellipse cx="400" cy="180" rx="120" ry="120" 
+               fill="#0a0e27" 
+               fill-opacity="0.65" 
+               stroke="url(#reticleGrad)" 
+               stroke-width="3" 
+               stroke-dasharray="8 6" />
+
+      <!-- Rotating Holographic Radar Sweep -->
+      <g class="spinning-radar" style="transform-origin: 400px 180px;">
+        <circle cx="400" cy="180" r="100" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-opacity="0.4" stroke-dasharray="40 120" />
+        <line x1="400" y1="180" x2="495" y2="145" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" filter="url(#laserGlow)" />
+        <circle cx="495" cy="145" r="4.5" fill="#ffffff" filter="url(#laserGlow)" />
+      </g>
+
+      <!-- Pulsing Target Reticle Rings -->
+      <g class="pulsing-ring" style="transform-origin: 400px 180px;">
+        <circle cx="400" cy="180" r="75" fill="none" stroke="#a855f7" stroke-width="2.5" stroke-opacity="0.8" />
+        <circle cx="400" cy="180" r="48" fill="none" stroke="#38bdf8" stroke-width="3" stroke-dasharray="14 8" />
+      </g>
+
+      <!-- Precision Crosshairs -->
+      <g filter="url(#laserGlow)">
+        <!-- Top Reticle Line -->
+        <line x1="400" y1="88" x2="400" y2="135" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+        <!-- Bottom Reticle Line -->
+        <line x1="400" y1="225" x2="400" y2="272" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+        <!-- Left Reticle Line -->
+        <line x1="308" y1="180" x2="355" y2="180" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+        <!-- Right Reticle Line -->
+        <line x1="445" y1="180" x2="492" y2="180" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+        
+        <!-- Corner Reticle Brackets -->
+        <path d="M 345 140 L 335 140 L 335 150" fill="none" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" />
+        <path d="M 455 140 L 465 140 L 465 150" fill="none" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" />
+        <path d="M 345 220 L 335 220 L 335 210" fill="none" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" />
+        <path d="M 455 220 L 465 220 L 465 210" fill="none" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" />
+      </g>
+
+      <!-- Glowing Core Reactor Center -->
+      <g class="pulsing-core" style="transform-origin: 400px 180px;">
+        <circle cx="400" cy="180" r="28" fill="url(#coreEnergy)" />
+        <circle cx="400" cy="180" r="14" fill="#ffffff" filter="url(#laserGlow)" />
+        <circle cx="400" cy="180" r="6" fill="#06b6d4" />
+      </g>
+
+      <!-- Glass Rim Specular Flares -->
+      <circle cx="280" cy="75" r="4" fill="#ffffff" filter="url(#laserGlow)" />
+      <circle cx="530" cy="110" r="3" fill="#ffffff" filter="url(#laserGlow)" />
+      <path d="M 235 120 C 240 85, 275 60, 310 50" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.6" />
+    </g>
+
+    <!-- Bottom Typography Wordmark (3D Metallic Lettering) -->
+    <g transform="translate(0, 480)" filter="url(#shadow3D)">
+      <!-- Background Text Shadow for 3D extrusion -->
+      <text x="400" y="56" 
+            text-anchor="middle" 
+            font-family="'Inter', system-ui, -apple-system, sans-serif" 
+            font-weight="900" 
+            font-size="62" 
+            letter-spacing="14" 
+            fill="#18132e">
+        BACKLINE
+      </text>
+
+      <!-- Main Gradient Wordmark -->
+      <text x="400" y="50" 
+            text-anchor="middle" 
+            font-family="'Inter', system-ui, -apple-system, sans-serif" 
+            font-weight="900" 
+            font-size="62" 
+            letter-spacing="14" 
+            fill="url(#bodyGrad3D)"
+            stroke="#ffffff"
+            stroke-width="1.2"
+            filter="url(#laserGlow)">
+        BACKLINE
+      </text>
+
+      <!-- Subtitle Tagline -->
+      <text x="400" y="102" 
+            text-anchor="middle" 
+            font-family="'Inter', system-ui, sans-serif" 
+            font-weight="600" 
+            font-size="16" 
+            letter-spacing="6" 
+            fill="#94a3b8">
+        VISUAL QA &amp; RESILIENT CONTEXT ENGINE
+      </text>
+
+      <!-- Tech Status Indicator Pills -->
+      <g transform="translate(230, 130)">
+        <rect x="0" y="0" width="105" height="26" rx="13" fill="#1e1b4b" stroke="#6366f1" stroke-width="1" />
+        <circle cx="14" cy="13" r="4" fill="#22c55e" filter="url(#laserGlow)" />
+        <text x="26" y="17" font-family="'Inter', sans-serif" font-size="10" font-weight="700" fill="#a5b4fc" letter-spacing="1">DOM SYNC</text>
+
+        <rect x="120" y="0" width="105" height="26" rx="13" fill="#1e1b4b" stroke="#06b6d4" stroke-width="1" />
+        <circle cx="134" cy="13" r="4" fill="#06b6d4" filter="url(#laserGlow)" />
+        <text x="146" y="17" font-family="'Inter', sans-serif" font-size="10" font-weight="700" fill="#67e8f9" letter-spacing="1">REALTIME</text>
+
+        <rect x="240" y="0" width="100" height="26" rx="13" fill="#1e1b4b" stroke="#a855f7" stroke-width="1" />
+        <circle cx="254" cy="13" r="4" fill="#a855f7" filter="url(#laserGlow)" />
+        <text x="266" y="17" font-family="'Inter', sans-serif" font-size="10" font-weight="700" fill="#d8b4fe" letter-spacing="1">3D HEAL</text>
+      </g>
+    </g>
+  </g>
+</svg>

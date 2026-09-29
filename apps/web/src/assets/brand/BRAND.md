@@ -1,31 +1,71 @@
-# Backline Brand Assets
+# Backline Brand & Motion Assets
 
-All brand assets for the Backline platform, organized by type and usage.
+All brand identity, 3D interactive graphics, vector logos, cinematic loaders, and explainer animations for the Backline platform.
 
 ## 📁 Asset Map
 
 ```
-assets/brand/
-├── logo-full.svg            Full logo (icon + wordmark), gradient
-├── logo-icon.svg            Icon-only, gradient (compact / sidebar)
-├── logo-mono-light.svg      Full logo, white (for dark backgrounds)
-├── logo-mono-dark.svg       Full logo, dark (for light backgrounds)
-├── feature-anchoring.jpg    Persistent Anchoring illustration
-├── feature-comments.svg     Contextual Comments illustration
-├── feature-integrations.svg Integrations hub-and-spoke diagram
-├── feature-kanban.svg       Kanban dashboard illustration
-├── feature-realtime.svg     Real-time collaboration (animated)
-├── feature-recovery.svg     Recovery Engine illustration
-├── og-social-card.jpg       OG / social media card (1:1)
-└── BRAND.md                 This file
+apps/web/src/assets/brand/
+├── brand-design-system.html         Master Interactive Brand & Motion Showcase Gallery
+├── logo-3d-interactive.html         Interactive 3D WebGL (Three.js) Insignia with Orbit Controls
+├── factory-cinematic-loader.html    Factory.ai & Fable style Multi-Sequence Command Loader
+├── explainer-how-it-works-3d.html   3D Core Idea Explainer (DOM Pinning & Self-Healing Engine)
+├── splash-loader.html               Cinematic SVG Stroke Draw Splash Screen
+│
+├── logo-3d-photoreal.svg            Photorealistic 3D Specular & Glass Shader SVG Emblem
+├── logo-3d-mark.svg                 3D Isometric Brand Mark with Drop Shadow
+├── logo-full.svg                    Full Logo (Icon + Wordmark), Gradient
+├── logo-icon.svg                    Icon-only, Gradient (Compact / Sidebar)
+├── logo-mono-light.svg              Full Logo, White (For dark backgrounds)
+├── logo-mono-dark.svg               Full Logo, Dark (For light backgrounds)
+│
+├── feature-spatial-pinning-3d.svg   3D Isometric Spatial Pinning & DOM Target Reticle
+├── feature-neural-recovery-3d.svg   Autonomous DOM Heuristic Recovery & Self-Healing Illustration
+├── feature-anchoring.jpg            Persistent Anchoring illustration
+├── feature-comments.svg             Contextual Comments illustration
+├── feature-integrations.svg         Integrations hub-and-spoke diagram
+├── feature-kanban.svg               Kanban dashboard illustration
+├── feature-realtime.svg             Real-time collaboration (animated)
+├── feature-recovery.svg             Recovery Engine illustration
+├── og-social-card.jpg               OG / Social Media Card (1:1)
+└── BRAND.md                         This documentation file
 
 public/
-├── favicon.svg              Browser tab favicon
-└── vite.svg                 (Vite default — not used)
+├── favicon.svg                      Browser tab favicon (Target Crosshairs inside Bubble)
+└── vite.svg                         (Vite default — not used)
 
 docs/
-└── banner.jpg               README hero banner (16:9)
+└── banner.jpg                       README hero banner (16:9)
 ```
+
+---
+
+## 🚀 Interactive 3D & Cinematic Components
+
+### 1. `brand-design-system.html`
+**Master Design System Portal**: Open directly in any browser to test and inspect all logos, 3D models, loaders, vectors, and color tokens side-by-side in fullscreen.
+
+### 2. `logo-3d-interactive.html`
+**Real-Time 3D WebGL Three.js Emblem**:
+- **Orbit & Tilt**: Full 360° mouse drag orbit controls and reactive lighting caustics.
+- **Material Presets**: Toggle between **Iridescent Glass**, **Titanium Chrome**, and **Holo-Wireframe**.
+- **Explosion Mode**: Interactive slider that pulls apart the 3D layers (Outer Shell, Concentric Reticles, Optics, and Singularity Core).
+- **Telemetry HUD**: Real-time FPS, vertex count, and anchor precision readouts.
+
+### 3. `factory-cinematic-loader.html`
+**Factory.ai / Fable Style Multi-Sequence Loader**:
+- **4-Stage Morphing Insignias**: Precision Scope ➔ DOM Wireframe ➔ Spatial Pin ➔ 3D Master Insignia.
+- **Kinetic Command Feed**: Fast-scrolling telemetry (`[0.18ms] INITIALIZE_SPATIAL_OPTICS`, `[0.42ms] INDEX_DOM_HIERARCHY`, `[0.78ms] ESTABLISH_SOCKET_MESH`).
+- **Staggered Typography**: Cinematic letter slide-in transition for `BACKLINE` followed by seamless app reveal.
+- **Replayable**: Includes interactive speed controls (1x, 2x) and instant replay button.
+
+### 4. `explainer-how-it-works-3d.html`
+**3D Core Concept Explainer & Interactive Sandbox**:
+- **Interactive Web Sandbox**: Click anywhere on the live simulated page to drop real-time spatial pins.
+- **Dynamic DOM Redesign Simulator**: Hit "Simulate Redesign" to watch how Backline's recovery algorithm instantly calculates a 99.4% confidence score and relocates the pin when HTML/CSS changes!
+- **Isometric 3D Toggle**: Switches the browser window between 2D flat and 3D spatial isometric perspective.
+
+---
 
 ## 🎨 Brand Colors
 
@@ -33,57 +73,35 @@ docs/
 |---|---|---|
 | Primary Start | `#7c3aed` | Gradient start, purple accent |
 | Primary End | `#2563eb` | Gradient end, blue accent |
-| Success | `#22c55e` | Resolved states, positive actions |
-| Warning | `#f59e0b` | In-progress, attention states |
-| Danger | `#ef4444` | Errors, destructive actions |
-| Cyan | `#06b6d4` | Info, secondary accent |
-| Surface Dark | `#0f172a` | Background (dark mode) |
-| Surface Elevated | `#1e293b` | Cards, panels |
-| Border | `#334155` | Dividers, subtle outlines |
-| Text Primary | `#e2e8f0` | Headings, body (dark mode) |
-| Text Secondary | `#94a3b8` | Captions, metadata |
+| Laser Cyan | `#06b6d4` | Targeting lasers, active reticles, telemetry |
+| Success Emerald | `#10b981` | Resolved states, healed selectors, positive actions |
+| Warning Amber | `#f59e0b` | In-progress, attention states |
+| Danger Rose | `#ef4444` | Displaced nodes, errors, destructive actions |
+| Surface Dark | `#030611` | Background (dark void) |
+| Surface Elevated | `#0a0e1c` | Cards, panels, HUD |
+| Border | `rgba(99, 102, 241, 0.25)` | Subtle glowing dividers |
+| Text Primary | `#f8fafc` | Headings, primary body |
+| Text Secondary | `#94a3b8` | Captions, metadata, telemetry |
+
+---
 
 ## 🔤 Typography
 
 - **Primary font:** Inter (Google Fonts)
-- **Fallbacks:** Segoe UI, system-ui, sans-serif
-- **Wordmark weight:** 700 (Bold)
-- **Letter spacing:** -0.5px (wordmark only)
+- **Code & Telemetry:** JetBrains Mono
+- **Wordmark weight:** 900 (Black / Heavy)
+- **Wordmark Letter spacing:** `0.15em`
 
-## 📐 Logo Usage
+---
 
-| Variant | When to use |
-|---|---|
-| `logo-full.svg` | Default — header, sign-in page, marketing |
-| `logo-icon.svg` | Collapsed sidebar, mobile header, favicon fallback |
-| `logo-mono-light.svg` | Over dark photos / video, dark UI surfaces |
-| `logo-mono-dark.svg` | Print, light-background contexts |
+## 📐 Logo Assets Reference
 
-### Clear space
-
-Maintain at least **1× icon height** of clear space around the logo on all sides.
-
-### Don'ts
-
-- Don't rotate, skew, or add drop shadows to the logo
-- Don't change the gradient colors
-- Don't recreate the wordmark in a different typeface
-- Don't use the icon without the bubble outline (it's the defining shape)
-
-## 🖼️ Feature Illustrations
-
-Use these on landing pages, docs, and onboarding flows:
-
-| File | Feature | Format |
+| File | Variant | Use Case |
 |---|---|---|
-| `feature-anchoring.jpg` | Persistent Anchoring (DOM fingerprint) | Raster (AI-generated) |
-| `feature-comments.svg` | Contextual Comments (click → pin → comment) | Vector |
-| `feature-integrations.svg` | Integrations (Slack, ClickUp, Trello…) | Vector |
-| `feature-kanban.svg` | Dashboard Board (kanban + drag) | Vector |
-| `feature-realtime.svg` | Real-time Collaboration (cursors + pulse) | Vector (animated) |
-| `feature-recovery.svg` | Recovery Engine (displaced → recovered) | Vector |
-
-## 📱 Social / OG
-
-- `og-social-card.jpg` — Square 1:1 card for `<meta property="og:image">`
-- `docs/banner.jpg` — Wide 16:9 hero for the GitHub README
+| `logo-3d-photoreal.svg` | 3D Photoreal Specular Emblem | High-impact hero sections, marketing, splash screens |
+| `logo-3d-mark.svg` | 3D Isometric Mark | Brand highlights, feature cards, app launcher |
+| `logo-full.svg` | Flat Gradient Icon + Wordmark | App header, sign-in page, docs |
+| `logo-icon.svg` | Flat Gradient Icon | Collapsed sidebar, mobile navigation |
+| `logo-mono-light.svg` | Pure White Monochrome | Dark media, video overlays, monochrome prints |
+| `logo-mono-dark.svg` | Dark Charcoal Monochrome | Light paper, documentation printouts |
+| `favicon.svg` | Target Reticle Favicon | Browser tabs and PWA icons |
