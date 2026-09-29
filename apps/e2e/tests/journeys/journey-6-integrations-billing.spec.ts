@@ -2,10 +2,10 @@ import { expect, test } from "@playwright/test";
 
 import { createWorkspace, loginViaOtp } from "../../helpers/login";
 
-// Journey 6: Integrations and Billing placeholders
-// This test verifies that the integrations (Slack/Clickup) and billing pages render correctly
-// as placeholders, without attempting mock transactions.
-test("agency manages integrations and views billing placeholder", async ({ page }) => {
+// Journey 6: Integrations and billing
+// Verifies the integrations and billing pages render and that choosing a plan opens
+// checkout, without completing a payment.
+test("agency manages integrations and opens plan checkout", async ({ page }) => {
   const email = `journey6-${Date.now()}@example.com`;
   await loginViaOtp(page, email);
 
@@ -25,18 +25,14 @@ test("agency manages integrations and views billing placeholder", async ({ page 
   // Navigate to billing page
   await page.goto(`/w/${workspaceSlug}/billing`);
 
-  const billingHeader = page.getByRole("heading", { name: "Billing" });
-  await expect(billingHeader).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Billing & plans" })).toBeVisible();
 
-  // Verify the non-functional placeholder warning is present
-  await expect(page.getByText(/Prices, checkout, invoices, and server-enforced plan limits are coming soon/i)).toBeVisible();
-  
-  // Click About future plans
-  const futurePlansButton = page.getByRole("button", { name: "About future plans" });
-  await expect(futurePlansButton).toBeVisible();
-  await futurePlansButton.click();
+  // Current plan banner and tier cards
+  await expect(page.locator(".bl-plan-banner").getByRole("heading", { name: "Free Starter" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "Solo Pro plan" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "Team Standard plan" })).toBeVisible();
 
-  // Verify modal opens
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByText(/Pro and Team Plans/i)).toBeVisible();
+  // Choosing a plan opens its checkout
+  await page.getByRole("button", { name: "Upgrade to Solo Pro" }).click();
+  await expect(page.getByRole("dialog", { name: "Get Solo Pro" })).toBeVisible();
 });

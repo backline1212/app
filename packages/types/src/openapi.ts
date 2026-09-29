@@ -1516,6 +1516,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/billing/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plans */
+        get: operations["get_plans_api_v1_workspaces__workspace_id__billing_plans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/billing/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Subscription */
+        get: operations["get_subscription_api_v1_workspaces__workspace_id__billing_subscription_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/billing/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Checkout */
+        post: operations["create_checkout_api_v1_workspaces__workspace_id__billing_checkout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/billing/verify-payment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Payment */
+        post: operations["verify_payment_api_v1_workspaces__workspace_id__billing_verify_payment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/billing/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Subscription */
+        post: operations["cancel_subscription_api_v1_workspaces__workspace_id__billing_cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/billing/portal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Customer Portal */
+        post: operations["customer_portal_api_v1_workspaces__workspace_id__billing_portal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/billing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Invoices */
+        get: operations["list_invoices_api_v1_workspaces__workspace_id__billing_invoices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -1887,6 +2006,74 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** CancelSubscriptionRequest */
+        CancelSubscriptionRequest: {
+            /** Reason */
+            reason?: string | null;
+        };
+        /** CheckoutRequest */
+        CheckoutRequest: {
+            /**
+             * Plan Id
+             * @enum {string}
+             */
+            plan_id: "solo" | "team" | "enterprise";
+            /**
+             * Interval
+             * @default monthly
+             * @enum {string}
+             */
+            interval: "monthly" | "annual";
+            /**
+             * Currency
+             * @default usd
+             * @enum {string}
+             */
+            currency: "usd" | "inr";
+            /**
+             * Provider
+             * @default stripe
+             * @enum {string}
+             */
+            provider: "stripe" | "razorpay";
+        };
+        /** CheckoutResponse */
+        CheckoutResponse: {
+            /** Checkout Id */
+            checkout_id: string;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "stripe" | "razorpay" | "sandbox";
+            /**
+             * Plan Id
+             * @enum {string}
+             */
+            plan_id: "solo" | "team" | "enterprise";
+            /** Plan Name */
+            plan_name: string;
+            /**
+             * Interval
+             * @enum {string}
+             */
+            interval: "monthly" | "annual";
+            /**
+             * Currency
+             * @enum {string}
+             */
+            currency: "usd" | "inr";
+            /** Amount */
+            amount: number;
+            /** Amount Minor */
+            amount_minor: number;
+            /** Checkout Url */
+            checkout_url?: string | null;
+            /** Razorpay Order Id */
+            razorpay_order_id?: string | null;
+            /** Razorpay Key Id */
+            razorpay_key_id?: string | null;
+        };
         /**
          * ClickOffsetPct
          * @description Where within the anchored element the reviewer clicked, as a 0-1 fraction of its
@@ -2144,6 +2331,26 @@ export interface components {
             waiting_on_ids?: string[] | null;
             /** Waiting On Client */
             waiting_on_client?: boolean | null;
+        };
+        /** ComparisonCategoryOut */
+        ComparisonCategoryOut: {
+            /** Category */
+            category: string;
+            /** Rows */
+            rows: components["schemas"]["ComparisonRowOut"][];
+        };
+        /** ComparisonRowOut */
+        ComparisonRowOut: {
+            /** Name */
+            name: string;
+            /** Free */
+            free: string;
+            /** Solo */
+            solo: string;
+            /** Team */
+            team: string;
+            /** Enterprise */
+            enterprise: string;
         };
         /** ContextIn */
         ContextIn: {
@@ -2623,6 +2830,59 @@ export interface components {
              */
             role: "admin" | "member";
         };
+        /** InvoiceOut */
+        InvoiceOut: {
+            /** Id */
+            id: string;
+            /** Invoice Number */
+            invoice_number: string;
+            /** Amount Paid */
+            amount_paid: number;
+            /**
+             * Currency
+             * @enum {string}
+             */
+            currency: "usd" | "inr";
+            /**
+             * Status
+             * @constant
+             * @enum {string}
+             */
+            status: "paid";
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "stripe" | "razorpay" | "sandbox";
+            /** Provider Payment Id */
+            provider_payment_id?: string | null;
+            /** Plan Name */
+            plan_name: string;
+            /**
+             * Interval
+             * @enum {string}
+             */
+            interval: "monthly" | "annual";
+            /**
+             * Period Start
+             * Format: date-time
+             */
+            period_start: string;
+            /**
+             * Period End
+             * Format: date-time
+             */
+            period_end: string;
+            /**
+             * Paid At
+             * Format: date-time
+             */
+            paid_at: string;
+            /** Pdf Url */
+            pdf_url?: string | null;
+            /** Hosted Invoice Url */
+            hosted_invoice_url?: string | null;
+        };
         /**
          * JiraIntegrationCreate
          * @description Either an OAuth `code` (needs the operator's Atlassian OAuth app) or the site
@@ -2895,6 +3155,76 @@ export interface components {
         PasswordSetRequest: {
             /** Password */
             password: string;
+        };
+        /**
+         * PaymentOptionsOut
+         * @description Which checkout choices work on this server. A gateway without keys is still
+         *     offered while the sandbox is allowed; it then completes as a test payment.
+         */
+        PaymentOptionsOut: {
+            /** Stripe Live */
+            stripe_live: boolean;
+            /** Razorpay Live */
+            razorpay_live: boolean;
+            /** Sandbox */
+            sandbox: boolean;
+        };
+        /** PlanFeatureOut */
+        PlanFeatureOut: {
+            /** Label */
+            label: string;
+            /**
+             * Coming Soon
+             * @default false
+             */
+            coming_soon: boolean;
+        };
+        /** PlanTierOut */
+        PlanTierOut: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "free" | "solo" | "team" | "enterprise";
+            /** Name */
+            name: string;
+            /** Badge */
+            badge: string;
+            /** Description */
+            description: string;
+            /** Popular */
+            popular: boolean;
+            /** Price Monthly Usd */
+            price_monthly_usd: number;
+            /** Price Annual Usd */
+            price_annual_usd: number;
+            /** Price Monthly Inr */
+            price_monthly_inr: number;
+            /** Price Annual Inr */
+            price_annual_inr: number;
+            /** Project Limit */
+            project_limit: number | null;
+            /** Member Limit */
+            member_limit: number | null;
+            /** Ai Credits Monthly */
+            ai_credits_monthly: number;
+            /** Storage Gb */
+            storage_gb: number;
+            /** Features */
+            features: components["schemas"]["PlanFeatureOut"][];
+        };
+        /** PlansResponseOut */
+        PlansResponseOut: {
+            /** Plans */
+            plans: components["schemas"]["PlanTierOut"][];
+            /** Categories */
+            categories: components["schemas"]["ComparisonCategoryOut"][];
+            payment_options: components["schemas"]["PaymentOptionsOut"];
+        };
+        /** PortalResponse */
+        PortalResponse: {
+            /** Portal Url */
+            portal_url: string;
         };
         /** ProjectAnalysisResult */
         ProjectAnalysisResult: {
@@ -3613,6 +3943,50 @@ export interface components {
             /** Steps */
             steps: string[];
         };
+        /** SubscriptionOut */
+        SubscriptionOut: {
+            /** Workspace Id */
+            workspace_id: string;
+            /**
+             * Plan Id
+             * @enum {string}
+             */
+            plan_id: "free" | "solo" | "team" | "enterprise";
+            /** Plan Name */
+            plan_name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "expired";
+            /** Interval */
+            interval?: ("monthly" | "annual") | null;
+            /** Currency */
+            currency?: ("usd" | "inr") | null;
+            /**
+             * Amount
+             * @default 0
+             */
+            amount: number;
+            /** Provider */
+            provider?: ("stripe" | "razorpay" | "sandbox") | null;
+            /** Current Period Start */
+            current_period_start?: string | null;
+            /** Current Period End */
+            current_period_end?: string | null;
+            /** Expired Plan Id */
+            expired_plan_id?: ("solo" | "team" | "enterprise") | null;
+            /** Expired Plan Name */
+            expired_plan_name?: string | null;
+            usage: components["schemas"]["UsageMetricsOut"];
+            /** Is Owner */
+            is_owner: boolean;
+            /**
+             * Stripe Portal Available
+             * @default false
+             */
+            stripe_portal_available: boolean;
+        };
         /** SuggestReplyResult */
         SuggestReplyResult: {
             /** Suggestions */
@@ -3838,6 +4212,28 @@ export interface components {
             /** Content Length */
             content_length: number;
         };
+        /** UsageMetricsOut */
+        UsageMetricsOut: {
+            /** Projects Used */
+            projects_used: number;
+            /** Projects Limit */
+            projects_limit: number | null;
+            /** Members Used */
+            members_used: number;
+            /** Members Limit */
+            members_limit: number | null;
+            /** Ai Credits Used */
+            ai_credits_used: number;
+            /** Ai Credits Limit */
+            ai_credits_limit: number;
+            /**
+             * Ai Credits Reset At
+             * Format: date-time
+             */
+            ai_credits_reset_at: string;
+            /** Storage Gb Limit */
+            storage_gb_limit: number;
+        };
         /** UserOut */
         UserOut: {
             /** Id */
@@ -3908,6 +4304,15 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VerifyPaymentRequest */
+        VerifyPaymentRequest: {
+            /** Checkout Id */
+            checkout_id: string;
+            /** Razorpay Payment Id */
+            razorpay_payment_id?: string | null;
+            /** Razorpay Signature */
+            razorpay_signature?: string | null;
         };
         /** ViewportIn */
         ViewportIn: {
@@ -7355,6 +7760,235 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_plans_api_v1_workspaces__workspace_id__billing_plans_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlansResponseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_subscription_api_v1_workspaces__workspace_id__billing_subscription_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_checkout_api_v1_workspaces__workspace_id__billing_checkout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_payment_api_v1_workspaces__workspace_id__billing_verify_payment_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_subscription_api_v1_workspaces__workspace_id__billing_cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CancelSubscriptionRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    customer_portal_api_v1_workspaces__workspace_id__billing_portal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_invoices_api_v1_workspaces__workspace_id__billing_invoices_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceOut"][];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -8,6 +8,7 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
+    public details: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -85,7 +86,7 @@ async function toApiError(response: Response): Promise<ApiError> {
   const body = await response.json().catch(() => null);
   const code = body?.error?.code ?? (response.status === 422 ? "VALIDATION_ERROR" : "UNKNOWN_ERROR");
   const message = body?.error?.message || detailMessage(body?.detail) || fallbackMessage(response.status);
-  return new ApiError(response.status, code, message);
+  return new ApiError(response.status, code, message, body?.error?.details ?? {});
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {

@@ -1,11 +1,12 @@
 import { Avatar } from "@backline/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
+import { planLimitUpgrade, type PaidPlanId } from "../billing/api";
 import * as projectsApi from "../projects/api";
 import * as workspacesApi from "./api";
 import type { WorkspaceOut } from "./api";
@@ -24,25 +25,29 @@ import { SearchIcon } from "../../components/icons";
 import type { MemberOut } from "./api";
 
 interface AddMemberModalProps {
+  workspaceSlug: string;
   onInvite: (email: string, role: "admin" | "member") => Promise<void>;
   onClose: () => void;
 }
 
-function AddMemberModal({ onInvite, onClose }: AddMemberModalProps) {
+function AddMemberModal({ workspaceSlug, onInvite, onClose }: AddMemberModalProps) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "member">("member");
   const [error, setError] = useState<string | null>(null);
+  const [upgradePlan, setUpgradePlan] = useState<PaidPlanId | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    setUpgradePlan(null);
     setIsSubmitting(true);
     try {
       await onInvite(email, role);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send invite.");
+      setUpgradePlan(planLimitUpgrade(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -75,7 +80,12 @@ function AddMemberModal({ onInvite, onClose }: AddMemberModalProps) {
             <option value="admin">Admin</option>
           </select>
         </label>
-        {error && <div className="bl-error">{error}</div>}
+        {error && (
+          <div className="bl-error">
+            {error}
+            {upgradePlan && <> <Link to={`/w/${workspaceSlug}/billing?upgrade=${upgradePlan}`} onClick={onClose}>See plans</Link></>}
+          </div>
+        )}
         <footer className="bl-form-actions">
           <button type="button" className="bl-quiet" onClick={onClose}>Cancel</button>
           <button type="submit" className="bl-button mint" disabled={isSubmitting}>
@@ -255,6 +265,7 @@ export function MembersPage() {
 
       {showAddMember && (
         <AddMemberModal
+          workspaceSlug={workspace.slug}
           onInvite={async (email, role) => {
             await inviteMutation.mutateAsync({ email, role });
           }}

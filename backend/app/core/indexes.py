@@ -209,6 +209,50 @@ DELETION_SUPPORT_INDEXES: tuple[AdditiveIndex, ...] = (
     ),
 )
 
+# docs/tdr/0052. Webhooks find a checkout by the gateway's own session/order id, and the
+# unique checkout_id on invoices is the backstop behind claim_checkout's exactly-once
+# activation. Invoice numbers are sequential across the service (one seller).
+BILLING_INDEXES: tuple[AdditiveIndex, ...] = (
+    AdditiveIndex(
+        "billing_checkouts",
+        (("provider", 1), ("reference", 1)),
+        "billing_checkouts_provider_reference_unique",
+        {"unique": True},
+    ),
+    AdditiveIndex(
+        "billing_checkouts",
+        (("workspace_id", 1), ("created_at", -1)),
+        "billing_checkouts_workspace_created",
+    ),
+    AdditiveIndex(
+        "billing_events",
+        (("workspace_id", 1), ("created_at", -1)),
+        "billing_events_workspace_created",
+    ),
+    AdditiveIndex(
+        "invoices",
+        (("workspace_id", 1), ("created_at", -1)),
+        "invoices_workspace_created",
+    ),
+    AdditiveIndex(
+        "invoices",
+        (("invoice_number", 1),),
+        "invoices_number_unique",
+        {"unique": True, "sparse": True},
+    ),
+    AdditiveIndex(
+        "invoices",
+        (("checkout_id", 1),),
+        "invoices_checkout_unique",
+        {"unique": True, "sparse": True},
+    ),
+    AdditiveIndex(
+        "ai_usage",
+        (("workspace_id", 1), ("created_at", -1)),
+        "ai_usage_workspace_created",
+    ),
+)
+
 
 async def ensure_additive_indexes(
     db: AsyncIOMotorDatabase[dict[str, Any]], indexes: tuple[AdditiveIndex, ...]
@@ -321,3 +365,4 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
     await ensure_additive_indexes(db, AUDIT_BATCH_14_INDEXES)
     await ensure_additive_indexes(db, TICKET_NUMBER_INDEXES)
     await ensure_additive_indexes(db, INTEGRATION_LINK_INDEXES)
+    await ensure_additive_indexes(db, BILLING_INDEXES)

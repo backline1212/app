@@ -1,5 +1,59 @@
 # Delivery and verification ledger
 
+## 2026-09-30: Billing plans, Stripe, Razorpay/UPI and plan limits (TDR-0052)
+
+The user asked for the billing branch's first cut to be verified against
+`docs/BILLING_BRANCH_OVERVIEW.md`, then fixed, optimized and pushed. That first cut was
+filed as TDR-0048; `main` has since used both 0048 and 0051, so this is TDR-0052.
+`main` was merged in first, and again after PR #45 (route titles), whose
+`[workspace, "Billing"]` page-title convention the billing page now follows. The
+reasoning is in TDR-0052.
+
+**Fixed:**
+- **Free upgrades.**
+  - Webhooks now check their Stripe/Razorpay signatures; Stripe's also has a 5-minute
+    replay window.
+  - Confirming a payment now activates only what a server-side checkout record says.
+    Stripe sessions are re-read from Stripe, and Razorpay signatures are checked.
+  - The sandbox is refused in production.
+- **One payment, one invoice.** Activation is exactly-once across the browser confirm
+  and webhooks. Invoice numbers come from a service-wide counter, so they no longer
+  collide across workspaces.
+- **Real gateway flows.** Razorpay Checkout (UPI QR/ID, RuPay, netbanking) and Stripe's
+  return confirm both work. The fake card and UPI inputs, fake card digits and fake
+  storage figure are gone.
+- **Expiry.** Paid plans are prepaid and lapse to Free when their period ends.
+  Renewing the same plan extends it.
+- **Limits.**
+  - Plans now match the spec.
+  - AI credits are metered (one per Groq call, reset monthly) and enforced.
+  - Restoring an archived project counts against the project limit.
+  - A refused invite no longer creates a user.
+  - Upgrade prompts key off `PLAN_LIMIT_EXCEEDED`, not the word "limit".
+- **UI.**
+  - The billing page, checkout, banner, comparison table and invoices were rebuilt on
+    the app's own classes and tokens, so light/dark and phone width work.
+  - The table's `<div>` inside `<tbody>` is gone.
+  - Only owners see plan actions.
+  - Features the product doesn't have yet are marked "Coming soon".
+
+**Verification:**
+- `ruff`, `ruff format --check`, `mypy` (201 files) and the workspace-scoping check pass.
+- `pytest tests/test_billing.py tests/test_permissions.py`: 11 passed.
+- Scratch backend pass on mongomock/fakeredis: 41/41 checks. It runs the transaction
+  callback directly, because mongomock has no sessions.
+- Headless browser pass in light, dark and at 390px: test-mode upgrade, invoice,
+  deep link and URL filters. No console errors beyond React Router's existing notice.
+- `pnpm lint`, `pnpm typecheck` and `pnpm build` pass.
+
+**Not verified:**
+- Live Stripe/Razorpay keys.
+- The rewritten billing e2e specs; they need the full stack.
+
+**Open:**
+- Taxes and receipt legal details are undecided.
+- The comparison table's integration, cloud-login and MCP rows aren't enforced.
+
 ## 2026-09-30: Contextual page titles and project sub-route navigation (TDR-0051)
 
 The user asked for the first commit on `feature/standardize-routes-titles-navigation`

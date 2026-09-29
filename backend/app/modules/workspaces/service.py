@@ -9,6 +9,8 @@ from app.core.email import send_email
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
 from app.modules.auth.repository import UserRepository
+from app.modules.billing.limits import require_within_plan_limit
+from app.modules.billing.plans import effective_plan_id
 from app.modules.workspaces import events as workspace_events
 from app.modules.workspaces.onboarding import seed_sample_project
 from app.modules.workspaces.repository import MembershipRepository, WorkspaceRepository
@@ -28,7 +30,8 @@ def _workspace_out(doc: dict[str, Any], role: str | None) -> WorkspaceOut:
         id=str(doc["_id"]),
         name=doc["name"],
         slug=doc["slug"],
-        plan=doc["plan"],
+        # A lapsed prepaid plan reads as Free everywhere, not just on the billing page.
+        plan=effective_plan_id(doc),
         created_at=doc["created_at"],
         role=role,
     )
@@ -179,13 +182,20 @@ async def invite_member(
     user_repo = UserRepository(db)
     membership_repo = MembershipRepository(db)
 
-    user_doc = await user_repo.get_or_create(
+    existing_user = await user_repo.find_by_email(email)
+    if existing_user is not None and await membership_repo.find(
+        workspace_id=workspace_id, user_id=str(existing_user["_id"])
+    ):
+        raise ConflictError("User is already a member of this workspace.")
+
+    # Before get_or_create, so an invite the plan refuses doesn't leave a user record
+    # behind for an address that was never actually invited.
+    await require_within_plan_limit(db, workspace_id, "members")
+
+    user_doc = existing_user or await user_repo.get_or_create(
         email=email, name=email.split("@")[0], avatar_url=None, auth_provider="invited"
     )
-
     user_id = str(user_doc["_id"])
-    if await membership_repo.find(workspace_id=workspace_id, user_id=user_id) is not None:
-        raise ConflictError("User is already a member of this workspace.")
 
     try:
         membership = await membership_repo.create(

@@ -8,9 +8,8 @@ interface ProFeatureModalProps {
 
 // The small "you just explored a pro feature" teaser - shared by every pro-gated
 // trigger point (multi-version, page approval, private mode, BugHunt AI's own
-// Analyse Page) rather than duplicated per trigger. Subscription functionality
-// itself is coming later, so "Upgrade to Pro" here just opens the full pricing modal
-// (UpgradeToProModal) - nothing purchasable actually happens yet.
+// Analyse Page) rather than duplicated per trigger. "Upgrade to Pro" hands off to the
+// caller, which opens UpgradeToProModal and from there the billing page.
 export function ProFeatureModal({ description, onClose, onUpgrade }: ProFeatureModalProps) {
   return (
     <Dialog title="This is a Pro feature" onClose={onClose}>

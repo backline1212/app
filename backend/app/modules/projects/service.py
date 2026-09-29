@@ -7,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.events import append_event
+from app.modules.billing.limits import require_within_plan_limit
 from app.modules.clients.repository import ClientRepository
 from app.modules.pages.repository import PageRepository
 from app.modules.projects import events as project_events
@@ -73,6 +74,8 @@ async def create_project(
     # scope here would be a circular import. Breaking it this way, rather than
     # duplicating share-link creation logic, keeps "one way to create a share link."
     from app.modules.share_links import service as share_link_service
+
+    await require_within_plan_limit(db, workspace_id, "projects")
 
     repo = ProjectRepository(db)
     if client_id and not await ClientRepository(db).find(workspace_id, client_id):
@@ -245,7 +248,11 @@ async def restore_project(
     workspace_id: str,
     actor_user_id: str,
 ) -> ProjectOut:
-    await get_project(db, project_id=project_id, workspace_id=workspace_id)
+    project = await get_project(db, project_id=project_id, workspace_id=workspace_id)
+    if project.archived_at is not None:
+        # Restoring makes the project active again, so it counts against the plan the
+        # same as creating one - otherwise archive, create, restore walks past the limit.
+        await require_within_plan_limit(db, workspace_id, "projects")
     await ProjectRepository(db).update_metadata(workspace_id, project_id, {"archived_at": None})
     await append_event(
         db,
