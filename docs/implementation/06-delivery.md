@@ -1896,3 +1896,18 @@ database migration, or production deployment is claimed.
     scaling artwork (repainted every frame and flashed in Chrome). Hover is now the
     design's border + shadow change with a .13s opacity fade on a flat scrim.
   - Verification: `vite build` passed. Not checked in a browser.
+# 2026-09-29: Authenticated native browser review (TDR-0048)
+
+- Implemented one-click project-bound browser review for members and guests, using
+  the real signed-in website tab, extension toolbar, server-side comments, page
+  registration and native visible-tab screenshots. Retired the misleading cookie-sync
+  control and cloud-login entry point; removed extension cookie permission.
+- Verification completed locally: web/widget/extension typecheck, lint and production
+  builds; 10 worker protocol checks (project/guest scope, OAuth origin, screenshot
+  tab switch, upload, service-worker restart); isolated DOM toolbar/annotation checks.
+- Full browser/API journey (password login, provider redirect, member/guest posts,
+  screenshot upload and SPA page change) is checked in and ready to run against an
+  isolated Mongo/Redis/S3 stack. It is **pending**, since this execution environment
+  forbids Chromium/MongoDB sockets and the permission escalation was rejected.
+  The owner declined a GitHub Actions gate; the temporary workflow was removed.
+  Do not mark the feature production verified on the basis of the local checks.

@@ -179,7 +179,7 @@ export function ProjectForm({ workspace, project, initialType, onClose }: {
           <span className="bl-success-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5" /></svg></span>
           <p className="bl-dialog-kicker">{created.name}{selectedClient ? ` · ${selectedClient.name}` : ""}</p>
           <h3>Ready for feedback</h3>
-          <p>Send the review link to your client. They can open it and leave comments without an account or extension.</p>
+          <p>Send the review link to your client. Public sites work without an install; signed-in sites offer Browser review after a one-time extension setup.</p>
           {link ? (
             <div className="bl-link-row">
               <input className="bl-input bl-mono" aria-label="Review link" readOnly value={link} onFocus={(event) => event.target.select()} />
