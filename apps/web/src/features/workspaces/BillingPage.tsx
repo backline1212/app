@@ -16,7 +16,7 @@ const CHECKS = [
 // This page therefore reports the stored label without inventing limits or pricing.
 export function BillingPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle('Billing');
+  useDocumentTitle([workspace.name, 'Billing']);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const planLabel = workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1);
 

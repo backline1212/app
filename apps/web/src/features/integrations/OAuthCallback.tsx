@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { useDocumentTitle } from "../../lib/use-document-title";
 import * as integrationsApi from "./api";
 import { type OAuthProvider, takePendingOAuth } from "./oauth-state";
 
@@ -20,6 +21,7 @@ export function OAuthCallback({ provider }: { provider: OAuthProvider }) {
   const [error, setError] = useState<string | null>(null);
   const attempted = useRef(false);
   const name = NAMES[provider];
+  useDocumentTitle(`Connecting ${name}`);
 
   useEffect(() => {
     if (attempted.current) return;
