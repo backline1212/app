@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Backline — Cinematic Splash / Loader Screen
+  ============================================
+  Factory.ai / Fable style: logo assembles piece by piece,
+  then wordmark fades in, then the loader bar fills.
+  
+  Usage: Drop this component into your app's root before routing.
+  Store-only — do NOT implement yet.
+  
+  Animation sequence (total ~3.2s):
+    0.0s  — Screen is black
+    0.3s  — Bubble outline draws itself (SVG stroke-dashoffset)
+    0.9s  — Crosshair rings scale in from center
+    1.3s  — Crosshair lines extend outward
+    1.7s  — Core dot pulses in
+    2.0s  — Wordmark "BACKLINE" letters fade+slide in staggered
+    2.6s  — Loader bar fills left → right with gradient
+    3.2s  — Whole screen fades out → app appears
+-->
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Backline — Loading</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple: #7c3aed;
+      --indigo: #6366f1;
+      --blue: #2563eb;
+      --cyan: #06b6d4;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --bg: #060810;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: 'Inter', system-ui, sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Splash wrapper ── */
+    #splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 60%, #12063a 0%, var(--bg) 70%);
+      z-index: 9999;
+      animation: splash-out 0.5s ease 3.2s forwards;
+    }
+
+    @keyframes splash-out {
+      to { opacity: 0; pointer-events: none; }
+    }
+
+    /* ── Ambient particles ── */
+    .particles {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      border-radius: 50%;
+      background: #a855f7;
+      opacity: 0;
+      animation: float-up var(--dur, 6s) ease-in var(--delay, 0s) infinite;
+    }
+    @keyframes float-up {
+      0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+      10%  { opacity: 0.6; }
+      90%  { opacity: 0.2; }
+      100% { opacity: 0; transform: translateY(-120vh) scale(1.5); }
+    }
+
+    /* ── Logo SVG wrapper ── */
+    .logo-wrap {
+      width: min(220px, 45vw);
+      height: min(220px, 45vw);
+      position: relative;
+    }
+
+    /* Bloom beneath logo */
+    .logo-wrap::after {
+      content: '';
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 30px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(124,58,237,0.5) 0%, transparent 70%);
+      filter: blur(8px);
+      animation: bloom-pulse 3s ease-in-out 0.3s infinite;
+    }
+    @keyframes bloom-pulse {
+      0%, 100% { opacity: 0.5; transform: translateX(-50%) scaleX(1); }
+      50%       { opacity: 1;   transform: translateX(-50%) scaleX(1.2); }
+    }
+
+    /* ── SVG animation states ── */
+
+    /* Bubble outline draws in */
+    #bubble-path {
+      stroke-dasharray: 520;
+      stroke-dashoffset: 520;
+      animation: draw-bubble 0.7s cubic-bezier(0.4,0,0.2,1) 0.3s forwards;
+    }
+    @keyframes draw-bubble {
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* Bubble fill fades in after draw */
+    #bubble-fill {
+      opacity: 0;
+      animation: fade-in 0.4s ease 0.9s forwards;
+    }
+
+    /* Gloss shimmer */
+    #bubble-gloss {
+      opacity: 0;
+      animation: fade-in 0.5s ease 1.0s forwards;
+    }
+
+    /* Outer ring scales from 0 */
+    #ring-outer {
+      transform-origin: 100px 76px;
+      transform: scale(0);
+      opacity: 0;
+      animation: scale-in 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.9s forwards;
+    }
+    #ring-inner {
+      transform-origin: 100px 76px;
+      transform: scale(0);
+      opacity: 0;
+      animation: scale-in 0.35s cubic-bezier(0.34,1.56,0.64,1) 1.05s forwards;
+    }
+    @keyframes scale-in {
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* Crosshair lines extend outward */
+    #ch-top    { stroke-dasharray: 20; stroke-dashoffset: 20; animation: draw-line 0.25s ease 1.3s forwards; }
+    #ch-bottom { stroke-dasharray: 20; stroke-dashoffset: 20; animation: draw-line 0.25s ease 1.38s forwards; }
+    #ch-left   { stroke-dasharray: 23; stroke-dashoffset: 23; animation: draw-line 0.25s ease 1.46s forwards; }
+    #ch-right  { stroke-dasharray: 23; stroke-dashoffset: 23; animation: draw-line 0.25s ease 1.54s forwards; }
+    @keyframes draw-line { to { stroke-dashoffset: 0; } }
+
+    /* Tick marks */
+    #ticks { opacity: 0; animation: fade-in 0.3s ease 1.6s forwards; }
+
+    /* Core dot pop */
+    #core-dot {
+      transform-origin: 100px 76px;
+      transform: scale(0);
+      animation: pop-in 0.3s cubic-bezier(0.34,1.56,0.64,1) 1.7s forwards;
+    }
+    @keyframes pop-in { to { transform: scale(1); } }
+
+    /* Pin tail */
+    #pin-tail { opacity: 0; animation: fade-in 0.3s ease 1.8s forwards; }
+
+    /* Radial core glow */
+    #core-glow { opacity: 0; animation: fade-in 0.4s ease 1.75s forwards; }
+
+    /* Bloom glow bottom */
+    #bloom-glow { opacity: 0; animation: fade-in 0.5s ease 0.5s forwards; }
+
+    @keyframes fade-in { to { opacity: 1; } }
+
+    /* Floating idle (starts after assembly) */
+    .logo-wrap svg {
+      animation: logo-float 4s ease-in-out 2.2s infinite;
+    }
+    @keyframes logo-float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-8px); }
+    }
+
+    /* ── Wordmark ── */
+    .wordmark {
+      margin-top: 28px;
+      display: flex;
+      gap: 0;
+      overflow: hidden;
+    }
+    .wordmark span {
+      font-family: 'Inter', sans-serif;
+      font-weight: 900;
+      font-size: clamp(28px, 5vw, 44px);
+      letter-spacing: 0.18em;
+      color: transparent;
+      background: linear-gradient(135deg, #e2e8f0 0%, #c4b5fd 50%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      opacity: 0;
+      transform: translateY(12px);
+      display: inline-block;
+      animation: letter-in 0.4s cubic-bezier(0.22,1,0.36,1) forwards;
+    }
+    /* Stagger each letter */
+    .wordmark span:nth-child(1)  { animation-delay: 2.00s; }
+    .wordmark span:nth-child(2)  { animation-delay: 2.06s; }
+    .wordmark span:nth-child(3)  { animation-delay: 2.12s; }
+    .wordmark span:nth-child(4)  { animation-delay: 2.18s; }
+    .wordmark span:nth-child(5)  { animation-delay: 2.24s; }
+    .wordmark span:nth-child(6)  { animation-delay: 2.30s; }
+    .wordmark span:nth-child(7)  { animation-delay: 2.36s; }
+    .wordmark span:nth-child(8)  { animation-delay: 2.42s; }
+
+    @keyframes letter-in {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Tagline ── */
+    .tagline {
+      margin-top: 10px;
+      font-size: clamp(11px, 1.5vw, 13px);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--muted);
+      opacity: 0;
+      animation: fade-in 0.6s ease 2.5s forwards;
+    }
+
+    /* ── Loader bar ── */
+    .loader-wrap {
+      margin-top: 44px;
+      width: min(280px, 55vw);
+      height: 2px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+      opacity: 0;
+      animation: fade-in 0.3s ease 2.55s forwards;
+    }
+    .loader-fill {
+      height: 100%;
+      width: 0;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--purple) 0%, var(--indigo) 40%, var(--cyan) 100%);
+      box-shadow: 0 0 8px rgba(124,58,237,0.8), 0 0 20px rgba(99,102,241,0.4);
+      animation: fill-bar 0.65s cubic-bezier(0.4,0,0.2,1) 2.6s forwards;
+    }
+    @keyframes fill-bar {
+      to { width: 100%; }
+    }
+
+    /* Loader glow head */
+    .loader-fill::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: -4px;
+      width: 4px;
+      height: 10px;
+      border-radius: 50%;
+      background: #c4b5fd;
+      box-shadow: 0 0 12px 4px rgba(196,181,253,0.9);
+    }
+    .loader-wrap { position: relative; }
+
+    /* ── Version / sub-text ── */
+    .version {
+      margin-top: 16px;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      color: rgba(100,116,139,0.5);
+      opacity: 0;
+      animation: fade-in 0.4s ease 2.65s forwards;
+    }
+  </style>
+</head>
+<body>
+
+<div id="splash" role="status" aria-label="Loading Backline">
+
+  <!-- Ambient particles -->
+  <div class="particles" aria-hidden="true">
+    <!-- Generated via JS below -->
+  </div>
+
+  <!-- 3D Logo Mark SVG (assembled by CSS animation) -->
+  <div class="logo-wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="sp-main" x1="30" y1="20" x2="170" y2="180" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#a855f7"/>
+          <stop offset="50%" stop-color="#6366f1"/>
+          <stop offset="100%" stop-color="#2563eb"/>
+        </linearGradient>
+        <linearGradient id="sp-fill" x1="30" y1="30" x2="170" y2="170" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#1e1b4b" stop-opacity="0.95"/>
+          <stop offset="100%" stop-color="#0f172a" stop-opacity="0.98"/>
+        </linearGradient>
+        <linearGradient id="sp-gloss" x1="0.3" y1="0" x2="0.7" y2="0.5">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.15"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+        </linearGradient>
+        <radialGradient id="sp-core-glow" cx="50%" cy="38%" r="28%">
+          <stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.7"/>
+          <stop offset="100%" stop-color="#818cf8" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="sp-bloom" cx="50%" cy="85%" r="35%">
+          <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="sp-glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- Bloom beneath -->
+      <ellipse id="bloom-glow" cx="100" cy="168" rx="50" ry="14" fill="url(#sp-bloom)">
+        <animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite"/>
+      </ellipse>
+
+      <!-- Bubble fill (dark glass) -->
+      <path id="bubble-fill"
+        d="M100 18C62 18 30 44 30 76C30 101 48 122 75 131L66 158L96 140C97.3 140.2 98.6 140.3 100 140.3C138 140.3 170 116 170 76C170 44 138 18 100 18Z"
+        fill="url(#sp-fill)"/>
+
+      <!-- Gloss panel -->
+      <path id="bubble-gloss"
+        d="M55 30 Q100 22 145 36 Q138 55 100 52 Q62 50 55 30Z"
+        fill="url(#sp-gloss)" opacity="0.7"/>
+
+      <!-- Bubble outline (draws itself) -->
+      <path id="bubble-path"
+        d="M100 18C62 18 30 44 30 76C30 101 48 122 75 131L66 158L96 140C97.3 140.2 98.6 140.3 100 140.3C138 140.3 170 116 170 76C170 44 138 18 100 18Z"
+        stroke="url(#sp-main)" stroke-width="2.5" fill="none"/>
+
+      <!-- Crosshair group -->
+      <g filter="url(#sp-glow)">
+        <circle id="ring-outer" cx="100" cy="76" r="28" stroke="url(#sp-main)" stroke-width="2" fill="none">
+          <animate attributeName="r" values="27;29.5;27" dur="2.5s" begin="2.2s" repeatCount="indefinite"/>
+        </circle>
+        <circle id="ring-inner" cx="100" cy="76" r="14" stroke="url(#sp-main)" stroke-width="1.5" fill="none" opacity="0.6"/>
+
+        <!-- Crosshair lines -->
+        <line id="ch-top"    x1="100" y1="40" x2="100" y2="60" stroke="url(#sp-main)" stroke-width="2" stroke-linecap="round"/>
+        <line id="ch-bottom" x1="100" y1="92" x2="100" y2="112" stroke="url(#sp-main)" stroke-width="2" stroke-linecap="round"/>
+        <line id="ch-left"   x1="60"  y1="76" x2="83"  y2="76"  stroke="url(#sp-main)" stroke-width="2" stroke-linecap="round"/>
+        <line id="ch-right"  x1="117" y1="76" x2="140" y2="76"  stroke="url(#sp-main)" stroke-width="2" stroke-linecap="round"/>
+
+        <!-- Tick marks -->
+        <g id="ticks">
+          <line x1="100" y1="46" x2="100" y2="50" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="100" y1="102" x2="100" y2="106" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="70"  y1="76"  x2="74"  y2="76"  stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="126" y1="76"  x2="130" y2="76"  stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
+        </g>
+
+        <!-- Core dot -->
+        <g id="core-dot">
+          <circle cx="100" cy="76" r="4" fill="url(#sp-main)"/>
+          <circle cx="100" cy="76" r="2.2" fill="#e0c3fc"/>
+        </g>
+      </g>
+
+      <!-- Core glow -->
+      <circle id="core-glow" cx="100" cy="76" r="50" fill="url(#sp-core-glow)" opacity="0.4">
+        <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2.5s" begin="2.2s" repeatCount="indefinite"/>
+      </circle>
+
+      <!-- Pin tail -->
+      <g id="pin-tail">
+        <path d="M93 136L100 158L107 136Z" fill="url(#sp-main)" opacity="0.85"/>
+        <path d="M96 136L100 152L104 136Z" fill="#c4b5fd" opacity="0.5"/>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Wordmark: letters stagger in -->
+  <div class="wordmark" aria-label="Backline">
+    <span>B</span><span>A</span><span>C</span><span>K</span><span>L</span><span>I</span><span>N</span><span>E</span>
+  </div>
+
+  <!-- Tagline -->
+  <p class="tagline">Contextual feedback · Zero friction</p>
+
+  <!-- Loader bar -->
+  <div class="loader-wrap" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+    <div class="loader-fill"></div>
+  </div>
+
+  <!-- Version -->
+  <p class="version">v1.0 · Workspace Review Platform</p>
+</div>
+
+<!-- App content would mount here -->
+<div id="app" style="opacity:0; animation: fade-in 0.4s ease 3.6s forwards;">
+  <!-- React/Vite app mounts here -->
+</div>
+
+<style>
+  @keyframes fade-in { to { opacity: 1; } }
+</style>
+
+<script>
+  // Generate ambient particles
+  const container = document.querySelector('.particles');
+  for (let i = 0; i < 40; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.cssText = `
+      left: ${Math.random() * 100}%;
+      top: ${Math.random() * 100}%;
+      --dur: ${4 + Math.random() * 6}s;
+      --delay: ${Math.random() * 5}s;
+      width: ${1 + Math.random() * 2}px;
+      height: ${1 + Math.random() * 2}px;
+      background: ${Math.random() > 0.5 ? '#a855f7' : '#818cf8'};
+      opacity: 0;
+    `;
+    container.appendChild(p);
+  }
+</script>
+</body>
+</html>

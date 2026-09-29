@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="rt-grad" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="rt-grad2" x1="200" y1="0" x2="0" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="#111827"/>
+  <!-- Page outline -->
+  <rect x="50" y="38" width="100" height="124" rx="6" stroke="#334155" stroke-width="1.5" fill="none"/>
+  <line x1="62" y1="56" x2="118" y2="56" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+  <line x1="62" y1="68" x2="138" y2="68" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+  <line x1="62" y1="80" x2="130" y2="80" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+  <line x1="62" y1="92" x2="110" y2="92" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+  <!-- Cursor 1 (purple) -->
+  <g transform="translate(85,85)">
+    <path d="M0 0l4 14 3.5-5.5 6.5 2L4 0z" fill="url(#rt-grad)" opacity="0.95"/>
+  </g>
+  <!-- Cursor 2 (cyan) -->
+  <g transform="translate(105,78)">
+    <path d="M0 0l4 14 3.5-5.5 6.5 2L4 0z" fill="url(#rt-grad2)" opacity="0.95"/>
+  </g>
+  <!-- Pulse rings -->
+  <circle cx="95" cy="95" r="15" stroke="url(#rt-grad)" stroke-width="1" fill="none" opacity="0.5">
+    <animate attributeName="r" from="12" to="28" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" from="0.6" to="0" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="95" cy="95" r="15" stroke="url(#rt-grad2)" stroke-width="1" fill="none" opacity="0.4">
+    <animate attributeName="r" from="10" to="22" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" from="0.5" to="0" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Connection line -->
+  <line x1="89" y1="93" x2="109" y2="86" stroke="#7c3aed" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.6"/>
+</svg>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="rc-grad" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="#111827"/>
+  <!-- Page outline -->
+  <rect x="50" y="38" width="100" height="124" rx="6" stroke="#334155" stroke-width="1.5" fill="none"/>
+  <!-- Content lines -->
+  <line x1="62" y1="56" x2="118" y2="56" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+  <line x1="62" y1="68" x2="138" y2="68" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+  <line x1="62" y1="80" x2="130" y2="80" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+  <!-- Displaced comment (faded, old position) -->
+  <g opacity="0.3">
+    <circle cx="120" cy="56" r="8" fill="#ef4444" stroke="#ef4444" stroke-width="1"/>
+    <path d="M117 54h6M120 51v6" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+  </g>
+  <!-- Dashed recovery path -->
+  <path d="M120 64 Q 130 90 115 105" stroke="url(#rc-grad)" stroke-width="1.5" stroke-dasharray="4,3" fill="none"/>
+  <!-- Arrow head -->
+  <polygon points="112,100 118,108 113,104" fill="url(#rc-grad)"/>
+  <!-- Recovered comment (new position, bright) -->
+  <g>
+    <circle cx="108" cy="114" r="10" fill="url(#rc-grad)" opacity="0.2"/>
+    <circle cx="108" cy="114" r="8" fill="url(#rc-grad)"/>
+    <path d="M105 112h6M108 109v6" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+  <!-- Checkmark badge -->
+  <circle cx="120" cy="120" r="6" fill="#111827" stroke="url(#rc-grad)" stroke-width="1.5"/>
+  <polyline points="117,120 119.5,122.5 123,117.5" stroke="url(#rc-grad)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

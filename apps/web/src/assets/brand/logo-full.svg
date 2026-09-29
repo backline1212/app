@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" fill="none">
+  <defs>
+    <linearGradient id="bl-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon: speech bubble with crosshair pin -->
+  <g transform="translate(4,4)">
+    <!-- Bubble -->
+    <path d="M28 0C15.85 0 6 8.95 6 20c0 5.1 2.1 9.75 5.5 13.2L8 44l11.5-5.5C21.8 39.5 24.85 40 28 40c12.15 0 22-8.95 22-20S40.15 0 28 0z"
+          fill="url(#bl-grad)" opacity="0.15"/>
+    <path d="M28 2C16.95 2 8 10.06 8 20c0 4.65 1.9 8.9 5 12.1l-2.8 8.4 9.2-4.4C21.5 37.3 24.65 38 28 38c11.05 0 20-8.06 20-18S39.05 2 28 2z"
+          stroke="url(#bl-grad)" stroke-width="2.5" fill="none"/>
+    <!-- Crosshair -->
+    <circle cx="28" cy="20" r="6" stroke="url(#bl-grad)" stroke-width="2" fill="none"/>
+    <circle cx="28" cy="20" r="1.5" fill="url(#bl-grad)"/>
+    <line x1="28" y1="11" x2="28" y2="15" stroke="url(#bl-grad)" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="28" y1="25" x2="28" y2="29" stroke="url(#bl-grad)" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="19" y1="20" x2="23" y2="20" stroke="url(#bl-grad)" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="33" y1="20" x2="37" y2="20" stroke="url(#bl-grad)" stroke-width="1.8" stroke-linecap="round"/>
+    <!-- Pin tail -->
+    <path d="M28 34l-3 8h6z" fill="url(#bl-grad)" opacity="0.6"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="72" y="42" font-family="'Inter','Segoe UI',system-ui,sans-serif" font-weight="700" font-size="32" fill="#e2e8f0" letter-spacing="-0.5">
+    BACKLINE
+  </text>
+</svg>

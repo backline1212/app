@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="int-grad" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="#111827"/>
+  <!-- Center hub -->
+  <circle cx="100" cy="100" r="18" fill="url(#int-grad)" opacity="0.15"/>
+  <circle cx="100" cy="100" r="14" stroke="url(#int-grad)" stroke-width="2" fill="none"/>
+  <!-- B letter in center -->
+  <text x="93" y="107" font-family="'Inter',sans-serif" font-weight="800" font-size="18" fill="url(#int-grad)">B</text>
+  <!-- Connection lines -->
+  <line x1="100" y1="82" x2="100" y2="55" stroke="#475569" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <line x1="118" y1="100" x2="148" y2="100" stroke="#475569" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <line x1="100" y1="118" x2="100" y2="148" stroke="#475569" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <line x1="82" y1="100" x2="52" y2="100" stroke="#475569" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <line x1="113" y1="87" x2="135" y2="65" stroke="#475569" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <line x1="113" y1="113" x2="135" y2="135" stroke="#475569" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <!-- Slack node -->
+  <circle cx="100" cy="48" r="12" fill="#1e293b" stroke="#E01E5A" stroke-width="1.5"/>
+  <text x="92" y="53" font-family="sans-serif" font-weight="700" font-size="10" fill="#E01E5A">S</text>
+  <!-- ClickUp node -->
+  <circle cx="155" cy="100" r="12" fill="#1e293b" stroke="#7B68EE" stroke-width="1.5"/>
+  <text x="149" y="105" font-family="sans-serif" font-weight="700" font-size="9" fill="#7B68EE">C</text>
+  <!-- Trello node -->
+  <circle cx="100" cy="155" r="12" fill="#1e293b" stroke="#0079BF" stroke-width="1.5"/>
+  <text x="95" y="160" font-family="sans-serif" font-weight="700" font-size="10" fill="#0079BF">T</text>
+  <!-- Email node -->
+  <circle cx="45" cy="100" r="12" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="40" y="105" font-family="sans-serif" font-weight="700" font-size="9" fill="#22c55e">@</text>
+  <!-- Webhook node -->
+  <circle cx="140" cy="60" r="12" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="134" y="65" font-family="sans-serif" font-weight="700" font-size="9" fill="#f59e0b">W</text>
+  <!-- Notifications node -->
+  <circle cx="140" cy="140" r="12" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+  <!-- Bell shape -->
+  <path d="M137 137 Q140 133 143 137 L143.5 141 H136.5 Z" stroke="#06b6d4" stroke-width="1" fill="none"/>
+  <circle cx="140" cy="142.5" r="1" fill="#06b6d4"/>
+</svg>
