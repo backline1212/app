@@ -43,6 +43,10 @@ export function setupRegionDrawer({
   tooltip,
   composerDetails,
   onCommentCreated,
+  screenshot = captureScreenshot,
+  uploadScreenshotFile = uploadScreenshot,
+  uploadFile = uploadAttachment,
+  interceptEvents = false,
 }: {
   shadow: ShadowRoot;
   api: ApiClient;
@@ -56,6 +60,10 @@ export function setupRegionDrawer({
   /** Told about each comment this drawer posts (the guest widget passes it on to the
    * dashboard around the canvas). */
   onCommentCreated?: (created: CommentRecord) => void;
+  screenshot?: () => Promise<Blob | null>;
+  uploadScreenshotFile?: typeof uploadScreenshot;
+  uploadFile?: typeof uploadAttachment;
+  interceptEvents?: boolean;
 }) {
   let startX = 0;
   let startY = 0;
@@ -81,6 +89,7 @@ export function setupRegionDrawer({
     }
 
     e.preventDefault();
+    if (interceptEvents) e.stopImmediatePropagation();
     isDrawing = true;
     startX = e.pageX;
     startY = e.pageY;
@@ -161,12 +170,12 @@ export function setupRegionDrawer({
       async ({ body, attachments, tags }) => {
         controls.setStatus("Capturing region anchor + screenshot...");
         const anchor = await computeRegionAnchor(activeTarget, rect);
-        const screenshotBlob = await captureScreenshot();
+        const screenshotBlob = await screenshot();
 
         let screenshotKey: string | null = null;
         if (screenshotBlob) {
           controls.setStatus("Uploading screenshot...");
-          screenshotKey = await uploadScreenshot(
+          screenshotKey = await uploadScreenshotFile(
             api,
             projectId,
             screenshotBlob,
@@ -219,8 +228,8 @@ export function setupRegionDrawer({
           controls.setStatus("Comment posted.");
           onCommentCreated?.(created);
           return true;
-        } catch {
-          controls.setStatus("Could not post your comment. Please try again.");
+        } catch (error) {
+          controls.setStatus(error instanceof Error ? error.message : "Could not post your comment. Please try again.");
           return false;
         }
       },
@@ -229,17 +238,24 @@ export function setupRegionDrawer({
         pin.remove();
         activeOverlay.remove();
       },
-      (file: File) => uploadAttachment(api, projectId, file),
+      (file: File) => uploadFile(api, projectId, file),
       composerDetails(`${Math.round(finalWidth)} \u00d7 ${Math.round(finalHeight)}`),
     );
   }
 
-  document.addEventListener("mousedown", onMouseDown);
+  const suppressClick = (event: MouseEvent) => {
+    if ((event.target as Element | null)?.closest("[data-backline-root]")) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  if (interceptEvents) document.addEventListener("click", suppressClick, true);
+  document.addEventListener("mousedown", onMouseDown, interceptEvents);
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("mouseup", onMouseUp);
 
   return () => {
-    document.removeEventListener("mousedown", onMouseDown);
+    if (interceptEvents) document.removeEventListener("click", suppressClick, true);
+    document.removeEventListener("mousedown", onMouseDown, interceptEvents);
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
     document.body.style.cursor = previousCursor;

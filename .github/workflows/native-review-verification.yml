@@ -1,0 +1,86 @@
+name: Native browser review verification
+
+on:
+  push:
+    branches: [codex/native-auth-review]
+  pull_request:
+    paths:
+      - 'apps/extension/**'
+      - 'apps/web/**'
+      - 'apps/widget/**'
+      - 'apps/e2e/tests/journeys/journey-native-review.spec.ts'
+      - 'packages/types/**'
+      - '.github/workflows/native-review-verification.yml'
+  workflow_dispatch:
+
+jobs:
+  authenticated-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      MONGO_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0
+      MONGO_DB_NAME: backline_native_dryrun
+      REDIS_URL: redis://127.0.0.1:6379
+      R2_ENDPOINT_URL: http://127.0.0.1:9000
+      R2_REGION: us-east-1
+      R2_ACCESS_KEY_ID: backline-local
+      R2_SECRET_ACCESS_KEY: backline-local-secret
+      R2_BUCKET_NAME: backline-native-dryrun
+      PUBLIC_API_BASE_URL: http://localhost:8000
+      PUBLIC_DASHBOARD_BASE_URL: http://localhost:5173
+      CORS_ALLOW_ORIGINS: '["http://localhost:5173"]'
+      BACKLINE_API_BASE_URL: http://localhost:8000
+      BACKLINE_DASHBOARD_BASE_URL: http://localhost:5173
+      API_BASE_URL: http://localhost:8000
+      WEB_BASE_URL: http://localhost:5173
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @backline/widget --filter @backline/web --filter @backline/extension build
+      - run: pnpm --filter @backline/extension --filter @backline/widget --filter @backline/web --filter @backline/types typecheck
+      - run: pnpm --filter @backline/extension --filter @backline/widget --filter @backline/web lint
+      - run: pnpm --filter @backline/e2e exec playwright install --with-deps chromium
+      - run: uv sync --frozen
+        working-directory: backend
+      - run: uv pip install --python backend/.venv/bin/python 'moto[server]==5.2.3'
+
+      - name: Start isolated Mongo, Redis and S3 emulator
+        run: |
+          docker run -d --name backline-mongo -p 127.0.0.1:27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          docker run -d --name backline-redis -p 127.0.0.1:6379:6379 redis:7-alpine
+          for i in {1..30}; do
+            if docker exec backline-mongo mongosh --quiet --eval 'db.adminCommand({ping:1}).ok' >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec backline-mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27017"}]})'
+          backend/.venv/bin/moto_server -H 127.0.0.1 -p 9000 > "$RUNNER_TEMP/s3.log" 2>&1 &
+
+      - name: Start production bundles and API
+        run: |
+          (cd backend && .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000) > "$RUNNER_TEMP/api.log" 2>&1 &
+          pnpm --filter @backline/web preview --host 127.0.0.1 --port 5173 > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in {1..40}; do
+            if curl -fsS http://localhost:8000/health >/dev/null && curl -fsS http://localhost:5173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/api.log"
+          exit 1
+
+      - name: Verify password, provider redirect, screenshot, SPA and guest review
+        run: pnpm --filter @backline/e2e exec playwright test tests/journeys/journey-native-review.spec.ts
+
+      - name: API log on failure
+        if: failure()
+        run: cat "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/s3.log"

@@ -11,10 +11,9 @@ interface QuickToolsDockProps {
   environment: string;
   mode: "browse" | "comment" | "draw";
   onModeChange?: (mode: "browse" | "comment" | "draw") => void;
-  cloudLoginAvailable?: boolean;
 }
 
-export function QuickToolsDock({ environment, mode, onModeChange, cloudLoginAvailable }: QuickToolsDockProps) {
+export function QuickToolsDock({ environment, mode, onModeChange }: QuickToolsDockProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [startHidden, setStartHidden] = useState(() => localStorage.getItem("bl-dock-hidden") === "true");
@@ -100,14 +99,7 @@ export function QuickToolsDock({ environment, mode, onModeChange, cloudLoginAvai
               }}>
                 <BrandMark compact /> Keyboard Shortcuts
               </button>
-              {cloudLoginAvailable && (
-                <button type="button" className="bl-dock-menu-item" onClick={() => {
-                  setMenuOpen(false);
-                  window.dispatchEvent(new CustomEvent("backline:open-cloud-login"));
-                }}>
-                  <GearIcon width={14} height={14} /> Sign in with a live browser
-                </button>
-              )}
+
             </div>
           )}
         </div>
