@@ -11,11 +11,12 @@ import { listShareLinks } from "../share-links/api";
 import type { ProjectOut } from "./api";
 import * as api from "./api";
 
-type MenuIconName = "archive" | "download" | "duplicate" | "link" | "page" | "rename" | "restore" | "settings" | "share" | "trash";
+type MenuIconName = "archive" | "board" | "download" | "duplicate" | "link" | "page" | "rename" | "restore" | "settings" | "share" | "trash";
 
 function MenuIcon({ name }: { name: MenuIconName }) {
   return <svg className="bl-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {name === "settings" && <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" /></>}
+    {name === "board" && <><rect x="3" y="4" width="5" height="16" rx="1" /><rect x="10" y="4" width="5" height="11" rx="1" /><rect x="17" y="4" width="4" height="7" rx="1" /></>}
     {name === "share" && <><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="3.5" /><path d="M19 8v6M22 11h-6" /></>}
     {name === "link" && <><path d="m9.5 14.5 5-5M11 6.5l2-1.9a3.6 3.6 0 0 1 5 5l-1.9 2M13 17.4l-2 2a3.6 3.6 0 0 1-5-5l1.9-1.9" /></>}
     {name === "rename" && <><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></>}
@@ -119,6 +120,8 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
         {onShare && item("Share project", "share", () => { setOpen(false); onShare(); }, { disabled: Boolean(project.archived_at) })}
         {item(copyLink.isPending ? "Copying…" : "Copy review link", "link", () => { setOpen(false); copyLink.mutate(); }, { disabled: Boolean(project.archived_at) || copyLink.isPending })}
         {item("Rename project", "rename", () => { setRenameValue(project.name); setRenaming(true); setOpen(false); })}
+        {item("Ticket board", "board", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/board`); }, { disabled: Boolean(project.archived_at) })}
+        {item("Manage share links", "link", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/share-links`); }, { disabled: Boolean(project.archived_at) })}
         {onManagePages && item("Manage pages", "page", () => { setOpen(false); onManagePages(); }, { disabled: Boolean(project.archived_at), note: project.archived_at ? "Restore to edit" : undefined })}
         {!onManagePages && project.project_type !== "website" && item("Manage files", "page", () => undefined, { disabled: true, note: "Coming soon" })}
         <div className="bl-dropdown-sep" role="separator" />

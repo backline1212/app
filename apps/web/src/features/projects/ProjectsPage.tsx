@@ -145,17 +145,17 @@ function ProjectArtwork({ project }: { project: api.ProjectOut }) {
 
 export function ProjectsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle(`${workspace.name} — Projects`);
   const { user } = useAuth();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const archived = params.get("archived") === "true", search = params.get("search") ?? "", type = params.get("type") ?? "all", view = params.get("display") ?? "cards", sort = params.get("sort") ?? "activity";
+  useDocumentTitle([workspace.name, archived ? "Archived Projects" : "Projects"]);
   const [createType, setCreateType] = useState<"website" | "image" | "pdf" | null>(null);
   const [share, setShare] = useState<api.ProjectOut | null>(null);
   const [duplicating, setDuplicating] = useState<api.ProjectOut | null>(null);
   const [edit, setEdit] = useState<api.ProjectOut | null>(null);
   const [managePages, setManagePages] = useState<api.ProjectOut | null>(null);
   const [showNewTicket, setShowNewTicket] = useState(false);
-  const archived = params.get("archived") === "true", search = params.get("search") ?? "", type = params.get("type") ?? "all", view = params.get("display") ?? "cards", sort = params.get("sort") ?? "activity";
   const soonType: SoonType | null = type === "webapp" || type === "mobile" ? type : null;
   // Live clock (ticks every minute) so the greeting's time-of-day and the head's
   // date/time readout are never more than a minute stale - always the viewer's own

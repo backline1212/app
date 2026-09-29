@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { WORKFLOW_STATUSES as STATUSES, STATUS_LABELS } from "../../../lib/workflow";
 import type { MemberOut } from "../../workspaces/api";
 import { CONNECTION_DOT, CONNECTION_LABEL, type Filters } from "./types";
@@ -11,6 +12,9 @@ interface BoardHeaderProps {
   members: MemberOut[] | undefined;
   pageUrls: string[];
   reviewerCountByUrl: Map<string, number>;
+  workspaceSlug?: string;
+  projectId?: string;
+  projectName?: string;
 }
 
 export function BoardHeader({
@@ -22,11 +26,23 @@ export function BoardHeader({
   members,
   pageUrls,
   reviewerCountByUrl,
+  workspaceSlug,
+  projectId,
+  projectName,
 }: BoardHeaderProps) {
   return (
     <>
       <div className="bl-board-head">
         <div>
+          {workspaceSlug && projectId && (
+            <Link
+              className="bl-quiet"
+              to={`/w/${workspaceSlug}/p/${projectId}`}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 6, fontSize: "0.8125rem" }}
+            >
+              ← Back to {projectName || "project"}
+            </Link>
+          )}
           <p className="bl-eyebrow">Project workflow</p>
           <div className="bl-board-title-row">
             <h1>Board</h1>

@@ -38,6 +38,7 @@ import { ProjectForm } from "./ProjectForm";
 import { ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { useDocumentTitle } from "../../lib/use-document-title";
 import { QuickToolsDock } from "./footer/QuickToolsDock";
 import { ShortcutsModal } from "./ShortcutsModal";
 import { loadShortcuts } from "./shortcuts";
@@ -231,6 +232,7 @@ export function ProjectOverviewPage() {
     queryFn: () => boardApi.listProjectComments(projectId!),
     enabled: !!projectId,
   });
+  useDocumentTitle([projectQuery.data?.name, "Review"]);
   const hasProxyCandidate = (shareLinksQuery.data ?? []).some(
     (link) => link.revoked_at === null && link.mode === "proxy",
   );

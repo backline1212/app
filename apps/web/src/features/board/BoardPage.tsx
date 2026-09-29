@@ -13,6 +13,8 @@ import { useConnectionStore } from "../../stores/connectionStore";
 import { usePresenceStore } from "../../stores/presenceStore";
 import * as boardApi from "./api";
 import type { CommentOut, CommentStatus } from "./api";
+import * as projectsApi from "../projects/api";
+import { useDocumentTitle } from "../../lib/use-document-title";
 import { CommentThreadPanel } from "./CommentThreadPanel";
 import { BoardHeader } from "./components/BoardHeader";
 import { KanbanBoard } from "./components/KanbanBoard";
@@ -93,6 +95,13 @@ export function BoardPage() {
     }
     setSearchParams(next, { replace: true });
   }
+
+  const { data: project } = useQuery({
+    queryKey: qk.project(projectId ?? ""),
+    queryFn: () => projectsApi.getProject(projectId!),
+    enabled: !!projectId,
+  });
+  useDocumentTitle([project?.name, "Board"]);
 
   const { data: comments, isLoading } = useQuery({
     queryKey: qk.projectComments(projectId ?? ""),
@@ -309,6 +318,9 @@ export function BoardPage() {
         members={members}
         pageUrls={pageUrls}
         reviewerCountByUrl={reviewerCountByUrl}
+        workspaceSlug={workspace.slug}
+        projectId={projectId}
+        projectName={project?.name}
       />
 
       {view === "kanban" ? (

@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 
 import { API_BASE_URL, ApiError } from "../../lib/api-client";
 import { qk } from "../../lib/query-keys";
+import { useDocumentTitle } from "../../lib/use-document-title";
 import { AssetReview } from "../assets/AssetReview";
 import * as reviewApi from "./api";
 import { GuestBoard } from "./GuestBoard";
@@ -46,6 +47,7 @@ export function ReviewEntryPage() {
     enabled: !!shareToken && !handoffUrl,
     retry: false,
   });
+  useDocumentTitle([resolved?.project_name, "Review"]);
 
   // Routes an already-identified guest (freshly created, or recovered from a prior
   // visit this tab) to the right destination for this project's type, without

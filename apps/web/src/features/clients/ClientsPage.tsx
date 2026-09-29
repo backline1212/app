@@ -14,7 +14,7 @@ import * as api from "./api";
 
 export function ClientsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle('Clients');
+  useDocumentTitle([workspace.name, 'Clients']);
   const cache = useQueryClient();
   const { toast } = useToast();
   const [params, setParams] = useSearchParams();

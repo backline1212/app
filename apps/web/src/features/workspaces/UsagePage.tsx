@@ -1,5 +1,7 @@
+import { useOutletContext } from "react-router-dom";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { ChartIcon } from "../projects/panel/icons";
+import type { WorkspaceOut } from "./api";
 
 const CHECKS = [
   "Per-member and per-workspace AI request counts",
@@ -11,7 +13,8 @@ const CHECKS = [
 // rule) - the AI actions themselves are real (docs/tdr/0033, 0043), but nothing records
 // their use, so this page must not imply real numbers are one click away.
 export function UsagePage() {
-  useDocumentTitle("AI Usage");
+  const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
+  useDocumentTitle([workspace.name, "AI Usage"]);
   return (
     <main className="bl-wrap">
       <header className="bl-head">

@@ -33,7 +33,7 @@ const VIEW_TABS: { key: string; label: string }[] = [
 export function TicketsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
   const [deleting, setDeleting] = useState<api.Ticket | null>(null);
-  useDocumentTitle("Tickets");
+  useDocumentTitle([workspace.name, "Tickets"]);
   const [params, setParams] = useSearchParams();
   const [showCreate, setShowCreate] = useState(false);
 

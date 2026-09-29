@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
+import { useDocumentTitle } from "../../lib/use-document-title";
 
 export function NotFoundPage() {
+  useDocumentTitle("Page Not Found");
   return (
     <main className="bl-review-gate">
       <span className="bl-loading-mark" aria-hidden="true">B</span>
