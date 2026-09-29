@@ -44,6 +44,15 @@ originally asked for custom SVG artwork and animation. The work is on a new bran
   - "Mark all read" showed with nothing unread.
   - In the mobile drawer, the close button covered the workspace chevron.
 - **Canvas shortcuts.** "?" opens the shortcuts list, and arrow keys show as ← →.
+- **Follow-up fixes (same day, user-requested):**
+  - **Activity links.** A link into an archived project now goes to the Archived list
+    ("Project archived →"), since archived projects can't be opened. A deleted project
+    shows "Project deleted" with no link.
+  - **Search ignores the hidden "Project tickets" page title.** Global search and the
+    Tickets search no longer match it, via one shared `page_title_match` in
+    `dashboard/repository.py`. Harness check: "tickets" went from every team ticket to
+    0 results, while "Hero" and "Acme" still match. Backend `ruff`, `mypy` and the
+    scoping check passed, as did web `tsc` and `eslint`.
 
 **Verification:**
 - `pnpm turbo run lint typecheck build --force`: 12/12 passed with zero lint warnings,
