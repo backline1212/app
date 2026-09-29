@@ -51,7 +51,7 @@ be able to deliver:
 | **Taking payments** | **Not built at all.** "Upgrade to Pro" opens a pricing popup whose button does nothing. | **You cannot charge money inside the app today.** See below. |
 | **Plan limits** | Not enforced. Every workspace can create unlimited projects/users regardless of "plan". | A "Free plan" customer gets everything. Nothing stops them. |
 | Web App / Mobile / Image & PDF projects | Show a "Coming soon" popup | Only **Website** review works. Don't sell the others. |
-| MCP Server page | Buttons show "Coming soon" | Don't sell AI-agent integration. |
+| MCP Server page | Works (TDR-0046): Claude Code, Cursor, Codex, Antigravity, VS Code, Windsurf, Claude Desktop and Gemini CLI connect with a personal token at `https://<your API>/mcp` | Real - agents can list, read, reply to and update tickets. |
 | AI Usage page | Always shows zeros (no AI feature exists) | Don't sell AI features. |
 | Version history | "Add new version" leads to the paywall popup | Only one version per project really exists. |
 | Page approval / Private mode | Both lead to the paywall popup | Not functional. |
@@ -867,7 +867,7 @@ every variable, which are required, and how to generate the secret ones.
 |---|---|
 | `RESEND_API_KEY` / `RESEND_FROM_ADDRESS` | Email — **effectively required for real customers** |
 | `GOOGLE_OAUTH_*` | "Sign in with Google" |
-| `CLICKUP_OAUTH_*` | ClickUp integration |
+| `CLICKUP_OAUTH_*` / `JIRA_OAUTH_*` / `ASANA_OAUTH_*` | Adds a "Continue with …" OAuth button for that provider. Optional: every integration (Slack, Discord, Teams, webhooks, Jira, Linear, GitHub, GitLab, Asana, ClickUp, Trello) connects with a token or webhook URL without it (docs/tdr/0046). Redirect URI must be `https://<dashboard>/integrations/<provider>/callback` |
 | `SENTRY_DSN` | Error alerts |
 | `PROXY_PREVIEW_DOMAIN` / `PROXY_PREVIEW_SCHEME` | Each review link on its own origin, so login sites and single-page apps work in the canvas (`preview.yourpreviewdomain.net` / `https`). Needs wildcard DNS `*.preview.yourpreviewdomain.net` → the backend plus a wildcard TLS cert; use a domain separate from the app's. Unset = older `/proxy/{token}/` mode (docs/tdr/0040) |
 | `CLOUD_LOGIN_WS_URL` | The cloud login browser (docs/tdr/0042) - a real Chromium a member drives to sign in on sites Google/Microsoft/Okta SSO refuses to render inside any iframe. **A separate Railway service**, same repo, Dockerfile Path `backend/Dockerfile.cloud_login` (its own file, no build-target setting needed), its own public domain; set this to that domain's `wss://.../ws` address. Costs real (if small) money only while a session is actually running - see docs/tdr/0042's cost note before enabling. Unset = feature off |

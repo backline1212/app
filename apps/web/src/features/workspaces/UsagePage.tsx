@@ -3,13 +3,13 @@ import { ChartIcon } from "../projects/panel/icons";
 
 const CHECKS = [
   "Per-member and per-workspace AI request counts",
-  "Monthly usage trend for summarize/suggest-reply calls",
+  "Monthly usage trend for thread summaries, reply drafts and BugHunt AI runs",
   "A running tally against your plan's included quota",
 ];
 
-// Static placeholder only, matching AiTab.tsx's treatment (18-Storage-Deployment.md's
-// "zero values are not fabricated" rule) - there is no token accounting or usage ledger
-// yet, so this page must not imply real numbers are one click away.
+// Static placeholder only (18-Storage-Deployment.md's "zero values are not fabricated"
+// rule) - the AI actions themselves are real (docs/tdr/0033, 0043), but nothing records
+// their use, so this page must not imply real numbers are one click away.
 export function UsagePage() {
   useDocumentTitle("AI Usage");
   return (
@@ -72,9 +72,9 @@ export function UsagePage() {
             ))}
           </ul>
           <p className="bl-inline-note">
-            Backline has no configured AI provider, analysis jobs, token accounting, or usage
-            ledger. Metrics will appear here only after those server-side contracts exist; zero
-            values are not fabricated in the meantime.
+            Thread summaries, reply drafts and BugHunt AI already work, but Backline does not
+            record their use yet: there is no token accounting or usage ledger. Metrics will
+            appear here only after that exists; zero values are not fabricated in the meantime.
           </p>
         </div>
       </section>

@@ -139,9 +139,7 @@ def hash_secret(value: str) -> str:
     Real HMAC (not a plain `sha256(key:value)` concatenation) so the digest doesn't
     inherit sha256's length-extension weakness."""
     settings = get_settings()
-    return hmac.new(
-        settings.jwt_signing_key.encode(), value.encode(), hashlib.sha256
-    ).hexdigest()
+    return hmac.new(settings.jwt_signing_key.encode(), value.encode(), hashlib.sha256).hexdigest()
 
 
 def secrets_match(a: str, b: str) -> bool:

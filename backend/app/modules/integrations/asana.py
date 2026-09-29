@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 import httpx
@@ -6,7 +7,14 @@ from app.core.config import get_settings
 from app.core.encryption import decrypt_secret
 from app.core.errors import ExternalServiceError
 from app.modules.comments.schemas import CommentOut
-from app.modules.integrations.base import http_error_detail
+from app.modules.integrations.base import (
+    Destination,
+    IntegrationContext,
+    fetch_screenshot,
+    http_error_detail,
+    issue_title,
+    plain_description,
+)
 
 ASANA_AUTH_BASE = "https://app.asana.com/-/oauth_token"
 ASANA_API_BASE = "https://app.asana.com/api/1.0"
@@ -60,29 +68,59 @@ async def _refresh_access_token(refresh_token: str) -> str:
     return access_token
 
 
-def _notes_block(comment: CommentOut, backlink_url: str) -> str:
-    """Mirrors ClickUp/Trello's structured block."""
-    context = comment.context or {}
-    lines = [
-        comment.body,
-        "",
-        "---",
-        f"Page: {context.get('url', 'unknown')}",
-        f"Browser/OS: {context.get('browser', 'unknown')} / {context.get('os', 'unknown')}",
-        f"Device: {context.get('device_type', 'unknown')}",
-        f"Backline comment: {backlink_url}",
-    ]
-    return "\n".join(lines)
+async def _access_token(config: dict[str, Any]) -> str:
+    """A personal access token is used as-is; an OAuth connection trades its stored
+    refresh token for a short-lived access token on every call."""
+    if config.get("access_token_encrypted"):
+        return decrypt_secret(config["access_token_encrypted"])
+    return await _refresh_access_token(decrypt_secret(config["refresh_token_encrypted"]))
 
 
 class AsanaIntegration:
-    async def create_task(
-        self, comment: CommentOut, config: dict[str, Any], *, backlink_url: str
+    destination_key = "project_gid"
+
+    async def list_destinations(self, ctx: IntegrationContext) -> list[Destination]:
+        access_token = await _access_token(ctx.config)
+        headers = {"Authorization": f"Bearer {access_token}"}
+        try:
+            async with httpx.AsyncClient(timeout=20.0, headers=headers) as client:
+                response = await client.get(
+                    f"{ASANA_API_BASE}/workspaces", params={"opt_fields": "name", "limit": 100}
+                )
+                response.raise_for_status()
+                workspaces = response.json()["data"]
+
+                async def projects_for(workspace: dict[str, Any]) -> list[Destination]:
+                    reply = await client.get(
+                        f"{ASANA_API_BASE}/projects",
+                        params={
+                            "workspace": workspace["gid"],
+                            "archived": "false",
+                            "opt_fields": "name",
+                            "limit": 100,
+                        },
+                    )
+                    reply.raise_for_status()
+                    return [
+                        Destination(
+                            id=project["gid"], name=project["name"], group=workspace["name"]
+                        )
+                        for project in reply.json()["data"]
+                    ]
+
+                groups = await asyncio.gather(*(projects_for(w) for w in workspaces))
+        except httpx.HTTPError as exc:
+            raise ExternalServiceError(
+                f"Could not load Asana projects: {http_error_detail(exc)}"
+            ) from exc
+        return [destination for group in groups for destination in group]
+
+    async def create_item(
+        self, comment: CommentOut, ctx: IntegrationContext, *, backlink_url: str
     ) -> tuple[str, str]:
-        """Returns (task_gid, permalink_url). Manual, member-triggered - not part of
-        the automatic Integration Protocol, same as ClickUp's create_task."""
-        refresh_token = decrypt_secret(config["refresh_token_encrypted"])
-        access_token = await _refresh_access_token(refresh_token)
+        """Returns (task_gid, permalink_url)."""
+        config = ctx.config
+        access_token = await _access_token(config)
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
@@ -90,8 +128,8 @@ class AsanaIntegration:
                     headers={"Authorization": f"Bearer {access_token}"},
                     json={
                         "data": {
-                            "name": comment.body[:100] or "Backline comment",
-                            "notes": _notes_block(comment, backlink_url),
+                            "name": issue_title(comment),
+                            "notes": plain_description(comment, backlink_url),
                             "projects": [config["project_gid"]],
                         }
                     },
@@ -101,7 +139,7 @@ class AsanaIntegration:
 
                 if comment.screenshot_url:
                     try:
-                        screenshot_bytes = (await client.get(comment.screenshot_url)).content
+                        screenshot_bytes = await fetch_screenshot(comment.screenshot_url)
                         await client.post(
                             f"{ASANA_API_BASE}/tasks/{task['gid']}/attachments",
                             headers={"Authorization": f"Bearer {access_token}"},
@@ -121,20 +159,20 @@ class AsanaIntegration:
                         raise ExternalServiceError(f"Asana task creation failed: {exc}") from exc
                 return task["gid"], task["permalink_url"]
         except httpx.HTTPError as exc:
-            raise ExternalServiceError(f"Asana task creation failed: {exc}") from exc
+            raise ExternalServiceError(
+                f"Asana task creation failed: {http_error_detail(exc)}"
+            ) from exc
         except KeyError as exc:
             raise ExternalServiceError(f"Asana returned an unexpected response: {exc}") from exc
 
-    async def on_comment_created(self, comment: CommentOut, config: dict[str, Any]) -> None:
-        # Manual-trigger only in MVP, same as ClickUp/Trello.
-        return None
-
-    async def on_status_changed(self, comment: CommentOut, config: dict[str, Any]) -> None:
-        return None
-
-    async def test_connection(self, config: dict[str, Any]) -> bool:
+    async def test_connection(self, ctx: IntegrationContext) -> bool:
         try:
-            await _refresh_access_token(decrypt_secret(config["refresh_token_encrypted"]))
-            return True
-        except ExternalServiceError:
+            access_token = await _access_token(ctx.config)
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    f"{ASANA_API_BASE}/users/me",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+            return response.status_code == 200
+        except (ExternalServiceError, httpx.HTTPError):
             return False

@@ -44,9 +44,7 @@ async def test_issue_list_and_revoke_mcp_token(
     assert "token" not in listing.json()[0]
     assert body["token"] not in listing.text
 
-    revoke = await client.delete(
-        f"/api/v1/mcp/tokens/{token_id}", headers=ctx["owner_headers"]
-    )
+    revoke = await client.delete(f"/api/v1/mcp/tokens/{token_id}", headers=ctx["owner_headers"])
     assert revoke.status_code == 204
 
     listing_after = await client.get(
@@ -129,8 +127,20 @@ async def test_generate_prompt_rejects_comment_from_another_workspace(
 
 
 async def test_pack_and_unpack_actor_round_trip() -> None:
-    packed = pack_actor("507f1f77bcf86cd799439011", "workspace-abc")
-    assert unpack_actor(packed) == ("507f1f77bcf86cd799439011", "workspace-abc")
+    packed = pack_actor(
+        token_id="tok-1",
+        user_id="507f1f77bcf86cd799439011",
+        workspace_id="workspace-abc",
+        role="member",
+    )
+    actor = unpack_actor(packed, ["backline:read"])
+    assert (actor.token_id, actor.user_id, actor.workspace_id, actor.role) == (
+        "tok-1",
+        "507f1f77bcf86cd799439011",
+        "workspace-abc",
+        "member",
+    )
+    assert not actor.can_write
 
 
 async def test_verify_bearer_token_rejects_unknown_and_revoked_tokens(
@@ -149,15 +159,14 @@ async def test_verify_bearer_token_rejects_unknown_and_revoked_tokens(
 
     assert await mcp_service.verify_bearer_token(db, "bl_mcp_not-a-real-token") is None
 
-    doc = await mcp_service.verify_bearer_token(db, raw_token)
-    assert doc is not None
+    actor = await mcp_service.verify_bearer_token(db, raw_token)
+    assert actor is not None
 
-    # verify_bearer_token returns the doc as read *before* its own touch_last_used
-    # call, so check the persisted effect by re-reading rather than asserting on the
-    # returned snapshot.
+    # verify_bearer_token returns the resolved actor, not the doc, so check
+    # touch_last_used's persisted effect by re-reading the token.
     from bson import ObjectId
 
-    refreshed = await db.mcp_personal_tokens.find_one({"_id": ObjectId(doc["_id"])})
+    refreshed = await db.mcp_personal_tokens.find_one({"_id": ObjectId(actor.token_id)})
     assert refreshed is not None
     assert refreshed["last_used_at"] is not None
 
@@ -180,6 +189,8 @@ async def test_backline_token_verifier_packs_user_and_workspace_into_client_id(
 
     access_token = await BacklineTokenVerifier().verify_token(raw_token)
     assert access_token is not None
-    user_id, workspace_id = unpack_actor(access_token.client_id)
-    assert workspace_id == ctx["workspace_id"]
-    assert access_token.scopes == ["mcp:generate_prompt"]
+    actor = unpack_actor(access_token.client_id, access_token.scopes)
+    assert actor.workspace_id == ctx["workspace_id"]
+    assert actor.role == "owner"
+    # Tokens default to read & write (McpTokenCreate.access).
+    assert access_token.scopes == ["backline:read", "backline:write"]

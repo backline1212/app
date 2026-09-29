@@ -1,77 +1,82 @@
 import { useSearchParams } from "react-router-dom";
 import { useCallback } from "react";
+import { useSearchParamsUpdater } from "../../../../lib/use-search-params-updater";
 import type { CommentStatus } from "../../../board/api";
 import type { LayerFilter, SortOrder } from "./types";
 
 export function useCommentFilters() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  // Composes with every other URL update in the same event (the canvas's page switch,
+  // another filter) - see use-search-params-updater.ts for why react-router's own
+  // functional setSearchParams doesn't.
+  const updateSearchParams = useSearchParamsUpdater();
 
   const activeStatus = (searchParams.get("status") as CommentStatus) || null;
   const hideResolved = searchParams.get("hideResolved") === "true";
   const layerFilter = (searchParams.get("layer") as LayerFilter) || "all";
   const sortOrder = (searchParams.get("sort") as SortOrder) || "newest";
   const currentPageOnly = searchParams.get("currentPageOnly") === "true";
-  
+
   const activeTags = searchParams.getAll("tags");
   const activeDeviceTypes = searchParams.getAll("deviceTypes");
   const activeBrowsers = searchParams.getAll("browsers");
   const activeAssignees = searchParams.getAll("assignees");
-  
+
   const displayMode = (searchParams.get("display") as "comfortable" | "compact") || "comfortable";
   const groupBy = (searchParams.get("groupBy") as "none" | "page") || "none";
   const openThreadId = searchParams.get("thread") || null;
 
   const updateParam = useCallback((key: string, value: string | null) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
+    updateSearchParams((next) => {
+      if (next.get(key) === value) return false;
       if (value === null) next.delete(key);
       else next.set(key, value);
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
+    });
+  }, [updateSearchParams]);
 
   const updateArrayParam = useCallback((key: string, values: string[] | ((prev: string[]) => string[])) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      let newValues: string[];
-      if (typeof values === "function") {
-        newValues = values(next.getAll(key));
-      } else {
-        newValues = values;
-      }
+    updateSearchParams((next) => {
+      const newValues = typeof values === "function" ? values(next.getAll(key)) : values;
       next.delete(key);
-      newValues.forEach(v => next.append(key, v));
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
+      newValues.forEach((v) => next.append(key, v));
+    });
+  }, [updateSearchParams]);
 
-  // Resolves the updater against the URL's current value inside setSearchParams'
-  // own callback (like updateArrayParam does), not the `activeStatus` closed over at
-  // render time - two calls in the same tick (e.g. a double-click) would otherwise
-  // both resolve against the same stale value instead of composing.
+  // Resolved against the URL's latest value (including an update earlier in the same
+  // event), not the `activeStatus` closed over at render time - a double-click would
+  // otherwise resolve both clicks against the same stale value instead of composing.
   const setActiveStatus = useCallback(
     (status: CommentStatus | null | ((prev: CommentStatus | null) => CommentStatus | null)) => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        const current = (prev.get("status") as CommentStatus) || null;
+      updateSearchParams((next) => {
+        const current = (next.get("status") as CommentStatus) || null;
         const resolved = typeof status === "function" ? status(current) : status;
         if (resolved === null) next.delete("status");
         else next.set("status", resolved);
-        return next;
-      }, { replace: true });
+      });
     },
-    [setSearchParams],
+    [updateSearchParams],
   );
 
-  // Memoized, unlike its plain-arrow siblings above: CommentsTab keeps this in an
-  // effect's dependency list (following a canvas pin click into the open detail), and a
-  // fresh identity every render would resubscribe that effect on every render.
+  // Memoized, unlike its plain-arrow siblings below: CommentsTab keeps this in effects'
+  // dependency lists, and a fresh identity every render would resubscribe them on every
+  // render.
   const setOpenThreadId = useCallback(
     (threadId: string | null) => updateParam("thread", threadId),
     [updateParam],
   );
 
+  // Every filter back to its default in one URL update - the list's "No comments match"
+  // state offers this; the sort, display and grouping choices are left as they were.
+  const clearFilters = useCallback(() => {
+    updateSearchParams((next) => {
+      for (const key of ["status", "hideResolved", "layer", "currentPageOnly", "tags", "deviceTypes", "browsers", "assignees"]) {
+        next.delete(key);
+      }
+    });
+  }, [updateSearchParams]);
+
   return {
+    clearFilters,
     activeStatus,
     setActiveStatus,
     hideResolved,

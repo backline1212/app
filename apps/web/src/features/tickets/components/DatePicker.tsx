@@ -143,7 +143,12 @@ export function DatePicker({
         style={triggerClassName ? undefined : { textAlign: 'left', minHeight: '38px', cursor: 'pointer' }}
         onClick={() => setOpen(!open)}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') closeAndRestoreFocus();
+          // Handled here, so whatever the picker sits in (a review drawer, a modal
+          // <dialog>) doesn't also close on this same Escape.
+          if (e.key === 'Escape' && open) {
+            e.preventDefault();
+            closeAndRestoreFocus();
+          }
         }}
       >
         {children ?? displayValue}
@@ -160,7 +165,10 @@ export function DatePicker({
             visibility: popoverPos ? 'visible' : 'hidden',
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Escape') closeAndRestoreFocus();
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              closeAndRestoreFocus();
+            }
           }}
         >
           <div className="bl-dp-head">

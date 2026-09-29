@@ -1224,6 +1224,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/oauth-apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Oauth Apps
+         * @description Which OAuth connect buttons to offer. Empty until an operator registers an OAuth
+         *     app and sets its client id/secret - every provider also connects with a token.
+         */
+        get: operations["list_oauth_apps_api_v1_integrations_oauth_apps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/{integration_id}": {
         parameters: {
             query?: never;
@@ -1236,6 +1257,79 @@ export interface paths {
         post?: never;
         /** Disconnect Integration */
         delete: operations["disconnect_integration_api_v1_integrations__integration_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Integration */
+        patch: operations["update_integration_api_v1_integrations__integration_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/integrations/{integration_id}/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Integration Destinations */
+        get: operations["list_integration_destinations_api_v1_integrations__integration_id__destinations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{integration_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Integration */
+        post: operations["test_integration_api_v1_integrations__integration_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/comments/{comment_id}/integrations/{integration_id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Comment To Tracker
+         * @description File the comment in any connected tracker. Idempotent per (comment, connection):
+         *     a second send returns the ticket filed the first time.
+         */
+        post: operations["send_comment_to_tracker_api_v1_comments__comment_id__integrations__integration_id__send_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/comments/{comment_id}/integration-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Comment Integration Links */
+        get: operations["list_comment_integration_links_api_v1_comments__comment_id__integration_links_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1671,7 +1765,11 @@ export interface components {
             dom_fingerprint: components["schemas"]["DomFingerprintIn"];
             text_fingerprint: components["schemas"]["TextFingerprintIn"];
         };
-        /** AsanaIntegrationCreate */
+        /**
+         * AsanaIntegrationCreate
+         * @description Either an OAuth `code` (needs the operator's Asana OAuth app) or a personal
+         *     access token (Asana -> My settings -> Apps -> Developer apps).
+         */
         AsanaIntegrationCreate: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -1679,9 +1777,11 @@ export interface components {
              */
             type: "asana";
             /** Oauth Code */
-            oauth_code: string;
+            oauth_code?: string | null;
+            /** Access Token */
+            access_token?: string | null;
             /** Project Gid */
-            project_gid: string;
+            project_gid?: string | null;
         };
         /** AssetCommentCreate */
         AssetCommentCreate: {
@@ -1796,7 +1896,11 @@ export interface components {
             /** Y */
             y: number;
         };
-        /** ClickUpIntegrationCreate */
+        /**
+         * ClickUpIntegrationCreate
+         * @description Either an OAuth `code` (needs the operator's ClickUp OAuth app) or a personal
+         *     API token (`pk_...`, from ClickUp Settings -> Apps) - exactly one.
+         */
         ClickUpIntegrationCreate: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -1804,9 +1908,11 @@ export interface components {
              */
             type: "clickup";
             /** Oauth Code */
-            oauth_code: string;
+            oauth_code?: string | null;
+            /** Api Token */
+            api_token?: string | null;
             /** List Id */
-            list_id: string;
+            list_id?: string | null;
         };
         /** ClientCreate */
         ClientCreate: {
@@ -2125,6 +2231,40 @@ export interface components {
             /** Project Stats */
             project_stats: components["schemas"]["ProjectStatsOut"][];
         };
+        /** DestinationOut */
+        DestinationOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Group */
+            group?: string | null;
+        };
+        /** DiscordIntegrationCreate */
+        DiscordIntegrationCreate: {
+            /**
+             * Notify Status Changes
+             * @default true
+             */
+            notify_status_changes: boolean;
+            /**
+             * Notify Team Layer
+             * @default false
+             */
+            notify_team_layer: boolean;
+            /**
+             * Notify Project Updates
+             * @default true
+             */
+            notify_project_updates: boolean;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "discord";
+            /** Webhook Url */
+            webhook_url: string;
+        };
         /**
          * DomFingerprintIn
          * @description node_hash/ancestor_path_hash use the same hash scheme as a snapshot's NodeRecord
@@ -2240,11 +2380,39 @@ export interface components {
             workspace: components["schemas"]["WorkspaceOut"];
         };
         /**
+         * ExternalLinkOut
+         * @description A ticket filed in a tracker from a Backline comment. Member-only: never part of
+         *     CommentOut, which guests and the guest realtime channel also receive.
+         */
+        ExternalLinkOut: {
+            /** Id */
+            id: string;
+            /** Comment Id */
+            comment_id: string;
+            /** Integration Id */
+            integration_id: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "slack" | "discord" | "teams" | "webhook" | "clickup" | "trello" | "jira" | "asana" | "github" | "gitlab" | "linear";
+            /** External Id */
+            external_id: string;
+            /** Url */
+            url: string;
+            /** Created By */
+            created_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
          * GeneratePromptRequest
          * @description `agent` is which tool the prompt is headed for - accepted for parity with the
-         *     architecture doc's response shape and so the UI can label the copy target, but MVP
-         *     doesn't vary prompt phrasing per agent (all four consume the same plain-text
-         *     implementation prompt).
+         *     architecture doc's response shape and so the UI can label the copy target; every
+         *     agent consumes the same plain-text implementation prompt.
          */
         GeneratePromptRequest: {
             /**
@@ -2252,7 +2420,7 @@ export interface components {
              * @default other
              * @enum {string}
              */
-            agent: "claude" | "cursor" | "codex" | "antigravity" | "other";
+            agent: "claude" | "claude_desktop" | "cursor" | "vscode" | "codex" | "antigravity" | "windsurf" | "gemini" | "other";
         };
         /** GeneratePromptResult */
         GeneratePromptResult: {
@@ -2260,12 +2428,41 @@ export interface components {
              * Agent
              * @enum {string}
              */
-            agent: "claude" | "cursor" | "codex" | "antigravity" | "other";
+            agent: "claude" | "claude_desktop" | "cursor" | "vscode" | "codex" | "antigravity" | "windsurf" | "gemini" | "other";
             /** Implementation Prompt */
             implementation_prompt: string;
             /** Suggested Files */
             suggested_files?: string[] | null;
             structured_plan?: components["schemas"]["StructuredPlan"] | null;
+        };
+        /** GitHubIntegrationCreate */
+        GitHubIntegrationCreate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "github";
+            /** Token */
+            token: string;
+            /** Repository */
+            repository?: string | null;
+        };
+        /** GitLabIntegrationCreate */
+        GitLabIntegrationCreate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "gitlab";
+            /** Token */
+            token: string;
+            /**
+             * Base Url
+             * @default https://gitlab.com
+             */
+            base_url: string;
+            /** Project Id */
+            project_id?: string | null;
         };
         /** GoogleCallbackRequest */
         GoogleCallbackRequest: {
@@ -2351,7 +2548,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "slack" | "clickup" | "trello" | "jira" | "asana";
+            type: "slack" | "discord" | "teams" | "webhook" | "clickup" | "trello" | "jira" | "asana" | "github" | "gitlab" | "linear";
             /** Config Summary */
             config_summary: Record<string, never>;
             /** Connected By */
@@ -2361,6 +2558,52 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Kind
+             * @default notifier
+             * @enum {string}
+             */
+            kind: "notifier" | "tracker";
+            /**
+             * Auth Mode
+             * @default webhook
+             * @enum {string}
+             */
+            auth_mode: "webhook" | "api_token" | "oauth";
+            /** Destination Id */
+            destination_id?: string | null;
+            /** Destination Label */
+            destination_label?: string | null;
+            /**
+             * Needs Destination
+             * @default false
+             */
+            needs_destination: boolean;
+            /** Signing Secret */
+            signing_secret?: string | null;
+        };
+        /** IntegrationTestResult */
+        IntegrationTestResult: {
+            /** Ok */
+            ok: boolean;
+            /** Message */
+            message: string;
+        };
+        /**
+         * IntegrationUpdate
+         * @description Everything about a connection that can change without reconnecting. Toggles
+         *     apply to notifiers, `destination_id` to trackers (one of the ids returned by
+         *     GET /integrations/{id}/destinations).
+         */
+        IntegrationUpdate: {
+            /** Destination Id */
+            destination_id?: string | null;
+            /** Notify Status Changes */
+            notify_status_changes?: boolean | null;
+            /** Notify Team Layer */
+            notify_team_layer?: boolean | null;
+            /** Notify Project Updates */
+            notify_project_updates?: boolean | null;
         };
         /** InviteMemberRequest */
         InviteMemberRequest: {
@@ -2376,7 +2619,11 @@ export interface components {
              */
             role: "admin" | "member";
         };
-        /** JiraIntegrationCreate */
+        /**
+         * JiraIntegrationCreate
+         * @description Either an OAuth `code` (needs the operator's Atlassian OAuth app) or the site
+         *     URL + account email + API token (id.atlassian.com -> Security -> API tokens).
+         */
         JiraIntegrationCreate: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -2384,9 +2631,15 @@ export interface components {
              */
             type: "jira";
             /** Oauth Code */
-            oauth_code: string;
+            oauth_code?: string | null;
+            /** Site Url */
+            site_url?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Api Token */
+            api_token?: string | null;
             /** Project Key */
-            project_key: string;
+            project_key?: string | null;
         };
         /** LayerToggleRequest */
         LayerToggleRequest: {
@@ -2397,6 +2650,18 @@ export interface components {
             layer: "client" | "team";
             /** Confirm */
             confirm: boolean;
+        };
+        /** LinearIntegrationCreate */
+        LinearIntegrationCreate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "linear";
+            /** Api Key */
+            api_key: string;
+            /** Team Id */
+            team_id?: string | null;
         };
         /** LocalStorageItemIn */
         LocalStorageItemIn: {
@@ -2410,7 +2675,13 @@ export interface components {
             /** Label */
             label: string;
             /** Agent Hint */
-            agent_hint?: ("claude" | "cursor" | "codex" | "antigravity" | "other") | null;
+            agent_hint?: ("claude" | "claude_desktop" | "cursor" | "vscode" | "codex" | "antigravity" | "windsurf" | "gemini" | "other") | null;
+            /**
+             * Access
+             * @default read_write
+             * @enum {string}
+             */
+            access: "read" | "read_write";
         };
         /**
          * McpTokenIssued
@@ -2426,7 +2697,9 @@ export interface components {
             /** Label */
             label: string;
             /** Agent Hint */
-            agent_hint: ("claude" | "cursor" | "codex" | "antigravity" | "other") | null;
+            agent_hint: ("claude" | "claude_desktop" | "cursor" | "vscode" | "codex" | "antigravity" | "windsurf" | "gemini" | "other") | null;
+            /** Scopes */
+            scopes?: string[];
             /**
              * Created At
              * Format: date-time
@@ -2440,9 +2713,11 @@ export interface components {
             /** Label */
             label: string;
             /** Agent Hint */
-            agent_hint: ("claude" | "cursor" | "codex" | "antigravity" | "other") | null;
+            agent_hint: ("claude" | "claude_desktop" | "cursor" | "vscode" | "codex" | "antigravity" | "windsurf" | "gemini" | "other") | null;
             /** Workspace Id */
             workspace_id: string;
+            /** Scopes */
+            scopes?: string[];
             /**
              * Created At
              * Format: date-time
@@ -2501,6 +2776,20 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * OAuthAppOut
+         * @description An OAuth connect option the operator has configured (client id and secret both
+         *     set). The frontend appends its own anti-CSRF `state` to `authorize_url`.
+         */
+        OAuthAppOut: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "clickup" | "jira" | "asana";
+            /** Authorize Url */
+            authorize_url: string;
         };
         /** OtpRequestRequest */
         OtpRequestRequest: {
@@ -3275,13 +3564,6 @@ export interface components {
         /** SlackIntegrationCreate */
         SlackIntegrationCreate: {
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "slack";
-            /** Webhook Url */
-            webhook_url: string;
-            /**
              * Notify Status Changes
              * @default true
              */
@@ -3291,6 +3573,18 @@ export interface components {
              * @default false
              */
             notify_team_layer: boolean;
+            /**
+             * Notify Project Updates
+             * @default true
+             */
+            notify_project_updates: boolean;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "slack";
+            /** Webhook Url */
+            webhook_url: string;
         };
         /** SnapshotSubmit */
         SnapshotSubmit: {
@@ -3329,6 +3623,31 @@ export interface components {
         SwitchWorkspaceRequest: {
             /** Workspace Id */
             workspace_id: string;
+        };
+        /** TeamsIntegrationCreate */
+        TeamsIntegrationCreate: {
+            /**
+             * Notify Status Changes
+             * @default true
+             */
+            notify_status_changes: boolean;
+            /**
+             * Notify Team Layer
+             * @default false
+             */
+            notify_team_layer: boolean;
+            /**
+             * Notify Project Updates
+             * @default true
+             */
+            notify_project_updates: boolean;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "teams";
+            /** Webhook Url */
+            webhook_url: string;
         };
         /** TextFingerprintIn */
         TextFingerprintIn: {
@@ -3497,7 +3816,7 @@ export interface components {
             /** Token */
             token: string;
             /** List Id */
-            list_id: string;
+            list_id?: string | null;
         };
         /** UploadOut */
         UploadOut: {
@@ -3592,6 +3911,33 @@ export interface components {
             width: number;
             /** Height */
             height: number;
+        };
+        /** WebhookIntegrationCreate */
+        WebhookIntegrationCreate: {
+            /**
+             * Notify Status Changes
+             * @default true
+             */
+            notify_status_changes: boolean;
+            /**
+             * Notify Team Layer
+             * @default false
+             */
+            notify_team_layer: boolean;
+            /**
+             * Notify Project Updates
+             * @default true
+             */
+            notify_project_updates: boolean;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "webhook";
+            /** Url */
+            url: string;
+            /** Secret */
+            secret?: string | null;
         };
         /** WorkspaceCreate */
         WorkspaceCreate: {
@@ -4989,6 +5335,7 @@ export interface operations {
                 assignee?: string | null;
                 assignees?: string[];
                 view?: "all" | "mine" | "reply" | "client" | "overdue";
+                open_only?: boolean;
                 sort?: "newest" | "oldest" | "due" | "priority" | "status" | "project" | "assignee" | "tag";
                 offset?: number;
                 limit?: number;
@@ -6406,7 +6753,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SlackIntegrationCreate"] | components["schemas"]["TrelloIntegrationCreate"] | components["schemas"]["ClickUpIntegrationCreate"] | components["schemas"]["JiraIntegrationCreate"] | components["schemas"]["AsanaIntegrationCreate"];
+                "application/json": components["schemas"]["SlackIntegrationCreate"] | components["schemas"]["DiscordIntegrationCreate"] | components["schemas"]["TeamsIntegrationCreate"] | components["schemas"]["WebhookIntegrationCreate"] | components["schemas"]["TrelloIntegrationCreate"] | components["schemas"]["ClickUpIntegrationCreate"] | components["schemas"]["JiraIntegrationCreate"] | components["schemas"]["AsanaIntegrationCreate"] | components["schemas"]["GitHubIntegrationCreate"] | components["schemas"]["GitLabIntegrationCreate"] | components["schemas"]["LinearIntegrationCreate"];
             };
         };
         responses: {
@@ -6430,6 +6777,26 @@ export interface operations {
             };
         };
     };
+    list_oauth_apps_api_v1_integrations_oauth_apps_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthAppOut"][];
+                };
+            };
+        };
+    };
     disconnect_integration_api_v1_integrations__integration_id__delete: {
         parameters: {
             query?: never;
@@ -6447,6 +6814,166 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_integration_api_v1_integrations__integration_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_integration_destinations_api_v1_integrations__integration_id__destinations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DestinationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_integration_api_v1_integrations__integration_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_comment_to_tracker_api_v1_comments__comment_id__integrations__integration_id__send_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: string;
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_comment_integration_links_api_v1_comments__comment_id__integration_links_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalLinkOut"][];
+                };
             };
             /** @description Validation Error */
             422: {

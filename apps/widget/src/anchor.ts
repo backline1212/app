@@ -113,10 +113,20 @@ export function clickOffsetPct(
   };
 }
 
+/** Where within its element an anchor's pin sits, as a 0-1 fraction of the element's
+ * box: the clicked spot for a point comment, the drawn area's top-left corner for a
+ * region comment (whose anchor records the area, not a click), the corner otherwise. */
+export function anchorOffsetPct(anchor: AnchorPayload): { x: number; y: number } {
+  const fingerprint = anchor.dom_fingerprint;
+  if (fingerprint.click_offset_pct) return fingerprint.click_offset_pct;
+  if (fingerprint.region_box_pct) return { x: fingerprint.region_box_pct.x, y: fingerprint.region_box_pct.y };
+  return { x: 0, y: 0 };
+}
+
 /** The reverse of clickOffsetPct: the stored fraction back into a live page position. */
 export function anchorPointFor(el: Element, anchor: AnchorPayload): { x: number; y: number } {
   const rect = el.getBoundingClientRect();
-  const pct = anchor.dom_fingerprint.click_offset_pct ?? { x: 0, y: 0 };
+  const pct = anchorOffsetPct(anchor);
   return {
     x: rect.left + window.scrollX + rect.width * pct.x,
     y: rect.top + window.scrollY + rect.height * pct.y,

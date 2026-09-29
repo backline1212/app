@@ -41,6 +41,7 @@ async def create_mcp_token(
         workspace_id=workspace_id,
         label=body.label,
         agent_hint=body.agent_hint,
+        access=body.access,
     )
 
 

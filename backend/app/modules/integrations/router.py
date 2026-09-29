@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 
-from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.permissions import require_permission
 from app.core.session import Session, require_workspace_context, require_workspace_match
@@ -10,8 +9,13 @@ from app.modules.integrations.schemas import (
     CreateClickUpTaskResult,
     CreateJiraIssueResult,
     CreateTrelloCardResult,
+    DestinationOut,
+    ExternalLinkOut,
     IntegrationCreate,
     IntegrationOut,
+    IntegrationTestResult,
+    IntegrationUpdate,
+    OAuthAppOut,
 )
 
 router = APIRouter(tags=["integrations"])
@@ -20,7 +24,10 @@ router = APIRouter(tags=["integrations"])
 @router.get("/workspaces/{workspace_id}/integrations", response_model=list[IntegrationOut])
 async def list_integrations(
     workspace_id: str,
-    session: Session = Depends(require_permission("integration:manage")),
+    # Any member, not only integration:manage: members file tickets ("Send to Jira")
+    # and mute a project's notifications, so they need to see what's connected. The
+    # list carries no secrets; connecting and changing stay owner/admin-only below.
+    session: Session = Depends(require_permission("workspace:view_settings")),
 ) -> list[IntegrationOut]:
     require_workspace_match(session, workspace_id)
     return await integration_service.list_integrations(get_db(), workspace_id)
@@ -40,6 +47,51 @@ async def create_integration(
     )
 
 
+@router.get("/integrations/oauth-apps", response_model=list[OAuthAppOut])
+async def list_oauth_apps(
+    session: Session = Depends(require_permission("integration:manage")),
+) -> list[OAuthAppOut]:
+    """Which OAuth connect buttons to offer. Empty until an operator registers an OAuth
+    app and sets its client id/secret - every provider also connects with a token."""
+    del session
+    return integration_service.oauth_apps()
+
+
+@router.patch("/integrations/{integration_id}", response_model=IntegrationOut)
+async def update_integration(
+    integration_id: str,
+    body: IntegrationUpdate,
+    session: Session = Depends(require_permission("integration:manage")),
+) -> IntegrationOut:
+    return await integration_service.update_integration(
+        get_db(),
+        integration_id=integration_id,
+        workspace_id=require_workspace_context(session),
+        actor_user_id=session.user_id,
+        body=body,
+    )
+
+
+@router.get("/integrations/{integration_id}/destinations", response_model=list[DestinationOut])
+async def list_integration_destinations(
+    integration_id: str,
+    session: Session = Depends(require_permission("integration:manage")),
+) -> list[DestinationOut]:
+    return await integration_service.list_destinations(
+        get_db(), integration_id=integration_id, workspace_id=require_workspace_context(session)
+    )
+
+
+@router.post("/integrations/{integration_id}/test", response_model=IntegrationTestResult)
+async def test_integration(
+    integration_id: str,
+    session: Session = Depends(require_permission("integration:manage")),
+) -> IntegrationTestResult:
+    return await integration_service.test_integration(
+        get_db(), integration_id=integration_id, workspace_id=require_workspace_context(session)
+    )
+
+
 @router.delete("/integrations/{integration_id}", status_code=204)
 async def disconnect_integration(
     integration_id: str,
@@ -50,6 +102,36 @@ async def disconnect_integration(
         integration_id=integration_id,
         workspace_id=require_workspace_context(session),
         actor_id=session.user_id,
+    )
+
+
+@router.post(
+    "/comments/{comment_id}/integrations/{integration_id}/send",
+    response_model=ExternalLinkOut,
+)
+async def send_comment_to_tracker(
+    comment_id: str,
+    integration_id: str,
+    session: Session = Depends(require_permission("comment:create_integration_task")),
+) -> ExternalLinkOut:
+    """File the comment in any connected tracker. Idempotent per (comment, connection):
+    a second send returns the ticket filed the first time."""
+    return await integration_service.send_to_tracker(
+        get_db(),
+        comment_id=comment_id,
+        workspace_id=require_workspace_context(session),
+        integration_id=integration_id,
+        actor_user_id=session.user_id,
+    )
+
+
+@router.get("/comments/{comment_id}/integration-links", response_model=list[ExternalLinkOut])
+async def list_comment_integration_links(
+    comment_id: str,
+    session: Session = Depends(require_permission("comment:view_team")),
+) -> list[ExternalLinkOut]:
+    return await integration_service.list_comment_links(
+        get_db(), comment_id=comment_id, workspace_id=require_workspace_context(session)
     )
 
 
@@ -67,7 +149,7 @@ async def create_clickup_task(
         comment_id=comment_id,
         workspace_id=require_workspace_context(session),
         integration_id=integration_id,
-        dashboard_base_url=get_settings().public_dashboard_base_url,
+        actor_user_id=session.user_id,
     )
 
 
@@ -85,7 +167,7 @@ async def create_trello_card(
         comment_id=comment_id,
         workspace_id=require_workspace_context(session),
         integration_id=integration_id,
-        dashboard_base_url=get_settings().public_dashboard_base_url,
+        actor_user_id=session.user_id,
     )
 
 
@@ -103,7 +185,7 @@ async def create_jira_issue(
         comment_id=comment_id,
         workspace_id=require_workspace_context(session),
         integration_id=integration_id,
-        dashboard_base_url=get_settings().public_dashboard_base_url,
+        actor_user_id=session.user_id,
     )
 
 
@@ -121,5 +203,5 @@ async def create_asana_task(
         comment_id=comment_id,
         workspace_id=require_workspace_context(session),
         integration_id=integration_id,
-        dashboard_base_url=get_settings().public_dashboard_base_url,
+        actor_user_id=session.user_id,
     )

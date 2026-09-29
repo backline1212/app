@@ -21,7 +21,12 @@ export function escapeHtml(text: string): string {
 }
 
 export function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
+  // Letters and digits only, so "Sam (Client)" reads "SC" rather than "S(".
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter(Boolean);
   if (words.length === 0) return "?";
   const letters = words.length === 1 ? words[0].slice(0, 2) : words[0][0] + words[words.length - 1][0];
   return letters.toUpperCase();
@@ -52,6 +57,13 @@ export function cardHeaderHtml(opts: {
 
 const CARD_WIDTH = 344;
 const EDGE_GAP = 12;
+// Space kept clear at the bottom of the viewport. Larger inside the dashboard's canvas,
+// where its quick-tools dock floats over the bottom of the frame (index.ts).
+let bottomInset = EDGE_GAP;
+
+export function setCardBottomInset(px: number): void {
+  bottomInset = Math.max(EDGE_GAP, px);
+}
 
 /**
  * x/y are page (document) coordinates, same as renderPin - the card is position:
@@ -65,7 +77,7 @@ export function placeCard(card: HTMLElement, x: number, y: number): void {
   const width = Math.min(CARD_WIDTH, window.innerWidth - EDGE_GAP * 2);
   const height = card.offsetHeight;
   const viewRight = window.scrollX + window.innerWidth - EDGE_GAP;
-  const viewBottom = window.scrollY + window.innerHeight - EDGE_GAP;
+  const viewBottom = window.scrollY + window.innerHeight - bottomInset;
   let left = x + 16;
   if (left + width > viewRight) left = x - width - 16;
   left = Math.max(window.scrollX + EDGE_GAP, Math.min(left, viewRight - width));

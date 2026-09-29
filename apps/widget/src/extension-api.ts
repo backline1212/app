@@ -9,6 +9,7 @@ export { createApiClient, WidgetApiError } from "./api-client";
 export type { ApiClient, AuthHeaderProvider } from "./api-client";
 
 export { createShadowRoot, openComposer, renderPin, showTooltip } from "./ui";
+export { composerHasDraft, nudgeComposer } from "./ui-composer";
 export type { ComposerDetails, ComposerResult } from "./ui";
 
 export { anchorPointFor, computeAnchor, computeRegionAnchor, resolveAnchorElement } from "./anchor";

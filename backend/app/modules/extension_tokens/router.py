@@ -32,9 +32,7 @@ async def extension_whoami(
     )
 
 
-@router.get(
-    "/workspaces/{workspace_id}/extension-tokens", response_model=list[ExtensionTokenOut]
-)
+@router.get("/workspaces/{workspace_id}/extension-tokens", response_model=list[ExtensionTokenOut])
 async def list_extension_tokens(
     workspace_id: str,
     session: Session = Depends(require_permission("workspace:view_settings")),

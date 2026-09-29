@@ -80,6 +80,8 @@ export interface CommentRecord {
   author_type: "member" | "guest";
   author_id: string;
   author_name: string;
+  // Always "client" for what a guest receives; present on every API/realtime payload.
+  layer?: "client" | "team";
   body: string;
   // The backend's Status vocabulary (comments/schemas.py) - kept as a plain string
   // here, the same way `tags` is, so a status added there doesn't break this bundle.

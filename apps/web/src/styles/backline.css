@@ -1133,7 +1133,10 @@ button{letter-spacing:inherit}
 
 /* ================= FOCUSED WEBSITE REVIEW WORKSPACE ================= */
 .bl-project-route{min-height:100vh;background:var(--paper)}
-.bl-review-workspace{height:100svh;min-height:640px;display:flex;flex-direction:column;overflow:hidden;background:var(--paper);color:var(--ink);font-family:var(--sans)}
+/* overflow:clip (hidden as the fallback) so a focus() or scrollIntoView() inside the canvas
+   can't scroll the whole workspace sideways - with hidden, one did, and the header, rail
+   and footer all shifted left and clipped. */
+.bl-review-workspace{height:100svh;min-height:640px;display:flex;flex-direction:column;overflow:hidden;overflow:clip;background:var(--paper);color:var(--ink);font-family:var(--sans)}
 .bl-review-gate{min-height:100svh;display:flex;align-items:center;justify-content:center;gap:18px;padding:32px;background:var(--paper)}
 .bl-review-gate>.bl-loading-mark{margin:0;flex:none}
 .bl-review-gate-copy{width:min(420px,100%)}
@@ -1187,7 +1190,7 @@ button{letter-spacing:inherit}
    the panel rail (which floats over this row) added to the right one so a 100%-wide
    frame stops short of it instead of running underneath. --bl-rail-w mirrors
    .bl-review-panel-rail's own width below. */
-.bl-review-main{position:relative;display:flex;flex:1;min-height:0;overflow:hidden;--bl-canvas-gutter:40px;--bl-rail-w:54px;--bl-drawer-w:0px}
+.bl-review-main{position:relative;display:flex;flex:1;min-height:0;overflow:hidden;overflow:clip;--bl-canvas-gutter:40px;--bl-rail-w:54px;--bl-drawer-w:0px}
 /* An open side-panel drawer floats over this row rather than sitting in it, so the
    stage reserves its width as well: a full-width preview (and the width handle on its
    right edge) would otherwise disappear underneath the panel. Mirrors
@@ -1257,7 +1260,14 @@ button{letter-spacing:inherit}
 .bl-review-panel-tab.is-active{border-color:var(--ink);background:var(--mint-tint);color:var(--ink)}
 .bl-review-ai-tab{margin-top:auto}.bl-review-ai-mark{display:grid;place-items:center;width:23px;height:23px;border-radius:3px;background:var(--ink);color:var(--mint)}
 
-.bl-review-statusbar{z-index:26;display:flex;align-items:center;gap:12px;min-height:47px;padding:6px 9px;border-top:1px solid var(--line);background:var(--bl-surface)}
+/* Not overflow:auto on desktop - its menus open upward out of it and would be clipped.
+   What doesn't fit is hidden by the breakpoints below instead (the "coming soon"
+   controls first), and the workspace's overflow:clip keeps any remainder from
+   widening the page. */
+/* Raised while one of its menus is open, which would otherwise open under the canvas's
+   floating dock (.bl-quick-dock-wrapper, z-index 50). */
+.bl-review-statusbar:has(.bl-review-popover){z-index:60}
+.bl-review-statusbar{z-index:26;display:flex;align-items:center;gap:12px;min-width:0;min-height:47px;padding:6px 9px;border-top:1px solid var(--line);background:var(--bl-surface)}
 .bl-review-status-controls,.bl-review-status-actions{display:flex;align-items:center;gap:6px;min-width:0}
 .bl-review-status-actions{margin-left:auto}
 .bl-review-source-status{display:flex;align-items:center;gap:6px;min-width:0;color:var(--bl-muted);font:10px var(--mono);white-space:nowrap}
@@ -1291,9 +1301,9 @@ button{letter-spacing:inherit}
 
 @media(max-width:1100px){
   .bl-review-header{align-items:flex-start;flex-wrap:wrap}.bl-review-identity{flex:1}.bl-review-header-tools{width:100%;margin-left:42px;flex-wrap:wrap;padding-bottom:1px}.bl-review-title-line h1{max-width:55vw}.bl-review-url{max-width:65vw}
-  .bl-review-workspace{min-height:720px}.bl-review-coming-soon{display:none}.bl-review-source-status span:nth-last-child(-n+2){display:none}
+  .bl-review-workspace{min-height:560px}.bl-review-coming-soon{display:none}.bl-review-source-status span:nth-last-child(-n+2){display:none}
 }
-@media(max-width:1350px){.bl-review-optional-control{display:none}}
+@media(max-width:1500px){.bl-review-optional-control{display:none}}
 @media(max-width:760px){
   .bl-review-workspace{height:100svh;min-height:580px}.bl-review-header{gap:7px;padding:7px 9px}.bl-review-header-tools{margin-left:0}.bl-review-mode{position:sticky;left:0;z-index:2}.bl-review-open{background:var(--ink);color:var(--bl-invert-fg)}
   .bl-review-title-line h1{max-width:52vw}.bl-review-url{max-width:68vw}
@@ -1346,6 +1356,12 @@ button{letter-spacing:inherit}
 .bl-comment-shot-failed{color:var(--ink-4);font:10px var(--mono)}
 .bl-comment-menu{min-width:170px}
 .bl-comment-orphaned{opacity:.85}
+.bl-comment-shot-link{align-self:flex-start}
+.bl-comment-row.is-closed:not(.is-selected) .bl-comment-body{color:var(--ink-3)}
+/* "Display: Compact" - two lines of text, no screenshot or attachments, tighter box. */
+.bl-comment-row.is-compact{gap:5px;padding:8px 10px}
+.bl-comment-row.is-compact .bl-comment-body{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:12px;line-height:1.45}
+.bl-comment-row:focus-visible{outline:2px solid var(--mint-deep);outline-offset:1px}
 
 /* MCP/Integrations connector cards reuse the project-type-card vocabulary at a
    smaller, list-row scale instead of a grid. */
@@ -1621,11 +1637,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   align-items: center;
 }
 
+/* Theme tokens throughout: this used --ink-9/--ink-1, which don't exist, so the pill
+   was transparent and its icons light-on-light over the (usually white) site in dark
+   mode. */
 .bl-quick-dock {
   display: flex;
   align-items: center;
-  background: var(--ink-9);
-  color: var(--ink-1);
+  background: var(--bl-glass);
+  color: var(--ink);
+  border: 1px solid var(--line);
   padding: 8px 12px;
   border-radius: 9999px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.1);
@@ -1641,13 +1661,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
      (.bl-brand-glyph, 30x30) previously overflowed a 24px box by ~3px per side. */
   width: 32px;
   height: 32px;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 
 .bl-dock-divider {
   width: 1px;
   height: 16px;
-  background: rgba(255,255,255,0.15);
+  background: var(--line);
 }
 
 .bl-dock-env {
@@ -1666,7 +1686,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 
 .bl-dock-env:hover {
-  background: rgba(255,255,255,0.1);
+  background: var(--hov);
 }
 
 .bl-dock-btn {
@@ -1684,8 +1704,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 
 .bl-dock-btn:hover {
-  background: rgba(255,255,255,0.1);
-  color: var(--ink-1);
+  background: var(--hov);
+  color: var(--ink);
 }
 
 .bl-dock-btn.active {
@@ -1712,9 +1732,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 .bl-quick-dock .bl-dropdown-trigger:hover,
 .bl-quick-dock .bl-dropdown-trigger[aria-expanded="true"] {
-  background: rgba(255,255,255,0.1);
+  background: var(--hov);
   border-color: transparent;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 
 .bl-quick-dock .bl-dropdown-pop {
@@ -1936,7 +1956,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .bl-cd-prio-b[aria-pressed="true"]{border-color:var(--pc);background:var(--bl-surface);color:var(--pc);font-weight:700}
 .bl-cd-page{padding:0;color:var(--ink-3);font:11px var(--mono);overflow-wrap:anywhere;text-align:left}
 .bl-cd-page:hover{color:var(--ink);text-decoration:underline}
-.bl-cd-msgs{display:grid;flex:1;min-height:0;align-content:start;gap:14px;overflow-y:auto;padding:14px 13px}
+.bl-cd-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.bl-cd-msgs{display:grid;align-content:start;gap:14px;padding:14px 13px}
 .bl-cd-msg{display:flex;gap:10px}
 .bl-cd-msg-body{min-width:0;flex:1}
 .bl-cd-msg-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:7px;margin-bottom:3px}
@@ -1974,6 +1995,16 @@ textarea.bl-cd-textarea:focus{border-color:var(--ink);background:var(--bl-surfac
 .bl-cd-actions .bl-button{padding:7px 13px;font-size:12.5px}
 .bl-cd-resolve{padding:7px 13px;font-size:12.5px}
 .bl-cd-layer{margin-left:auto;max-width:140px;font-size:11px}
+.bl-cd-layer:disabled{opacity:.75;cursor:not-allowed}
+/* The header's layer badge is also the switch between client-visible and team-only. */
+.bl-cd-layer-toggle{display:inline-flex;padding:0;border-radius:20px;line-height:0}
+.bl-cd-layer-toggle:hover:not(:disabled)>*{box-shadow:0 0 0 1px currentColor}
+.bl-cd-layer-toggle:focus-visible{outline:2px solid var(--mint-deep);outline-offset:2px}
+/* The shared LayerBadge is sized for page content (Tailwind text-xs); in the drawer it
+   sits among 10px pills and read a size too big. */
+.bl-cd-layer-toggle>.rounded-full,.bl-comment-foot>.rounded-full{padding:2px 7px;font-size:10px;line-height:1.4}
+/* Laptop-height screens: a shorter reply box leaves the thread room to be read. */
+@media (max-height:820px){textarea.bl-cd-textarea{min-height:44px;height:52px}.bl-cd-shot-add{height:30px}.bl-cd-tool{padding:3px 10px}.bl-cd-reply{padding:9px 13px}.bl-cd-tools{margin-bottom:6px}.bl-cd-shots,.bl-cd-actions{margin-top:7px}.bl-cd-meta{gap:7px;padding:9px 13px}}
 .bl-cd-opt{display:flex;min-width:0;align-items:center;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bl-review-menu-row .bl-cd-tick{display:flex;flex:none;color:var(--mint-deep)}
 .bl-cd-reply .bl-error{margin:9px 0 0}
@@ -2484,3 +2515,80 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-cloud-login-canvas{width:100%;max-width:960px;aspect-ratio:1280/800;border:1px solid var(--line);border-radius:8px;background:#111;cursor:default;touch-action:none}
 .bl-cloud-login-keys{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
 .bl-cloud-login-actions{display:flex;justify-content:flex-end;gap:9px}
+
+/* ================= INTEGRATIONS & MCP (TDR-0046) ================= */
+.bl-int-note{margin:0 0 18px;padding:10px 12px;border:1px solid var(--line);border-radius:5px;font-size:12px}
+.bl-int-section>header{flex-wrap:wrap;gap:6px 16px}
+.bl-int-section>header>span{font-size:11.5px;color:var(--ink-3);max-width:70ch}
+.bl-attention>.bl-int-list,.bl-attention>.bl-int-catalog,.bl-attention>.bl-mcp-body{display:flex;flex-direction:column}
+.bl-int-list>.bl-int-row+.bl-int-row{border-top:1px solid var(--line-soft)}
+.bl-int-row{padding:12px 16px}
+.bl-int-row-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.bl-int-logo{flex:none;object-fit:contain}
+.bl-int-row-copy{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1 1 220px}
+.bl-attention .bl-int-row-copy strong{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;white-space:nowrap}
+.bl-attention .bl-int-row-copy span{font-size:11.5px;color:var(--ink-3)}
+.bl-attention .bl-int-row-copy b{color:var(--ink);font-weight:600}
+.bl-attention .bl-int-row-copy .bl-int-warn{color:var(--amber-ink)}
+.bl-int-row-actions{display:flex;gap:8px;flex-wrap:wrap}
+.bl-quiet.bl-int-danger{color:var(--bl-error)}
+.bl-int-row-panel{margin:12px 0 2px 40px;padding:12px;border:1px solid var(--line-soft);border-radius:5px;background:var(--bl-paper)}
+.bl-int-ok{margin:10px 0 0 40px;font-size:12px;color:var(--mint-deep)}
+.bl-int-row>.bl-error{margin:10px 0 0 40px}
+.bl-int-catalog{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.bl-int-card{display:flex;flex-direction:column;gap:10px;padding:16px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);min-width:0}
+.bl-int-card.is-open{grid-column:1/-1;background:var(--bl-paper)}
+.bl-int-card-head{display:flex;align-items:flex-start;gap:12px}
+.bl-int-card-head>div{flex:1;min-width:0}
+.bl-attention .bl-int-card-head strong{font-size:13px;font-weight:600}
+.bl-int-card-head p{margin:3px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.45}
+.bl-attention .bl-int-connected{font:10.5px var(--mono);color:var(--mint-deep)}
+.bl-int-form{display:flex;flex-direction:column;gap:12px;max-width:760px}
+.bl-int-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-2);line-height:1.5;list-style:decimal}
+.bl-int-oauth{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.bl-int-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.bl-int-fields label{display:flex;flex-direction:column;gap:5px}
+.bl-attention .bl-int-fields label>span{font-size:12px;font-weight:600;color:var(--ink)}
+.bl-attention .bl-int-fields small{font-weight:400;color:var(--ink-3);font-size:11px}
+.bl-int-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bl-int-switches{display:flex;flex-direction:column;gap:8px}
+.bl-int-switch{display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12px;color:var(--ink)}
+.bl-int-switch .bl-switch{margin-top:1px}
+.bl-attention .bl-int-switch span small,.bl-int-switch small{display:block;margin-top:2px;font-size:11px;color:var(--ink-3);max-width:60ch}
+.bl-int-picker{display:flex;flex-direction:column;gap:8px}
+.bl-int-picker-label{font-size:12px;font-weight:600}
+.bl-int-picker-row{display:flex;gap:10px;flex-wrap:wrap}
+.bl-select.bl-int-select{flex:1 1 260px;max-width:480px}
+.bl-int-secret{display:flex;flex-direction:column;gap:8px;margin:0 0 22px;padding:14px 16px;border:1px solid var(--line);border-left:3px solid var(--mint);border-radius:5px;background:var(--bl-surface);font-size:12.5px}
+.bl-mcp-body{padding:16px;gap:14px}
+.bl-mcp-url{display:flex;gap:8px;flex-wrap:wrap}
+.bl-mcp-url .bl-input{flex:1 1 320px}
+.bl-mcp-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.bl-mcp-form .bl-input{flex:1 1 200px;width:auto}
+.bl-mcp-clients{display:flex;flex-direction:column;gap:12px}
+.bl-mcp-clients .bl-tabs{margin:0}
+.bl-mcp-client{display:flex;flex-direction:column;gap:10px}
+.bl-mcp-client p{margin:0;font-size:12px;color:var(--ink-2);line-height:1.55}
+.bl-mcp-client code,.bl-mcp-tools code{font:11px var(--mono);background:var(--bl-paper);padding:1px 4px;border-radius:3px}
+.bl-code{position:relative;margin:0;padding:12px 14px;border:1px solid var(--line);border-radius:5px;background:var(--bl-paper);font:11px/1.6 var(--mono);color:var(--ink-2);white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto}
+.bl-code-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bl-mcp-tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.bl-mcp-tool{padding:10px 12px;border:1px solid var(--line-soft);border-radius:5px;background:var(--bl-surface);font-size:12px;color:var(--ink-2);line-height:1.45}
+.bl-mcp-tool strong{display:flex;align-items:center;gap:6px;margin-bottom:3px;color:var(--ink);font:600 11.5px var(--mono)}
+.bl-mcp-token-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;flex-wrap:wrap}
+.bl-mcp-token-row+.bl-mcp-token-row{border-top:1px solid var(--line-soft)}
+.bl-mcp-token-row>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.bl-attention .bl-mcp-token-row strong{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;flex-wrap:wrap}
+.bl-cd-links{display:flex;flex-wrap:wrap;gap:6px}
+.bl-cd-send{position:relative;display:inline-flex}
+.bl-cd-send-menu{display:flex;flex-direction:column;min-width:220px}
+.bl-cd-send-menu button{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:4px;font-size:12px;text-align:left}
+.bl-cd-send-menu button:hover:not(:disabled){background:var(--bl-paper)}
+.bl-cd-send-menu small{margin-left:auto;font:10px var(--mono);color:var(--ink-3)}
+@media (max-width:640px){.bl-int-row-panel,.bl-int-ok,.bl-int-row>.bl-error{margin-left:0}}
+.bl-attention .bl-connector-id{color:#fff;font:600 11px var(--mono)}
+.bl-attention .bl-int-switch>span:last-child{font-size:12px;color:var(--ink)}
+.bl-attention .bl-int-switch>span:last-child small{font-size:11px;color:var(--ink-3)}
+/* A checked switch fills with --ink, which is near-white in dark mode - the white knob
+   disappeared into it. Invert the knob there, the way .bl-button inverts. */
+:root.dark .bl-switch-input:checked+.bl-switch i{background:var(--bl-surface)}

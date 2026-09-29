@@ -50,9 +50,34 @@ const HOST_STYLES = `
     font-size: 13px; font-weight: 700; line-height: 1;
     z-index: 2147482999; box-shadow: 0 2px 5px rgba(11,11,11,0.22); cursor: pointer;
   }
-  /* Browse mode shows the site alone - no pins, threads or composer. */
+  /* A resolved or won't-fix comment keeps its pin, quieter, so what is still open
+     stands out. */
+  .bl-pin.bl-pin-closed { background: #FFFFFF; color: var(--bl-ink-3); border-color: var(--bl-line); opacity: 0.8; }
+  .bl-pin.bl-pin-closed:hover, .bl-pin.bl-pin-closed.bl-pin-active { opacity: 1; }
+  /* The pin whose card is open. */
+  .bl-pin.bl-pin-active { box-shadow: 0 0 0 3px var(--bl-mint), 0 2px 5px rgba(11,11,11,0.22); z-index: 2147483000; }
+  /* A drawn-region comment's area, following the element it was drawn on. */
+  .bl-region {
+    position: absolute; z-index: 2147482998; pointer-events: none;
+    border: 2px solid var(--bl-mint-deep); background: rgba(105, 222, 178, 0.14); border-radius: 2px;
+  }
+  .bl-region.bl-region-draft { border-style: dashed; }
+  .bl-region.bl-region-closed { border-color: var(--bl-ink-4); background: rgba(105, 110, 104, 0.06); border-style: dotted; }
+  .bl-region.bl-region-active { background: rgba(105, 222, 178, 0.24); }
+  /* Browse mode shows the site alone - no pins, regions, threads or composer. */
   :host([data-mode="browse"]) .bl-pin,
+  :host([data-mode="browse"]) .bl-region,
   :host([data-mode="browse"]) .bl-card { display: none !important; }
+  /* A click elsewhere while a comment is half-written points back at it. */
+  @keyframes bl-nudge {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(3px); }
+  }
+  .bl-card.bl-nudge { animation: bl-nudge 0.36s ease; box-shadow: 0 0 0 3px var(--bl-mint), 0 20px 48px rgba(11,11,11,0.24); }
+  @media (prefers-reduced-motion: reduce) { .bl-card.bl-nudge { animation: none; } }
   /* The pin for a comment still being written - the design's "ghost" pin. */
   .bl-pin.bl-pin-ghost {
     background: var(--bl-mint); color: var(--bl-ink);
@@ -67,6 +92,8 @@ const HOST_STYLES = `
     font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); max-width: 240px;
   }
   .bl-toast-offline { background: #8A5B00; color: #FFFFFF; }
+  /* In the dashboard's canvas its quick-tools dock floats over the bottom of the frame. */
+  :host([data-embedded]) .bl-tooltip, :host([data-embedded]) .bl-toast { bottom: 88px; }
   button.bl-attachment-remove {
     background: none; border: none; color: #6B6B76; cursor: pointer; width: auto;
     padding: 0 2px; font-size: 14px; line-height: 1; flex-shrink: 0;

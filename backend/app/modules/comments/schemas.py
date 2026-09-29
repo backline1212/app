@@ -26,6 +26,7 @@ class RegionBoxPct(BaseModel):
     width: float = Field(ge=0, le=1)
     height: float = Field(ge=0, le=1)
 
+
 class DomFingerprintIn(BaseModel):
     """node_hash/ancestor_path_hash use the same hash scheme as a snapshot's NodeRecord
     (09-Snapshot-Engine.md §9.6) - required for modules/anchor_engine to compare an

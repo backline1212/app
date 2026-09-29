@@ -59,8 +59,17 @@ export function logout(): Promise<void> {
   return apiFetch<void>("/api/v1/auth/logout", { method: "POST" });
 }
 
+let refreshSessionInFlight: Promise<TokenPairOut> | null = null;
+
+/** One request at a time: refresh tokens rotate, and a second concurrent call with the
+ * same cookie trips the server's reuse detection, which revokes the whole session.
+ * StrictMode's double-run of AuthProvider's restore effect did exactly that on every
+ * dev reload. */
 export function refreshSession(): Promise<TokenPairOut> {
-  return apiFetch<TokenPairOut>("/api/v1/auth/refresh", { method: "POST" });
+  refreshSessionInFlight ??= apiFetch<TokenPairOut>("/api/v1/auth/refresh", { method: "POST" }).finally(() => {
+    refreshSessionInFlight = null;
+  });
+  return refreshSessionInFlight;
 }
 
 export type UserPreferencesOut = Schemas["UserPreferencesOut"];

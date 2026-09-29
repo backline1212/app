@@ -1,6 +1,6 @@
 import type { Schemas } from "@backline/types";
 import { Avatar, LayerBadge, RecoveryBadge } from "@backline/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useCallback,
   useEffect,
@@ -13,7 +13,9 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { ConfirmDialog } from "../../../../components/ConfirmDialog";
 import { patchProjectComment, upsertProjectComment } from "../../../../lib/comment-cache";
+import { qk } from "../../../../lib/query-keys";
 import { renderWithMentions } from "../../../../lib/mentions";
 import { ticketRef } from "../../../../lib/ticket-ref";
 import { timeAgo } from "../../../../lib/time";
@@ -25,6 +27,8 @@ import * as boardApi from "../../../board/api";
 import type { CommentLayer, CommentOut, CommentStatus } from "../../../board/api";
 import { MentionsInput } from "../../../comments/MentionsInput";
 import type { PageOut } from "../../../pages/api";
+import * as integrationsApi from "../../../integrations/api";
+import { providerName } from "../../../integrations/providers";
 import { DatePicker } from "../../../tickets/components/DatePicker";
 import type { MemberOut } from "../../../workspaces/api";
 import {
@@ -38,7 +42,7 @@ import {
 } from "./types";
 
 type CommentTag = NonNullable<CommentOut["tags"]>[number];
-type MenuId = "status" | "waiting" | "tags" | "assignees";
+type MenuId = "status" | "waiting" | "tags" | "assignees" | "send";
 
 interface CommentContext {
   browser?: string;
@@ -103,6 +107,7 @@ const ImageIcon = () =>
     1.8,
   );
 const BackIcon = () => icon(<path d="M19 12H5M11 18l-6-6 6-6" />);
+const SendIcon = () => icon(<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z" />);
 
 function memberLabel(members: MemberOut[], userId: string): string {
   const member = members.find((m) => m.user_id === userId);
@@ -336,7 +341,14 @@ export function CommentDetail({
   const queryClient = useQueryClient();
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
   const [body, setBody] = useState("");
-  const [layer, setLayer] = useState<CommentLayer>("client");
+  // A reply starts with the thread's own visibility: on a team-only thread it can only
+  // be team-only (the API enforces that too - comments/service.py's create_reply).
+  const [layer, setLayer] = useState<CommentLayer>(comment.layer);
+  const [confirmLayer, setConfirmLayer] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Bumped when a reply posts, to bring it into view. Not keyed on the replies count:
+  // the realtime echo of the same reply usually arrives before the POST's response.
+  const [scrollToEnd, setScrollToEnd] = useState(0);
   const [attachments, setAttachments] = useState<Schemas["AttachmentIn"][]>([]);
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -349,14 +361,52 @@ export function CommentDetail({
   const waitingRef = useRef<HTMLButtonElement>(null);
   const tagsRef = useRef<HTMLButtonElement>(null);
   const assigneesRef = useRef<HTMLButtonElement>(null);
+  const sendRef = useRef<HTMLButtonElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const closeMenu = useCallback(() => setOpenMenu(null), []);
   const toggleMenu = (menu: MenuId) => setOpenMenu((current) => (current === menu ? null : menu));
 
+  // Every field edit shows at once and is put back if the server refuses it. Without
+  // this, each toggle in the tags/assignee/waiting-on menus (which stay open) was
+  // computed from the comment as it was before the previous toggle's round trip had
+  // finished, so a quick second click undid the first.
+  const updateKey = ["comment-update", comment.id] as const;
   const update = useMutation({
+    mutationKey: updateKey,
     mutationFn: (patch: Schemas["CommentUpdate"]) => boardApi.updateComment(comment.id, patch),
-    onSuccess: (updated) => patchProjectComment(queryClient, projectId, updated.id, updated),
+    onMutate: async (patch) => {
+      await queryClient.cancelQueries({ queryKey: qk.projectComments(projectId) });
+      const before = queryClient
+        .getQueryData<CommentOut[]>(qk.projectComments(projectId))
+        ?.find((c) => c.id === comment.id);
+      const optimistic: Partial<CommentOut> = { ...(patch as Partial<CommentOut>) };
+      if (patch.assignee_ids) optimistic.assignee_id = patch.assignee_ids[0] ?? null;
+      if (patch.status && isClosed(patch.status)) {
+        optimistic.waiting_on_ids = [];
+        optimistic.waiting_on_client = false;
+      }
+      patchProjectComment(queryClient, projectId, comment.id, optimistic);
+      return { before };
+    },
+    onError: (_error, _patch, context) => {
+      if (context?.before) patchProjectComment(queryClient, projectId, context.before.id, context.before);
+    },
+    onSuccess: (updated) => {
+      // A later edit is still on its way: its optimistic value is newer than this
+      // response, which would briefly undo it.
+      if (queryClient.isMutating({ mutationKey: updateKey }) > 1) return;
+      patchProjectComment(queryClient, projectId, updated.id, updated);
+    },
+  });
+
+  const changeLayer = useMutation({
+    mutationFn: (next: CommentLayer) => boardApi.setCommentLayer(comment.id, next),
+    onSuccess: (updated) => {
+      setConfirmLayer(false);
+      patchProjectComment(queryClient, projectId, updated.id, updated);
+    },
+    onError: () => setConfirmLayer(false),
   });
 
   const reply = useMutation({
@@ -368,6 +418,39 @@ export function CommentDetail({
       // Upsert, not append: the comment.created broadcast for this same reply may
       // land first.
       upsertProjectComment(queryClient, projectId, created);
+      setScrollToEnd((count) => count + 1);
+    },
+  });
+
+  // The reply just posted lands at the bottom of the thread; bring it into view.
+  useEffect(() => {
+    if (!scrollToEnd) return;
+    const scroller = scrollRef.current;
+    scroller?.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+  }, [scrollToEnd]);
+
+  // Trackers this comment can be filed in, and where it already has been. Links are
+  // fetched separately from the comment itself: CommentOut also goes to guests, and a
+  // client has no business seeing the agency's Jira/Linear URLs.
+  const { data: integrations } = useQuery({
+    queryKey: qk.integrations(workspaceId),
+    queryFn: () => integrationsApi.listIntegrations(workspaceId),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+  });
+  const trackers = (integrations ?? []).filter((item) => item.kind === "tracker" && !item.needs_destination);
+  const linksKey = qk.commentIntegrationLinks(comment.id);
+  const { data: links } = useQuery({
+    queryKey: linksKey,
+    queryFn: () => integrationsApi.listCommentLinks(comment.id),
+    enabled: trackers.length > 0,
+  });
+  const send = useMutation({
+    mutationFn: (integrationId: string) => integrationsApi.sendToTracker(comment.id, integrationId),
+    onSuccess: (link) => {
+      queryClient.setQueryData<integrationsApi.ExternalLinkOut[]>(linksKey, (current = []) =>
+        current.some((item) => item.id === link.id) ? current : [...current, link],
+      );
     },
   });
 
@@ -386,22 +469,37 @@ export function CommentDetail({
     setAttachments([]);
     setMentionedUserIds([]);
     setDevTask(null);
-    // draft (suggestReply) isn't recreated by this comment change - useMutation keeps
-    // its isError/error from whichever comment last called it, so without this an "AI
-    // is busy" banner from a previous comment would still show under a fresh one that
-    // was never even asked for a draft yet.
+    setLayer(comment.layer);
+    setConfirmLayer(false);
+    setUploadError(false);
+    scrollRef.current?.scrollTo({ top: 0 });
+    // None of these mutations are recreated by this comment change - useMutation keeps
+    // its isError/error from whichever comment last used it, so without this an "AI is
+    // busy" or "Could not post your reply" banner from a previous comment would still
+    // show under a fresh one that was never even asked yet.
     draft.reset();
+    reply.reset();
+    update.reset();
+    changeLayer.reset();
+    send.reset();
     // Only when the click that got here came from this drawer: opening a row removes
     // it, dropping focus to <body>, and the back button is where that focus belongs.
     // A pin clicked inside the canvas leaves focus on the iframe, and pulling it out
     // would take Escape (and the rest of the keyboard) away from the widget's own card.
     const active = document.activeElement;
     if (!active || active === document.body) backRef.current?.focus();
-    // draft is intentionally left out below: it's a useMutation result recreated every
-    // render, so depending on it would re-run this whole effect (including the focus
-    // logic above) on every render instead of only on an actual comment change.
+    // The mutations are intentionally left out below: each is a useMutation result
+    // recreated every render, so depending on them would re-run this whole effect
+    // (including the focus logic above) on every render instead of only on an actual
+    // comment change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comment.id]);
+
+  // The thread's own visibility can change while it's open (here, or by a teammate):
+  // a team-only thread only takes team-only replies.
+  useEffect(() => {
+    if (comment.layer === "team") setLayer("team");
+  }, [comment.layer]);
 
   function setStatus(status: CommentStatus) {
     update.mutate({
@@ -467,12 +565,24 @@ export function CommentDetail({
           All comments
         </button>
         <span className="bl-cd-badges">
-          <LayerBadge layer={comment.layer} />
+          <button
+            type="button"
+            className="bl-cd-layer-toggle"
+            onClick={() => setConfirmLayer(true)}
+            disabled={changeLayer.isPending}
+            title={comment.layer === "team" ? "Team only — click to show it to the client" : "Client visible — click to make it team-only"}
+            aria-label={comment.layer === "team" ? "Team only. Show this comment to the client" : "Client visible. Make this comment team-only"}
+          >
+            <LayerBadge layer={comment.layer} />
+          </button>
           {comment.recovery_status !== "ok" && <RecoveryBadge status={comment.recovery_status} />}
         </span>
         <span className="bl-cd-id">{ticketRef(comment)}</span>
       </div>
 
+      {/* Fields and thread scroll together, so on a laptop-height screen the thread
+          isn't squeezed into the few pixels the fields and reply box leave over. */}
+      <div className="bl-cd-scroll" ref={scrollRef}>
       <div className="bl-cd-meta">
         <div className="bl-cd-row">
           <span className="bl-cd-label">STATUS</span>
@@ -701,9 +811,27 @@ export function CommentDetail({
           {isRegion && <span className="bl-cd-tag">region</span>}
         </div>
 
+        {(links ?? []).length > 0 && (
+          <div className="bl-cd-row">
+            <span className="bl-cd-label">FILED IN</span>
+            <span className="bl-cd-links">
+              {(links ?? []).map((link) => (
+                <a key={link.id} className="bl-chip" href={link.url} target="_blank" rel="noreferrer">
+                  {providerName(link.type)} {link.external_id} ↗
+                </a>
+              ))}
+            </span>
+          </div>
+        )}
+
         {update.isError && (
           <p role="alert" className="bl-error">
             Could not save that change.
+          </p>
+        )}
+        {changeLayer.isError && (
+          <p role="alert" className="bl-error">
+            Couldn't change who can see this comment.
           </p>
         )}
       </div>
@@ -729,6 +857,7 @@ export function CommentDetail({
           </div>
         )}
       </div>
+      </div>
 
       <form
         className="bl-cd-reply"
@@ -752,7 +881,52 @@ export function CommentDetail({
             <CodeIcon />
             Turn into a dev task
           </button>
+          {trackers.length > 0 && (
+            <>
+              <button
+                ref={sendRef}
+                type="button"
+                className="bl-cd-tool"
+                aria-haspopup="menu"
+                aria-expanded={openMenu === "send"}
+                aria-busy={send.isPending}
+                disabled={send.isPending}
+                onClick={() => toggleMenu("send")}
+              >
+                <SendIcon />
+                {send.isPending ? "Sending…" : "Send to tracker"}
+              </button>
+              <DetailMenu triggerRef={sendRef} open={openMenu === "send"} label="Send this comment to" onClose={closeMenu}>
+                <div className="bl-cd-send-menu">
+                  {trackers.map((tracker) => {
+                    const filed = (links ?? []).find((link) => link.integration_id === tracker.id);
+                    return (
+                      <button
+                        key={tracker.id}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          closeMenu();
+                          sendRef.current?.focus();
+                          if (filed) window.open(filed.url, "_blank", "noopener");
+                          else send.mutate(tracker.id);
+                        }}
+                      >
+                        {providerName(tracker.type)}
+                        <small>{filed ? `${filed.external_id} ↗` : tracker.destination_label}</small>
+                      </button>
+                    );
+                  })}
+                </div>
+              </DetailMenu>
+            </>
+          )}
         </div>
+        {send.isError && (
+          <p role="alert" className="bl-error">
+            {send.error instanceof Error ? send.error.message : "Could not send this comment."}
+          </p>
+        )}
         {draft.isError && (
           <p role="alert" className="bl-error">
             {aiErrorMessage(draft.error, "Could not draft a reply right now.")}
@@ -820,17 +994,19 @@ export function CommentDetail({
             type="button"
             className="bl-quiet bl-cd-resolve"
             disabled={update.isPending}
-            onClick={() => setStatus(comment.status === "resolved" ? "todo" : "resolved")}
+            onClick={() => setStatus(closed ? "todo" : "resolved")}
           >
-            {comment.status === "resolved" ? "Reopen" : "Resolve"}
+            {closed ? "Reopen" : "Resolve"}
           </button>
           <select
             value={layer}
             onChange={(event) => setLayer(event.target.value as CommentLayer)}
             aria-label="Reply visibility"
             className="bl-select bl-cd-layer"
+            disabled={comment.layer === "team"}
+            title={comment.layer === "team" ? "Replies on a team-only thread are team-only" : undefined}
           >
-            <option value="client">Client visible</option>
+            <option value="client" disabled={comment.layer === "team"}>Client visible</option>
             <option value="team">Team only</option>
           </select>
         </div>
@@ -840,6 +1016,21 @@ export function CommentDetail({
           </p>
         )}
       </form>
+
+      {confirmLayer && (
+        <ConfirmDialog
+          title={comment.layer === "team" ? `Show ${ticketRef(comment)} to the client?` : `Make ${ticketRef(comment)} team-only?`}
+          message={
+            comment.layer === "team"
+              ? "The client will see this comment and its pin on the page, with any replies that aren't team-only."
+              : "The client stops seeing this comment, its pin and its replies straight away. Your team still sees everything."
+          }
+          confirmLabel={comment.layer === "team" ? "Show to client" : "Make team-only"}
+          pending={changeLayer.isPending}
+          onConfirm={() => changeLayer.mutate(comment.layer === "team" ? "client" : "team")}
+          onCancel={() => setConfirmLayer(false)}
+        />
+      )}
     </div>
   );
 }

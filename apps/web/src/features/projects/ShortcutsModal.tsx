@@ -1,50 +1,13 @@
 import { useEffect, useState } from "react";
 import { Dialog } from "../../components/Dialog";
-
-export interface Shortcut {
-  id: string;
-  label: string;
-  key: string;
-  editable: boolean;
-}
-
-export const defaultShortcuts: Shortcut[] = [
-  { id: "comment", label: "Add Comment", key: "C", editable: true },
-  { id: "draw", label: "Draw Region", key: "D", editable: true },
-  { id: "browse", label: "Browse Mode", key: "V", editable: true },
-  { id: "hide-dock", label: "Hide Dock", key: "Ctrl .", editable: false },
-  { id: "next-page", label: "Next Page", key: "ArrowRight", editable: false },
-  { id: "prev-page", label: "Previous Page", key: "ArrowLeft", editable: false },
-];
-
-const STORAGE_KEY = "bl-shortcuts";
-
-/** Reads the reviewer's saved key bindings (falling back to the defaults above) so
- * ProjectOverviewPage's global hotkey listener honors whatever this modal saved -
- * without this, editing a shortcut here would just relabel the key, not rebind it. */
-export function loadShortcuts(): Shortcut[] {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return defaultShortcuts;
-    const parsed = JSON.parse(saved) as Partial<Shortcut>[];
-    // Merge over the defaults rather than trusting the saved list outright, so a
-    // shortcut added in a later release (e.g. "draw", added after some reviewers had
-    // already saved customizations) still shows up instead of silently vanishing.
-    return defaultShortcuts.map((fallback) => {
-      const match = parsed.find((s) => s.id === fallback.id);
-      return match?.key ? { ...fallback, key: match.key } : fallback;
-    });
-  } catch {
-    return defaultShortcuts;
-  }
-}
+import { loadShortcuts, SHORTCUTS_STORAGE_KEY, type Shortcut } from "./shortcuts";
 
 export function ShortcutsModal({ onClose }: { onClose: () => void }) {
   const [shortcuts, setShortcuts] = useState<Shortcut[]>(loadShortcuts);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(shortcuts));
+    localStorage.setItem(SHORTCUTS_STORAGE_KEY, JSON.stringify(shortcuts));
     // ProjectOverviewPage's own hotkey listener only reads localStorage on mount -
     // this tells it (and any other open tab/listener) a binding just changed so
     // pressing the new key works immediately, without a reload.

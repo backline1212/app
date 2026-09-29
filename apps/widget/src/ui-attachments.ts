@@ -41,16 +41,30 @@ export function setupAttachments(
   composer: HTMLElement,
   uploadFile: (file: File) => Promise<AttachmentResult | null>,
   onCountChange?: (count: number) => void,
-): { getAttachments: () => AttachmentResult[]; addFiles: (files: File[]) => void; disable: () => void; enable: () => void; reset: () => void } {
+  // A file that won't be attached - too large, or its upload failed - says so here,
+  // instead of its chip just disappearing.
+  onProblem?: (message: string) => void,
+): {
+  getAttachments: () => AttachmentResult[];
+  pendingCount: () => number;
+  addFiles: (files: File[]) => void;
+  disable: () => void;
+  enable: () => void;
+  reset: () => void;
+} {
   const attachmentsEl = composer.querySelector<HTMLDivElement>(".bl-attachments")!;
   const fileInput = composer.querySelector<HTMLInputElement>(".bl-attach-input")!;
   const attachButton = composer.querySelector<HTMLButtonElement>(".bl-attach-button")!;
   const uploaded: AttachmentResult[] = [];
+  let pending = 0;
   const reportCount = () => onCountChange?.(attachmentsEl.children.length);
 
   function addFiles(files: File[]): void {
     for (const file of files) {
-      if (file.size > MAX_ATTACHMENT_BYTES) continue;
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        onProblem?.(`${file.name} is over 10 MB and wasn't attached.`);
+        continue;
+      }
 
       const chip = document.createElement("span");
       chip.className = "bl-attachment-chip bl-attachment-pending";
@@ -61,7 +75,12 @@ export function setupAttachments(
 
       const removeButton = chip.querySelector<HTMLButtonElement>(".bl-attachment-remove")!;
       let result: AttachmentResult | null = null;
+      // Removed before its upload finished: the upload still completes, but it must not
+      // be attached to the comment the reviewer took it out of.
+      let removed = false;
+      pending += 1;
       removeButton.addEventListener("click", () => {
+        removed = true;
         chip.remove();
         reportCount();
         if (result) {
@@ -70,16 +89,21 @@ export function setupAttachments(
         }
       });
 
-      void uploadFile(file).then((uploadedResult) => {
-        if (!uploadedResult) {
-          chip.remove();
-          reportCount();
-          return;
-        }
-        result = uploadedResult;
-        uploaded.push(uploadedResult);
-        chip.classList.remove("bl-attachment-pending");
-      });
+      void uploadFile(file)
+        .catch(() => null)
+        .then((uploadedResult) => {
+          pending -= 1;
+          if (removed) return;
+          if (!uploadedResult) {
+            chip.remove();
+            reportCount();
+            onProblem?.(`${file.name} couldn't be uploaded.`);
+            return;
+          }
+          result = uploadedResult;
+          uploaded.push(uploadedResult);
+          chip.classList.remove("bl-attachment-pending");
+        });
     }
   }
 
@@ -93,6 +117,7 @@ export function setupAttachments(
 
   return {
     getAttachments: () => uploaded,
+    pendingCount: () => pending,
     addFiles,
     disable: () => {
       attachButton.setAttribute("disabled", "true");

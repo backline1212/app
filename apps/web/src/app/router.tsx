@@ -1,32 +1,10 @@
+import type { ComponentType } from "react";
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
-import { AuthCallbackPage } from "../features/auth/AuthCallbackPage";
 import { useAuth } from "../features/auth/AuthContext";
-import { LoginPage } from "../features/auth/LoginPage";
-import { BoardPage } from "../features/board/BoardPage";
-import { ExtensionSettingsPage } from "../features/extension-tokens/ExtensionSettingsPage";
-import { AsanaOAuthCallbackPage } from "../features/integrations/AsanaOAuthCallbackPage";
-import { ClickUpOAuthCallbackPage } from "../features/integrations/ClickUpOAuthCallbackPage";
-import { IntegrationsPage } from "../features/integrations/IntegrationsPage";
-import { JiraOAuthCallbackPage } from "../features/integrations/JiraOAuthCallbackPage";
-import { ProjectOverviewPage } from "../features/projects/ProjectOverviewPage";
-import { ReviewEntryPage } from "../features/review/ReviewEntryPage";
-import { ShareLinksPage } from "../features/share-links/ShareLinksPage";
-import { BillingPage } from "../features/workspaces/BillingPage";
-import { McpServerPage } from "../features/workspaces/McpServerPage";
-import { MembersPage } from "../features/workspaces/MembersPage";
-
-import { SettingsPage } from "../features/workspaces/SettingsPage";
-import { UsagePage } from "../features/workspaces/UsagePage";
-import { ProjectsPage } from "../features/projects/ProjectsPage";
-import { TicketsPage } from "../features/tickets/TicketsPage";
-import { ClientsPage } from "../features/clients/ClientsPage";
-import { ActivityPage } from "../features/activity/ActivityPage";
-import { WorkspacePickerPage } from "../features/workspaces/WorkspacePickerPage";
 import { ProjectLayout } from "./layout/ProjectLayout";
 import { WorkspaceLayout } from "./layout/WorkspaceLayout";
-import { NotFoundPage } from "../features/pages/NotFoundPage";
 
 import { ScrollToTop } from "../lib/ScrollToTop";
 
@@ -51,57 +29,110 @@ function RequireAuth() {
   return <Outlet />;
 }
 
+// Each page is its own chunk, fetched the first time its route is visited. Imported
+// eagerly, every screen - the canvas, the ticket views and pdf.js with them - was one
+// bundle a reviewer downloaded before even the sign-in page could render.
+function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) {
+  return async () => ({ Component: (await load())[name] });
+}
+
 // Full route tree (05-Frontend-Architecture.md §5.2) fills in as later milestones
 // add the board/page-detail screens.
 const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
-      { path: "/login", element: <LoginPage /> },
-      { path: "/auth/callback", element: <AuthCallbackPage /> },
-      { path: "/integrations/clickup/callback", element: <ClickUpOAuthCallbackPage /> },
-      { path: "/integrations/jira/callback", element: <JiraOAuthCallbackPage /> },
-      { path: "/integrations/asana/callback", element: <AsanaOAuthCallbackPage /> },
+      { path: "/login", lazy: page(() => import("../features/auth/LoginPage"), "LoginPage") },
+      {
+        path: "/auth/callback",
+        lazy: page(() => import("../features/auth/AuthCallbackPage"), "AuthCallbackPage"),
+      },
+      {
+        path: "/integrations/clickup/callback",
+        lazy: page(
+          () => import("../features/integrations/ClickUpOAuthCallbackPage"),
+          "ClickUpOAuthCallbackPage",
+        ),
+      },
+      {
+        path: "/integrations/jira/callback",
+        lazy: page(
+          () => import("../features/integrations/JiraOAuthCallbackPage"),
+          "JiraOAuthCallbackPage",
+        ),
+      },
+      {
+        path: "/integrations/asana/callback",
+        lazy: page(
+          () => import("../features/integrations/AsanaOAuthCallbackPage"),
+          "AsanaOAuthCallbackPage",
+        ),
+      },
       // Guest reviewer entry - no dashboard chrome, no member auth (05-Frontend-Architecture.md §5.2).
-      { path: "/review/:shareToken", element: <ReviewEntryPage /> },
+      {
+        path: "/review/:shareToken",
+        lazy: page(() => import("../features/review/ReviewEntryPage"), "ReviewEntryPage"),
+      },
       {
         element: <RequireAuth />,
         children: [
-          { path: "/", element: <WorkspacePickerPage /> },
+          {
+            path: "/",
+            lazy: page(
+              () => import("../features/workspaces/WorkspacePickerPage"),
+              "WorkspacePickerPage",
+            ),
+          },
           {
             path: "/w/:workspaceSlug",
             element: <WorkspaceLayout />,
             children: [
-              { index: true, element: <ProjectsPage /> },
-              { path: "tickets", element: <TicketsPage /> },
-              { path: "clients", element: <ClientsPage /> },
-              { path: "activity", element: <ActivityPage /> },
-
-          { path: "usage", element: <UsagePage /> },
-          { path: "mcp", element: <McpServerPage /> },
-          { path: "members", element: <MembersPage /> },
-          { path: "billing", element: <BillingPage /> },
-          { path: "settings", element: <SettingsPage /> },
-          { path: "integrations", element: <IntegrationsPage /> },
-          { path: "extension", element: <ExtensionSettingsPage /> },
+              { index: true, lazy: page(() => import("../features/projects/ProjectsPage"), "ProjectsPage") },
+              { path: "tickets", lazy: page(() => import("../features/tickets/TicketsPage"), "TicketsPage") },
+              { path: "clients", lazy: page(() => import("../features/clients/ClientsPage"), "ClientsPage") },
+              { path: "activity", lazy: page(() => import("../features/activity/ActivityPage"), "ActivityPage") },
+              { path: "usage", lazy: page(() => import("../features/workspaces/UsagePage"), "UsagePage") },
+              { path: "mcp", lazy: page(() => import("../features/workspaces/McpServerPage"), "McpServerPage") },
+              { path: "members", lazy: page(() => import("../features/workspaces/MembersPage"), "MembersPage") },
+              { path: "billing", lazy: page(() => import("../features/workspaces/BillingPage"), "BillingPage") },
+              { path: "settings", lazy: page(() => import("../features/workspaces/SettingsPage"), "SettingsPage") },
+              {
+                path: "integrations",
+                lazy: page(() => import("../features/integrations/IntegrationsPage"), "IntegrationsPage"),
+              },
+              {
+                path: "extension",
+                lazy: page(
+                  () => import("../features/extension-tokens/ExtensionSettingsPage"),
+                  "ExtensionSettingsPage",
+                ),
+              },
+            ],
+          },
+          {
+            path: "/w/:workspaceSlug/p/:projectId",
+            element: <ProjectLayout />,
+            children: [
+              {
+                index: true,
+                lazy: page(() => import("../features/projects/ProjectOverviewPage"), "ProjectOverviewPage"),
+              },
+              { path: "board", lazy: page(() => import("../features/board/BoardPage"), "BoardPage") },
+              {
+                path: "share-links",
+                lazy: page(() => import("../features/share-links/ShareLinksPage"), "ShareLinksPage"),
+              },
+            ],
+          },
+          { path: "*", lazy: page(() => import("../features/pages/NotFoundPage"), "NotFoundPage") },
         ],
       },
-      {
-        path: "/w/:workspaceSlug/p/:projectId",
-        element: <ProjectLayout />,
-        children: [
-          { index: true, element: <ProjectOverviewPage /> },
-          { path: "board", element: <BoardPage /> },
-          { path: "share-links", element: <ShareLinksPage /> },
-        ],
-      },
-      { path: "*", element: <NotFoundPage /> },
     ],
   },
-  ]
-  }
 ]);
 
 export function AppRouter() {
-  return <RouterProvider router={router} />;
+  // Shown while the first route's chunk loads; later navigations keep the current
+  // page on screen until the next one is ready.
+  return <RouterProvider router={router} fallbackElement={<LoadingScreen />} />;
 }

@@ -18,6 +18,8 @@ export interface CommentsListProps {
   replyCountByCommentId: Map<string, number>;
   onNavigate: (commentId: string) => void;
   onOpenThread: (commentId: string) => void;
+  /** Resets every list filter - offered when nothing matches them. */
+  onClearFilters?: () => void;
   selectedCommentId?: string | null;
 }
 
@@ -41,6 +43,7 @@ export function CommentsList({
   replyCountByCommentId,
   onNavigate,
   onOpenThread,
+  onClearFilters,
   selectedCommentId,
 }: CommentsListProps) {
   if (isLoading) {
@@ -68,7 +71,7 @@ export function CommentsList({
     return (
       <div className="bl-state-panel">
         <h3>No comments yet</h3>
-        <p>Comments left on this project will show up here.</p>
+        <p>Click anywhere on the page in Comment mode to leave the first one. Everything left on this project shows up here.</p>
       </div>
     );
   }
@@ -78,6 +81,11 @@ export function CommentsList({
       <div className="bl-state-panel">
         <h3>No comments match</h3>
         <p>Nothing matches the current filters. Clear them to see every comment.</p>
+        {onClearFilters && (
+          <button type="button" className="bl-quiet" onClick={onClearFilters}>
+            Clear filters
+          </button>
+        )}
       </div>
     );
   }
@@ -92,6 +100,7 @@ export function CommentsList({
         members={members}
         onNavigate={onNavigate}
         onOpenThread={onOpenThread}
+        compact={displayMode === "compact"}
         selected={comment.id === selectedCommentId}
       />
     );

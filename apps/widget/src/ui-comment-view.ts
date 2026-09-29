@@ -22,6 +22,9 @@ export interface CommentViewControls {
   close: () => void;
   /** Shows a status the comment was moved to elsewhere (the dashboard, another tab). */
   setStatus: (status: string) => void;
+  /** Re-renders the text, tags, attachments and replies - a reply or an edit made
+   * elsewhere while this card is open. The status goes through setStatus. */
+  update: (comment: CommentViewData) => void;
 }
 
 const CHEVRON_ICON = '<path d="M6 9l6 6 6-6"/>';
@@ -110,13 +113,21 @@ export function openCommentView(
       trailingHtml: statusHtml(onStatusChange !== null),
     })}
     <div class="bl-cp-body">
+      <div class="bl-cv-content"></div>
+      ${onStatusChange ? '<p class="bl-status" role="status" aria-live="polite"></p>' : ""}
+    </div>
+  `;
+  const content = view.querySelector<HTMLDivElement>(".bl-cv-content")!;
+
+  function renderContent(data: CommentViewData): void {
+    content.innerHTML = `
       <p class="bl-thread-message-body bl-cv-text"></p>
       ${
-        comment.tags.length > 0
+        data.tags.length > 0
           ? `<div class="bl-cp-sec">
               <span class="bl-cp-lbl">TAGGED AS</span>
               <div class="bl-cp-tags">
-                ${comment.tags
+                ${data.tags
                   .map((tag) => `<span class="bl-cp-tag bl-is-on">${svg(TAG_ICONS[tag] ?? "")}${escapeHtml(tag)}</span>`)
                   .join("")}
               </div>
@@ -124,24 +135,24 @@ export function openCommentView(
           : ""
       }
       ${
-        comment.attachments.length > 0
-          ? `<div class="bl-cv-files">${comment.attachments.map(attachmentHtml).join("")}</div>`
+        data.attachments.length > 0
+          ? `<div class="bl-cv-files">${data.attachments.map(attachmentHtml).join("")}</div>`
           : ""
       }
       ${
-        comment.replies.length > 0
-          ? `<div class="bl-cv-replies">${comment.replies.map(replyHtml).join("")}</div>`
+        data.replies.length > 0
+          ? `<div class="bl-cv-replies">${data.replies.map(replyHtml).join("")}</div>`
           : ""
       }
-      ${onStatusChange ? '<p class="bl-status" role="status" aria-live="polite"></p>' : ""}
-    </div>
-  `;
-  // textContent, not innerHTML: comment/reply bodies are user-written text, shown
-  // exactly as typed - never parsed as markup.
-  view.querySelector<HTMLParagraphElement>(".bl-cv-text")!.textContent = comment.body;
-  view.querySelectorAll<HTMLParagraphElement>(".bl-cv-reply-body").forEach((el, i) => {
-    el.textContent = comment.replies[i].body;
-  });
+    `;
+    // textContent, not innerHTML: comment/reply bodies are user-written text, shown
+    // exactly as typed - never parsed as markup.
+    content.querySelector<HTMLParagraphElement>(".bl-cv-text")!.textContent = data.body;
+    content.querySelectorAll<HTMLParagraphElement>(".bl-cv-reply-body").forEach((el, i) => {
+      el.textContent = data.replies[i].body;
+    });
+  }
+  renderContent(comment);
 
   const pill = view.querySelector<HTMLElement>(".bl-cv-status")!;
   const trigger = pill instanceof HTMLButtonElement ? pill : null;
@@ -276,6 +287,12 @@ export function openCommentView(
       if (pending || status === currentStatus) return;
       currentStatus = status;
       renderStatus(status);
+    },
+    update: (data) => {
+      if (closed) return;
+      renderContent(data);
+      // The card may have grown past the bottom of the viewport.
+      placeCard(view, x, y);
     },
   };
 }

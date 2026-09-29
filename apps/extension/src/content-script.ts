@@ -6,6 +6,8 @@ import {
   createShadowRoot,
   createThreadManager,
   captureScreenshot,
+  composerHasDraft,
+  nudgeComposer,
   openComposer,
   parseUserAgent,
   registerCurrentPage,
@@ -105,7 +107,7 @@ async function buildContext(): Promise<AnnotationContext | null> {
       x: point.x - (rect.left + window.scrollX),
       y: point.y - (rect.top + window.scrollY),
     };
-    const pin = renderPin(shadow, point.x, point.y);
+    const pin = renderPin(shadow, point.x, point.y, top.ticket_number);
     attachPinClickHandler(pin, top.id);
     const untrack = trackPinPosition(pin, () => resolveAnchorElement(top.anchor), offset);
     pinsByTopId.set(top.id, { pin, untrack });
@@ -138,6 +140,12 @@ function activatePointMode(ctx: AnnotationContext): () => void {
   const handleClick = (event: MouseEvent): void => {
     const target = event.target as Element | null;
     if (!target || target.closest("[data-backline-root]")) return;
+    // Same as the guest widget: a half-written comment isn't thrown away by a stray click.
+    if (composerHasDraft()) {
+      event.preventDefault();
+      nudgeComposer();
+      return;
+    }
 
     // Same reasoning as apps/widget/src/index.ts's own click handler: left unprevented,
     // commenting on a link or submit button also triggers its native action and
@@ -195,14 +203,17 @@ function activatePointMode(ctx: AnnotationContext): () => void {
             }),
           });
           pin.classList.remove("bl-pin-ghost");
+          if (created.ticket_number != null) pin.textContent = String(created.ticket_number);
           ownCommentIds.add(created.id);
           threadMessages.set(created.id, [created]);
           pinsByTopId.set(created.id, { pin, untrack });
           attachPinClickHandler(pin, created.id);
           tooltip.dismiss();
           controls.setStatus("Comment posted.");
+          return true;
         } catch {
           controls.setStatus("Could not post your comment. Please try again.");
+          return false;
         }
       },
       () => {

@@ -6,6 +6,14 @@ substantially built, and there are genuinely **two different, unrelated "AI" fea
 in this codebase that the prompt's Part 10/12 conflate. This doc separates them and
 scopes only what's actually still needed.
 
+**Status 2026-09-29 ([TDR-0046](../tdr/0046-integrations-and-mcp-without-operator-setup.md)):**
+§2 is built and extended. The MCP server has seven tools plus a `fix_ticket` prompt,
+read-only and read & write tokens, a membership re-check on every request, and setup for
+eight agent clients. §3's custom outbound webhook exists as the `webhook` integration
+type, HMAC-signed and delivered through the existing retry engine rather than new
+`webhook_events`/`webhook_deliveries` tables. Discord, Teams, GitHub, GitLab and Linear
+were added, and ClickUp/Jira/Asana connect with tokens as well as OAuth.
+
 ## 0. Two different "AI" surfaces — don't conflate them
 
 1. **`backend/app/modules/ai/`** — real, shipped, Gemini-backed (`google.genai`,
@@ -48,6 +56,12 @@ Current (`backend/app/modules/integrations/slack.py`, `router.py`, spec §17.2):
 - Per-workspace config stored via the shared `integrations` collection
   (`type: "slack"`, `config_summary` never exposes the raw webhook URL to the
   frontend).
+
+**Status 2026-09-29 (TDR-0045):** the gaps below are historical. Failed deliveries are
+retried by `workers/integrations.py` (5s/30s/5min, then a `webhook.delivery_failed` event
+and a notification to whoever connected it), projects have `slack_notifications_enabled`,
+and `on_project_updated` is wired from `projects/service.py`. Not built: a per-member mute
+and §3's delivery tables, which only matter if custom outbound webhooks are built.
 
 **Real gaps** (both genuinely unbuilt, confirmed via repo-wide search):
 - **No delivery/retry table.** A failed Slack POST just fires a
