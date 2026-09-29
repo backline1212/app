@@ -22,9 +22,12 @@ export function UsagePage() {
       </header>
 
       <section className="bl-attention bl-settings-section">
+        {/* Inline display: a direct <div> child of .bl-attention otherwise gets that
+            card's three-column grid, which outranks the flex utility class and
+            scattered the icon, heading, list and note across the card. */}
         <div
           className="flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center"
-          style={{ padding: "40px 24px" }}
+          style={{ display: "flex", padding: "40px 24px" }}
         >
           <span
             style={{

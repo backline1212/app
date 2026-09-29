@@ -1,5 +1,77 @@
 # Delivery and verification ledger
 
+## 2026-09-29: Whole-app polish pass (TDR-0049)
+
+The user asked for open-ended improvement of the app and for bugs across the site to be
+found and fixed. Every workspace route was rendered in headless Chromium against the
+real API on in-memory fakes, at desktop and phone widths, in both themes. Each finding
+was traced to source. The branch was first fast-forwarded to `origin/main` (15 commits,
+no conflicts). Reasoning is in TDR-0049.
+
+**Fixed:**
+- **Canvas opened on a hidden page.** The project canvas could open on the hidden
+  "Project tickets" page and show "outside the project URL". That page is no longer
+  listed as a site page, whether on the canvas, in page management or in the New Ticket
+  picker. It can't be renamed, and reorder ignores it.
+- **Errors.**
+  - Client errors (4xx) are no longer retried, so they appear immediately instead of
+    after about 3s of "Loading…".
+  - FastAPI validation errors and HTTP/2 responses with no status text now produce
+    readable messages instead of "Unprocessable Entity" or a blank one.
+  - Network failures read as such instead of "Failed to fetch".
+- **Stale Tickets links.** Unknown values in the Tickets URL are ignored instead of
+  failing the list with a 422.
+- **Settings-style cards.** Settings, Billing, Share links and Extension lost the ~200px
+  empty header band and are two-column again. AI Usage's placeholder, which was
+  scattered across three columns, is a single centered column.
+- **Every page.** The stray focus ring (a green line under the content) and the
+  top-left shadow smudge are gone.
+- **Phones.**
+  - The Tickets table scrolls inside itself instead of scrolling the page sideways.
+  - Ticket rows use two lines.
+  - Filter tabs scroll sideways instead of wrapping.
+  - The "New project" button shows its icon.
+  - Row delete buttons show on touch screens.
+- **Avatars.** Initials inside settings cards are legible again.
+- **Clients.**
+  - Names are left-aligned.
+  - "New project" opens the project form with the client preselected (it was a
+    "not wired up" toast).
+
+**Changed files:**
+- `backend/app/modules/pages/service.py` (no schema, index or contract change);
+- `apps/web/src/lib/api-client.ts`, `app/providers.tsx`;
+- `features/tickets/{use-tickets.ts,TicketsPage.tsx,components/TicketTable.tsx}`;
+- `features/clients/ClientsPage.tsx`, `features/projects/ProjectForm.tsx`,
+  `features/workspaces/UsagePage.tsx`;
+- `styles/backline.css` (a labelled block at the end, plus five in-place fixes).
+
+**Verification:**
+- `pnpm turbo run lint typecheck build --force`: 12/12 passed with zero lint warnings.
+- Backend: `ruff check .`, `ruff format --check .` (233 files), strict
+  `mypy app/ scripts/` (193 files) and `scripts/check_workspace_scoping.py` passed.
+- Scratch browser pass (not checked in):
+  - Setup: the real app on `mongomock-motor` and `fakeredis`, with shims for mongomock's
+    `$not`-array and `$lookup`-with-`let` gaps, seeded with 4 members, 4 projects (one
+    archived), 14 tickets, 2 clients and a share link.
+  - Coverage: 20 routes × 2 widths × 2 themes, 80 captures.
+  - Horizontal overflow: none after the fixes. It had been on the mobile Tickets table.
+  - Console errors: none other than unresolvable demo hosts and the canvas frame, whose
+    preview domain doesn't resolve locally.
+  - Tickets with `?view=board&status=bogus`: the full list of 14 tickets with
+    "Everyone" selected and no error.
+  - Settings avatar initial computed as white.
+  - Clients → "New project" reached the details step with "Globex" preselected.
+
+**Not verified:** the pytest suite and Playwright journeys (no local MongoDB/Redis), and
+a deployed stack. No test suite was written, per this repository's Claude Code
+instruction.
+
+**Open:**
+- Project card previews stay light in dark mode and carry a "website · illustration"
+  label, which needs a design pass.
+- Custom illustrations for empty and "coming soon" states were not started.
+
 ## 2026-09-29: Seamless commenting on the review canvas (TDR-0047)
 
 The user asked for the project editor page, where comments are placed, to work

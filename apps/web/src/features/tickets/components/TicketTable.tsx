@@ -57,8 +57,11 @@ export function TicketTable({
   onFilterTag: (tag: string) => void;
   onDelete: (ticket: api.Ticket) => void;
 }) {
+  // No bare "table" class on the wrapper: that is Tailwind's display:table utility,
+  // which made it a table box - one that ignores overflow-x, so on a phone the whole
+  // page scrolled sideways instead of just the table.
   return (
-    <div className="bl-table-wrap bl-tickets table bl-ttable">
+    <div className="bl-table-wrap bl-tickets bl-ttable">
       <table className="bl-table">
         <thead>
           <tr>
