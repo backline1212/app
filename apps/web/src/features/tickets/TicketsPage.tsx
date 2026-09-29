@@ -3,6 +3,7 @@ import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { STATUS_COLORS, STATUS_LABELS } from "../../lib/workflow";
 import { PlusIcon } from "../../components/icons";
+import { EmptyArt } from "../../components/illustrations";
 import type { WorkspaceOut } from "../workspaces/api";
 import type * as api from "./api";
 import { TicketBoard } from "./components/TicketBoard";
@@ -75,6 +76,16 @@ export function TicketsPage() {
     })),
   ];
 
+  const view = VIEW_TABS.some((tab) => tab.key === params.get("view")) ? params.get("view")! : "all";
+  // Why the list is empty decides what to say and offer: filters to clear, a tab with
+  // nothing in it (Overdue, Needs your reply…), or a workspace with no tickets at all.
+  const narrowed = activeFilters.length > 0 || Boolean(params.get("search"));
+  const emptyTab: Record<string, string> = {
+    mine: "Nothing is assigned to you right now.",
+    reply: "Nobody is waiting on a reply from you.",
+    client: "Nothing is waiting on a client.",
+    overdue: "Nothing is overdue.",
+  };
   const selected = params.get("comment");
   const sort = params.get("sort") ?? "newest";
   const group = params.get("group") ?? "none";
@@ -83,7 +94,7 @@ export function TicketsPage() {
     <main className="bl-wrap">
       <header className="bl-head">
         <div>
-          <h1>{params.get("view") === "mine" ? "Assigned to me" : "All tickets"}</h1>
+          <h1>{view === "mine" ? "Assigned to me" : "All tickets"}</h1>
           <p>Every comment, plus the work your team raises directly.</p>
         </div>
         <div className="bl-chip-row">
@@ -111,7 +122,7 @@ export function TicketsPage() {
 
       <div className="bl-segment bl-ticket-filters" role="group" aria-label="Filter tickets">
         {VIEW_TABS.map((tab) => (
-          <button key={tab.key} type="button" aria-pressed={(params.get("view") ?? "all") === tab.key} onClick={() => set("view", tab.key)}>
+          <button key={tab.key} type="button" aria-pressed={view === tab.key} onClick={() => set("view", tab.key)}>
             {tab.label}
             {tabCounts[tab.key] !== undefined && <span className="bl-count">{tabCounts[tab.key]}</span>}
           </button>
@@ -189,20 +200,30 @@ export function TicketsPage() {
 
       {query.data?.total === 0 && (
         <div className="bl-empty">
-          <h2>Nothing here</h2>
-          <p>No tickets match these filters. Clear them, or raise a new team ticket that isn't tied to a comment yet.</p>
+          <EmptyArt kind={narrowed ? "search" : "tickets"} />
+          <h2>{narrowed ? "Nothing here" : view !== "all" ? "All clear" : "No tickets yet"}</h2>
+          <p>
+            {narrowed
+              ? "No tickets match these filters. Clear them, or raise a new team ticket that isn't tied to a comment yet."
+              : view !== "all"
+                ? emptyTab[view]
+                : "Reviewers' comments land here as tickets. You can also raise one for your team directly."}
+          </p>
           <div className="bl-chip-row" style={{ justifyContent: "center", marginTop: 12 }}>
-            <button
-              className="bl-quiet"
-              onClick={() => {
-                const next = new URLSearchParams();
-                next.set("view", params.get("view") || "all");
-                next.set("display", params.get("display") || "list");
-                setParams(next);
-              }}
-            >
-              Show all tickets
-            </button>
+            {(narrowed || view !== "all") && (
+              <button
+                className="bl-quiet"
+                onClick={() => {
+                  // Filters first; once none are left, the tab itself is what's narrowing.
+                  const next = new URLSearchParams();
+                  next.set("view", narrowed ? view : "all");
+                  next.set("display", display);
+                  setParams(next);
+                }}
+              >
+                {narrowed ? "Clear filters" : "Show everyone's tickets"}
+              </button>
+            )}
             <button className="bl-button" onClick={() => setShowCreate(true)}>
               New ticket
             </button>

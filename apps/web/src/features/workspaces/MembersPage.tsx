@@ -19,6 +19,7 @@ function canManageMembers(role: string | null): boolean {
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Dialog } from "../../components/Dialog";
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { EmptyArt } from "../../components/illustrations";
 import { SearchIcon } from "../../components/icons";
 import type { MemberOut } from "./api";
 
@@ -183,7 +184,7 @@ export function MembersPage() {
         </div>
       </div>
 
-      {isLoading && <LoadingScreen />}
+      {isLoading && <LoadingScreen inline />}
       {membersError && (
         <p role="alert" className="bl-error">
           {membersError instanceof Error ? membersError.message : "Could not load members."}
@@ -192,6 +193,7 @@ export function MembersPage() {
 
       {members && visibleMembers.length === 0 && (
         <div className="bl-empty">
+          <EmptyArt kind={search ? "search" : "people"} />
           <h2>{search ? "No members match" : "No members yet"}</h2>
           <p>{search ? "Try another name or email." : "Invite a teammate to get started."}</p>
         </div>

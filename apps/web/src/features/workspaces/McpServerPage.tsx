@@ -234,7 +234,7 @@ export function McpServerPage() {
             Your tokens <span className="bl-count">{activeTokens.length}</span>
           </h2>
         </header>
-        {tokens.isLoading && <LoadingScreen />}
+        {tokens.isLoading && <LoadingScreen inline />}
         {tokens.isError && (
           <p role="alert" className="bl-error" style={{ margin: 16 }}>
             {tokens.error instanceof Error ? tokens.error.message : "Could not load MCP tokens."}

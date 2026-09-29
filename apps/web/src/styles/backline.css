@@ -120,8 +120,8 @@ body{font-family:var(--sans);background:var(--bl-paper);color:var(--bl-ink)}
 .bl-tabs{display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--bl-line);margin:10px 0 16px;overflow-x:auto}.bl-tabs>button,.bl-tabs>a{display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:12px;font-weight:500;white-space:nowrap;border-bottom:2px solid transparent}.bl-tabs>button[aria-pressed=true]{border-bottom-color:var(--bl-ink);font-weight:700}.bl-tabs>button:hover,.bl-tabs>a:hover{background:var(--bl-paper)}.bl-tabs small{font:10px var(--bl-mono);text-transform:uppercase;color:var(--bl-muted)}
 .bl-toolbar{display:flex;align-items:center;gap:10px;margin:14px 0 20px;font-size:12px}.bl-toolbar.wrap{flex-wrap:wrap;margin-bottom:12px}.bl-toolbar>.bl-input{max-width:300px}.bl-tool-right{margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.bl-select{padding:7px 8px;background:transparent;border:1px solid var(--bl-line);border-radius:3px;font-size:12px;max-width:200px}.bl-segment{display:flex;gap:2px;border:1px solid var(--bl-line);border-radius:3px;padding:2px;background:var(--bl-surface)}.bl-segment button{font-size:11px;padding:6px 8px;text-transform:capitalize;border-radius:2px}.bl-segment button[aria-pressed=true]{background:var(--bl-ink);color:var(--bl-invert-fg)}.bl-segment button:hover:not([aria-pressed=true]){background:var(--bl-paper)}
 .bl-projects{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}.bl-projects.compact{grid-template-columns:repeat(4,minmax(0,1fr))}.bl-project{position:relative;background:var(--bl-surface);border:1px solid var(--bl-line);border-radius:3px;overflow:hidden;transition:box-shadow .18s,transform .18s}.bl-project:hover{box-shadow:0 5px 16px #0000000d;transform:translateY(-2px)}.bl-project-preview{display:block;height:158px;position:relative;border-bottom:1px solid var(--bl-line);background:linear-gradient(130deg,#E6EBE1,#F7F8F5)}.bl-browser{height:27px;background:#FFFFFFB8;border-bottom:1px solid var(--bl-line);display:flex;gap:12px;align-items:center;padding:0 10px;font:10px var(--bl-mono);color:var(--bl-muted)}.bl-browser>span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bl-browser>span:first-child{font-size:10px;letter-spacing:1px;color:var(--bl-muted);flex-shrink:0}.bl-project-letter{display:grid;place-items:center;height:115px;font-size:58px;font-weight:700;letter-spacing:-.08em;color:#788471}.bl-preview-type{position:absolute;right:10px;bottom:9px;font:10px var(--bl-mono);text-transform:uppercase;background:var(--bl-surface);padding:3px 5px;border-radius:2px;color:var(--bl-muted)}.bl-project-body{padding:15px}.bl-project-title{display:flex;align-items:center;justify-content:space-between;gap:6px}.bl-project-title>a{min-width:0}.bl-project-title h2{font-size:14px;font-weight:600;letter-spacing:-.015em;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.bl-project-body>p{font-size:11px;color:var(--bl-muted);margin-top:5px}.bl-project-stats{display:flex;align-items:baseline;gap:14px;margin-top:18px;font-size:11px;color:var(--bl-muted)}.bl-project-stats strong{font:600 14px var(--bl-mono);color:var(--bl-ink)}.bl-project-stats small{margin-left:auto;font:10px var(--bl-mono)}.bl-project-actions{display:flex;align-items:center;gap:12px;padding:10px 15px;border-top:1px solid #E9EAE6;font-size:10px}.bl-project-actions>a{margin-right:auto;font-weight:600}.bl-project-actions button:hover{color:var(--mint-deep)}.bl-new-card{border:1px dashed #B6BCB3;border-radius:3px;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--bl-muted)}.bl-new-card:hover{background:var(--bl-paper)}.bl-new-card>span{font-size:26px}.bl-new-card strong{font-size:13px;color:var(--bl-ink)}.bl-new-card small{font-size:11px}.compact .bl-project-preview{height:105px}.compact .bl-project-letter{height:77px;font-size:40px}.compact .bl-project-stats{gap:7px}.compact .bl-project-actions{flex-wrap:wrap}.bl-projects.list,.bl-projects.table{display:flex;flex-direction:column;gap:8px}.list .bl-project,.table .bl-project{display:flex;align-items:center}.list .bl-project-preview,.table .bl-project-preview{width:85px;height:80px;flex-shrink:0;border-bottom:0;border-right:1px solid var(--bl-line)}.list .bl-project-letter,.table .bl-project-letter{height:80px;font-size:35px}.list .bl-browser,.table .bl-browser,.list .bl-preview-type,.table .bl-preview-type{display:none}.list .bl-project-body,.table .bl-project-body{flex:1}.list .bl-project-stats,.table .bl-project-stats{margin-top:8px}.list .bl-project-actions,.table .bl-project-actions{border-top:0;padding:15px}.list .bl-new-card,.table .bl-new-card{min-height:75px}.archived .bl-project-preview{filter:grayscale(1);opacity:.6}
-.bl-chip-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.bl-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:3px;background:var(--bl-paper);font-size:10px;color:var(--ink-2);max-width:100%;overflow-wrap:anywhere;line-height:1.4}.bl-chip:is(a,button):hover{background:var(--bl-paper)}.bl-attention{background:var(--bl-surface);border:1px solid var(--bl-line);border-radius:3px;margin-bottom:25px}.bl-attention>header{padding:12px 16px;border-bottom:1px solid var(--bl-line);display:flex;align-items:center;justify-content:space-between;font-size:12px}.bl-attention h2{font-size:13px;font-weight:600}.bl-attention h2 .bl-count{margin-left:6px}.bl-attention>div{display:grid;grid-template-columns:repeat(3,1fr)}.bl-attention>div>a{padding:16px;border-right:1px solid var(--bl-line);display:flex;flex-direction:column;gap:9px;min-width:0}.bl-attention>div>a:hover{background:var(--bl-paper)}.bl-attention small,.bl-attention span{font-size:10px;color:var(--bl-muted)}.bl-attention strong{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bl-table-wrap{background:var(--bl-surface);border:1px solid var(--bl-line);border-radius:3px;overflow-x:auto}.bl-table{border-collapse:collapse;width:100%;font-size:12px;text-align:left}.bl-table th{font:10px var(--bl-mono);text-transform:uppercase;letter-spacing:.04em;color:var(--bl-muted);padding:12px 14px;background:var(--bl-paper);border-bottom:1px solid var(--bl-line);white-space:nowrap}.bl-table td{padding:14px;border-bottom:1px solid #E9EAE6;vertical-align:middle}.bl-table tr:last-child td{border-bottom:0}.bl-table tbody tr:hover{background:var(--bl-paper)}.bl-table td small{display:block;color:var(--bl-muted);font-size:10px;margin-top:5px}.bl-table td .bl-quiet{border:0;background:none;padding:6px}.bl-table td:first-child{min-width:180px}.bl-text-button{display:flex;align-items:center;gap:10px}.bl-avatar{display:inline-grid;place-items:center;width:29px;height:29px;background:var(--bl-paper);border-radius:3px;font:600 10px var(--bl-mono);flex-shrink:0}.bl-ticket-title{display:block;text-align:left;font-size:12px;font-weight:500;max-width:440px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;line-height:1.5}.bl-ticket-title:hover{color:var(--mint-deep)}.bl-status-select{border:1px solid var(--bl-line);border-left:3px solid;border-radius:3px;background:var(--bl-surface);font-size:11px;padding:6px;max-width:145px}.bl-date{font:10px var(--bl-mono);border:1px solid transparent;background:none;border-radius:3px;min-width:110px;max-width:130px;padding:6px}.bl-date:hover{border-color:var(--bl-line)}.bl-group-title{font:500 11px var(--bl-mono);text-transform:uppercase;margin:22px 0 10px;display:flex;gap:8px}.bl-group-title>span{color:var(--bl-muted)}.bl-tickets.list thead{display:none}
+.bl-chip-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.bl-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:3px;background:var(--bl-paper);font-size:10px;color:var(--ink-2);max-width:100%;overflow-wrap:anywhere;line-height:1.4}.bl-chip:is(a,button):hover{background:var(--bl-paper)}.bl-attention{background:var(--bl-surface);border:1px solid var(--bl-line);border-radius:3px;margin-bottom:25px}.bl-attention>header{padding:12px 16px;border-bottom:1px solid var(--bl-line);display:flex;align-items:center;justify-content:space-between;font-size:12px}.bl-attention h2{font-size:13px;font-weight:600}.bl-attention h2 .bl-count{margin-left:6px}.bl-attention>div{display:grid;grid-template-columns:repeat(3,1fr)}.bl-attention>div>a{padding:16px;border-right:1px solid var(--bl-line);display:flex;flex-direction:column;gap:9px;min-width:0}.bl-attention>div>a:hover{background:var(--bl-paper)}.bl-attention small,.bl-attention span:not(:where([role=img])){font-size:10px;color:var(--bl-muted)}.bl-attention strong{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bl-table-wrap{background:var(--bl-surface);border:1px solid var(--bl-line);border-radius:3px;overflow-x:auto}.bl-table{border-collapse:collapse;width:100%;font-size:12px;text-align:left}.bl-table th{font:10px var(--bl-mono);text-transform:uppercase;letter-spacing:.04em;color:var(--bl-muted);padding:12px 14px;background:var(--bl-paper);border-bottom:1px solid var(--bl-line);white-space:nowrap}.bl-table td{padding:14px;border-bottom:1px solid #E9EAE6;vertical-align:middle}.bl-table tr:last-child td{border-bottom:0}.bl-table tbody tr:hover{background:var(--bl-paper)}.bl-table td small{display:block;color:var(--bl-muted);font-size:10px;margin-top:5px}.bl-table td .bl-quiet{border:0;background:none;padding:6px}.bl-table td:first-child{min-width:180px}.bl-text-button{display:flex;align-items:center;gap:10px;text-align:left}.bl-avatar{display:inline-grid;place-items:center;width:29px;height:29px;background:var(--bl-paper);border-radius:3px;font:600 10px var(--bl-mono);flex-shrink:0}.bl-ticket-title{display:block;text-align:left;font-size:12px;font-weight:500;max-width:440px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;line-height:1.5}.bl-ticket-title:hover{color:var(--mint-deep)}.bl-status-select{border:1px solid var(--bl-line);border-left:3px solid;border-radius:3px;background:var(--bl-surface);font-size:11px;padding:6px;max-width:145px}.bl-date{font:10px var(--bl-mono);border:1px solid transparent;background:none;border-radius:3px;min-width:110px;max-width:130px;padding:6px}.bl-date:hover{border-color:var(--bl-line)}.bl-group-title{font:500 11px var(--bl-mono);text-transform:uppercase;margin:22px 0 10px;display:flex;gap:8px}.bl-group-title>span{color:var(--bl-muted)}.bl-tickets.list thead{display:none}
 /* ── Drag-and-drop feedback (audit-batch-13 P3) ─────────────────────────
    TicketBoard.tsx/TicketCalendar.tsx already wire data-dragover/.bl-dragging
    state on drag events, but no CSS ever targeted either selector - drops had
@@ -231,20 +231,38 @@ body{font-family:var(--sans);background:var(--bl-paper);color:var(--bl-ink)}
 }
 
 /* ── Settings Section (UX-AUD-002) ─────────────────────────────────────── */
-.bl-settings-section {
+/* A labelled row: the section title in a fixed left column, its controls on the
+   right. Every one of these sections is also a .bl-attention card, and later
+   .bl-attention rules turn that card into a flex column - which made the header's
+   200px flex-basis a 200px *height* (a tall empty band above every settings card).
+   The compound selector outranks them. */
+.bl-attention.bl-settings-section {
   display: flex;
-  gap: 40px;
+  flex-direction: row;
+  gap: 0;
+  min-height: 0;
 }
-.bl-settings-section > header {
-  flex: 0 0 200px;
+.bl-attention.bl-settings-section > header {
+  flex: 0 0 220px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 20px;
+  border-bottom: 0;
+  border-right: 1px solid var(--line-soft, var(--bl-line));
+  background: var(--bl-paper);
+}
+.bl-attention.bl-settings-section > :not(header) {
+  min-width: 0;
 }
 @media (max-width: 900px) {
-  .bl-settings-section {
+  .bl-attention.bl-settings-section {
     flex-direction: column;
-    gap: 16px;
   }
-  .bl-settings-section > header {
+  .bl-attention.bl-settings-section > header {
     flex: none;
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft, var(--bl-line));
   }
 }
 
@@ -691,8 +709,10 @@ button{letter-spacing:inherit}
 .bl-app{height:100svh;min-height:100vh;overflow:hidden;background:var(--paper)}
 .bl-main{height:100svh;min-height:0;overflow-y:auto;overscroll-behavior-y:contain}
 .bl-route-content{min-width:0;outline:none}
-.bl-skip-link{position:fixed;left:16px;top:10px;z-index:1000;transform:translateY(-160%);background:var(--ink);color:var(--bl-invert-fg);border-radius:3px;padding:9px 13px;font-weight:600;box-shadow:var(--bl-shadow-md)}
-.bl-skip-link:focus{transform:translateY(0)}
+.bl-skip-link{position:fixed;left:16px;top:10px;z-index:1000;transform:translateY(calc(-100% - 24px));background:var(--ink);color:var(--bl-invert-fg);border-radius:3px;padding:9px 13px;font-weight:600;box-shadow:none}
+/* The shadow only while shown: parked above the viewport, it still bled a grey smudge
+   into the top-left corner of every page. */
+.bl-skip-link:focus{transform:translateY(0);box-shadow:var(--bl-shadow-md)}
 
 /* Brand lockup */
 .bl-brand-lockup{display:inline-flex;align-items:center;gap:10px;min-width:0}
@@ -732,6 +752,8 @@ button{letter-spacing:inherit}
 .bl-search{min-height:35px;margin-right:0;box-shadow:var(--bl-shadow-sm);transition:border-color .14s ease,box-shadow .14s ease,background .14s ease}
 .bl-search:hover{border-color:#C7CAC4}
 .bl-search:focus-within{border-color:var(--ink-3);box-shadow:0 0 0 3px rgba(105,222,178,.24);background:var(--bl-surface)}
+/* The box shows focus itself (above); the input's own global ring drew a second one inside it. */
+.bl-search input:focus-visible{outline:none}
 .bl-search-icon{display:grid;place-items:center;color:var(--ink-4);font-size:initial!important}
 .bl-search-icon svg{width:15px;height:15px}
 .bl-search kbd{border-radius:2px;background:var(--paper);box-shadow:0 1px 0 #fff inset}
@@ -1486,6 +1508,10 @@ html.dark{color-scheme:dark}
 body{min-width:320px;background:var(--bl-paper);color:var(--bl-ink);font-synthesis:none;text-rendering:optimizeLegibility}
 button,a,input,select,textarea{transition:border-color .14s ease,background-color .14s ease,color .14s ease,box-shadow .14s ease,opacity .14s ease}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--bl-focus);outline-offset:2px}
+/* Route containers are focused from script after each navigation (ScrollToTop) so a
+   screen reader starts on the new page. They are not in the tab order, and ringing the
+   whole page (a green line under the content) only read as a rendering glitch. */
+#workspace-content:focus-visible,main[tabindex="-1"]:focus-visible,.bl-project-route[tabindex="-1"]:focus-visible{outline:none}
 ::selection{background:var(--mint);color:#0B0B0B}
 
 .bl-app{background:var(--bl-paper)}
@@ -2592,3 +2618,153 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 /* A checked switch fills with --ink, which is near-white in dark mode - the white knob
    disappeared into it. Invert the knob there, the way .bl-button inverts. */
 :root.dark .bl-switch-input:checked+.bl-switch i{background:var(--bl-surface)}
+
+/* ── 2026-09-29 polish pass (TDR-0049) ──────────────────────────────────────
+   Last in the file on purpose: several earlier blocks re-declare the same
+   selectors, and these fixes have to win the cascade over all of them. */
+
+/* The mobile rule shrinking "New project" to a 34px square was undone by the
+   later, unconditional padding:8px 14px - leaving 6px for the icon (a dot). */
+@media(max-width:960px){
+  .bl-topbar-create{width:34px;height:34px;padding:0;gap:0;justify-content:center}
+  .bl-topbar-create svg{width:15px;height:15px}
+}
+
+/* Tab rows scroll sideways on a phone instead of wrapping into a ragged grid. */
+@media(max-width:640px){
+  .bl-tabs,.bl-ticket-filters{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;max-width:100%}
+  .bl-tabs::-webkit-scrollbar,.bl-ticket-filters::-webkit-scrollbar{display:none}
+  .bl-tabs>button,.bl-tabs>a,.bl-ticket-filters>button{flex:none}
+  .bl-ticket-filters{width:100%}
+}
+
+/* Ticket rows on a phone: the reference and the whole title on the first line,
+   status, tags, people and due date on the second. As one flex line, the title
+   was squeezed to three letters ("Glo…") beside columns sized for a desktop. */
+@media(max-width:640px){
+  .bl-tk{position:relative;flex-wrap:wrap;column-gap:10px;row-gap:8px;padding:12px 14px 12px 22px}
+  .bl-tk-prio{position:absolute;left:10px;top:12px;bottom:12px;width:3px;height:auto}
+  .bl-tk .bl-tid{min-width:0}
+  .bl-tk-main{flex:1 1 calc(100% - 80px)}
+  .bl-tk-main .bl-ticket-title{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .bl-tk-tags,.bl-tk-asg{width:auto}
+  .bl-tk-tags:empty{display:none}
+  .bl-tk>.bl-due{width:auto;margin-left:auto}
+}
+/* No hover on touch screens, so the row delete button would never appear. */
+@media(hover:none){.bl-tk .bl-row-delete,.bl-ttable .bl-row-delete{opacity:1}}
+/* An absolutely positioned child with no positioned ancestor (the sr-only "Actions"
+   header label) escaped the table's own sideways scroller and widened the whole
+   document to the table's width on a phone. */
+.bl-table-wrap{position:relative}
+
+/* ── Project card artwork (TDR-0050) ────────────────────────────────────────
+   ProjectArtwork.tsx sets a per-project palette as --art-*-raw; dark mode re-mixes
+   the pale ones against the art panel so a card is no longer a white slab there. */
+.bl-project-art{--art-soft:var(--art-soft-raw);--art-ink:var(--art-ink-raw);--art-paper:var(--art-paper-raw)}
+:root.dark .bl-project-art{--art-soft:color-mix(in srgb,var(--art-accent) 24%,var(--bl-art-panel));--art-ink:color-mix(in srgb,var(--art-accent) 32%,#D6DDD8);--art-paper:color-mix(in srgb,var(--art-accent) 7%,var(--bl-art-bg))}
+.bl-art-paper{fill:var(--art-paper)}
+.bl-art-page{fill:var(--bl-art-panel);stroke:var(--bl-art-line);stroke-width:1}
+.bl-art-accent{fill:var(--art-accent)}
+.bl-art-soft{fill:var(--art-soft)}
+.bl-art-ink{fill:var(--art-ink)}
+.bl-art-line{fill:var(--bl-art-ink-dark)}
+.bl-art-card{fill:var(--bl-art-bg)}
+.bl-art-outline{fill:none;stroke:var(--bl-art-stroke);stroke-width:1.2}
+.bl-art-rule{stroke:var(--bl-art-line);stroke-width:1}
+.bl-art-initial{fill:var(--art-ink-raw);font:700 9px var(--sans)}
+/* Pins drop onto the page one after another, like comments arriving. */
+.bl-art-pin{transform-box:fill-box;transform-origin:0 100%;animation:bl-art-pin-drop .55s cubic-bezier(.2,1.5,.35,1) both;animation-delay:calc(var(--i,0) * 120ms + 180ms)}
+.bl-art-pin path{fill:var(--ink);stroke:var(--bl-art-panel);stroke-width:1.6;paint-order:stroke}
+.bl-art-pin text{fill:var(--bl-surface);font:700 8px var(--sans)}
+.bl-art-pin path.bl-art-pin-done{fill:var(--mint-deep)}
+:root.dark .bl-art-pin path.bl-art-pin-done{fill:var(--mint)}
+.bl-art-pin-body{transform-box:fill-box;transform-origin:0 100%;transition:transform .22s cubic-bezier(.2,.9,.3,1.3)}
+.bl-project:hover .bl-art-pin-body,.bl-project:focus-within .bl-art-pin-body{transform:translateY(-2px) scale(1.08)}
+.bl-art-pin-ring{fill:none;stroke:var(--art-accent);stroke-width:1.6;opacity:0;transform-box:fill-box;transform-origin:center}
+.bl-project:hover .bl-art-pin-ring{animation:bl-art-pin-ring 1.8s ease-out infinite;animation-delay:calc(var(--i,0) * .3s)}
+@keyframes bl-art-pin-drop{0%{opacity:0;transform:translateY(-10px) scale(.3)}60%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes bl-art-pin-ring{0%{opacity:.8;transform:scale(.4)}100%{opacity:0;transform:scale(2.6)}}
+
+/* ── Illustrations (components/illustrations.tsx, TDR-0050) ─────────────────
+   Theme tokens only, so each scene flips with dark mode. Every keyframe's final
+   state is the resting pose: under prefers-reduced-motion the global rule runs an
+   animation once in ~0ms, which must leave the drawing complete and still. */
+.bl-empty-art{display:block;width:132px;height:96px;margin:0 auto 14px;overflow:visible}
+.bl-lost-art{display:block;width:min(240px,70vw);height:auto;overflow:visible}
+.bl-soon-illus{display:block;width:200px;height:120px;overflow:visible}
+.bl-loading-art{display:block;width:64px;height:64px;overflow:visible}
+.ea-bg{fill:color-mix(in srgb,var(--mint) 15%,transparent)}
+.ea-card{fill:var(--bl-surface);stroke:var(--bl-line);stroke-width:1.2}
+.ea-col{fill:color-mix(in srgb,var(--bl-line) 55%,var(--bl-surface))}
+.ea-soft{fill:color-mix(in srgb,var(--mint) 30%,var(--bl-surface))}
+.ea-line{fill:var(--bl-art-ink-dark)}
+.ea-dashline{fill:var(--bl-art-ink-soft)}
+.ea-ink{fill:var(--ink)}
+.ea-mint{fill:var(--mint)}
+.ea-dot{fill:var(--bl-art-ink)}
+.ea-hole{fill:none;stroke:var(--bl-art-stroke);stroke-width:1.3}
+.ea-tick{fill:none;stroke:#0B0B0B;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ea-pin{fill:var(--ink);stroke:var(--bl-surface);stroke-width:1.8;paint-order:stroke}
+.ea-pin-mint{fill:var(--mint)}
+.ea-pin-text{fill:var(--bl-surface);font:700 9px var(--sans)}
+.ea-pin-text-lg{font-size:13px}
+.ea-stroke{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ea-thick{stroke-width:4}
+.ea-lens{fill:color-mix(in srgb,var(--mint) 22%,transparent)}
+.ea-rail{fill:none;stroke:var(--bl-art-stroke);stroke-width:2;stroke-linecap:round}
+.ea-rule{fill:none;stroke:var(--bl-line);stroke-width:1.2}
+.ea-grid{fill:none;stroke:var(--bl-line);stroke-width:1;stroke-dasharray:3 4}
+.ea-ring{fill:none;stroke:var(--ink);stroke-width:5}
+.ea-ring-mint{stroke:var(--mint)}
+.ea-dashring{fill:none;stroke:var(--bl-art-stroke);stroke-width:1.6;stroke-dasharray:4 3.5}
+.ea-dashcard{fill:none;stroke:var(--bl-art-stroke);stroke-width:1.3;stroke-dasharray:4 3}
+.ea-shadow{fill:color-mix(in srgb,var(--ink) 16%,transparent);transform-box:fill-box;transform-origin:center;animation:ea-shadow 3s ease-in-out infinite}
+.ea-trend{fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ea-mono{fill:var(--ink-3);font:600 7px var(--mono);letter-spacing:.06em}
+.ea-stamp-box{fill:color-mix(in srgb,var(--mint) 18%,transparent);stroke:var(--mint-deep);stroke-width:1.6}
+.ea-stamp-text{fill:var(--mint-deep);font-size:8.5px;font-weight:700}
+.ea-mark{fill:#10231C;stroke:rgba(105,222,178,.28);stroke-width:1}
+.ea-mark-letter{fill:var(--mint);font:700 22px var(--mono)}
+/* Motion */
+.ea-float,.ea-hover,.ea-breathe,.ea-slide,.ea-sweep,.ea-drop,.ea-pop,.ea-grow,.ea-stamp,.ea-twinkle,.ea-blink,.ea-ping{transform-box:fill-box}
+.ea-float{animation:ea-float 3.4s ease-in-out infinite}
+.ea-float.ea-late,.ea-twinkle.ea-late{animation-delay:.9s}
+.ea-hover{animation:ea-hover 3s ease-in-out infinite}
+.ea-breathe{transform-origin:center;animation:ea-breathe 2.6s ease-in-out infinite}
+.ea-sweep{animation:ea-sweep 4s ease-in-out infinite}
+.ea-slide{animation:ea-slide 3.6s cubic-bezier(.6,0,.3,1) infinite}
+.ea-drop{transform-origin:0 100%;animation:bl-art-pin-drop .6s cubic-bezier(.2,1.5,.35,1) .35s both}
+.ea-pop{transform-origin:center;animation:ea-pop .45s cubic-bezier(.2,1.5,.4,1) both}
+.ea-grow{transform-origin:50% 100%;animation:ea-grow .7s cubic-bezier(.2,1.2,.4,1) both}
+.ea-stamp{transform-origin:center;animation:ea-stamp .5s cubic-bezier(.2,1.6,.4,1) .9s both}
+.ea-twinkle{transform-origin:center;animation:ea-twinkle 2.2s ease-in-out infinite}
+.ea-blink{animation:ea-blink 1.2s ease-in-out infinite}
+.ea-ping{transform-origin:center;animation:ea-ping 1.6s cubic-bezier(0,0,.2,1) infinite}
+.ea-draw{stroke-dasharray:64;animation:ea-draw 1s ease-out .1s both}
+.ea-draw-long{stroke-dasharray:130;animation:ea-draw-long 1.3s ease-out .5s both}
+@keyframes ea-float{0%,100%{transform:none}50%{transform:translateY(-3px)}}
+@keyframes ea-hover{0%,100%{transform:none}50%{transform:translateY(-7px)}}
+@keyframes ea-shadow{0%,100%{transform:none;opacity:1}50%{transform:scale(.75);opacity:.6}}
+@keyframes ea-breathe{0%,100%{transform:none}50%{transform:scale(1.06)}}
+@keyframes ea-sweep{0%,100%{transform:none}25%{transform:translate(-9px,-8px)}50%{transform:translate(10px,-14px)}75%{transform:translate(6px,4px)}}
+@keyframes ea-slide{0%,15%{transform:translateX(-30px);opacity:0}35%,80%{transform:none;opacity:1}100%{transform:none;opacity:1}}
+@keyframes ea-pop{0%{opacity:0;transform:scale(.4)}100%{opacity:1;transform:none}}
+@keyframes ea-grow{0%{transform:scaleY(0)}100%{transform:none}}
+@keyframes ea-stamp{0%{opacity:0;transform:scale(1.8)}100%{opacity:1;transform:none}}
+@keyframes ea-twinkle{0%,100%{transform:none;opacity:1}50%{transform:scale(.5) rotate(45deg);opacity:.35}}
+@keyframes ea-blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes ea-ping{0%{transform:scale(1);opacity:.8}80%,100%{transform:scale(2.8);opacity:0}}
+@keyframes ea-draw{0%{stroke-dashoffset:64}100%{stroke-dashoffset:0}}
+@keyframes ea-draw-long{0%{stroke-dashoffset:130}100%{stroke-dashoffset:0}}
+/* In-page loader (LoadingScreen inline): the list's own space, not a second viewport. */
+.bl-loading-screen.is-inline{min-height:220px;background:transparent;padding:24px 0}
+/* Dialog intros (New ticket, Account) sat 8px up under the dialog's sticky header, half hidden. */
+.bl-nt-sub,.bl-acct-sub{margin-top:2px}
+/* In the mobile drawer the absolutely placed close button landed exactly on the
+   workspace switcher's up/down chevron (two icons drawn over each other). */
+@media(max-width:760px){.bl-ws{padding-right:52px}}
+/* Activity rows name what changed: the object in ink, a ticket's first line muted. */
+.bl-activity .bl-activity-obj{font-weight:600;color:var(--ink)}
+.bl-activity .bl-tid{margin-left:2px;vertical-align:1px}
+.bl-activity .bl-activity-excerpt{color:var(--ink-3)}

@@ -74,10 +74,12 @@ function detectEnvironment(value: string): "live" | "staging" {
   return /(^|[./-])(staging|stage|dev|preview|test|localhost)([./:-]|$)|vercel\.app|netlify\.app|webflow\.io/i.test(value) ? "staging" : "live";
 }
 
-export function ProjectForm({ workspace, project, initialType, onClose }: {
+export function ProjectForm({ workspace, project, initialType, initialClientId, onClose }: {
   workspace: WorkspaceOut;
   project?: api.ProjectOut;
   initialType?: ProjectType;
+  /** Preselects the client, for "New project" started from that client's row. */
+  initialClientId?: string;
   onClose: () => void;
 }) {
   const cache = useQueryClient();
@@ -90,7 +92,7 @@ export function ProjectForm({ workspace, project, initialType, onClose }: {
   const [typeChosen, setTypeChosen] = useState(Boolean(project || initialType));
   const [name, setName] = useState(project?.name ?? "");
   const [url, setUrl] = useState(project?.target_origin ?? "");
-  const [client, setClient] = useState(project?.client_id ?? "");
+  const [client, setClient] = useState(project?.client_id ?? initialClientId ?? "");
   const [environment, setEnvironment] = useState<"live" | "staging">(project?.environment ?? "live");
   const [environmentEdited, setEnvironmentEdited] = useState(Boolean(project));
   const [captureDeviceDetails, setCaptureDeviceDetails] = useState(project?.settings.capture_device_details ?? false);
@@ -179,7 +181,7 @@ export function ProjectForm({ workspace, project, initialType, onClose }: {
           <span className="bl-success-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5" /></svg></span>
           <p className="bl-dialog-kicker">{created.name}{selectedClient ? ` · ${selectedClient.name}` : ""}</p>
           <h3>Ready for feedback</h3>
-          <p>Send the review link to your client. They can open it and leave comments without an account or extension.</p>
+          <p>Send the review link to your client. Public sites work without an install; signed-in sites offer Browser review after a one-time extension setup.</p>
           {link ? (
             <div className="bl-link-row">
               <input className="bl-input bl-mono" aria-label="Review link" readOnly value={link} onFocus={(event) => event.target.select()} />

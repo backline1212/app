@@ -1,5 +1,5 @@
 import { useDocumentTitle } from "../../lib/use-document-title";
-import { ChartIcon } from "../projects/panel/icons";
+import { UsageChartArt } from "../../components/illustrations";
 
 const CHECKS = [
   "Per-member and per-workspace AI request counts",
@@ -22,24 +22,14 @@ export function UsagePage() {
       </header>
 
       <section className="bl-attention bl-settings-section">
+        {/* Inline display: a direct <div> child of .bl-attention otherwise gets that
+            card's three-column grid, which outranks the flex utility class and
+            scattered the icon, heading, list and note across the card. */}
         <div
           className="flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center"
-          style={{ padding: "40px 24px" }}
+          style={{ display: "flex", padding: "40px 24px" }}
         >
-          <span
-            style={{
-              display: "flex",
-              width: 56,
-              height: 56,
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 3,
-              background: "var(--ink)",
-              color: "var(--mint)",
-            }}
-          >
-            <ChartIcon width={26} height={26} />
-          </span>
+          <UsageChartArt />
           <div>
             <h3 className="text-lg font-semibold">Usage tracking</h3>
             <span className="bl-scope-badge" style={{ marginTop: 6, display: "inline-flex" }}>

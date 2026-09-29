@@ -35,6 +35,150 @@ The user asked to create a new branch, build realistic SaaS pricing plans benchm
 - Unit tests (`pytest tests/test_billing.py`): 4/4 passed.
 - E2E tests: Added `apps/e2e/tests/billing-plans-payments.spec.ts` and updated `journey-6-integrations-billing.spec.ts`.
 
+## 2026-09-29: Illustrations and interaction audit (TDR-0050)
+
+The user asked for the pending findings from TDR-0049 to be finished. They had also
+originally asked for custom SVG artwork and animation. The work is on a new branch from
+`main` (PR #42 had merged). Reasoning is in TDR-0050.
+
+**Delivered:**
+- **Project card artwork** (`ProjectArtwork.tsx`):
+  - a schematic page in three layouts, with the site's favicon in its header;
+  - real pins, one per open comment (up to three, then "+N"), or a check when all are
+    closed;
+  - pins drop in on load and lift and pulse on hover;
+  - dark-mode palettes, so there is no white slab;
+  - the label reads just "Website", "Images" or "PDF".
+- **Illustrations** (`components/illustrations.tsx`):
+  - eight empty-state scenes (tickets, clients, projects, activity, members, share
+    links, guest board, and "no matches");
+  - a 404 lost-pin scene, a growing chart for AI Usage, an invoice with a "SOON" stamp
+    for Billing, and a pinging brand mark for the loading screen.
+  - Colors are theme tokens only, and every animation settles to a complete still frame
+    under reduced motion.
+- **In-page loaders.** Seven pages used the full-viewport loader inside their content;
+  they now use `LoadingScreen inline`.
+- **Tickets empty state:**
+  - the message depends on whether filters are on, a tab is empty, or there are no
+    tickets at all;
+  - "Show all tickets" on an empty tab used to do nothing, and now switches to
+    Everyone.
+- **Activity:**
+  - rows read as sentences with the object named, and the ticket's `#N` plus its first
+    line;
+  - "Open comment" when the row links to a thread.
+  - Backend: additive `ticket_number` and `comment_excerpt` on `ActivityOut`, from one
+    workspace-scoped bulk read (`CommentRepository.find_many_in_workspace`). OpenAPI and
+    `packages/types` were regenerated.
+- **Interaction fixes:**
+  - The New ticket and Account dialog intros were half hidden under the sticky header.
+  - Ticket detail priority showed raw values ("high").
+  - The search box had a double focus ring.
+  - Team-ticket search results said "Project tickets"; they now say "Team ticket"
+    (backend).
+  - "Mark all read" showed with nothing unread.
+  - In the mobile drawer, the close button covered the workspace chevron.
+- **Canvas shortcuts.** "?" opens the shortcuts list, and arrow keys show as ← →.
+- **Follow-up fixes (same day, user-requested):**
+  - **Activity links.** A link into an archived project now goes to the Archived list
+    ("Project archived →"), since archived projects can't be opened. A deleted project
+    shows "Project deleted" with no link.
+  - **Search ignores the hidden "Project tickets" page title.** Global search and the
+    Tickets search no longer match it, via one shared `page_title_match` in
+    `dashboard/repository.py`. Harness check: "tickets" went from every team ticket to
+    0 results, while "Hero" and "Acme" still match. Backend `ruff`, `mypy` and the
+    scoping check passed, as did web `tsc` and `eslint`.
+
+**Verification:**
+- `pnpm turbo run lint typecheck build --force`: 12/12 passed with zero lint warnings,
+  production builds included.
+- Backend: `ruff check .`, `ruff format --check .` (233 files), strict
+  `mypy app/ scripts/` (193 files) and `scripts/check_workspace_scoping.py` passed.
+- OpenAPI re-exported; the `packages/types` diff is additive only (two optional fields).
+- Scratch browser pass: the real API on `mongomock-motor` and `fakeredis`, with a
+  `$toObjectId` shim added for global search.
+  - Every illustration was captured in light and dark after animations settled, as was
+    the loading screen mid-load.
+  - 16 dialogs, popovers and drawers were opened in both themes.
+  - Activity, search, bell and drawer were re-checked after the fixes.
+  - No console errors other than unresolvable demo hosts and the canvas preview frame.
+
+**Not verified:** the pytest suite and Playwright journeys (no local MongoDB/Redis). No
+test suite was written, per this repository's Claude Code instruction.
+
+## 2026-09-29: Whole-app polish pass (TDR-0049)
+## 2026-09-29: Whole-app polish pass (TDR-0049)
+
+The user asked for open-ended improvement of the app and for bugs across the site to be
+found and fixed. Every workspace route was rendered in headless Chromium against the
+real API on in-memory fakes, at desktop and phone widths, in both themes. Each finding
+was traced to source. The branch was first fast-forwarded to `origin/main` (15 commits,
+no conflicts). Reasoning is in TDR-0049.
+
+**Fixed:**
+- **Canvas opened on a hidden page.** The project canvas could open on the hidden
+  "Project tickets" page and show "outside the project URL". That page is no longer
+  listed as a site page, whether on the canvas, in page management or in the New Ticket
+  picker. It can't be renamed, and reorder ignores it.
+- **Errors.**
+  - Client errors (4xx) are no longer retried, so they appear immediately instead of
+    after about 3s of "Loading…".
+  - FastAPI validation errors and HTTP/2 responses with no status text now produce
+    readable messages instead of "Unprocessable Entity" or a blank one.
+  - Network failures read as such instead of "Failed to fetch".
+- **Stale Tickets links.** Unknown values in the Tickets URL are ignored instead of
+  failing the list with a 422.
+- **Settings-style cards.** Settings, Billing, Share links and Extension lost the ~200px
+  empty header band and are two-column again. AI Usage's placeholder, which was
+  scattered across three columns, is a single centered column.
+- **Every page.** The stray focus ring (a green line under the content) and the
+  top-left shadow smudge are gone.
+- **Phones.**
+  - The Tickets table scrolls inside itself instead of scrolling the page sideways.
+  - Ticket rows use two lines.
+  - Filter tabs scroll sideways instead of wrapping.
+  - The "New project" button shows its icon.
+  - Row delete buttons show on touch screens.
+- **Avatars.** Initials inside settings cards are legible again.
+- **Clients.**
+  - Names are left-aligned.
+  - "New project" opens the project form with the client preselected (it was a
+    "not wired up" toast).
+
+**Changed files:**
+- `backend/app/modules/pages/service.py` (no schema, index or contract change);
+- `apps/web/src/lib/api-client.ts`, `app/providers.tsx`;
+- `features/tickets/{use-tickets.ts,TicketsPage.tsx,components/TicketTable.tsx}`;
+- `features/clients/ClientsPage.tsx`, `features/projects/ProjectForm.tsx`,
+  `features/workspaces/UsagePage.tsx`;
+- `styles/backline.css` (a labelled block at the end, plus five in-place fixes).
+
+**Verification:**
+- `pnpm turbo run lint typecheck build --force`: 12/12 passed with zero lint warnings.
+- Backend: `ruff check .`, `ruff format --check .` (233 files), strict
+  `mypy app/ scripts/` (193 files) and `scripts/check_workspace_scoping.py` passed.
+- Scratch browser pass (not checked in):
+  - Setup: the real app on `mongomock-motor` and `fakeredis`, with shims for mongomock's
+    `$not`-array and `$lookup`-with-`let` gaps, seeded with 4 members, 4 projects (one
+    archived), 14 tickets, 2 clients and a share link.
+  - Coverage: 20 routes × 2 widths × 2 themes, 80 captures.
+  - Horizontal overflow: none after the fixes. It had been on the mobile Tickets table.
+  - Console errors: none other than unresolvable demo hosts and the canvas frame, whose
+    preview domain doesn't resolve locally.
+  - Tickets with `?view=board&status=bogus`: the full list of 14 tickets with
+    "Everyone" selected and no error.
+  - Settings avatar initial computed as white.
+  - Clients → "New project" reached the details step with "Globex" preselected.
+
+**Not verified:** the pytest suite and Playwright journeys (no local MongoDB/Redis), and
+a deployed stack. No test suite was written, per this repository's Claude Code
+instruction.
+
+**Open:**
+- Project card previews stay light in dark mode and carry a "website · illustration"
+  label, which needs a design pass.
+- Custom illustrations for empty and "coming soon" states were not started.
+
 ## 2026-09-29: Seamless commenting on the review canvas (TDR-0047)
 
 The user asked for the project editor page, where comments are placed, to work
@@ -1931,3 +2075,18 @@ database migration, or production deployment is claimed.
     scaling artwork (repainted every frame and flashed in Chrome). Hover is now the
     design's border + shadow change with a .13s opacity fade on a flat scrim.
   - Verification: `vite build` passed. Not checked in a browser.
+# 2026-09-29: Authenticated native browser review (TDR-0048)
+
+- Implemented one-click project-bound browser review for members and guests, using
+  the real signed-in website tab, extension toolbar, server-side comments, page
+  registration and native visible-tab screenshots. Retired the misleading cookie-sync
+  control and cloud-login entry point; removed extension cookie permission.
+- Verification completed locally: web/widget/extension typecheck, lint and production
+  builds; 10 worker protocol checks (project/guest scope, OAuth origin, screenshot
+  tab switch, upload, service-worker restart); isolated DOM toolbar/annotation checks.
+- Full browser/API journey (password login, provider redirect, member/guest posts,
+  screenshot upload and SPA page change) is checked in and ready to run against an
+  isolated Mongo/Redis/S3 stack. It is **pending**, since this execution environment
+  forbids Chromium/MongoDB sockets and the permission escalation was rejected.
+  The owner declined a GitHub Actions gate; the temporary workflow was removed.
+  Do not mark the feature production verified on the basis of the local checks.

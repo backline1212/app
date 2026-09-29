@@ -1,8 +1,6 @@
 // The one piece of state this extension keeps: the token + workspace context from the
-// last successful "paste your token" connect (popup.ts). Read/written only through the
-// background service worker (background.ts) - see messages.ts - so there's a single
-// place that owns it, ready for Phase 4/5 to broadcast a change to every open content
-// script (e.g. on disconnect) without content scripts polling chrome.storage themselves.
+// current member connection (manual popup or dashboard browser review). Only the
+// extension holds this token; reviewed pages cannot access chrome.storage.
 export interface ExtensionConnection {
   token: string;
   userId: string;

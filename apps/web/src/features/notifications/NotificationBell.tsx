@@ -144,7 +144,7 @@ export function NotificationBell() {
         <div className="bl-dropdown-pop bl-notif-panel" role="menu" aria-label="Notifications">
           <div className="bl-notif-head">
             <span>NOTIFICATIONS</span>
-            <button type="button" onClick={handleMarkAllRead}>Mark all read</button>
+            {!!unread && unread > 0 && <button type="button" onClick={handleMarkAllRead}>Mark all read</button>}
           </div>
           <ul role="list">
             {isLoading && <li role="status">Loading notifications…</li>}

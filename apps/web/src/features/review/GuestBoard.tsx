@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { EmptyArt } from "../../components/illustrations";
 import { qk } from "../../lib/query-keys";
 import { useOnlineStatus } from "../../lib/use-online-status";
 import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES } from "../../lib/workflow";
@@ -81,6 +82,7 @@ export function GuestBoard({
 
         {data && data.items.length === 0 && (
           <div className="bl-empty">
+            <EmptyArt kind="board" />
             <h2>No items yet</h2>
             <p>The board is currently empty.</p>
           </div>

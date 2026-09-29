@@ -12,9 +12,17 @@ export const defaultShortcuts: Shortcut[] = [
   { id: "hide-dock", label: "Hide Dock", key: "Ctrl .", editable: false },
   { id: "next-page", label: "Next Page", key: "ArrowRight", editable: false },
   { id: "prev-page", label: "Previous Page", key: "ArrowLeft", editable: false },
+  { id: "shortcuts", label: "Show Shortcuts", key: "?", editable: false },
 ];
 
 export const SHORTCUTS_STORAGE_KEY = "bl-shortcuts";
+
+// How a binding reads on a key cap: the stored key names ("ArrowRight") are what the
+// hotkey matcher compares against, so only the displayed text changes.
+const KEY_LABELS: Record<string, string> = { ArrowRight: "→", ArrowLeft: "←", ArrowUp: "↑", ArrowDown: "↓", " ": "Space" };
+export function keyLabel(key: string): string {
+  return key.split(" ").map((part) => KEY_LABELS[part] ?? part).join(" ");
+}
 
 /** Reads the reviewer's saved key bindings (falling back to the defaults above) so
  * ProjectOverviewPage's global hotkey listener honors whatever this modal saved -

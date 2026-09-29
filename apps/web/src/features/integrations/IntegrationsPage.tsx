@@ -86,7 +86,7 @@ export function IntegrationsPage() {
           {integrations.error instanceof Error ? integrations.error.message : "Could not load integrations."}
         </p>
       )}
-      {integrations.isLoading && <LoadingScreen />}
+      {integrations.isLoading && <LoadingScreen inline />}
       {!canManage && (
         <p className="bl-inline-note bl-int-note">
           Only workspace owners and admins can connect or change integrations. You can send comments to any connected

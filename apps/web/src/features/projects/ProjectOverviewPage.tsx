@@ -41,7 +41,7 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { QuickToolsDock } from "./footer/QuickToolsDock";
 import { ShortcutsModal } from "./ShortcutsModal";
 import { loadShortcuts } from "./shortcuts";
-import { CloudLoginModal } from "./CloudLoginModal";
+import { NativeReviewButton } from "../review/NativeReviewButton";
 
 type PageOut = Schemas["PageOut"];
 
@@ -130,7 +130,6 @@ export function ProjectOverviewPage() {
   const [showPages, setShowPages] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [showCloudLogin, setShowCloudLogin] = useState(false);
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   // A pin clicked in the canvas opens that comment's detail in the drawer. The nonce
@@ -168,12 +167,6 @@ export function ProjectOverviewPage() {
     const handleOpenShortcuts = () => setShowShortcuts(true);
     window.addEventListener("backline:open-shortcuts", handleOpenShortcuts);
     return () => window.removeEventListener("backline:open-shortcuts", handleOpenShortcuts);
-  }, []);
-
-  useEffect(() => {
-    const handleOpenCloudLogin = () => setShowCloudLogin(true);
-    window.addEventListener("backline:open-cloud-login", handleOpenCloudLogin);
-    return () => window.removeEventListener("backline:open-cloud-login", handleOpenCloudLogin);
   }, []);
 
   const activePageIdParam = searchParams.get("page");
@@ -306,10 +299,18 @@ export function ProjectOverviewPage() {
   });
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
-      if (showShare || showPages || showSettings || showShortcuts || showCloudLogin) return;
+      if (showShare || showPages || showSettings || showShortcuts) return;
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) return;
+
+      // "?" is typed with Shift on most layouts, so it is matched by the character
+      // rather than by a key combo.
+      if (event.key === "?" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        setShowShortcuts(true);
+        return;
+      }
 
       const combo = comboFromEvent(event);
       const shortcut = loadShortcuts().find((s) => normalizeCombo(s.key) === combo);
@@ -335,7 +336,7 @@ export function ProjectOverviewPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showShare, showPages, showSettings, showShortcuts, showCloudLogin, activePageIdParam, pagesQuery.data]);
+  }, [showShare, showPages, showSettings, showShortcuts, activePageIdParam, pagesQuery.data]);
 
   const upsertComment = useCallback(
     (payload: CommentOut & { project_id: string }) => {
@@ -815,6 +816,7 @@ export function ProjectOverviewPage() {
         </div>
 
         <div className="bl-review-header-tools">
+          {user && <NativeReviewButton projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
           <div className="bl-review-mode" aria-label="Canvas mode">
             <button type="button" aria-pressed={mode === "browse"} onClick={() => setMode("browse")}>
               <PointerIcon width={13} height={13} />
@@ -1065,7 +1067,6 @@ export function ProjectOverviewPage() {
           environment={project.environment}
           mode={mode}
           onModeChange={(m) => setMode(m)}
-          cloudLoginAvailable={Boolean(embedLink)}
         />
 
         <ProjectSidePanel
@@ -1119,7 +1120,6 @@ export function ProjectOverviewPage() {
         />
       )}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
-      {showCloudLogin && <CloudLoginModal projectId={project.id} onClose={() => setShowCloudLogin(false)} />}
       {showSettings && <ProjectForm workspace={workspace} project={project} onClose={() => setShowSettings(false)} />}
     </main>
   );
