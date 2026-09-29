@@ -1,5 +1,64 @@
 # Delivery and verification ledger
 
+## 2026-09-30: Contextual page titles and project sub-route navigation (TDR-0051)
+
+The user asked for the first commit on `feature/standardize-routes-titles-navigation`
+to be verified against the requested changes, fixed and optimized. That commit's
+`BRANCH_CHANGELOG.md` lists the requested changes. `origin/main` was merged in first
+(6 commits, no conflicts). Reasoning is in TDR-0051.
+
+**Delivered:**
+- **Browser tab titles.**
+  - Workspace pages read `{workspace} · {page} — Backline`.
+  - Project pages read `{project} · Review`, `· Board` or `· Share Links`.
+  - The guest review reads `{project} · Review`.
+  - Sign-in, the sign-in and OAuth callbacks, and the 404 page have their own titles.
+  - The canvas, board, guest review, 404 and callbacks had no title before.
+- **Navigation between a project's pages.**
+  - The board has a "← Back to {project}" link.
+  - The share-links back link names the project.
+  - The project ⋯ menu has "Manage share links" and "Ticket board".
+  - The canvas Details tab has "Open board →" and "Share links →".
+
+**Fixed in review of the first commit:**
+- **TDR number.** The TDR was 0048, which `main` already uses, so it is now 0051. 0050
+  is the open illustrations branch's number.
+- **Sign-in title.** It read "Sign in to Backline — Backline" and now reads
+  "Sign in — Backline".
+- **Project query.** The same project query was declared in three pages. It is now one
+  `useProject` hook.
+- **Inline styles.** The board back link and the Details-tab links used inline styles.
+  They now use a shared `.bl-back-link` class and Tailwind utilities.
+- **Long project names.** The back link now ends a long name in an ellipsis. Before, it
+  could widen the page on a phone.
+- **Board header props.** The props are required; their optional-prop guard was dead.
+- **Menu order.** "Manage share links" moved beside "Copy review link".
+
+**Changed files:**
+- `apps/web/src/lib/use-document-title.ts` and 19 of the 20 page components that call it
+  (the workspace picker is unchanged).
+- `features/projects/use-project.ts` (new).
+- `features/board/components/BoardHeader.tsx`, `features/projects/ProjectMenu.tsx` and
+  `features/projects/panel/DetailsTab.tsx`.
+- `styles/backline.css`: one rule, `.bl-back-link`.
+- No backend, contract or route change.
+
+**Verification:**
+- `pnpm turbo run lint typecheck build --force`: 12/12 passed with zero lint warnings.
+- The existing `apps/e2e/tests/navigation-titles-routes.spec.ts` typechecks under
+  `tsc --strict`, and `playwright test --list` lists its test.
+
+**Not verified:** the Playwright suite was not run (no local MongoDB/Redis), nor was a
+browser pass or a deployed stack checked. No test suite was written, per this
+repository's Claude Code instruction.
+
+**Open:**
+- **Merge conflicts with the illustrations branch.** Once
+  `claude/illustrations-and-interaction-audit` (TDR-0050) is merged, `NotFoundPage.tsx`
+  and `UsagePage.tsx` conflict on adjacent import lines. Keep both imports.
+- **`BRANCH_CHANGELOG.md`** sits at the repo root. This ledger and TDR-0051 record the
+  same changes, so it can be dropped before merging to `main`.
+
 ## 2026-09-29: Whole-app polish pass (TDR-0049)
 
 The user asked for open-ended improvement of the app and for bugs across the site to be

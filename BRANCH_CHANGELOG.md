@@ -33,6 +33,7 @@ This branch standardizes the routing architecture, document/tab titles, breadcru
   - `ShareLinksPage.tsx`: `{Project Name} · Share Links — Backline`
   - `ReviewEntryPage.tsx`: `{Project Name} · Review — Backline`
 - **Auth & Error Views**:
+  - `LoginPage.tsx`: `Sign in — Backline`
   - `NotFoundPage.tsx`: `Page Not Found — Backline`
   - `AuthCallbackPage.tsx`: `Signing in — Backline`
   - `OAuthCallback.tsx`: `Connecting {Provider} — Backline`
@@ -52,4 +53,12 @@ This branch standardizes the routing architecture, document/tab titles, breadcru
   - Verifies 404 page title behavior.
 
 ### 5. Architectural Record
-- **TDR**: `docs/tdr/0048-standardized-routes-titles-and-navigation.md`
+- **TDR**: `docs/tdr/0051-contextual-page-titles-and-project-navigation.md` (renumbered from 0048, which `main` already uses)
+- **Delivery ledger**: 2026-09-30 entry in `docs/implementation/06-delivery.md`
+
+### 6. Review Fixes (2026-09-30)
+- Merged `origin/main` (no conflicts).
+- Login tab title read `Sign in to Backline — Backline`; now `Sign in — Backline`.
+- One shared `useProject` hook (`features/projects/use-project.ts`) replaces three copies of the project query (canvas, board, share links).
+- Inline styles replaced with a shared `.bl-back-link` class (long project names end in an ellipsis) and Tailwind utilities in `DetailsTab.tsx`.
+- `BoardHeader` back-link props are required; `Manage share links` moved beside `Copy review link` in the project menu.

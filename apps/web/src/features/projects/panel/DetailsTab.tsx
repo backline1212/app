@@ -107,19 +107,11 @@ export function DetailsTab({
               </div>
             </dl>
           )}
-          <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-            <Link
-              to={`/w/${workspaceSlug}/p/${project.id}/board`}
-              className="bl-quiet"
-              style={{ flex: 1, textAlign: "center", fontSize: "0.75rem", padding: "6px 8px" }}
-            >
+          <div className="mt-3 flex gap-2">
+            <Link to={`/w/${workspaceSlug}/p/${project.id}/board`} className="bl-quiet flex-1 text-center">
               Open board →
             </Link>
-            <Link
-              to={`/w/${workspaceSlug}/p/${project.id}/share-links`}
-              className="bl-quiet"
-              style={{ flex: 1, textAlign: "center", fontSize: "0.75rem", padding: "6px 8px" }}
-            >
+            <Link to={`/w/${workspaceSlug}/p/${project.id}/share-links`} className="bl-quiet flex-1 text-center">
               Share links →
             </Link>
           </div>

@@ -12,9 +12,9 @@ interface BoardHeaderProps {
   members: MemberOut[] | undefined;
   pageUrls: string[];
   reviewerCountByUrl: Map<string, number>;
-  workspaceSlug?: string;
-  projectId?: string;
-  projectName?: string;
+  workspaceSlug: string;
+  projectId: string;
+  projectName: string | undefined;
 }
 
 export function BoardHeader({
@@ -34,15 +34,9 @@ export function BoardHeader({
     <>
       <div className="bl-board-head">
         <div>
-          {workspaceSlug && projectId && (
-            <Link
-              className="bl-quiet"
-              to={`/w/${workspaceSlug}/p/${projectId}`}
-              style={{ display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 6, fontSize: "0.8125rem" }}
-            >
-              ← Back to {projectName || "project"}
-            </Link>
-          )}
+          <Link className="bl-quiet bl-back-link" to={`/w/${workspaceSlug}/p/${projectId}`}>
+            ← Back to {projectName || "project"}
+          </Link>
           <p className="bl-eyebrow">Project workflow</p>
           <div className="bl-board-title-row">
             <h1>Board</h1>

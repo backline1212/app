@@ -7,7 +7,7 @@ import { LoadingScreen } from "../../components/LoadingScreen";
 import { useToast } from "../../components/Toast";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
-import * as projectsApi from "../projects/api";
+import { useProject } from "../projects/use-project";
 import * as shareLinksApi from "./api";
 import type { ShareLinkOut } from "./api";
 
@@ -21,12 +21,8 @@ function reviewUrl(token: string): string {
 // creates a replacement, reviews history, or revokes access.
 export function ShareLinksPage() {
   const { projectId, workspaceSlug } = useParams<{ projectId: string; workspaceSlug: string }>();
-  const projectQuery = useQuery({
-    queryKey: qk.project(projectId ?? ""),
-    queryFn: () => projectsApi.getProject(projectId!),
-    enabled: !!projectId,
-  });
-  useDocumentTitle([projectQuery.data?.name, "Share Links"]);
+  const { data: project } = useProject(projectId);
+  useDocumentTitle([project?.name, "Share Links"]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -96,8 +92,8 @@ export function ShareLinksPage() {
     <main className="bl-wrap">
       <header className="bl-head">
         <div>
-          <Link className="bl-quiet" to={`/w/${workspaceSlug}/p/${projectId}`}>
-            ← Back to {projectQuery.data?.name || "project"}
+          <Link className="bl-quiet bl-back-link" to={`/w/${workspaceSlug}/p/${projectId}`}>
+            ← Back to {project?.name || "project"}
           </Link>
           <h1>Share links</h1>
           <p>Every review link created for this project, active and revoked.</p>

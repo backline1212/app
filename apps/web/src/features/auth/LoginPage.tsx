@@ -36,7 +36,8 @@ function passwordScore(value: string): number {
 export function LoginPage() {
   const { t } = useTranslation();
   const { requestOtp, verifyOtp, signup, loginWithPassword, setPassword: savePassword, user, updateUser } = useAuth();
-  useDocumentTitle(t('auth.login.title' as TranslationKeys));
+  // Not the "Sign in to Backline" heading: the hook appends "— Backline" itself.
+  useDocumentTitle("Sign in");
   const navigate = useNavigate();
   // design/index.html's four panels: #lg-in, #lg-up, #lg-reset, #lg-sent. "help" is
   // the reset panel - it doesn't reset a password (there's no reset-link flow yet),

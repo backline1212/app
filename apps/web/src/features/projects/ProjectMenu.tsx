@@ -119,9 +119,9 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
         {onSettings && item("Project settings", "settings", () => { setOpen(false); onSettings(); }, { disabled: Boolean(project.archived_at), note: project.archived_at ? "Restore to edit" : undefined })}
         {onShare && item("Share project", "share", () => { setOpen(false); onShare(); }, { disabled: Boolean(project.archived_at) })}
         {item(copyLink.isPending ? "Copying…" : "Copy review link", "link", () => { setOpen(false); copyLink.mutate(); }, { disabled: Boolean(project.archived_at) || copyLink.isPending })}
+        {item("Manage share links", "link", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/share-links`); }, { disabled: Boolean(project.archived_at) })}
         {item("Rename project", "rename", () => { setRenameValue(project.name); setRenaming(true); setOpen(false); })}
         {item("Ticket board", "board", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/board`); }, { disabled: Boolean(project.archived_at) })}
-        {item("Manage share links", "link", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/share-links`); }, { disabled: Boolean(project.archived_at) })}
         {onManagePages && item("Manage pages", "page", () => { setOpen(false); onManagePages(); }, { disabled: Boolean(project.archived_at), note: project.archived_at ? "Restore to edit" : undefined })}
         {!onManagePages && project.project_type !== "website" && item("Manage files", "page", () => undefined, { disabled: true, note: "Coming soon" })}
         <div className="bl-dropdown-sep" role="separator" />

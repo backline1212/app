@@ -4,17 +4,17 @@ import { useOutletContext, useParams, useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
 import * as integrationsApi from "../integrations/api";
+import { useProject } from "../projects/use-project";
 import type { WorkspaceOut } from "../workspaces/api";
 import * as workspacesApi from "../workspaces/api";
 import { useWSEvent } from "../../app/WSProvider";
 import { patchProjectComment, removeProjectComment, upsertProjectComment } from "../../lib/comment-cache";
 import { qk } from "../../lib/query-keys";
+import { useDocumentTitle } from "../../lib/use-document-title";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { usePresenceStore } from "../../stores/presenceStore";
 import * as boardApi from "./api";
 import type { CommentOut, CommentStatus } from "./api";
-import * as projectsApi from "../projects/api";
-import { useDocumentTitle } from "../../lib/use-document-title";
 import { CommentThreadPanel } from "./CommentThreadPanel";
 import { BoardHeader } from "./components/BoardHeader";
 import { KanbanBoard } from "./components/KanbanBoard";
@@ -96,11 +96,7 @@ export function BoardPage() {
     setSearchParams(next, { replace: true });
   }
 
-  const { data: project } = useQuery({
-    queryKey: qk.project(projectId ?? ""),
-    queryFn: () => projectsApi.getProject(projectId!),
-    enabled: !!projectId,
-  });
+  const { data: project } = useProject(projectId);
   useDocumentTitle([project?.name, "Board"]);
 
   const { data: comments, isLoading } = useQuery({

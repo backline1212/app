@@ -1,25 +1,25 @@
 import { useEffect } from "react";
 
+type TitleSegment = string | null | undefined | false;
+
 /**
- * Sets `document.title` while the component is mounted and restores
- * the previous title on unmount.
+ * Sets `document.title` while the component is mounted and restores the previous
+ * title on unmount.
  *
- * Accepts either a single title string or an array of breadcrumb segments
- * that are joined with ` · `:
+ * Takes a single title or context-first segments joined with " · ":
  *
- *   useDocumentTitle("Tickets")             → "Tickets — Backline"
- *   useDocumentTitle(["My Project", "Board"]) → "My Project · Board — Backline"
+ *   useDocumentTitle("Tickets")                   → "Tickets — Backline"
+ *   useDocumentTitle([workspace.name, "Tickets"]) → "Acme · Tickets — Backline"
  *
- * Empty/blank segments are silently dropped so callers don't need to guard
- * against data that hasn't loaded yet:
- *
- *   useDocumentTitle([project?.name, "Board"]) → "Board — Backline" initially,
- *                                                "Acme Site · Board — Backline" once loaded.
+ * Blank or missing segments are dropped, so data that hasn't loaded yet needs no
+ * guard: `[project?.name, "Board"]` reads "Board — Backline" until the project
+ * arrives, then "Client Store · Board — Backline".
  */
-export function useDocumentTitle(title: string | (string | undefined | null | false)[]): void {
-  const resolved = Array.isArray(title)
-    ? title.filter((s): s is string => typeof s === "string" && s.trim().length > 0).join(" · ")
-    : title;
+export function useDocumentTitle(title: TitleSegment | TitleSegment[]): void {
+  const resolved = (Array.isArray(title) ? title : [title])
+    .map((segment) => (segment ? segment.trim() : ""))
+    .filter(Boolean)
+    .join(" · ");
 
   useEffect(() => {
     const prev = document.title;
