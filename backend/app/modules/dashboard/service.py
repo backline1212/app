@@ -12,7 +12,7 @@ from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.service import _broadcast_comment_event, _comment_out
-from app.modules.dashboard.repository import DashboardRepository, root_pipeline
+from app.modules.dashboard.repository import DashboardRepository, page_title_match, root_pipeline
 from app.modules.dashboard.schemas import (
     ActivityListOut,
     ActivityOut,
@@ -81,7 +81,7 @@ async def search(
                     "$or": [
                         {"body": matcher},
                         {"_project.name": matcher},
-                        {"_page.title": matcher},
+                        page_title_match(matcher),
                     ]
                 }
             },

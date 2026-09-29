@@ -7,6 +7,7 @@ import { EmptyArt } from "../../components/illustrations";
 import { BoltIcon, BuildingIcon, CommentBubbleIcon, FolderIcon, LinkIcon, PersonIcon } from "../../components/icons";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
+import { listProjects } from "../projects/api";
 import { listMembers } from "../workspaces/api";
 import type { WorkspaceOut } from "../workspaces/api";
 import { listActivity } from "./api";
@@ -77,6 +78,7 @@ export function ActivityPage() {
   const offset = Math.max(0, Number(params.get("offset")) || 0), filter = params.get("type") ?? "";
   const query = useQuery({ queryKey: qk.activityList(workspace.id, offset, filter), queryFn: () => listActivity(workspace.id, offset, filter) });
   const members = useQuery({ queryKey: qk.members(workspace.id), queryFn: () => listMembers(workspace.id) });
+  const projects = useQuery({ queryKey: qk.projects(workspace.id), queryFn: () => listProjects(workspace.id, true) });
   function page(value: number) { setParams({ type: filter, offset: String(value) }); }
 
   const groups = useMemo(() => {
@@ -136,11 +138,19 @@ export function ActivityPage() {
                       {event.ticket_number != null && <> <span className="bl-tid">#{event.ticket_number}</span></>}
                       {event.comment_excerpt && <span className="bl-activity-excerpt"> “{event.comment_excerpt}”</span>}
                     </p>
-                    {event.project_id &&
-                      <Link className="bl-chip" to={`/w/${workspace.slug}/p/${event.project_id}/board${event.comment_id ? `?comment=${event.comment_id}` : ''}`}>
-                        {event.comment_id ? "Open comment →" : "View project →"}
-                      </Link>
-                    }
+                    {event.project_id && (() => {
+                      // An archived project can't be opened (its card has no link either),
+                      // so point at the Archived list, where it can be restored; a deleted
+                      // one has nowhere to go. Until projects load, keep the normal link.
+                      const project = projects.data?.find((p) => p.id === event.project_id);
+                      if (projects.data && !project) return <span className="bl-chip">Project deleted</span>;
+                      if (project?.archived_at) return <Link className="bl-chip" to={`/w/${workspace.slug}?archived=true`}>Project archived →</Link>;
+                      return (
+                        <Link className="bl-chip" to={`/w/${workspace.slug}/p/${event.project_id}/board${event.comment_id ? `?comment=${event.comment_id}` : ''}`}>
+                          {event.comment_id ? "Open comment →" : "View project →"}
+                        </Link>
+                      );
+                    })()}
                   </div>
                   <time dateTime={event.created_at}>
                     {new Date(event.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}

@@ -8,6 +8,17 @@ from app.core.mongo_utils import to_object_id
 from app.modules.dashboard.schemas import TicketFilters
 
 
+def page_title_match(matcher: dict[str, Any]) -> dict[str, Any]:
+    """A search on the comment's page title, leaving out the hidden holder of a
+    project's team tickets (titled "Project tickets"): otherwise searching "tickets"
+    returned every team ticket in the workspace."""
+    return {
+        "_page.title": matcher,
+        "_page.kind": {"$ne": "standalone"},
+        "_page.url_normalized": {"$not": {"$regex": "^backline://"}},
+    }
+
+
 def root_pipeline(workspace_id: str) -> list[dict[str, Any]]:
     """Legacy comments derive project_id through their real page; standalone uses the same join."""
     return [
@@ -87,9 +98,11 @@ class DashboardRepository:
             match["tags"] = filters.tag
         if filters.search.strip():
             escaped = re.escape(filters.search.strip())
+            matcher = {"$regex": escaped, "$options": "i"}
             match["$or"] = [
-                {key: {"$regex": escaped, "$options": "i"}}
-                for key in ("body", "_project.name", "_page.title")
+                {"body": matcher},
+                {"_project.name": matcher},
+                page_title_match(matcher),
             ]
         if filters.view == "mine":
             match.setdefault("$and", []).append({"assignee_ids": user_id})
