@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useOutletContext, useParams, useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { EmptyArt } from "../../components/illustrations";
 import * as integrationsApi from "../integrations/api";
 import type { WorkspaceOut } from "../workspaces/api";
 import * as workspacesApi from "../workspaces/api";
@@ -351,7 +352,7 @@ export function BoardPage() {
       )}
 
       {filtered.length === 0 && (
-        <div className="bl-empty"><strong>No matching comments</strong><p>Try clearing one or more board filters.</p></div>
+        <div className="bl-empty"><EmptyArt kind="search" /><strong>No matching comments</strong><p>Try clearing one or more board filters.</p></div>
       )}
     </main>
   );

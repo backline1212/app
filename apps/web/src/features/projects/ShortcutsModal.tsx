@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dialog } from "../../components/Dialog";
-import { loadShortcuts, SHORTCUTS_STORAGE_KEY, type Shortcut } from "./shortcuts";
+import { keyLabel, loadShortcuts, SHORTCUTS_STORAGE_KEY, type Shortcut } from "./shortcuts";
 
 export function ShortcutsModal({ onClose }: { onClose: () => void }) {
   const [shortcuts, setShortcuts] = useState<Shortcut[]>(loadShortcuts);
@@ -53,7 +53,7 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
                   cursor: "pointer"
                 }}
               >
-                {editingId === s.id ? "Press any key..." : s.key}
+                {editingId === s.id ? "Press any key..." : keyLabel(s.key)}
               </button>
             ) : (
               <kbd style={{
@@ -65,7 +65,7 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
                 fontSize: "12px",
                 color: "var(--bl-muted)"
               }}>
-                {s.key}
+                {keyLabel(s.key)}
               </kbd>
             )}
           </div>

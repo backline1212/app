@@ -304,6 +304,14 @@ export function ProjectOverviewPage() {
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) return;
 
+      // "?" is typed with Shift on most layouts, so it is matched by the character
+      // rather than by a key combo.
+      if (event.key === "?" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        setShowShortcuts(true);
+        return;
+      }
+
       const combo = comboFromEvent(event);
       const shortcut = loadShortcuts().find((s) => normalizeCombo(s.key) === combo);
       if (!shortcut) return;

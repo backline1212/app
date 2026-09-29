@@ -60,6 +60,21 @@ class CommentRepository:
         # after (e.g. comments/service.py's update_comment) before acting on it.
         return await self.db.comments.find_one({"_id": oid})
 
+    async def find_many_in_workspace(
+        self, workspace_id: str, comment_ids: list[str]
+    ) -> list[dict[str, Any]]:
+        """Several comments at once, for labelling another listing (the activity feed).
+        Deleted ones are included, since an event about one still happened; callers
+        decide what of a deleted comment to show."""
+        oids = [oid for oid in map(to_object_id, comment_ids) if oid is not None]
+        if not oids:
+            return []
+        cursor = self.db.comments.find(
+            {"workspace_id": workspace_id, "_id": {"$in": oids}},
+            {"ticket_number": 1, "body": 1, "deleted_at": 1},
+        )
+        return [doc async for doc in cursor]
+
     async def find_by_ticket_number(
         self, workspace_id: str, ticket_number: int
     ) -> dict[str, Any] | None:
