@@ -11,7 +11,7 @@ import type { WorkspaceOut } from "./api";
 
 export function SettingsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle('Settings');
+  useDocumentTitle([workspace.name, 'Settings']);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [name, setName] = useState(workspace.name);

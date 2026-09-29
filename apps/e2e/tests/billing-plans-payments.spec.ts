@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { createWorkspace, loginViaOtp } from "../helpers/login";
 
 // Runs against a stack with no Stripe/Razorpay keys and BILLING_SANDBOX_ENABLED=true,
-// so checkouts complete as test payments (docs/tdr/0051).
+// so checkouts complete as test payments (docs/tdr/0052).
 test.describe("Billing, plans & payments", () => {
   test("shows plans, switches period and currency, and compares tiers", async ({ page }) => {
     await loginViaOtp(page, `billing-view-${Date.now()}@example.com`);

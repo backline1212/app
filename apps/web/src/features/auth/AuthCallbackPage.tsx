@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { useDocumentTitle } from "../../lib/use-document-title";
 import { useAuth } from "./AuthContext";
 
 export function AuthCallbackPage() {
+  useDocumentTitle("Signing in");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { loginWithGoogleCode } = useAuth();

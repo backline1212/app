@@ -1,4 +1,4 @@
-"""Create the billing indexes (docs/tdr/0051).
+"""Create the billing indexes (docs/tdr/0052).
 
 Run from backend: python -m scripts.migrate_billing_schema [--apply]
 

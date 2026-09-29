@@ -55,7 +55,7 @@ function PaymentConfirmedDialog({ subscription, onClose }: { subscription: Subsc
 
 export function BillingPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle("Billing & plans");
+  useDocumentTitle([workspace.name, "Billing"]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();

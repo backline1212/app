@@ -28,7 +28,7 @@ const SECTIONS: { kind: ProviderKind; title: string; blurb: string }[] = [
 
 export function IntegrationsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle("Integrations");
+  useDocumentTitle([workspace.name, "Integrations"]);
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const canManage = workspace.role === "owner" || workspace.role === "admin";

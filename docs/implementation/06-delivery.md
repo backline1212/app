@@ -1,11 +1,13 @@
 # Delivery and verification ledger
 
-## 2026-09-30: Billing plans, Stripe, Razorpay/UPI and plan limits (TDR-0051)
+## 2026-09-30: Billing plans, Stripe, Razorpay/UPI and plan limits (TDR-0052)
 
 The user asked for the billing branch's first cut to be verified against
 `docs/BILLING_BRANCH_OVERVIEW.md`, then fixed, optimized and pushed. That first cut was
-filed as TDR-0048, which `main` had already used, so this is TDR-0051. `main` was
-merged in first. The reasoning is in TDR-0051.
+filed as TDR-0048; `main` has since used both 0048 and 0051, so this is TDR-0052.
+`main` was merged in first, and again after PR #45 (route titles), whose
+`[workspace, "Billing"]` page-title convention the billing page now follows. The
+reasoning is in TDR-0052.
 
 **Fixed:**
 - **Free upgrades.**
@@ -51,6 +53,71 @@ merged in first. The reasoning is in TDR-0051.
 **Open:**
 - Taxes and receipt legal details are undecided.
 - The comparison table's integration, cloud-login and MCP rows aren't enforced.
+
+## 2026-09-30: Contextual page titles and project sub-route navigation (TDR-0051)
+
+The user asked for the first commit on `feature/standardize-routes-titles-navigation`
+to be verified against the requested changes, fixed and optimized. That commit's
+`BRANCH_CHANGELOG.md` lists the requested changes. `origin/main` was merged in first
+(6 commits, no conflicts). Reasoning is in TDR-0051.
+
+**Delivered:**
+- **Browser tab titles.**
+  - Workspace pages read `{workspace} · {page} — Backline`.
+  - Project pages read `{project} · Review`, `· Board` or `· Share Links`.
+  - The guest review reads `{project} · Review`.
+  - Sign-in, the sign-in and OAuth callbacks, and the 404 page have their own titles.
+  - The canvas, board, guest review, 404 and callbacks had no title before.
+- **Navigation between a project's pages.**
+  - The board has a "← Back to {project}" link.
+  - The share-links back link names the project.
+  - The project ⋯ menu has "Manage share links" and "Ticket board".
+  - The canvas Details tab has "Open board →" and "Share links →".
+
+**Fixed in review of the first commit:**
+- **TDR number.** The TDR was 0048, which `main` already uses, so it is now 0051. 0050
+  is the open illustrations branch's number.
+- **Sign-in title.** It read "Sign in to Backline — Backline" and now reads
+  "Sign in — Backline".
+- **Project query.** The same project query was declared in three pages. It is now one
+  `useProject` hook.
+- **Inline styles.** The board back link and the Details-tab links used inline styles.
+  They now use a shared `.bl-back-link` class and Tailwind utilities.
+- **Long project names.** The back link now ends a long name in an ellipsis. Before, it
+  could widen the page on a phone.
+- **Board header props.** The props are required; their optional-prop guard was dead.
+- **Menu order.** "Manage share links" moved beside "Copy review link".
+
+**Changed files:**
+- `apps/web/src/lib/use-document-title.ts` and 19 of the 20 page components that call it
+  (the workspace picker is unchanged).
+- `features/projects/use-project.ts` (new).
+- `features/board/components/BoardHeader.tsx`, `features/projects/ProjectMenu.tsx` and
+  `features/projects/panel/DetailsTab.tsx`.
+- `styles/backline.css`: one rule, `.bl-back-link`.
+- No backend, contract or route change.
+
+**Verification:**
+- `pnpm turbo run lint typecheck build --force`: 12/12 passed with zero lint warnings.
+- The existing `apps/e2e/tests/navigation-titles-routes.spec.ts` typechecks under
+  `tsc --strict`, and `playwright test --list` lists its test.
+
+**Not verified:** the Playwright suite was not run (no local MongoDB/Redis), nor was a
+browser pass or a deployed stack checked. No test suite was written, per this
+repository's Claude Code instruction.
+
+**Resynced with `main` for a manual merge (same day).** GitHub reported the branch
+could not merge automatically after PRs #43 and #44 (TDR-0050, illustrations) landed.
+`origin/main` was merged in again, and three conflicts were resolved:
+- `NotFoundPage.tsx` keeps both the `LostPinArt` import and the title import.
+- `UsagePage.tsx` keeps `UsageChartArt` and the title and workspace imports. `ChartIcon`
+  is dropped because `main` had replaced it.
+- This ledger keeps both entries, newest first.
+
+Lint, typecheck and build were re-run on the merged result.
+
+**Open:** `BRANCH_CHANGELOG.md` sits at the repo root. This ledger and TDR-0051 record
+the same changes, so it can be dropped before merging to `main`.
 
 ## 2026-09-29: Illustrations and interaction audit (TDR-0050)
 
@@ -123,7 +190,6 @@ originally asked for custom SVG artwork and animation. The work is on a new bran
 **Not verified:** the pytest suite and Playwright journeys (no local MongoDB/Redis). No
 test suite was written, per this repository's Claude Code instruction.
 
-## 2026-09-29: Whole-app polish pass (TDR-0049)
 ## 2026-09-29: Whole-app polish pass (TDR-0049)
 
 The user asked for open-ended improvement of the app and for bugs across the site to be

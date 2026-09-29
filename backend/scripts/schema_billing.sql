@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Backline billing schema - relational reference (PostgreSQL)
 --
--- Reference only. Backline stores billing in MongoDB (docs/tdr/0051); nothing runs
+-- Reference only. Backline stores billing in MongoDB (docs/tdr/0052); nothing runs
 -- this file. It mirrors those collections one-to-one for teams that export billing
 -- data to a SQL warehouse or reporting database. The plan catalogue itself lives in
 -- backend/app/modules/billing/plans.py - keep the seed rows below in step with it.

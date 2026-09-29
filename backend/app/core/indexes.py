@@ -209,7 +209,7 @@ DELETION_SUPPORT_INDEXES: tuple[AdditiveIndex, ...] = (
     ),
 )
 
-# docs/tdr/0051. Webhooks find a checkout by the gateway's own session/order id, and the
+# docs/tdr/0052. Webhooks find a checkout by the gateway's own session/order id, and the
 # unique checkout_id on invoices is the backstop behind claim_checkout's exactly-once
 # activation. Invoice numbers are sequential across the service (one seller).
 BILLING_INDEXES: tuple[AdditiveIndex, ...] = (

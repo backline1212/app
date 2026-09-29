@@ -73,7 +73,7 @@ const FILTERS = ["mine", "clients", "deploys"];
 
 export function ActivityPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle('Activity');
+  useDocumentTitle([workspace.name, 'Activity']);
   const [params, setParams] = useSearchParams();
   const offset = Math.max(0, Number(params.get("offset")) || 0), filter = params.get("type") ?? "";
   const query = useQuery({ queryKey: qk.activityList(workspace.id, offset, filter), queryFn: () => listActivity(workspace.id, offset, filter) });

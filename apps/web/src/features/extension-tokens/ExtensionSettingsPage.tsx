@@ -12,7 +12,7 @@ import * as extensionTokensApi from "./api";
 
 export function ExtensionSettingsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle("Browser Extension");
+  useDocumentTitle([workspace.name, "Browser Extension"]);
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");

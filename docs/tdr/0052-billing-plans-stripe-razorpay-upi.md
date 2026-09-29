@@ -1,4 +1,4 @@
-# TDR-0051: Billing plans, Stripe, Razorpay/UPI and plan limits
+# TDR-0052: Billing plans, Stripe, Razorpay/UPI and plan limits
 
 Date: 2026-09-30
 Status: Implemented; verified by ruff/mypy/lint/typecheck/build, a 41-check backend pass
@@ -9,8 +9,8 @@ been exercised.
 
 The branch `feat/billing-plans-stripe-razorpay` replaced the billing placeholder with
 four plans, Stripe and Razorpay/UPI checkout, a test sandbox, plan limits and invoices.
-It was first filed as TDR-0048, a number `main` had already used, so this record is
-0051. The spec is `docs/BILLING_BRANCH_OVERVIEW.md`.
+It was first filed as TDR-0048, and 0048 and 0051 were both taken on `main` by the
+time it merged, so this record is 0052. The spec is `docs/BILLING_BRANCH_OVERVIEW.md`.
 
 A review of that first cut found problems that had to be fixed before it could take
 money:

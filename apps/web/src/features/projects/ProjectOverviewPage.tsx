@@ -7,6 +7,7 @@ import { useWSEvent } from "../../app/WSProvider";
 import { API_BASE_URL, apiFetch } from "../../lib/api-client";
 import { removeProjectComment, upsertProjectComment } from "../../lib/comment-cache";
 import { qk } from "../../lib/query-keys";
+import { useDocumentTitle } from "../../lib/use-document-title";
 import { useSearchParamsUpdater } from "../../lib/use-search-params-updater";
 import { ticketRef } from "../../lib/ticket-ref";
 import { WORKFLOW_STATUSES } from "../../lib/workflow";
@@ -17,7 +18,6 @@ import type { CommentOut, CommentStatus } from "../board/api";
 import * as shareLinksApi from "../share-links/api";
 import { ShareProjectModal } from "../workspaces/ShareProjectModal";
 import type { WorkspaceOut } from "../workspaces/api";
-import * as projectsApi from "./api";
 import { ProjectFooter, type CanvasMode } from "./footer/ProjectFooter";
 import { VIEWPORTS, type ViewportOption } from "./footer/ViewportMenu";
 import { BROWSERS, type BrowserOption } from "./footer/browsers";
@@ -37,6 +37,7 @@ import { CanvasResizer, type ResizePhase } from "./CanvasResizer";
 import { ProjectForm } from "./ProjectForm";
 import { ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
+import { useProject } from "./use-project";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { QuickToolsDock } from "./footer/QuickToolsDock";
 import { ShortcutsModal } from "./ShortcutsModal";
@@ -209,11 +210,7 @@ export function ProjectOverviewPage() {
     queryFn: () => apiFetch<PageOut[]>(`/api/v1/projects/${projectId}/pages`),
     enabled: !!projectId,
   });
-  const projectQuery = useQuery({
-    queryKey: qk.project(projectId ?? ""),
-    queryFn: () => projectsApi.getProject(projectId!),
-    enabled: !!projectId,
-  });
+  const projectQuery = useProject(projectId);
   const shareLinksQuery = useQuery({
     queryKey: qk.shareLinks(projectId ?? ""),
     queryFn: () => shareLinksApi.listShareLinks(projectId!),
@@ -224,6 +221,7 @@ export function ProjectOverviewPage() {
     queryFn: () => boardApi.listProjectComments(projectId!),
     enabled: !!projectId,
   });
+  useDocumentTitle([projectQuery.data?.name, "Review"]);
   const hasProxyCandidate = (shareLinksQuery.data ?? []).some(
     (link) => link.revoked_at === null && link.mode === "proxy",
   );

@@ -2,7 +2,7 @@
 
 > **Branch:** `feat/billing-plans-stripe-razorpay`
 > **Base:** `main`
-> **Decision record:** [TDR-0051](tdr/0051-billing-plans-stripe-razorpay-upi.md)
+> **Decision record:** [TDR-0052](tdr/0052-billing-plans-stripe-razorpay-upi.md)
 
 ---
 

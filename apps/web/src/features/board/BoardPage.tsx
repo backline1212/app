@@ -5,11 +5,13 @@ import { useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { EmptyArt } from "../../components/illustrations";
 import * as integrationsApi from "../integrations/api";
+import { useProject } from "../projects/use-project";
 import type { WorkspaceOut } from "../workspaces/api";
 import * as workspacesApi from "../workspaces/api";
 import { useWSEvent } from "../../app/WSProvider";
 import { patchProjectComment, removeProjectComment, upsertProjectComment } from "../../lib/comment-cache";
 import { qk } from "../../lib/query-keys";
+import { useDocumentTitle } from "../../lib/use-document-title";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { usePresenceStore } from "../../stores/presenceStore";
 import * as boardApi from "./api";
@@ -94,6 +96,9 @@ export function BoardPage() {
     }
     setSearchParams(next, { replace: true });
   }
+
+  const { data: project } = useProject(projectId);
+  useDocumentTitle([project?.name, "Board"]);
 
   const { data: comments, isLoading } = useQuery({
     queryKey: qk.projectComments(projectId ?? ""),
@@ -310,6 +315,9 @@ export function BoardPage() {
         members={members}
         pageUrls={pageUrls}
         reviewerCountByUrl={reviewerCountByUrl}
+        workspaceSlug={workspace.slug}
+        projectId={projectId}
+        projectName={project?.name}
       />
 
       {view === "kanban" ? (

@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     asana_oauth_client_secret: str = ""
     asana_oauth_redirect_uri: str = "http://localhost:5173/integrations/asana/callback"
 
-    # Billing (docs/tdr/0051). Stripe takes international cards and wallets; Razorpay
+    # Billing (docs/tdr/0052). Stripe takes international cards and wallets; Razorpay
     # takes UPI, RuPay/Indian cards and netbanking in INR. A gateway is live as soon as
     # its keys are set. Set the webhook secrets too in production: the browser confirms
     # a payment when the payer lands back on Backline, and the signed webhook is what

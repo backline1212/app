@@ -32,7 +32,7 @@ function useCopy() {
 // that member, within the token's access and the member's role.
 export function McpServerPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle("MCP Server");
+  useDocumentTitle([workspace.name, "MCP Server"]);
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [label, setLabel] = useState("");

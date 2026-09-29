@@ -1,5 +1,5 @@
 """Billing: plans, prepaid checkout through Stripe, Razorpay/UPI or the test sandbox,
-payment confirmation, signed webhooks, invoices and downgrades (docs/tdr/0051).
+payment confirmation, signed webhooks, invoices and downgrades (docs/tdr/0052).
 
 Every paid plan is prepaid for one period (30 or 365 days) and lapses to Free when that
 period ends unless it is renewed. A checkout document records what is being bought

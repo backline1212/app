@@ -1,6 +1,6 @@
 """Plans and pricing - the single source of truth for tiers, prices and limits.
 
-Four tiers, priced against BugHerd, Marker.io, Jam.dev and Linear (docs/tdr/0051).
+Four tiers, priced against BugHerd, Marker.io, Jam.dev and Linear (docs/tdr/0052).
 Limits are read from here at request time rather than from a per-workspace snapshot,
 so a pricing change here is the only step needed to change what a plan allows.
 
@@ -194,7 +194,7 @@ def plan_price(plan_id: str, interval: BillingInterval, currency: BillingCurrenc
 
 def effective_plan_id(workspace: dict[str, Any], now: datetime | None = None) -> str:
     """The plan a workspace is entitled to right now. Paid plans are prepaid for one
-    period (docs/tdr/0051), so a paid plan whose period has ended counts as Free until
+    period (docs/tdr/0052), so a paid plan whose period has ended counts as Free until
     it is renewed, even before anything rewrites the stored `plan` field."""
     stored = str(workspace.get("plan") or FREE_PLAN_ID).lower()
     if stored not in PLANS:

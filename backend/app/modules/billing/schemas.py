@@ -10,7 +10,7 @@ from app.modules.billing.plans import BillingCurrency, BillingInterval, PaidPlan
 # The gateway a member picks in the checkout dialog.
 CheckoutProvider = Literal["stripe", "razorpay"]
 # What actually processed a payment: the picked gateway, or the test sandbox when that
-# gateway has no keys on this server and the sandbox is allowed (docs/tdr/0051).
+# gateway has no keys on this server and the sandbox is allowed (docs/tdr/0052).
 PaymentProvider = Literal["stripe", "razorpay", "sandbox"]
 # "expired": a paid period ended without a renewal, so the workspace is on Free now.
 SubscriptionStatus = Literal["active", "expired"]

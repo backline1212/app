@@ -99,7 +99,7 @@ function AddMemberModal({ workspaceSlug, onInvite, onClose }: AddMemberModalProp
 
 export function MembersPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle('Members');
+  useDocumentTitle([workspace.name, 'Members']);
   const { role: myRole } = useAuth();
   const queryClient = useQueryClient();
 

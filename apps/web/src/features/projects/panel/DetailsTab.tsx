@@ -1,6 +1,7 @@
 import { Avatar } from "@backline/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import * as boardApi from "../../board/api";
 import * as pagesApi from "../../pages/api";
@@ -106,6 +107,14 @@ export function DetailsTab({
               </div>
             </dl>
           )}
+          <div className="mt-3 flex gap-2">
+            <Link to={`/w/${workspaceSlug}/p/${project.id}/board`} className="bl-quiet flex-1 text-center">
+              Open board →
+            </Link>
+            <Link to={`/w/${workspaceSlug}/p/${project.id}/share-links`} className="bl-quiet flex-1 text-center">
+              Share links →
+            </Link>
+          </div>
         </div>
       </div>
 
