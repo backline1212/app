@@ -15,15 +15,22 @@ export class ApiError extends Error {
 
 async function rawRequest(path: string, init?: RequestInit): Promise<Response> {
   const token = getAccessToken();
-  return fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    credentials: "include", // sends/receives the httpOnly refresh_token cookie (13-Authentication.md §13.6)
-    headers: {
-      ...(init?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
-  });
+  try {
+    return await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      credentials: "include", // sends/receives the httpOnly refresh_token cookie (13-Authentication.md §13.6)
+      headers: {
+        ...(init?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
+    });
+  } catch (error) {
+    // An abort is the caller's own doing; anything else is the browser's bare
+    // "Failed to fetch", which says nothing to a reviewer.
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    throw new ApiError(0, "NETWORK_ERROR", "Can't reach Backline. Check your connection and try again.");
+  }
 }
 
 let refreshInFlight: Promise<boolean> | null = null;
@@ -48,10 +55,36 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshInFlight;
 }
 
+// FastAPI's own errors (a request that fails schema validation, an HTTPException)
+// arrive as {"detail": ...} rather than Backline's {"error": {...}} envelope.
+function detailMessage(detail: unknown): string | null {
+  if (typeof detail === "string" && detail) return detail;
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0] as { loc?: unknown[]; msg?: unknown };
+    if (typeof first?.msg !== "string") return null;
+    const field = Array.isArray(first.loc)
+      ? first.loc.filter((part) => !["body", "query", "path"].includes(String(part))).join(".")
+      : "";
+    return field ? `${field}: ${first.msg}` : first.msg;
+  }
+  return null;
+}
+
+// HTTP/2 responses carry no reason phrase, so statusText is "" in production: an
+// error page that isn't JSON used to surface as an empty message.
+function fallbackMessage(status: number): string {
+  if (status === 403) return "You don't have permission to do that.";
+  if (status === 404) return "That couldn't be found. It may have been deleted.";
+  if (status === 413) return "That's too large to upload.";
+  if (status === 429) return "Too many requests. Wait a moment and try again.";
+  if (status >= 500) return "Backline hit a server error. Try again in a moment.";
+  return `The request failed (${status}).`;
+}
+
 async function toApiError(response: Response): Promise<ApiError> {
   const body = await response.json().catch(() => null);
-  const code = body?.error?.code ?? "UNKNOWN_ERROR";
-  const message = body?.error?.message ?? response.statusText;
+  const code = body?.error?.code ?? (response.status === 422 ? "VALIDATION_ERROR" : "UNKNOWN_ERROR");
+  const message = body?.error?.message || detailMessage(body?.detail) || fallbackMessage(response.status);
   return new ApiError(response.status, code, message);
 }
 

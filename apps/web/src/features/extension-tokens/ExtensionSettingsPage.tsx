@@ -126,8 +126,8 @@ export function ExtensionSettingsPage() {
         </header>
         <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
           <p className="bl-mono">
-            Generate a token below, then paste it into the extension's popup (click its
-            icon in Chrome's toolbar after installing it).
+            Browser review connects automatically from a project or guest review link.
+            For standalone extension use, generate a token below and paste it into the extension popup.
           </p>
           <form onSubmit={handleCreate} style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "4px" }}>
             <input

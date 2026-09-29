@@ -8,6 +8,7 @@ import { useDocumentTitle } from "../../lib/use-document-title";
 import { AssetReview } from "../assets/AssetReview";
 import * as reviewApi from "./api";
 import { GuestBoard } from "./GuestBoard";
+import { NativeReviewButton } from "./NativeReviewButton";
 import {
   clearStoredGuestSession,
   getStoredGuestSession,
@@ -15,23 +16,17 @@ import {
   type StoredGuestSession,
 } from "./guest-session";
 
-// Guest reviewer entry (05-Frontend-Architecture.md §5.2) - outside the dashboard shell
-// entirely. Resolves the share link, collects a name (+ passcode if required), creates
-// the guest session, then hands off to the actual reviewed page: the agency's own site
-// in snippet mode, or Backline's own proxy route in proxy mode
-// (03-System-Architecture.md §3.3) - either way, the already-created session rides
-// along as a query param so the injected/embedded widget doesn't prompt for a name
-// again (apps/widget/src/guest-session.ts reads it).
+// Guest entry resolves the share link and passcode once. Website reviewers choose
+// the real browser tab or the compatible embedded/snippet path; only the latter
+// needs a guest token in its handoff URL for the installed widget.
 export function ReviewEntryPage() {
   const { shareToken } = useParams<{ shareToken: string }>();
   const [displayName, setDisplayName] = useState("");
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
   const [assetGuest, setAssetGuest] = useState<string | null>(null);
-  // Set instead of redirecting immediately when the project's show_board_to_client
-  // setting is on - lets the guest choose "View the board" before heading to the site.
+  // Let website reviewers choose browser review before entering the proxy.
   const [pendingHandoff, setPendingHandoff] = useState<{ token: string; destination: string } | null>(
     null,
   );
@@ -44,7 +39,7 @@ export function ReviewEntryPage() {
   } = useQuery({
     queryKey: qk.review(shareToken ?? ""),
     queryFn: () => reviewApi.resolveShareLink(shareToken!),
-    enabled: !!shareToken && !handoffUrl,
+    enabled: !!shareToken,
     retry: false,
   });
   useDocumentTitle([resolved?.project_name, "Review"]);
@@ -69,12 +64,9 @@ export function ReviewEntryPage() {
         resolved.mode === "proxy"
           ? `${proxyBase}/?${handoff.toString()}`
           : `${resolved.target_origin}${resolved.target_origin.includes("?") ? "&" : "?"}${handoff.toString()}`;
-      if (resolved.show_board_to_client) {
-        setPendingHandoff({ token: session.guestSessionToken, destination });
-        return;
-      }
-      setHandoffUrl(destination);
-      window.location.href = destination;
+      // Every website reviewer can choose native browser review before being sent
+      // into a proxy that may not support the site's authentication.
+      setPendingHandoff({ token: session.guestSessionToken, destination });
     },
     [shareToken, resolved],
   );
@@ -84,12 +76,12 @@ export function ReviewEntryPage() {
   // leaving) skips the name/passcode gate entirely instead of being asked again.
   useEffect(() => {
     if (!shareToken || !resolved) return;
-    if (assetGuest || handoffUrl || pendingHandoff || isSubmitting) return;
+    if (assetGuest || pendingHandoff || isSubmitting) return;
     const stored = getStoredGuestSession(shareToken);
     if (!stored) return;
     setDisplayName(stored.displayName);
     routeGuest(stored);
-  }, [shareToken, resolved, assetGuest, handoffUrl, pendingHandoff, isSubmitting, routeGuest]);
+  }, [shareToken, resolved, assetGuest, pendingHandoff, isSubmitting, routeGuest]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -149,46 +141,29 @@ export function ReviewEntryPage() {
         onLeave={handleLeave}
         continueLabel="Continue to site"
         onContinue={() => {
-          window.location.href = pendingHandoff.destination;
+          setShowBoard(false);
         }}
       />
     );
   }
 
-  if (pendingHandoff) {
+  if (pendingHandoff && resolved) {
     return (
       <div className="bl-gate-scrim">
         <div className="bl-gate-modal" role="dialog" aria-modal="true" aria-labelledby="ggTitle">
           <div className="bl-gate-head">
             <h3 id="ggTitle">You&apos;re in</h3>
-            <p id="ggSub">Head to the site to leave comments, or check the board first.</p>
+            <p id="ggSub">For websites with sign-in, use Browser review. Sign in normally and leave comments in the same tab.</p>
           </div>
           <div className="bl-gate-foot" style={{ flexDirection: "column" }}>
+            <NativeReviewButton projectId={resolved.project_id} url={resolved.target_origin}
+              guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} />
             <button className="bl-button" style={{ width: "100%" }} onClick={() => (window.location.href = pendingHandoff.destination)}>
-              Open the site
+              {resolved.mode === "proxy" ? "Open embedded review" : "Open installed website review"}
             </button>
-            <button className="bl-quiet" style={{ width: "100%" }} onClick={() => setShowBoard(true)}>
+            {resolved.show_board_to_client && <button className="bl-quiet" style={{ width: "100%" }} onClick={() => setShowBoard(true)}>
               View the board
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (handoffUrl) {
-    return (
-      <div className="bl-gate-scrim">
-        <div className="bl-gate-modal" role="dialog" aria-modal="true">
-          <div className="bl-gate-head">
-            <h3>Taking you to the site...</h3>
-            <p>
-              If nothing happens,{" "}
-              <a href={handoffUrl} style={{ color: "var(--mint-deep)", textDecoration: "underline" }}>
-                click here
-              </a>
-              .
-            </p>
+            </button>}
           </div>
         </div>
       </div>

@@ -7,14 +7,26 @@ import { updateComment } from "../board/api";
 import { listProjects } from "../projects/api";
 import { listMembers } from "../workspaces/api";
 import * as api from "./api";
-import { STATUS_LABELS, isClosed } from "../../lib/workflow";
+import { STATUS_LABELS, TAGS, WORKFLOW_STATUSES, isClosed } from "../../lib/workflow";
+
+// What the API accepts for each enumerated filter (dashboard/schemas.py TicketFilters).
+// A value outside these - an old bookmark, a hand-edited link - used to fail the whole
+// request with a 422 and leave the list empty; it is now just ignored.
+const ALLOWED: Record<string, readonly string[]> = {
+  view: ["all", "mine", "reply", "client", "overdue"],
+  sort: ["newest", "oldest", "due", "priority", "status", "project", "assignee", "tag"],
+  status: WORKFLOW_STATUSES,
+  priority: ["high", "medium", "low"],
+  tag: TAGS,
+};
 
 export function useTickets(workspaceId: string, params: URLSearchParams, setParams: (p: URLSearchParams) => void) {
   const cache = useQueryClient();
   const [exportError, setExportError] = useState("");
   const [exporting, setExporting] = useState(false);
 
-  const display = params.get("display") ?? "list";
+  const requestedDisplay = params.get("display") ?? "list";
+  const display = ["list", "board", "table", "calendar"].includes(requestedDisplay) ? requestedDisplay : "list";
   const group = params.get("group") ?? "none";
   const sort = params.get("sort") ?? "newest";
   const assignees = params.getAll("assignee");
@@ -23,7 +35,7 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
   const request = new URLSearchParams();
   for (const key of ["search", "status", "project_id", "priority", "tag", "view", "sort"]) {
     const value = params.get(key);
-    if (value) request.set(key, value);
+    if (value && (!ALLOWED[key] || ALLOWED[key].includes(value))) request.set(key, value);
   }
   // "Show work for" can pick several people; the API matches any of them.
   for (const person of assignees) request.append("assignees", person);

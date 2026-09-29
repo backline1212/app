@@ -105,12 +105,17 @@ function autoGrowTextarea(textarea: HTMLTextAreaElement, onResize: () => void): 
 // At most one composer is ever being written in. Its handle is kept here so the page's
 // own click handlers (index.ts, region-drawer.ts, the extension's content script) can
 // ask whether a new click would throw away something the reviewer typed.
-let activeComposer: { hasDraft: () => boolean; nudge: () => void } | null = null;
+let activeComposer: { hasDraft: () => boolean; nudge: () => void; cancel: () => void } | null = null;
 
 /** Whether a composer is open with something in it that isn't posted yet - text, an
  * attachment, or a post still on its way. Clicking elsewhere then keeps it open. */
 export function composerHasDraft(): boolean {
   return activeComposer?.hasDraft() ?? false;
+}
+
+/** Remove an empty draft before tearing down its page or switching review modes. */
+export function cancelEmptyComposer(): void {
+  if (activeComposer && !activeComposer.hasDraft()) activeComposer.cancel();
 }
 
 /** Draws the reviewer back to the composer they left unfinished. */
@@ -242,7 +247,7 @@ export function openComposer(
     composer.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
-  const handle = { hasDraft, nudge };
+  const handle = { hasDraft, nudge, cancel };
   activeComposer = handle;
 
   for (const button of tagButtons) {

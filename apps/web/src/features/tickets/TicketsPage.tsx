@@ -75,6 +75,7 @@ export function TicketsPage() {
     })),
   ];
 
+  const view = VIEW_TABS.some((tab) => tab.key === params.get("view")) ? params.get("view")! : "all";
   const selected = params.get("comment");
   const sort = params.get("sort") ?? "newest";
   const group = params.get("group") ?? "none";
@@ -83,7 +84,7 @@ export function TicketsPage() {
     <main className="bl-wrap">
       <header className="bl-head">
         <div>
-          <h1>{params.get("view") === "mine" ? "Assigned to me" : "All tickets"}</h1>
+          <h1>{view === "mine" ? "Assigned to me" : "All tickets"}</h1>
           <p>Every comment, plus the work your team raises directly.</p>
         </div>
         <div className="bl-chip-row">
@@ -111,7 +112,7 @@ export function TicketsPage() {
 
       <div className="bl-segment bl-ticket-filters" role="group" aria-label="Filter tickets">
         {VIEW_TABS.map((tab) => (
-          <button key={tab.key} type="button" aria-pressed={(params.get("view") ?? "all") === tab.key} onClick={() => set("view", tab.key)}>
+          <button key={tab.key} type="button" aria-pressed={view === tab.key} onClick={() => set("view", tab.key)}>
             {tab.label}
             {tabCounts[tab.key] !== undefined && <span className="bl-count">{tabCounts[tab.key]}</span>}
           </button>
