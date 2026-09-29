@@ -1744,6 +1744,10 @@ export interface components {
             comment_id?: string | null;
             /** Name */
             name?: string | null;
+            /** Ticket Number */
+            ticket_number?: number | null;
+            /** Comment Excerpt */
+            comment_excerpt?: string | null;
         };
         /**
          * AnchorIn

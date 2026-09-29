@@ -3,9 +3,11 @@ import { useMemo } from "react";
 import type { ComponentType, SVGProps } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { EmptyArt } from "../../components/illustrations";
 import { BoltIcon, BuildingIcon, CommentBubbleIcon, FolderIcon, LinkIcon, PersonIcon } from "../../components/icons";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
+import { listProjects } from "../projects/api";
 import { listMembers } from "../workspaces/api";
 import type { WorkspaceOut } from "../workspaces/api";
 import { listActivity } from "./api";
@@ -22,6 +24,47 @@ const EVENT_META: Record<string, { icon: ComponentType<SVGProps<SVGSVGElement>>;
   member: { icon: PersonIcon, color: "var(--badge-yellow)" },
 };
 
+// What the actor did, as a phrase. Unlisted types fall back to the raw event name, so a
+// new backend event still shows up rather than vanishing.
+const EVENT_PHRASES: Record<string, string> = {
+  "comment.created": "commented",
+  "comment.updated": "updated",
+  "comment.status_changed": "changed the status of",
+  "comment.deleted": "deleted",
+  "comment.layer_changed": "changed who can see",
+  "comment.recovery_updated": "re-pinned",
+  "anchor.manually_reassigned": "moved the pin of",
+  "project.created": "created the project",
+  "project.updated": "updated the project",
+  "project.settings_updated": "changed the settings of",
+  "project.archived": "archived the project",
+  "project.restored": "restored the project",
+  "project.duplicated": "duplicated the project",
+  "client.created": "added the client",
+  "client.updated": "updated the client",
+  "client.restored": "restored the client",
+  "share_link.created": "created a share link",
+  "share_link.revoked": "revoked a share link",
+  "member.invited": "invited",
+  "member.removed": "removed",
+  "member.role_changed": "changed the role of",
+  "page.created": "added a page",
+  "page.updated": "updated a page",
+  "page.deleted": "deleted a page",
+  "pages.reordered": "reordered the pages",
+  "integration.connected": "connected an integration",
+  "integration.disconnected": "disconnected an integration",
+  "integration.ticket_created": "filed a tracker issue for",
+  "guest_session.created": "opened a review link",
+  "revision.created": "captured a new page version",
+  "asset.created": "uploaded a file",
+  "workspace.updated": "updated the workspace",
+};
+
+function eventPhrase(type: string) {
+  return EVENT_PHRASES[type] ?? type.replace(/\./g, " ").replace(/_/g, " ");
+}
+
 function eventMeta(type: string) {
   return EVENT_META[type.split(".")[0]] ?? { icon: BoltIcon, color: "var(--bl-muted)" };
 }
@@ -35,6 +78,7 @@ export function ActivityPage() {
   const offset = Math.max(0, Number(params.get("offset")) || 0), filter = params.get("type") ?? "";
   const query = useQuery({ queryKey: qk.activityList(workspace.id, offset, filter), queryFn: () => listActivity(workspace.id, offset, filter) });
   const members = useQuery({ queryKey: qk.members(workspace.id), queryFn: () => listMembers(workspace.id) });
+  const projects = useQuery({ queryKey: qk.projects(workspace.id), queryFn: () => listProjects(workspace.id, true) });
   function page(value: number) { setParams({ type: filter, offset: String(value) }); }
 
   const groups = useMemo(() => {
@@ -70,7 +114,7 @@ export function ActivityPage() {
       )}
     </div>
 
-    {query.isLoading && <LoadingScreen />}
+    {query.isLoading && <LoadingScreen inline />}
     {query.error && <p role="alert" className="bl-error">{query.error.message}</p>}
 
     {!query.isLoading && !query.error && (
@@ -89,14 +133,24 @@ export function ActivityPage() {
                   <div>
                     <p style={{ margin: 0 }}>
                       <strong>{members.data?.find((m) => m.user_id === event.actor_id)?.name ?? (event.actor_type === "system" ? "Backline" : event.actor_type === "guest" ? "Reviewer" : "Team member")}</strong>
-                      {' ' + event.type.replace(/\./g, ' ').replace(/_/g, ' ')}
-                      {event.name && ` · ${event.name}`}
+                      {" " + eventPhrase(event.type)}
+                      {event.name && <> <span className="bl-activity-obj">{event.name}</span></>}
+                      {event.ticket_number != null && <> <span className="bl-tid">#{event.ticket_number}</span></>}
+                      {event.comment_excerpt && <span className="bl-activity-excerpt"> “{event.comment_excerpt}”</span>}
                     </p>
-                    {event.project_id &&
-                      <Link className="bl-chip" to={`/w/${workspace.slug}/p/${event.project_id}/board${event.comment_id ? `?comment=${event.comment_id}` : ''}`}>
-                        View project →
-                      </Link>
-                    }
+                    {event.project_id && (() => {
+                      // An archived project can't be opened (its card has no link either),
+                      // so point at the Archived list, where it can be restored; a deleted
+                      // one has nowhere to go. Until projects load, keep the normal link.
+                      const project = projects.data?.find((p) => p.id === event.project_id);
+                      if (projects.data && !project) return <span className="bl-chip">Project deleted</span>;
+                      if (project?.archived_at) return <Link className="bl-chip" to={`/w/${workspace.slug}?archived=true`}>Project archived →</Link>;
+                      return (
+                        <Link className="bl-chip" to={`/w/${workspace.slug}/p/${event.project_id}/board${event.comment_id ? `?comment=${event.comment_id}` : ''}`}>
+                          {event.comment_id ? "Open comment →" : "View project →"}
+                        </Link>
+                      );
+                    })()}
                   </div>
                   <time dateTime={event.created_at}>
                     {new Date(event.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
@@ -108,6 +162,7 @@ export function ActivityPage() {
         </section>
       )) : (
         <div className="bl-empty">
+          <EmptyArt kind="activity" />
           <h2>No activity yet</h2>
           <p>Changes will appear here as your team works.</p>
         </div>

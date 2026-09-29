@@ -115,6 +115,10 @@ class ActivityOut(BaseModel):
     project_id: str | None = None
     comment_id: str | None = None
     name: str | None = None
+    # Which ticket a comment event is about: its "#N" and the first line of its text
+    # (no excerpt once the comment is deleted). Both None for other events.
+    ticket_number: int | None = None
+    comment_excerpt: str | None = None
 
 
 class ActivityListOut(BaseModel):

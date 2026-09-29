@@ -18,7 +18,9 @@ import { ProjectForm } from "./ProjectForm";
 import { DuplicateProjectDialog, ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
 import { ComingSoonPanel, type SoonType } from "./ComingSoonPanel";
+import { ProjectArtwork } from "./ProjectArtwork";
 import { PlusIcon, SearchIcon } from "../../components/icons";
+import { EmptyArt } from "../../components/illustrations";
 
 const TYPE_LABELS: Record<string, string> = { website: "Website", image: "Images", pdf: "PDF" };
 
@@ -62,86 +64,6 @@ const VIEW_ICONS: Record<string, React.ReactNode> = {
   list: <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>,
   table: <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1" /><path d="M3 10h18M3 15h18M10 4v16" /></svg>,
 };
-
-const PREVIEW_PALETTES = [
-  { accent: "#69DEB2", accentSoft: "#CFF4E5", ink: "#17342A", paper: "#F5FAF7" },
-  { accent: "#E8B833", accentSoft: "#F7E8B8", ink: "#302A18", paper: "#FCFAF2" },
-  { accent: "#7C6BE8", accentSoft: "#DED9FF", ink: "#25233A", paper: "#F8F7FF" },
-  { accent: "#5B7FA6", accentSoft: "#DCE8F1", ink: "#162B3D", paper: "#F5F9FC" },
-] as const;
-
-function paletteFor(seed: string) {
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
-  return PREVIEW_PALETTES[hash % PREVIEW_PALETTES.length]!;
-}
-
-function ProjectArtwork({ project }: { project: api.ProjectOut }) {
-  const palette = paletteFor(project.id || project.name);
-  const type = project.project_type ?? "website";
-  const initial = project.name.trim()[0]?.toUpperCase() ?? "?";
-  // target_origin gives every website project one real, project-specific asset for
-  // free: its own favicon. No per-project screenshot capture exists yet (that's a
-  // real headless-browser render, see browser_render/ - too heavy to fire for every
-  // card in a grid), so rather than fake a live preview this hero shows the site's
-  // actual icon on a palette-tinted ground, falling back to the project's initial if
-  // the origin can't be parsed or the site has no favicon / blocks hotlinking.
-  const [faviconFailed, setFaviconFailed] = useState(false);
-  let hostname: string | null = null;
-  try { hostname = new URL(project.target_origin).hostname; } catch { hostname = null; }
-  const faviconUrl = hostname ? `https://${hostname}/favicon.ico` : null;
-
-  return (
-    <div className={`bl-project-art bl-project-art-${type}`} aria-hidden="true">
-      {project.hero_url ? (
-        <img src={project.hero_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-      ) : type === "website" ? (
-        <div className="bl-project-hero" style={{ background: `radial-gradient(circle at 30% 22%, ${palette.accentSoft}, ${palette.paper} 70%)` }}>
-          {faviconUrl && !faviconFailed ? (
-            <img key={faviconUrl} src={faviconUrl} alt="" className="bl-project-hero-favicon" onError={() => setFaviconFailed(true)} />
-          ) : (
-            <span className="bl-project-hero-initial" style={{ background: palette.accent, color: palette.ink }}>{initial}</span>
-          )}
-        </div>
-      ) : null}
-      {type === "image" && (
-        <svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">
-          <rect width="320" height="180" fill={palette.paper} />
-          <rect x="18" y="18" width="136" height="70" rx="3" fill={palette.accent} />
-          <path d="M18 72 53 44l31 23 24-18 46 34v5H18Z" fill={palette.ink} opacity=".22" />
-          <circle cx="125" cy="38" r="9" fill="var(--bl-art-panel)" opacity=".65" />
-          <rect x="166" y="18" width="136" height="70" rx="3" fill={palette.ink} />
-          <rect x="184" y="37" width="75" height="7" rx="3" fill="var(--bl-art-panel)" opacity=".38" />
-          <rect x="184" y="52" width="51" height="7" rx="3" fill="var(--bl-art-panel)" opacity=".24" />
-          <rect x="184" y="68" width="42" height="11" rx="2" fill={palette.accent} />
-          <rect x="18" y="100" width="86" height="62" rx="3" fill={palette.accentSoft} />
-          <rect x="116" y="100" width="86" height="62" rx="3" fill="var(--bl-art-line-light)" />
-          <rect x="214" y="100" width="88" height="62" rx="3" fill="var(--bl-art-panel)" />
-          <circle cx="159" cy="131" r="16" fill={palette.ink} opacity=".2" />
-        </svg>
-      )}
-      {type === "pdf" && (
-        <svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">
-          <rect width="320" height="180" fill="var(--bl-art-bg)" />
-          <rect x="40" y="12" width="108" height="156" rx="2" fill="var(--bl-art-panel)" stroke="var(--bl-art-stroke)" />
-          <rect x="54" y="29" width="58" height="8" rx="2" fill={palette.ink} />
-          <rect x="54" y="47" width="79" height="4" rx="2" fill="var(--bl-art-ink-dark)" />
-          <rect x="54" y="57" width="65" height="4" rx="2" fill="var(--bl-art-ink-dark)" />
-          <rect x="54" y="75" width="80" height="40" rx="2" fill={palette.accentSoft} />
-          <rect x="54" y="127" width="70" height="4" rx="2" fill="var(--bl-art-ink-dark)" />
-          <rect x="172" y="12" width="108" height="156" rx="2" fill="var(--bl-art-panel)" stroke="var(--bl-art-stroke)" />
-          <rect x="186" y="29" width="66" height="7" rx="2" fill={palette.ink} />
-          <rect x="186" y="51" width="80" height="65" rx="2" fill={palette.paper} />
-          <rect x="197" y="86" width="12" height="21" fill={palette.accent} opacity=".55" />
-          <rect x="216" y="72" width="12" height="35" fill={palette.accent} opacity=".75" />
-          <rect x="235" y="59" width="12" height="48" fill={palette.accent} />
-          <rect x="186" y="130" width="67" height="4" rx="2" fill="var(--bl-art-ink-dark)" />
-        </svg>
-      )}
-
-    </div>
-  );
-}
 
 export function ProjectsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
@@ -198,9 +120,9 @@ export function ProjectsPage() {
     return <article key={p.id} className={`bl-project ${p.archived_at ? "archived" : ""}`}>
       {cornerMenu && <div className="bl-project-card-menu">{menu}</div>}
       <div className="bl-project-preview">
-        <ProjectArtwork project={p} />
+        <ProjectArtwork project={p} open={open} total={total} />
         <div className="bl-browser"><span aria-hidden="true"><i /><i /><i /></span><span>{displayUrl}</span></div>
-        <span className="bl-preview-type">{p.project_type ?? "website"} · illustration</span>
+        <span className="bl-preview-type">{TYPE_LABELS[p.project_type ?? "website"] ?? "Website"}</span>
         {!p.archived_at && <Link className="bl-project-preview-link" to={destination} aria-label={`Open ${p.name}`} />}
         {!p.archived_at && view === "cards" && (
           <div className="bl-project-overlay">
@@ -363,7 +285,7 @@ export function ProjectsPage() {
             {newProjectTile()}
           </div>
         )}
-        {!projects.error && visible.length === 0 && <div className="bl-empty"><h2>{archived ? "No archived projects" : "No projects here yet"}</h2><p>{search || type !== "all" ? "Try a different search or project type." : "Create a project to get a shareable review link."}</p></div>}
+        {!projects.error && visible.length === 0 && <div className="bl-empty"><EmptyArt kind={search || type !== "all" ? "search" : "projects"} /><h2>{archived ? "No archived projects" : "No projects here yet"}</h2><p>{search || type !== "all" ? "Try a different search or project type." : "Create a project to get a shareable review link."}</p></div>}
       </>}
       </>}
     </main>

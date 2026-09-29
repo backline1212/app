@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { Dialog } from "../../components/Dialog";
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { EmptyArt } from "../../components/illustrations";
 import { useToast } from "../../components/Toast";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
@@ -100,7 +101,7 @@ export function ShareLinksPage() {
         </div>
       </header>
 
-      {linksQuery.isLoading && <LoadingScreen />}
+      {linksQuery.isLoading && <LoadingScreen inline />}
       {linksQuery.isError && (
         <p role="alert" className="bl-error">
           {linksQuery.error instanceof Error ? linksQuery.error.message : "Share links could not load."}
@@ -110,6 +111,7 @@ export function ShareLinksPage() {
       {!linksQuery.isLoading && !linksQuery.isError && (
         links.length === 0 ? (
           <div className="bl-empty">
+            <EmptyArt kind="links" />
             <h2>No share links yet</h2>
             <p>Create one below to let a client review this project without an account.</p>
           </div>

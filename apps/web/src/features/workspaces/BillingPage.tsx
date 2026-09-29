@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
 
 import { useDocumentTitle } from "../../lib/use-document-title";
-import { CrownIcon } from "../projects/panel/icons";
+import { InvoiceArt } from "../../components/illustrations";
 import { UpgradeToProModal } from "../projects/panel/UpgradeToProModal";
 import type { WorkspaceOut } from "./api";
 
@@ -51,20 +51,7 @@ export function BillingPage() {
               className="flex flex-1 flex-col items-center justify-center gap-5 text-center"
               style={{ padding: "24px 12px" }}
             >
-              <span
-                style={{
-                  display: "flex",
-                  width: 48,
-                  height: 48,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: 3,
-                  background: "var(--ink)",
-                  color: "var(--mint)",
-                }}
-              >
-                <CrownIcon width={22} height={22} />
-              </span>
+              <InvoiceArt />
               <span className="bl-scope-badge" style={{ display: "inline-flex" }}>
                 Coming soon
               </span>

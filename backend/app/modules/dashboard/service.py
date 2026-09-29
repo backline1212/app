@@ -12,7 +12,7 @@ from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.service import _broadcast_comment_event, _comment_out
-from app.modules.dashboard.repository import DashboardRepository, root_pipeline
+from app.modules.dashboard.repository import DashboardRepository, page_title_match, root_pipeline
 from app.modules.dashboard.schemas import (
     ActivityListOut,
     ActivityOut,
@@ -81,7 +81,7 @@ async def search(
                     "$or": [
                         {"body": matcher},
                         {"_project.name": matcher},
-                        {"_page.title": matcher},
+                        page_title_match(matcher),
                     ]
                 }
             },
@@ -100,7 +100,13 @@ async def search(
                 title=title,
                 subtitle=(
                     f"{comment['_project']['name']} · "
-                    f"{comment['_page'].get('title') or 'Untitled page'}"
+                    # The hidden holder of a project's team tickets is no page anyone
+                    # knows by name; the Tickets list calls these "Team ticket" too.
+                    + (
+                        "Team ticket"
+                        if comment["_page"].get("kind") == "standalone"
+                        else (comment["_page"].get("title") or "Untitled page")
+                    )
                 ),
                 project_id=comment["_page"]["project_id"],
                 page_id=comment["page_id"],
@@ -200,6 +206,17 @@ async def summary(
     )
 
 
+def _comment_label(comment: dict[str, Any] | None) -> dict[str, Any]:
+    if comment is None:
+        return {}
+    excerpt = None
+    if comment.get("deleted_at") is None:
+        lines = str(comment.get("body") or "").strip().splitlines()
+        first_line = " ".join(lines[0].split()) if lines else ""
+        excerpt = first_line if len(first_line) <= 80 else first_line[:79].rstrip() + "…"
+    return {"ticket_number": comment.get("ticket_number"), "comment_excerpt": excerpt or None}
+
+
 async def activity(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     workspace_id: str,
@@ -211,6 +228,13 @@ async def activity(
     docs, total = await DashboardRepository(db).activity(
         workspace_id, user_id, offset, limit, event_type
     )
+    comment_ids = [doc["payload_json"].get("comment_id") for doc in docs]
+    comments = {
+        str(comment["_id"]): comment
+        for comment in await CommentRepository(db).find_many_in_workspace(
+            workspace_id, [cid for cid in comment_ids if isinstance(cid, str)]
+        )
+    }
     return ActivityListOut(
         total=total,
         items=[
@@ -223,6 +247,7 @@ async def activity(
                 project_id=doc["payload_json"].get("project_id"),
                 comment_id=doc["payload_json"].get("comment_id"),
                 name=doc["payload_json"].get("name"),
+                **_comment_label(comments.get(str(doc["payload_json"].get("comment_id")))),
             )
             for doc in docs
         ],

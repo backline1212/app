@@ -14,8 +14,8 @@ Status: Implemented; verified by lint/typecheck/build
   Activity, notifications and search.
 
 This was first drafted on `feature/standardize-routes-titles-navigation` as TDR-0048.
-That number belongs to the native browser review record on `main`, and 0050 is used by
-the open illustrations branch, so this record is 0051.
+That number belongs to the native browser review record on `main`, and 0050 belongs to
+the illustrations work (PRs #43 and #44), so this record is 0051.
 
 ## Decisions
 
@@ -71,8 +71,11 @@ are unaffected.
 ## Review of the first draft
 
 The branch's first commit was checked against `main` and cleaned up before merge:
-- **Main merged.** `origin/main` was merged in: 6 commits, including TDR-0048 and
-  TDR-0049, with no conflicts.
+- **Main merged, twice.**
+  - First merge: 6 commits, including TDR-0048 and TDR-0049, with no conflicts.
+  - Second merge, after PRs #43 and #44 (TDR-0050) landed: `NotFoundPage.tsx` and
+    `UsagePage.tsx` conflicted only on adjacent imports. Both sides were kept, and
+    `ChartIcon` was dropped where `main` had replaced it with `UsageChartArt`.
 - **TDR renumbered** to 0051, as above.
 - **Sign-in title.** The draft record promised "Sign In — Backline", but the page still
   rendered "Sign in to Backline — Backline". It now reads "Sign in — Backline".

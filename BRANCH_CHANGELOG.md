@@ -57,7 +57,7 @@ This branch standardizes the routing architecture, document/tab titles, breadcru
 - **Delivery ledger**: 2026-09-30 entry in `docs/implementation/06-delivery.md`
 
 ### 6. Review Fixes (2026-09-30)
-- Merged `origin/main` (no conflicts).
+- Merged `origin/main` twice: once cleanly, and again after PRs #43/#44 (illustrations), resolving the adjacent-import conflicts in `NotFoundPage.tsx` and `UsagePage.tsx` by keeping both sides.
 - Login tab title read `Sign in to Backline — Backline`; now `Sign in — Backline`.
 - One shared `useProject` hook (`features/projects/use-project.ts`) replaces three copies of the project query (canvas, board, share links).
 - Inline styles replaced with a shared `.bl-back-link` class (long project names end in an ellipsis) and Tailwind utilities in `DetailsTab.tsx`.
