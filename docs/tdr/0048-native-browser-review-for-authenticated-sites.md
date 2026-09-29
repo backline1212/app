@@ -1,7 +1,7 @@
 # TDR-0048: Review authenticated websites in their real browser tab
 
 Date: 2026-09-29
-Status: Implemented locally; browser acceptance pending
+Status: Implemented in draft PR; browser acceptance pending
 
 ## Problem
 
@@ -55,9 +55,9 @@ sites that work with it, and snippet mode remains available on sites that instal
 
 Typecheck, lint, production web/widget/extension build, worker message and DOM checks
 passed locally. The real-browser journey in
-`apps/e2e/tests/journeys/journey-native-review.spec.ts` and its isolated runner in
-`.github/workflows/native-review-verification.yml` are prepared but **not passed**:
+`apps/e2e/tests/journeys/journey-native-review.spec.ts` is prepared but **not passed**:
 the current execution sandbox denies the Unix socket calls used by Chromium and
-MongoDB, and the requested escalation was automatically rejected. No live Google
-account, third-party site, or production deployment has been verified. Run the full
-journey and examine its persisted comments and screenshot before merging or shipping.
+MongoDB, and the requested escalation was automatically rejected. The owner opted
+out of a GitHub Actions gate. No live Google account, third-party site, or production
+deployment has been verified. Run the full journey and examine its persisted comments
+and screenshot before treating the feature as production verified.

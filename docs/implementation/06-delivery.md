@@ -1909,4 +1909,5 @@ database migration, or production deployment is claimed.
   screenshot upload and SPA page change) is checked in and ready to run against an
   isolated Mongo/Redis/S3 stack. It is **pending**, since this execution environment
   forbids Chromium/MongoDB sockets and the permission escalation was rejected.
+  The owner declined a GitHub Actions gate; the temporary workflow was removed.
   Do not mark the feature production verified on the basis of the local checks.
