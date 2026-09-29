@@ -1,39 +1,56 @@
 # Delivery and verification ledger
 
-## 2026-09-29: Real-Ready Billing Plans, Competitor Matrix, Stripe, Razorpay & UPI Integration (TDR-0048)
+## 2026-09-30: Billing plans, Stripe, Razorpay/UPI and plan limits (TDR-0051)
 
-The user asked to create a new branch, build realistic SaaS pricing plans benchmarking competitors (BugHerd, Marker.io, Linear, Jam), integrate Stripe and Razorpay/UPI payment flows (supporting real gateway keys and sandbox fallback), build end-to-end frontend/backend/DB/SQL migrations, and connect all upgrade/redirect entrypoints. Full reasoning in TDR-0048. Delivered:
+The user asked for the billing branch's first cut to be verified against
+`docs/BILLING_BRANCH_OVERVIEW.md`, then fixed, optimized and pushed. That first cut was
+filed as TDR-0048, which `main` had already used, so this is TDR-0051. `main` was
+merged in first. The reasoning is in TDR-0051.
 
-**Pricing & Competitor Tiering**
-- 4 tiers configured with monthly/annual intervals and dual USD ($) / INR (₹) currencies:
-  - Free Starter ($0 / ₹0): 2 projects, 2 members, 20 AI credits.
-  - Solo Pro ($24/$19 / ₹1,899/₹1,499): 5 projects, 5 members, 200 AI credits, video screen recording, session console replay.
-  - Team Standard ($59/$49 / ₹4,699/₹3,899): 20 projects, 15 members, 1,000 AI credits, full integration suite, custom domain.
-  - Agency Enterprise ($179/$149 / ₹14,299/₹11,999): Unlimited projects, 100 members, 10,000 AI credits, priority support, 99.9% SLA.
-- Detailed Competitor Feature Matrix comparing Backline against BugHerd, Marker.io, Jam.dev, and Linear across 4 functional domains.
+**Fixed:**
+- **Free upgrades.**
+  - Webhooks now check their Stripe/Razorpay signatures; Stripe's also has a 5-minute
+    replay window.
+  - Confirming a payment now activates only what a server-side checkout record says.
+    Stripe sessions are re-read from Stripe, and Razorpay signatures are checked.
+  - The sandbox is refused in production.
+- **One payment, one invoice.** Activation is exactly-once across the browser confirm
+  and webhooks. Invoice numbers come from a service-wide counter, so they no longer
+  collide across workspaces.
+- **Real gateway flows.** Razorpay Checkout (UPI QR/ID, RuPay, netbanking) and Stripe's
+  return confirm both work. The fake card and UPI inputs, fake card digits and fake
+  storage figure are gone.
+- **Expiry.** Paid plans are prepaid and lapse to Free when their period ends.
+  Renewing the same plan extends it.
+- **Limits.**
+  - Plans now match the spec.
+  - AI credits are metered (one per Groq call, reset monthly) and enforced.
+  - Restoring an archived project counts against the project limit.
+  - A refused invite no longer creates a user.
+  - Upgrade prompts key off `PLAN_LIMIT_EXCEEDED`, not the word "limit".
+- **UI.**
+  - The billing page, checkout, banner, comparison table and invoices were rebuilt on
+    the app's own classes and tokens, so light/dark and phone width work.
+  - The table's `<div>` inside `<tbody>` is gone.
+  - Only owners see plan actions.
+  - Features the product doesn't have yet are marked "Coming soon".
 
-**Payment Gateways & Simulation**
-- **Stripe Integration**: Checkout session initiation (`POST /billing/checkout`) and webhook processing (`/billing/webhooks/stripe`).
-- **Razorpay + UPI Integration**: Razorpay order generation (`POST /billing/checkout`), HMAC-SHA256 signature verification (`POST /billing/verify-payment`), and webhook handling (`/billing/webhooks/razorpay`).
-- **Sandbox Fallback**: Seamless mock payment completion in local/review environments that creates real database records, sequential invoice IDs (`INV-YYYY-XXXX`), and billing audit events.
+**Verification:**
+- `ruff`, `ruff format --check`, `mypy` (201 files) and the workspace-scoping check pass.
+- `pytest tests/test_billing.py tests/test_permissions.py`: 11 passed.
+- Scratch backend pass on mongomock/fakeredis: 41/41 checks. It runs the transaction
+  callback directly, because mongomock has no sessions.
+- Headless browser pass in light, dark and at 390px: test-mode upgrade, invoice,
+  deep link and URL filters. No console errors beyond React Router's existing notice.
+- `pnpm lint`, `pnpm typecheck` and `pnpm build` pass.
 
-**Server-Side Limit Enforcement**
-- Added HTTP 402 `PlanLimitExceededError` in `app.core.errors`.
-- Enforced project limits on `create_project` and member limits on `invite_member`.
-- Added frontend upgrade banners, CTA modals, and query parameter handlers (`?upgrade=...`, `?checkout=success`).
+**Not verified:**
+- Live Stripe/Razorpay keys.
+- The rewritten billing e2e specs; they need the full stack.
 
-**Database Schema & Invoices**
-- Additive MongoDB indexes in `app.core.indexes` for `billing_events`, `invoices`, and customer IDs.
-- Relational schema DDL in `backend/scripts/schema_billing.sql`.
-- MongoDB schema backfill migration in `backend/scripts/migrate_billing_schema.py`.
-- Downloadable invoice receipts and billing history table in UI.
-
-**Verification**:
-- Monorepo TypeScript check (`pnpm typecheck`): 6/6 packages passed.
-- Frontend Lint (`pnpm lint`): 4/4 packages passed with 0 errors/warnings.
-- Backend Ruff (`ruff check app scripts`): Passed with 0 errors.
-- Unit tests (`pytest tests/test_billing.py`): 4/4 passed.
-- E2E tests: Added `apps/e2e/tests/billing-plans-payments.spec.ts` and updated `journey-6-integrations-billing.spec.ts`.
+**Open:**
+- Taxes and receipt legal details are undecided.
+- The comparison table's integration, cloud-login and MCP rows aren't enforced.
 
 ## 2026-09-29: Illustrations and interaction audit (TDR-0050)
 

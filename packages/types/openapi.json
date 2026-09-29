@@ -6176,112 +6176,6 @@
         }
       }
     },
-    "/api/v1/billing/webhooks/stripe": {
-      "post": {
-        "tags": [
-          "billing"
-        ],
-        "summary": "Stripe Webhook",
-        "operationId": "stripe_webhook_api_v1_billing_webhooks_stripe_post",
-        "parameters": [
-          {
-            "name": "Stripe-Signature",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Stripe-Signature"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Stripe Webhook Api V1 Billing Webhooks Stripe Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/billing/webhooks/razorpay": {
-      "post": {
-        "tags": [
-          "billing"
-        ],
-        "summary": "Razorpay Webhook",
-        "operationId": "razorpay_webhook_api_v1_billing_webhooks_razorpay_post",
-        "parameters": [
-          {
-            "name": "X-Razorpay-Signature",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Razorpay-Signature"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Razorpay Webhook Api V1 Billing Webhooks Razorpay Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/notifications": {
       "get": {
         "tags": [
@@ -7294,24 +7188,14 @@
           "reason": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
               }
             ],
             "title": "Reason"
-          },
-          "feedback": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Feedback"
           }
         },
         "type": "object",
@@ -7350,33 +7234,10 @@
             "type": "string",
             "enum": [
               "stripe",
-              "razorpay",
-              "sandbox"
+              "razorpay"
             ],
             "title": "Provider",
             "default": "stripe"
-          },
-          "success_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Success Url"
-          },
-          "cancel_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cancel Url"
           }
         },
         "type": "object",
@@ -7387,9 +7248,55 @@
       },
       "CheckoutResponse": {
         "properties": {
+          "checkout_id": {
+            "type": "string",
+            "title": "Checkout Id"
+          },
           "provider": {
             "type": "string",
+            "enum": [
+              "stripe",
+              "razorpay",
+              "sandbox"
+            ],
             "title": "Provider"
+          },
+          "plan_id": {
+            "type": "string",
+            "enum": [
+              "solo",
+              "team",
+              "enterprise"
+            ],
+            "title": "Plan Id"
+          },
+          "plan_name": {
+            "type": "string",
+            "title": "Plan Name"
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ],
+            "title": "Interval"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "usd",
+              "inr"
+            ],
+            "title": "Currency"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
           },
           "checkout_url": {
             "anyOf": [
@@ -7402,7 +7309,7 @@
             ],
             "title": "Checkout Url"
           },
-          "session_id": {
+          "razorpay_order_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -7411,9 +7318,9 @@
                 "type": "null"
               }
             ],
-            "title": "Session Id"
+            "title": "Razorpay Order Id"
           },
-          "order_id": {
+          "razorpay_key_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -7422,59 +7329,19 @@
                 "type": "null"
               }
             ],
-            "title": "Order Id"
-          },
-          "key_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Key Id"
-          },
-          "amount": {
-            "type": "number",
-            "title": "Amount"
-          },
-          "currency": {
-            "type": "string",
-            "title": "Currency"
-          },
-          "plan_id": {
-            "type": "string",
-            "title": "Plan Id"
-          },
-          "interval": {
-            "type": "string",
-            "title": "Interval"
-          },
-          "sandbox_mode": {
-            "type": "boolean",
-            "title": "Sandbox Mode",
-            "default": false
-          },
-          "simulated_token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Simulated Token"
+            "title": "Razorpay Key Id"
           }
         },
         "type": "object",
         "required": [
+          "checkout_id",
           "provider",
-          "amount",
-          "currency",
           "plan_id",
-          "interval"
+          "plan_name",
+          "interval",
+          "currency",
+          "amount",
+          "amount_minor"
         ],
         "title": "CheckoutResponse"
       },
@@ -9445,10 +9312,6 @@
             "type": "string",
             "title": "Id"
           },
-          "workspace_id": {
-            "type": "string",
-            "title": "Workspace Id"
-          },
           "invoice_number": {
             "type": "string",
             "title": "Invoice Number"
@@ -9459,15 +9322,39 @@
           },
           "currency": {
             "type": "string",
+            "enum": [
+              "usd",
+              "inr"
+            ],
             "title": "Currency"
           },
           "status": {
             "type": "string",
+            "enum": [
+              "paid"
+            ],
+            "const": "paid",
             "title": "Status"
           },
           "provider": {
             "type": "string",
+            "enum": [
+              "stripe",
+              "razorpay",
+              "sandbox"
+            ],
             "title": "Provider"
+          },
+          "provider_payment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Payment Id"
           },
           "plan_name": {
             "type": "string",
@@ -9475,6 +9362,10 @@
           },
           "interval": {
             "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ],
             "title": "Interval"
           },
           "period_start": {
@@ -9518,7 +9409,6 @@
         "type": "object",
         "required": [
           "id",
-          "workspace_id",
           "invoice_number",
           "amount_paid",
           "currency",
@@ -10290,10 +10180,58 @@
         "title": "PasswordSetRequest",
         "description": "TDR-0037: sets/replaces the caller's own password, authenticated by their\ncurrent session rather than by re-entering the old value - reached only after\nan OTP verify, which already proved control of the inbox."
       },
+      "PaymentOptionsOut": {
+        "properties": {
+          "stripe_live": {
+            "type": "boolean",
+            "title": "Stripe Live"
+          },
+          "razorpay_live": {
+            "type": "boolean",
+            "title": "Razorpay Live"
+          },
+          "sandbox": {
+            "type": "boolean",
+            "title": "Sandbox"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stripe_live",
+          "razorpay_live",
+          "sandbox"
+        ],
+        "title": "PaymentOptionsOut",
+        "description": "Which checkout choices work on this server. A gateway without keys is still\noffered while the sandbox is allowed; it then completes as a test payment."
+      },
+      "PlanFeatureOut": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "coming_soon": {
+            "type": "boolean",
+            "title": "Coming Soon",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "PlanFeatureOut"
+      },
       "PlanTierOut": {
         "properties": {
           "id": {
             "type": "string",
+            "enum": [
+              "free",
+              "solo",
+              "team",
+              "enterprise"
+            ],
             "title": "Id"
           },
           "name": {
@@ -10310,8 +10248,7 @@
           },
           "popular": {
             "type": "boolean",
-            "title": "Popular",
-            "default": false
+            "title": "Popular"
           },
           "price_monthly_usd": {
             "type": "integer",
@@ -10330,16 +10267,26 @@
             "title": "Price Annual Inr"
           },
           "project_limit": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Project Limit"
           },
           "member_limit": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Member Limit"
-          },
-          "guest_limit_label": {
-            "type": "string",
-            "title": "Guest Limit Label"
           },
           "ai_credits_monthly": {
             "type": "integer",
@@ -10349,26 +10296,12 @@
             "type": "integer",
             "title": "Storage Gb"
           },
-          "integrations_allowed": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Integrations Allowed"
-          },
           "features": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/PlanFeatureOut"
             },
             "type": "array",
             "title": "Features"
-          },
-          "highlights": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Highlights"
           }
         },
         "type": "object",
@@ -10377,18 +10310,16 @@
           "name",
           "badge",
           "description",
+          "popular",
           "price_monthly_usd",
           "price_annual_usd",
           "price_monthly_inr",
           "price_annual_inr",
           "project_limit",
           "member_limit",
-          "guest_limit_label",
           "ai_credits_monthly",
           "storage_gb",
-          "integrations_allowed",
-          "features",
-          "highlights"
+          "features"
         ],
         "title": "PlanTierOut"
       },
@@ -10408,31 +10339,15 @@
             "type": "array",
             "title": "Categories"
           },
-          "current_plan_id": {
-            "type": "string",
-            "title": "Current Plan Id"
-          },
-          "sandbox_enabled": {
-            "type": "boolean",
-            "title": "Sandbox Enabled",
-            "default": true
-          },
-          "stripe_configured": {
-            "type": "boolean",
-            "title": "Stripe Configured",
-            "default": false
-          },
-          "razorpay_configured": {
-            "type": "boolean",
-            "title": "Razorpay Configured",
-            "default": false
+          "payment_options": {
+            "$ref": "#/components/schemas/PaymentOptionsOut"
           }
         },
         "type": "object",
         "required": [
           "plans",
           "categories",
-          "current_plan_id"
+          "payment_options"
         ],
         "title": "PlansResponseOut"
       },
@@ -12057,6 +11972,12 @@
           },
           "plan_id": {
             "type": "string",
+            "enum": [
+              "free",
+              "solo",
+              "team",
+              "enterprise"
+            ],
             "title": "Plan Id"
           },
           "plan_name": {
@@ -12067,41 +11988,60 @@
             "type": "string",
             "enum": [
               "active",
-              "trialing",
-              "past_due",
-              "canceled",
-              "incomplete"
+              "expired"
             ],
-            "title": "Status",
-            "default": "active"
+            "title": "Status"
           },
           "interval": {
-            "type": "string",
-            "enum": [
-              "monthly",
-              "annual"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "monthly",
+                  "annual"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Interval",
-            "default": "monthly"
+            "title": "Interval"
           },
           "currency": {
-            "type": "string",
-            "enum": [
-              "usd",
-              "inr"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "usd",
+                  "inr"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Currency",
-            "default": "usd"
+            "title": "Currency"
           },
           "amount": {
-            "type": "number",
+            "type": "integer",
             "title": "Amount",
-            "default": 0.0
+            "default": 0
           },
           "provider": {
-            "type": "string",
-            "title": "Provider",
-            "default": "free"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stripe",
+                  "razorpay",
+                  "sandbox"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
           },
           "current_period_start": {
             "anyOf": [
@@ -12127,15 +12067,23 @@
             ],
             "title": "Current Period End"
           },
-          "cancel_at_period_end": {
-            "type": "boolean",
-            "title": "Cancel At Period End",
-            "default": false
+          "expired_plan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "solo",
+                  "team",
+                  "enterprise"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expired Plan Id"
           },
-          "usage": {
-            "$ref": "#/components/schemas/UsageMetricsOut"
-          },
-          "payment_method_summary": {
+          "expired_plan_name": {
             "anyOf": [
               {
                 "type": "string"
@@ -12144,12 +12092,19 @@
                 "type": "null"
               }
             ],
-            "title": "Payment Method Summary"
+            "title": "Expired Plan Name"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/UsageMetricsOut"
           },
           "is_owner": {
             "type": "boolean",
-            "title": "Is Owner",
-            "default": true
+            "title": "Is Owner"
+          },
+          "stripe_portal_available": {
+            "type": "boolean",
+            "title": "Stripe Portal Available",
+            "default": false
           }
         },
         "type": "object",
@@ -12157,7 +12112,9 @@
           "workspace_id",
           "plan_id",
           "plan_name",
-          "usage"
+          "status",
+          "usage",
+          "is_owner"
         ],
         "title": "SubscriptionOut"
       },
@@ -12760,7 +12717,14 @@
             "title": "Projects Used"
           },
           "projects_limit": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Projects Limit"
           },
           "members_used": {
@@ -12768,7 +12732,14 @@
             "title": "Members Used"
           },
           "members_limit": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Members Limit"
           },
           "ai_credits_used": {
@@ -12779,15 +12750,14 @@
             "type": "integer",
             "title": "Ai Credits Limit"
           },
-          "storage_gb_used": {
-            "type": "number",
-            "title": "Storage Gb Used",
-            "default": 0.0
+          "ai_credits_reset_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ai Credits Reset At"
           },
           "storage_gb_limit": {
             "type": "integer",
-            "title": "Storage Gb Limit",
-            "default": 1
+            "title": "Storage Gb Limit"
           }
         },
         "type": "object",
@@ -12797,7 +12767,9 @@
           "members_used",
           "members_limit",
           "ai_credits_used",
-          "ai_credits_limit"
+          "ai_credits_limit",
+          "ai_credits_reset_at",
+          "storage_gb_limit"
         ],
         "title": "UsageMetricsOut"
       },
@@ -12958,47 +12930,17 @@
       },
       "VerifyPaymentRequest": {
         "properties": {
-          "plan_id": {
+          "checkout_id": {
             "type": "string",
-            "enum": [
-              "solo",
-              "team",
-              "enterprise"
-            ],
-            "title": "Plan Id"
-          },
-          "interval": {
-            "type": "string",
-            "enum": [
-              "monthly",
-              "annual"
-            ],
-            "title": "Interval",
-            "default": "monthly"
-          },
-          "currency": {
-            "type": "string",
-            "enum": [
-              "usd",
-              "inr"
-            ],
-            "title": "Currency",
-            "default": "usd"
-          },
-          "provider": {
-            "type": "string",
-            "enum": [
-              "stripe",
-              "razorpay",
-              "sandbox"
-            ],
-            "title": "Provider",
-            "default": "sandbox"
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Checkout Id"
           },
           "razorpay_payment_id": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 128
               },
               {
                 "type": "null"
@@ -13006,53 +12948,22 @@
             ],
             "title": "Razorpay Payment Id"
           },
-          "razorpay_order_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Razorpay Order Id"
-          },
           "razorpay_signature": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 256
               },
               {
                 "type": "null"
               }
             ],
             "title": "Razorpay Signature"
-          },
-          "stripe_session_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stripe Session Id"
-          },
-          "simulated": {
-            "type": "boolean",
-            "title": "Simulated",
-            "default": false
-          },
-          "payment_method": {
-            "type": "string",
-            "title": "Payment Method",
-            "default": "card"
           }
         },
         "type": "object",
         "required": [
-          "plan_id"
+          "checkout_id"
         ],
         "title": "VerifyPaymentRequest"
       },

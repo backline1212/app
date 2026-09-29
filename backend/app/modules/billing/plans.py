@@ -1,336 +1,208 @@
-"""Plans and pricing single source of truth.
-Defines 4 standard SaaS tiers (Free, Solo, Team, Enterprise) benchmarked against
-competitors (Linear, BugHerd, Marker.io, Userback, Jam.dev).
+"""Plans and pricing - the single source of truth for tiers, prices and limits.
+
+Four tiers, priced against BugHerd, Marker.io, Jam.dev and Linear (docs/tdr/0051).
+Limits are read from here at request time rather than from a per-workspace snapshot,
+so a pricing change here is the only step needed to change what a plan allows.
+
+A limit of `None` means unlimited. Features the product does not ship yet are flagged
+`coming_soon` so the pricing page never sells something a customer cannot use.
 """
 
+from datetime import UTC, datetime
 from typing import Any, Literal
 
+PlanId = Literal["free", "solo", "team", "enterprise"]
+PaidPlanId = Literal["solo", "team", "enterprise"]
 BillingInterval = Literal["monthly", "annual"]
 BillingCurrency = Literal["usd", "inr"]
-BillingProvider = Literal["stripe", "razorpay", "sandbox", "free"]
-PlanTierId = Literal["free", "solo", "team", "enterprise"]
+
+FREE_PLAN_ID: PlanId = "free"
+
+
+def _feature(label: str, *, coming_soon: bool = False) -> dict[str, Any]:
+    return {"label": label, "coming_soon": coming_soon}
+
 
 PLANS: dict[str, dict[str, Any]] = {
     "free": {
         "id": "free",
-        "name": "Free",
+        "name": "Free Starter",
         "badge": "Starter",
-        "description": (
-            "For individual developers and freelancers getting started with visual reviews."
-        ),
+        "description": "For solo developers and freelancers starting out with visual reviews.",
         "popular": False,
         "price_monthly_usd": 0,
         "price_annual_usd": 0,
         "price_monthly_inr": 0,
         "price_annual_inr": 0,
-        "project_limit": 1,
+        "project_limit": 2,
         "member_limit": 2,
-        "guest_limit_label": "Unlimited",
-        "ai_credits_monthly": 25,
-        "storage_gb": 1,
-        "integrations_allowed": ["community"],
+        "ai_credits_monthly": 20,
+        "storage_gb": 5,
         "features": [
-            "1 Active Project",
-            "Up to 2 Team Members",
-            "Unlimited Guest & Client Reviewers",
-            "25 AI actions/month (Summaries & Replies)",
-            "Standard Pin & Area Comments",
-            "1 GB Fast Cloud Storage",
-            "Community Support",
-        ],
-        "highlights": [
-            "1 project",
-            "2 seats",
-            "25 AI/mo",
+            _feature("2 active projects"),
+            _feature("2 team members"),
+            _feature("20 AI review credits / month"),
+            _feature("Unlimited guest & client reviewers"),
+            _feature("Live site, proxy & extension review"),
+            _feature("5 GB storage"),
         ],
     },
     "solo": {
         "id": "solo",
-        "name": "Solo",
-        "badge": "Pro Freelancer",
-        "description": (
-            "For independent contractors, UI/UX designers, and freelance QA engineers."
-        ),
+        "name": "Solo Pro",
+        "badge": "Pro",
+        "description": "For independent contractors, UI/UX designers and freelance QA engineers.",
         "popular": False,
         "price_monthly_usd": 24,
-        "price_annual_usd": 19,  # $228/year
+        "price_annual_usd": 19,
         "price_monthly_inr": 1899,
-        "price_annual_inr": 1499,  # ₹17,988/year
+        "price_annual_inr": 1499,
         "project_limit": 5,
-        "member_limit": 3,
-        "guest_limit_label": "Unlimited",
-        "ai_credits_monthly": 250,
-        "storage_gb": 15,
-        "integrations_allowed": ["slack", "clickup"],
+        "member_limit": 5,
+        "ai_credits_monthly": 200,
+        "storage_gb": 20,
         "features": [
-            "5 Active Projects",
-            "Up to 3 Team Members",
-            "Unlimited Guest & Client Reviewers",
-            "250 AI actions/month",
-            "Slack & ClickUp Two-Way Sync",
-            "Passcode Protected Share Links",
-            "15 GB Fast CDN Asset Storage",
-            "Priority Email Support",
-        ],
-        "highlights": [
-            "5 projects",
-            "3 seats",
-            "250 AI/mo",
-            "Slack & ClickUp",
+            _feature("5 active projects"),
+            _feature("5 team members"),
+            _feature("200 AI review credits / month"),
+            _feature("Unlimited guest & client reviewers"),
+            _feature("Video & audio screen recording", coming_soon=True),
+            _feature("Browser console replay", coming_soon=True),
+            _feature("20 GB storage"),
         ],
     },
     "team": {
         "id": "team",
-        "name": "Team",
+        "name": "Team Standard",
         "badge": "Most Popular",
-        "description": (
-            "For fast-shipping digital agencies, product squads, and QA consulting teams."
-        ),
+        "description": "For fast-shipping agencies, product squads and QA consulting teams.",
         "popular": True,
         "price_monthly_usd": 59,
-        "price_annual_usd": 49,  # $588/year
+        "price_annual_usd": 49,
         "price_monthly_inr": 4699,
-        "price_annual_inr": 3899,  # ₹46,788/year
+        "price_annual_inr": 3899,
         "project_limit": 20,
-        "member_limit": 10,
-        "guest_limit_label": "Unlimited",
+        "member_limit": 15,
         "ai_credits_monthly": 1000,
         "storage_gb": 100,
-        "integrations_allowed": ["slack", "clickup", "jira", "asana", "mcp"],
         "features": [
-            "20 Active Projects",
-            "Up to 10 Team Members",
-            "Unlimited Guest & Client Reviewers",
-            "1,000 AI actions/month (BugHunt AI included)",
-            "All Integrations (Jira, Asana, ClickUp, Slack)",
-            "Live Cloud Login Browser Sessions",
-            "Multi-Browser Headless Renders",
-            "Custom Link Expiry & Watermarks",
-            "100 GB Fast CDN Storage",
-            "Priority Support (4-hour SLA)",
-        ],
-        "highlights": [
-            "20 projects",
-            "10 seats",
-            "1,000 AI/mo",
-            "Jira & Asana",
-            "Cloud Login",
+            _feature("20 active projects"),
+            _feature("15 team members"),
+            _feature("1,000 AI review credits / month (BugHunt AI)"),
+            _feature("Slack, Jira, ClickUp, Asana & Trello integrations"),
+            _feature("Cloud login browser sessions"),
+            _feature("Custom branding & domains", coming_soon=True),
+            _feature("100 GB storage"),
         ],
     },
     "enterprise": {
         "id": "enterprise",
-        "name": "Enterprise",
+        "name": "Agency Enterprise",
         "badge": "Agency Scale",
-        "description": (
-            "For large agency networks, enterprise QA departments, and mission-critical scale."
-        ),
+        "description": "For agency networks, enterprise QA departments and mission-critical scale.",
         "popular": False,
         "price_monthly_usd": 179,
-        "price_annual_usd": 149,  # $1,788/year
+        "price_annual_usd": 149,
         "price_monthly_inr": 14299,
-        "price_annual_inr": 11999,  # ₹143,988/year
-        "project_limit": 999,
-        "member_limit": 999,
-        "guest_limit_label": "Unlimited",
-        "ai_credits_monthly": 5000,
+        "price_annual_inr": 11999,
+        "project_limit": None,
+        "member_limit": 100,
+        "ai_credits_monthly": 10000,
         "storage_gb": 1000,
-        "integrations_allowed": ["all"],
         "features": [
-            "Unlimited Projects & Workspaces",
-            "Unlimited Team Members",
-            "Unlimited Guest & Client Reviewers",
-            "5,000 AI actions/month & Dedicated Model",
-            "Custom Outbound Webhooks & MCP Server",
-            "White-label Branding & Custom Domain",
-            "1 TB Private Encrypted Storage",
-            "Dedicated Customer Success Manager & 99.9% SLA",
-        ],
-        "highlights": [
-            "Unlimited projects",
-            "Unlimited seats",
-            "5,000 AI/mo",
-            "White-label",
-            "Dedicated SLA",
+            _feature("Unlimited projects"),
+            _feature("100 team members"),
+            _feature("10,000 AI review credits / month"),
+            _feature("Dedicated 4-hour SLA support"),
+            _feature("1,000 GB storage"),
+            _feature("White-label client portals", coming_soon=True),
         ],
     },
 }
 
-COMPARISON_CATEGORIES = [
+_YES = "Yes"
+_NO = "No"
+_SOON = "Coming soon"
+
+
+def _row(name: str, free: str, solo: str, team: str, enterprise: str) -> dict[str, str]:
+    return {"name": name, "free": free, "solo": solo, "team": team, "enterprise": enterprise}
+
+
+def _all(name: str, value: str = _YES) -> dict[str, str]:
+    return _row(name, value, value, value, value)
+
+
+COMPARISON_CATEGORIES: list[dict[str, Any]] = [
     {
-        "category": "Projects & Reviewing",
+        "category": "Core Feedback & Review",
         "rows": [
-            {
-                "name": "Active projects",
-                "free": "1",
-                "solo": "5",
-                "team": "20",
-                "enterprise": "Unlimited",
-            },
-            {
-                "name": "Team members",
-                "free": "2",
-                "solo": "3",
-                "team": "10",
-                "enterprise": "Unlimited",
-            },
-            {
-                "name": "Guest & client reviewers",
-                "free": "Unlimited",
-                "solo": "Unlimited",
-                "team": "Unlimited",
-                "enterprise": "Unlimited",
-            },
-            {
-                "name": "Live site & snippet review",
-                "free": "Yes",
-                "solo": "Yes",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "Proxy mode (zero install)",
-                "free": "Yes",
-                "solo": "Yes",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "Asset & PDF review",
-                "free": "Yes",
-                "solo": "Yes",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
+            _row("Active projects", "2", "5", "20", "Unlimited"),
+            _all("Guest & client reviewers", "Unlimited"),
+            _all("Live site, proxy & extension review"),
+            _all("Image & PDF review"),
+            _all("Passcode-protected share links"),
+            _row("Storage", "5 GB", "20 GB", "100 GB", "1,000 GB"),
         ],
     },
     {
-        "category": "AI & Advanced QA",
+        "category": "Video & Replay Capture",
         "rows": [
-            {
-                "name": "Monthly AI actions",
-                "free": "25",
-                "solo": "250",
-                "team": "1,000",
-                "enterprise": "5,000",
-            },
-            {
-                "name": "Thread summaries & suggested replies",
-                "free": "Yes",
-                "solo": "Yes",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "BugHunt AI autonomous scanner",
-                "free": "No",
-                "solo": "No",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "Cloud login interactive browser",
-                "free": "No",
-                "solo": "No",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "Cross-browser engine renders",
-                "free": "No",
-                "solo": "No",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
+            _all("Screenshot on every comment"),
+            _all("Browser & device details"),
+            _row("Video & audio screen recording", _NO, _SOON, _SOON, _SOON),
+            _row("Browser console replay", _NO, _SOON, _SOON, _SOON),
         ],
     },
     {
-        "category": "Integrations & Automation",
+        "category": "Integrations & Team",
         "rows": [
-            {
-                "name": "Slack & ClickUp",
-                "free": "No",
-                "solo": "Yes",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "Jira & Asana",
-                "free": "No",
-                "solo": "No",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "Model Context Protocol (MCP) agents",
-                "free": "No",
-                "solo": "No",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "Custom webhooks",
-                "free": "No",
-                "solo": "No",
-                "team": "No",
-                "enterprise": "Yes",
-            },
+            _row("Team members", "2", "5", "15", "100"),
+            _row("Slack, Jira, ClickUp, Asana & Trello", _NO, _NO, _YES, _YES),
+            _row("MCP server for AI agents", _NO, _NO, _YES, _YES),
+            _row("Cloud login browser sessions", _NO, _NO, _YES, _YES),
         ],
     },
     {
-        "category": "Security, Storage & Support",
+        "category": "AI & Security",
         "rows": [
-            {
-                "name": "Cloud storage",
-                "free": "1 GB",
-                "solo": "15 GB",
-                "team": "100 GB",
-                "enterprise": "1 TB",
-            },
-            {
-                "name": "Passcode protected share links",
-                "free": "No",
-                "solo": "Yes",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "Custom link expiration",
-                "free": "No",
-                "solo": "No",
-                "team": "Yes",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "White-label client portal",
-                "free": "No",
-                "solo": "No",
-                "team": "No",
-                "enterprise": "Yes",
-            },
-            {
-                "name": "Support SLA",
-                "free": "Community",
-                "solo": "Standard Email",
-                "team": "4-Hour Priority",
-                "enterprise": "Dedicated / 99.9%",
-            },
+            _row("AI review credits / month", "20", "200", "1,000", "10,000"),
+            _all("Thread summaries & suggested replies"),
+            _all("BugHunt AI project analysis"),
+            _row("Custom branding & domains", _NO, _NO, _SOON, _SOON),
+            _row("White-label client portals", _NO, _NO, _NO, _SOON),
+            _row("Support", "Community", "Email", "Priority email", "Dedicated 4-hour SLA"),
         ],
     },
 ]
 
 
 def get_plan_definition(plan_id: str) -> dict[str, Any]:
-    return PLANS.get(plan_id, PLANS["free"])
+    """Unknown or legacy plan labels resolve to Free rather than raising, so a
+    workspace document written before this module existed stays readable."""
+    return PLANS.get(plan_id, PLANS[FREE_PLAN_ID])
 
 
-def get_plan_limits_snapshot(plan_id: str) -> dict[str, Any]:
+def plan_price(plan_id: str, interval: BillingInterval, currency: BillingCurrency) -> int:
+    """Total charged for one billing period, in whole currency units. Annual prices are
+    quoted per month, so the annual charge is twelve times the monthly-equivalent rate."""
     plan = get_plan_definition(plan_id)
-    return {
-        "plan_id": plan["id"],
-        "plan_name": plan["name"],
-        "project_limit": plan["project_limit"],
-        "member_limit": plan["member_limit"],
-        "ai_credits_monthly": plan["ai_credits_monthly"],
-        "storage_gb": plan["storage_gb"],
-        "integrations_allowed": plan["integrations_allowed"],
-    }
+    if interval == "annual":
+        return int(plan[f"price_annual_{currency}"]) * 12
+    return int(plan[f"price_monthly_{currency}"])
+
+
+def effective_plan_id(workspace: dict[str, Any], now: datetime | None = None) -> str:
+    """The plan a workspace is entitled to right now. Paid plans are prepaid for one
+    period (docs/tdr/0051), so a paid plan whose period has ended counts as Free until
+    it is renewed, even before anything rewrites the stored `plan` field."""
+    stored = str(workspace.get("plan") or FREE_PLAN_ID).lower()
+    if stored not in PLANS:
+        return FREE_PLAN_ID
+    period_end = workspace.get("current_period_end")
+    if stored != FREE_PLAN_ID and isinstance(period_end, datetime):
+        if period_end.tzinfo is None:
+            period_end = period_end.replace(tzinfo=UTC)
+        if period_end <= (now or datetime.now(UTC)):
+            return FREE_PLAN_ID
+    return stored

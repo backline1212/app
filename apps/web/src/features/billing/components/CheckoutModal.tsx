@@ -1,463 +1,194 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "../../../components/Dialog";
-import { useToast } from "../../../components/Toast";
-import { qk } from "../../../lib/query-keys";
 import {
-  createCheckout,
-  verifyPayment,
+  PAID_PLAN_IDS,
+  type BillingCurrency,
+  type BillingInterval,
+  type CheckoutProvider,
+  type CheckoutRequest,
+  type PaidPlanId,
+  type PaymentOptionsOut,
   type PlanTierOut,
   type SubscriptionOut,
 } from "../api";
+import { formatDate, formatMoney, periodTotal } from "../format";
+
+const PERIOD_DAYS: Record<BillingInterval, number> = { monthly: 30, annual: 365 };
+
+const GATEWAYS: Record<CheckoutProvider, { title: string; methods: string; handoff: string }> = {
+  stripe: {
+    title: "Card or wallet",
+    methods: "Visa, Mastercard, Amex, Apple Pay, Google Pay",
+    handoff: "You'll pay on Stripe's secure checkout page, then come straight back here.",
+  },
+  razorpay: {
+    title: "UPI, RuPay & netbanking",
+    methods: "Scan a UPI QR or enter a UPI ID, Indian cards, netbanking - in ₹ INR",
+    handoff: "Razorpay's payment window opens next. Backline never sees your payment details.",
+  },
+};
 
 interface CheckoutModalProps {
-  workspaceId: string;
   plans: PlanTierOut[];
-  initialPlanId: "solo" | "team" | "enterprise";
-  initialInterval: "monthly" | "annual";
-  initialCurrency: "usd" | "inr";
+  paymentOptions: PaymentOptionsOut;
+  subscription: SubscriptionOut;
+  initialPlanId: PaidPlanId;
+  initialInterval: BillingInterval;
+  initialCurrency: BillingCurrency;
+  isPaying: boolean;
+  onPay: (request: CheckoutRequest) => void;
   onClose: () => void;
-  onSuccess?: () => void;
 }
 
 export function CheckoutModal({
-  workspaceId,
   plans,
+  paymentOptions,
+  subscription,
   initialPlanId,
   initialInterval,
   initialCurrency,
+  isPaying,
+  onPay,
   onClose,
-  onSuccess,
 }: CheckoutModalProps) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const live: Record<CheckoutProvider, boolean> = {
+    stripe: paymentOptions.stripe_live,
+    razorpay: paymentOptions.razorpay_live,
+  };
+  const usable = (gateway: CheckoutProvider) => live[gateway] || paymentOptions.sandbox;
 
-  const [selectedPlanId, setSelectedPlanId] = useState<"solo" | "team" | "enterprise">(initialPlanId);
-  const [interval, setInterval] = useState<"monthly" | "annual">(initialInterval);
-  const [currency, setCurrency] = useState<"usd" | "inr">(initialCurrency);
-  const [provider, setProvider] = useState<"stripe" | "razorpay">("stripe");
-  const [paymentSubtype, setPaymentSubtype] = useState<"card" | "upi" | "netbanking">("card");
+  const [planId, setPlanId] = useState<PaidPlanId>(initialPlanId);
+  const [interval, setBillingInterval] = useState<BillingInterval>(initialInterval);
+  const [currency, setCurrency] = useState<BillingCurrency>(initialCurrency);
+  const [provider, setProvider] = useState<CheckoutProvider>(
+    initialCurrency === "inr" && usable("razorpay") ? "razorpay" : "stripe",
+  );
 
-  // Simulated inputs for test sandbox
-  const [cardNumber, setCardNumber] = useState("4242 •••• •••• 4242");
-  const [cardExpiry, setCardExpiry] = useState("12/28");
-  const [cardCvc, setCardCvc] = useState("123");
-  const [upiId, setUpiId] = useState("team@okaxis");
+  const plan = plans.find((p) => p.id === planId);
+  if (!plan) return null;
 
-  // Success celebration state
-  const [completedSub, setCompletedSub] = useState<SubscriptionOut | null>(null);
+  const chooseProvider = (next: CheckoutProvider) => {
+    setProvider(next);
+    if (next === "razorpay") setCurrency("inr");
+  };
+  const chooseCurrency = (next: BillingCurrency) => {
+    setCurrency(next);
+    if (next === "usd" && provider === "razorpay") setProvider("stripe");
+  };
 
-  const selectedPlan = plans.find((p) => p.id === selectedPlanId) || plans[1] || plans[0];
+  const total = periodTotal(plan, interval, currency);
+  const testMode = !live[provider] && paymentOptions.sandbox;
+  const canPay = usable(provider);
 
-  // Calculate pricing
-  const isAnnual = interval === "annual";
-  const monthlyRate =
-    currency === "inr"
-      ? isAnnual
-        ? selectedPlan.price_annual_inr
-        : selectedPlan.price_monthly_inr
-      : isAnnual
-      ? selectedPlan.price_annual_usd
-      : selectedPlan.price_monthly_usd;
+  // What this payment covers: paying for the plan you're already on extends it from the
+  // current end date (backend's _activate_checkout); any other plan starts today.
+  const now = new Date();
+  const currentEnd = subscription.current_period_end ? new Date(subscription.current_period_end) : null;
+  const extending = subscription.plan_id === planId && currentEnd !== null && currentEnd > now;
+  const coversFrom = extending && currentEnd ? currentEnd : now;
+  const coversTo = new Date(coversFrom.getTime() + PERIOD_DAYS[interval] * 86_400_000);
+  const replacesPaidPlan = subscription.plan_id !== "free" && subscription.plan_id !== planId;
 
-  const totalPayable = isAnnual ? monthlyRate * 12 : monthlyRate;
-  const currencySymbol = currency === "inr" ? "₹" : "$";
-
-  const checkoutMutation = useMutation({
-    mutationFn: async () => {
-      // Step 1: Create checkout session on backend
-      const checkoutRes = await createCheckout(workspaceId, {
-        plan_id: selectedPlanId,
-        interval,
-        currency,
-        provider,
-      });
-
-      // Step 2: If live Stripe session url is returned and not in sandbox mode, redirect
-      if (!checkoutRes.sandbox_mode && checkoutRes.checkout_url && checkoutRes.provider === "stripe") {
-        window.location.href = checkoutRes.checkout_url;
-        return null;
-      }
-
-      // Step 3: Complete simulated / instant test checkout flow
-      const verifyRes = await verifyPayment(workspaceId, {
-        plan_id: selectedPlanId,
-        interval,
-        currency,
-        provider: checkoutRes.sandbox_mode ? "sandbox" : provider,
-        stripe_session_id: checkoutRes.session_id || undefined,
-        razorpay_order_id: checkoutRes.order_id || undefined,
-        razorpay_payment_id: `pay_sim_${Date.now()}`,
-        razorpay_signature: `sig_sim_${Date.now()}`,
-        simulated: checkoutRes.sandbox_mode,
-        payment_method: provider === "razorpay" ? paymentSubtype : "card",
-      });
-
-      return verifyRes;
-    },
-    onSuccess: (sub) => {
-      if (!sub) return;
-      queryClient.invalidateQueries({ queryKey: qk.subscription(workspaceId) });
-      queryClient.invalidateQueries({ queryKey: qk.billingPlans(workspaceId) });
-      queryClient.invalidateQueries({ queryKey: qk.invoices(workspaceId) });
-      queryClient.invalidateQueries({ queryKey: qk.workspaces() });
-      queryClient.invalidateQueries({ queryKey: qk.dashboard(workspaceId) });
-      setCompletedSub(sub);
-      toast(`Upgraded to ${selectedPlan.name} plan successfully!`);
-      if (onSuccess) onSuccess();
-    },
-    onError: (err) => {
-      toast(err instanceof Error ? err.message : "Payment processing failed.", "error");
-    },
-  });
+  const payLabel = testMode
+    ? `Complete test payment of ${formatMoney(total, currency)}`
+    : provider === "stripe"
+      ? `Continue to Stripe · ${formatMoney(total, currency)}`
+      : `Pay ${formatMoney(total, currency)} with Razorpay`;
 
   return (
-    <Dialog
-      title={completedSub ? "Payment Confirmed" : `Upgrade to ${selectedPlan.name}`}
-      onClose={onClose}
-    >
-      {completedSub ? (
-        /* Success Celebration Screen */
-        <div style={{ padding: "10px 0", textAlign: "center" }}>
-          <div
-            style={{
-              width: "64px",
-              height: "64px",
-              borderRadius: "50%",
-              background: "var(--mint-tint)",
-              color: "var(--mint-deep)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "32px",
-              margin: "0 auto 16px",
-            }}
-          >
-            🎉
-          </div>
-
-          <h3 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 8px" }}>
-            Welcome to the {completedSub.plan_name} Plan!
-          </h3>
-
-          <p style={{ fontSize: "14px", color: "var(--bl-muted)", lineHeight: 1.5, margin: "0 0 24px" }}>
-            Your payment of <strong>{currencySymbol}{completedSub.amount.toLocaleString()}</strong> has
-            been confirmed. Your workspace now has increased project quotas, seats, and premium features!
+    <Dialog title={`Get ${plan.name}`} onClose={onClose}>
+      <form
+        className="bl-form bl-checkout"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (canPay) onPay({ plan_id: planId, interval, currency, provider });
+        }}
+      >
+        {testMode && (
+          <p className="bl-checkout-test" role="note">
+            <b>Test mode.</b> {provider === "stripe" ? "Stripe" : "Razorpay"} isn't connected on this server, so this
+            completes as a test payment: the plan activates and nothing is charged.
           </p>
+        )}
 
-          <div
-            style={{
-              background: "var(--bl-paper)",
-              borderRadius: "8px",
-              padding: "16px",
-              textAlign: "left",
-              marginBottom: "24px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-              fontSize: "13px",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--bl-muted)" }}>Active Plan:</span>
-              <span style={{ fontWeight: 700 }}>{completedSub.plan_name} ({completedSub.interval})</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--bl-muted)" }}>Projects Limit:</span>
-              <span style={{ fontWeight: 600 }}>{completedSub.usage.projects_limit >= 999 ? "Unlimited" : completedSub.usage.projects_limit}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--bl-muted)" }}>Team Member Seats:</span>
-              <span style={{ fontWeight: 600 }}>{completedSub.usage.members_limit >= 999 ? "Unlimited" : completedSub.usage.members_limit}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--bl-muted)" }}>Monthly AI Credits:</span>
-              <span style={{ fontWeight: 600 }}>{completedSub.usage.ai_credits_limit}</span>
-            </div>
+        <fieldset>
+          <legend>Plan</legend>
+          <div className="bl-segment">
+            {PAID_PLAN_IDS.map((id) => (
+              <button key={id} type="button" aria-pressed={planId === id} onClick={() => setPlanId(id)}>
+                {plans.find((p) => p.id === id)?.name ?? id}
+              </button>
+            ))}
           </div>
+        </fieldset>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="bl-button mint"
-            style={{ width: "100%", padding: "12px", fontWeight: 700, fontSize: "14px" }}
-          >
-            Done & Return to Workspace
-          </button>
+        <div className="bl-checkout-row">
+          <fieldset>
+            <legend>Billing period</legend>
+            <div className="bl-segment">
+              <button type="button" aria-pressed={interval === "monthly"} onClick={() => setBillingInterval("monthly")}>Monthly</button>
+              <button type="button" aria-pressed={interval === "annual"} onClick={() => setBillingInterval("annual")}>Yearly · save ~20%</button>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Currency</legend>
+            <div className="bl-segment">
+              <button type="button" aria-pressed={currency === "usd"} onClick={() => chooseCurrency("usd")}>$ USD</button>
+              <button type="button" aria-pressed={currency === "inr"} onClick={() => chooseCurrency("inr")}>₹ INR</button>
+            </div>
+          </fieldset>
         </div>
-      ) : (
-        /* Checkout Flow */
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Plan & Cycle Switchers */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              background: "var(--bl-paper)",
-              padding: "8px 12px",
-              borderRadius: "6px",
-              flexWrap: "wrap",
-              gap: "10px",
-            }}
-          >
-            <div style={{ display: "flex", gap: "6px" }}>
-              {(["solo", "team", "enterprise"] as const).map((pId) => (
-                <button
-                  key={pId}
-                  type="button"
-                  onClick={() => setSelectedPlanId(pId)}
-                  className={`bl-quiet ${selectedPlanId === pId ? "is-on" : ""}`}
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: selectedPlanId === pId ? 700 : 500,
-                    background: selectedPlanId === pId ? "var(--bl-ink)" : "var(--bl-surface)",
-                    color: selectedPlanId === pId ? "var(--bl-invert-fg)" : "var(--bl-ink)",
-                  }}
-                >
-                  {pId.charAt(0).toUpperCase() + pId.slice(1)}
-                </button>
-              ))}
-            </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <fieldset>
+          <legend>Pay with</legend>
+          <div className="bl-gateways">
+            {(Object.keys(GATEWAYS) as CheckoutProvider[]).map((gateway) => (
               <button
+                key={gateway}
                 type="button"
-                onClick={() => setInterval(interval === "monthly" ? "annual" : "monthly")}
-                className="bl-quiet"
-                style={{ fontSize: "11px", fontWeight: 600 }}
+                className="bl-gateway"
+                aria-pressed={provider === gateway}
+                disabled={!usable(gateway)}
+                onClick={() => chooseProvider(gateway)}
               >
-                {interval === "annual" ? "📅 Billed Annually (-20%)" : "📅 Billed Monthly"}
+                <strong>{GATEWAYS[gateway].title}</strong>
+                <small>{usable(gateway) ? GATEWAYS[gateway].methods : "Not set up on this server"}</small>
               </button>
-
-              <button
-                type="button"
-                onClick={() => setCurrency(currency === "usd" ? "inr" : "usd")}
-                className="bl-quiet"
-                style={{ fontSize: "11px", fontWeight: 700 }}
-              >
-                {currency.toUpperCase()}
-              </button>
-            </div>
+            ))}
           </div>
+          {canPay && !testMode && <small>{GATEWAYS[provider].handoff}</small>}
+        </fieldset>
 
-          {/* Payment Method Selector */}
+        <dl className="bl-checkout-summary">
           <div>
-            <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--bl-muted)", marginBottom: "8px" }}>
-              Select Payment Method:
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setProvider("stripe");
-                  setPaymentSubtype("card");
-                }}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: "4px",
-                  padding: "12px",
-                  borderRadius: "6px",
-                  border: provider === "stripe" ? "2px solid var(--mint-deep)" : "1px solid var(--bl-line)",
-                  background: provider === "stripe" ? "var(--mint-tint)" : "var(--bl-surface)",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ fontSize: "16px" }}>💳</span>
-                  <strong style={{ fontSize: "13px" }}>Stripe Checkout</strong>
-                </div>
-                <small style={{ fontSize: "11px", color: "var(--bl-muted)" }}>
-                  Cards, Apple Pay, Google Pay
-                </small>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setProvider("razorpay");
-                  setPaymentSubtype("upi");
-                }}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: "4px",
-                  padding: "12px",
-                  borderRadius: "6px",
-                  border: provider === "razorpay" ? "2px solid var(--mint-deep)" : "1px solid var(--bl-line)",
-                  background: provider === "razorpay" ? "var(--mint-tint)" : "var(--bl-surface)",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ fontSize: "16px" }}>⚡</span>
-                  <strong style={{ fontSize: "13px" }}>Razorpay & UPI</strong>
-                </div>
-                <small style={{ fontSize: "11px", color: "var(--bl-muted)" }}>
-                  UPI (GPay/PhonePe), Netbanking
-                </small>
-              </button>
-            </div>
+            <dt>{plan.name} · {interval === "annual" ? "12 months" : "1 month"}</dt>
+            <dd>{formatMoney(total, currency)}</dd>
           </div>
-
-          {/* Provider Specific Details Simulation */}
-          {provider === "stripe" ? (
-            <div style={{ background: "var(--bl-paper)", padding: "16px", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--bl-muted)", fontWeight: 600 }}>
-                <span>CREDIT OR DEBIT CARD</span>
-                <span>🔒 256-BIT ENCRYPTED</span>
-              </div>
-              <div>
-                <input
-                  type="text"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  placeholder="Card number"
-                  className="bl-input"
-                  style={{ width: "100%", background: "var(--bl-surface)" }}
-                />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <input
-                  type="text"
-                  value={cardExpiry}
-                  onChange={(e) => setCardExpiry(e.target.value)}
-                  placeholder="MM/YY"
-                  className="bl-input"
-                  style={{ width: "100%", background: "var(--bl-surface)" }}
-                />
-                <input
-                  type="text"
-                  value={cardCvc}
-                  onChange={(e) => setCardCvc(e.target.value)}
-                  placeholder="CVC"
-                  className="bl-input"
-                  style={{ width: "100%", background: "var(--bl-surface)" }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div style={{ background: "var(--bl-paper)", padding: "16px", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div style={{ display: "flex", gap: "8px", marginBottom: "4px" }}>
-                <button
-                  type="button"
-                  onClick={() => setPaymentSubtype("upi")}
-                  className={`bl-quiet ${paymentSubtype === "upi" ? "is-on" : ""}`}
-                  style={{ fontSize: "11px" }}
-                >
-                  ⚡ Instant UPI / QR
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentSubtype("card")}
-                  className={`bl-quiet ${paymentSubtype === "card" ? "is-on" : ""}`}
-                  style={{ fontSize: "11px" }}
-                >
-                  💳 RuPay / Cards
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentSubtype("netbanking")}
-                  className={`bl-quiet ${paymentSubtype === "netbanking" ? "is-on" : ""}`}
-                  style={{ fontSize: "11px" }}
-                >
-                  🏦 Netbanking
-                </button>
-              </div>
-
-              {paymentSubtype === "upi" ? (
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", color: "var(--bl-muted)", marginBottom: "4px" }}>
-                    Enter UPI ID / VPA (Google Pay, PhonePe, Paytm):
-                  </label>
-                  <input
-                    type="text"
-                    value={upiId}
-                    onChange={(e) => setUpiId(e.target.value)}
-                    placeholder="user@upi or mobile@paytm"
-                    className="bl-input"
-                    style={{ width: "100%", background: "var(--bl-surface)" }}
-                  />
-                </div>
-              ) : (
-                <div style={{ fontSize: "12px", color: "var(--bl-muted)" }}>
-                  Supports all 50+ Indian banks, RuPay, Visa, Mastercard, and corporate cards.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Order Summary */}
-          <div
-            style={{
-              borderTop: "1px solid var(--bl-line)",
-              paddingTop: "16px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-              fontSize: "13px",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>{selectedPlan.name} Plan ({interval === "annual" ? "12 months" : "1 month"})</span>
-              <span style={{ fontWeight: 600 }}>
-                {currencySymbol}{totalPayable.toLocaleString()}
-              </span>
-            </div>
-            {isAnnual && (
-              <div style={{ display: "flex", justifyContent: "space-between", color: "var(--mint-deep)", fontSize: "12px" }}>
-                <span>Annual Billing Discount</span>
-                <span>Applied (~20% off)</span>
-              </div>
-            )}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: "16px",
-                fontWeight: 800,
-                borderTop: "1px solid var(--bl-line)",
-                paddingTop: "8px",
-                marginTop: "4px",
-              }}
-            >
-              <span>Total Payable Now:</span>
-              <span style={{ color: "var(--mint-deep)" }}>
-                {currencySymbol}{totalPayable.toLocaleString()}
-              </span>
-            </div>
+          <div>
+            <dt>Covers</dt>
+            <dd>{formatDate(coversFrom.toISOString())} – {formatDate(coversTo.toISOString())}</dd>
           </div>
-
-          {/* Action Buttons */}
-          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-            <button
-              type="button"
-              className="bl-quiet"
-              style={{ flex: 1 }}
-              onClick={onClose}
-              disabled={checkoutMutation.isPending}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="bl-button mint"
-              style={{ flex: 2, padding: "12px", fontWeight: 700 }}
-              onClick={() => checkoutMutation.mutate()}
-              disabled={checkoutMutation.isPending}
-            >
-              {checkoutMutation.isPending
-                ? "Processing Payment…"
-                : `Pay ${currencySymbol}${totalPayable.toLocaleString()} & Activate`}
-            </button>
+          <div className="is-total">
+            <dt>Due today</dt>
+            <dd>{formatMoney(total, currency)}</dd>
           </div>
-        </div>
-      )}
+        </dl>
+
+        {replacesPaidPlan && (
+          <p className="bl-checkout-warn" role="note">
+            Your {subscription.plan_name} plan ends when this payment goes through. Its remaining time isn't carried over.
+          </p>
+        )}
+        {!canPay && <p className="bl-error" role="alert">Payments aren't set up on this server yet.</p>}
+        <p className="bl-billing-muted">One-time payment for this period - nothing renews automatically.</p>
+
+        <footer className="bl-dialog-actions">
+          <button type="button" className="bl-quiet" onClick={onClose} disabled={isPaying}>Cancel</button>
+          <button type="submit" className="bl-button mint" disabled={!canPay || isPaying}>
+            {isPaying ? "Processing…" : payLabel}
+          </button>
+        </footer>
+      </form>
     </Dialog>
   );
 }

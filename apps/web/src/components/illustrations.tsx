@@ -192,7 +192,7 @@ export function UsageChartArt() {
   );
 }
 
-/** Billing - coming soon: an invoice with a stamp that lands. */
+/** Billing - no invoices yet: an invoice with a stamp that lands. */
 export function InvoiceArt() {
   return (
     <svg className="bl-soon-illus" viewBox="0 0 200 120" aria-hidden="true" focusable="false">

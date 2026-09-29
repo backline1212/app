@@ -1,154 +1,96 @@
-import { useToast } from "../../../components/Toast";
+import { InvoiceArt } from "../../../components/illustrations";
 import type { InvoiceOut } from "../api";
+import { formatDate, formatMoney } from "../format";
 
-interface InvoiceHistorySectionProps {
-  invoices: InvoiceOut[];
-  isLoading?: boolean;
+const PROVIDER_LABEL: Record<InvoiceOut["provider"], string> = {
+  stripe: "Stripe",
+  razorpay: "Razorpay",
+  sandbox: "Test payment",
+};
+
+// Stripe payments link to Stripe's own invoice PDF. Razorpay and test payments get a
+// plain-text receipt built from the invoice record instead.
+function downloadReceipt(invoice: InvoiceOut, workspaceName: string) {
+  const lines = [
+    "Backline - payment receipt",
+    "",
+    `Receipt:        ${invoice.invoice_number}`,
+    `Workspace:      ${workspaceName}`,
+    `Paid on:        ${formatDate(invoice.paid_at)}`,
+    `Plan:           ${invoice.plan_name} (${invoice.interval})`,
+    `Covers:         ${formatDate(invoice.period_start)} - ${formatDate(invoice.period_end)}`,
+    `Amount:         ${formatMoney(invoice.amount_paid, invoice.currency)}`,
+    `Paid via:       ${PROVIDER_LABEL[invoice.provider]}`,
+    ...(invoice.provider_payment_id ? [`Payment ref:    ${invoice.provider_payment_id}`] : []),
+    ...(invoice.provider === "sandbox" ? ["", "TEST PAYMENT - no money was charged."] : []),
+  ];
+  const url = URL.createObjectURL(new Blob([`${lines.join("\n")}\n`], { type: "text/plain" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${invoice.invoice_number}.txt`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
-export function InvoiceHistorySection({ invoices, isLoading }: InvoiceHistorySectionProps) {
-  const { toast } = useToast();
-
-  const handleDownload = (inv: InvoiceOut) => {
-    // Generate simulated downloadable receipt
-    const content = `======================================================
-BACKLINE QA & VISUAL REVIEW PLATFORM - TAX RECEIPT
-======================================================
-Invoice Number : ${inv.invoice_number}
-Date           : ${new Date(inv.paid_at).toLocaleDateString()}
-Workspace ID   : ${inv.workspace_id}
-Plan           : ${inv.plan_name} (${inv.interval.toUpperCase()})
-Billing Period : ${new Date(inv.period_start).toLocaleDateString()} - ${new Date(inv.period_end).toLocaleDateString()}
-Amount Paid    : ${inv.currency.toUpperCase()} ${inv.amount_paid.toFixed(2)}
-Payment Status : ${inv.status.toUpperCase()}
-Provider       : ${inv.provider.toUpperCase()}
-======================================================
-Thank you for your business!
-For questions, contact billing@backline.app
-`;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${inv.invoice_number}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast(`Receipt for ${inv.invoice_number} downloaded.`);
-  };
-
+export function InvoiceHistorySection({
+  invoices,
+  isLoading,
+  workspaceName,
+}: {
+  invoices: InvoiceOut[];
+  isLoading: boolean;
+  workspaceName: string;
+}) {
   return (
-    <section
-      className="bl-attention bl-settings-section"
-      style={{
-        marginTop: "32px",
-        background: "var(--bl-surface)",
-        border: "1px solid var(--bl-line)",
-        borderRadius: "8px",
-        padding: "24px",
-      }}
-    >
-      <div style={{ marginBottom: "16px" }}>
-        <h3 style={{ fontSize: "18px", fontWeight: 700, margin: "0 0 4px" }}>
-          Invoices & Receipts
-        </h3>
-        <p style={{ fontSize: "12px", color: "var(--bl-muted)", margin: 0 }}>
-          View and download your past monthly or annual subscription invoices.
-        </p>
-      </div>
+    <section className="bl-billing-section" aria-labelledby="bl-invoices-title">
+      <header className="bl-billing-section-head">
+        <div>
+          <h2 id="bl-invoices-title">Invoices & receipts</h2>
+          <p>Every payment for this workspace, newest first.</p>
+        </div>
+      </header>
 
       {isLoading ? (
-        <p style={{ fontSize: "13px", color: "var(--bl-muted)", padding: "20px 0" }}>
-          Loading invoices…
-        </p>
+        <p className="bl-billing-muted" role="status">Loading invoices…</p>
       ) : invoices.length === 0 ? (
-        <div
-          style={{
-            padding: "32px 16px",
-            textAlign: "center",
-            background: "var(--bl-paper)",
-            borderRadius: "6px",
-          }}
-        >
-          <p style={{ fontSize: "13px", color: "var(--bl-muted)", margin: 0 }}>
-            No past invoices found. Invoices will appear here after upgrading to a paid plan.
-          </p>
+        <div className="bl-billing-empty">
+          <InvoiceArt />
+          <p>No invoices yet. They appear here after the first payment.</p>
         </div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              textAlign: "left",
-              fontSize: "13px",
-            }}
-          >
+        <div className="bl-table-wrap">
+          <table className="bl-table bl-invoices">
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--bl-line)" }}>
-                <th style={{ padding: "10px 12px", fontWeight: 600 }}>Invoice #</th>
-                <th style={{ padding: "10px 12px", fontWeight: 600 }}>Date</th>
-                <th style={{ padding: "10px 12px", fontWeight: 600 }}>Plan</th>
-                <th style={{ padding: "10px 12px", fontWeight: 600 }}>Amount</th>
-                <th style={{ padding: "10px 12px", fontWeight: 600 }}>Status</th>
-                <th style={{ padding: "10px 12px", fontWeight: 600, textAlign: "right" }}>
-                  Receipt
-                </th>
+              <tr>
+                <th scope="col">Invoice</th>
+                <th scope="col">Paid on</th>
+                <th scope="col">Plan</th>
+                <th scope="col">Covers</th>
+                <th scope="col">Amount</th>
+                <th scope="col"><span className="sr-only">Receipt</span></th>
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => (
-                <tr
-                  key={inv.id}
-                  style={{
-                    borderBottom: "1px solid var(--bl-line)",
-                    transition: "background 0.1s ease",
-                  }}
-                >
-                  <td style={{ padding: "12px", fontWeight: 600, fontFamily: "var(--mono)" }}>
-                    {inv.invoice_number}
+              {invoices.map((invoice) => (
+                <tr key={invoice.id}>
+                  <td className="bl-invoice-number">
+                    {invoice.invoice_number}
+                    {invoice.provider === "sandbox" && <em className="bl-compare-soon">Test</em>}
                   </td>
-                  <td style={{ padding: "12px", color: "var(--bl-muted)" }}>
-                    {new Date(inv.paid_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </td>
-                  <td style={{ padding: "12px" }}>
-                    {inv.plan_name} ({inv.interval})
-                  </td>
-                  <td style={{ padding: "12px", fontWeight: 600 }}>
-                    {inv.currency.toUpperCase() === "INR" ? "₹" : "$"}
-                    {inv.amount_paid.toLocaleString()}
-                  </td>
-                  <td style={{ padding: "12px" }}>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        padding: "2px 8px",
-                        borderRadius: "10px",
-                        background: "var(--mint-tint)",
-                        color: "var(--mint-deep)",
-                      }}
-                    >
-                      ✓ {inv.status.toUpperCase()}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px", textAlign: "right" }}>
-                    <button
-                      type="button"
-                      onClick={() => handleDownload(inv)}
-                      className="bl-quiet"
-                      style={{ fontSize: "11px", padding: "4px 8px" }}
-                    >
-                      Download PDF
-                    </button>
+                  <td>{formatDate(invoice.paid_at)}</td>
+                  <td>{invoice.plan_name} · {invoice.interval}</td>
+                  <td>{formatDate(invoice.period_start)} – {formatDate(invoice.period_end)}</td>
+                  <td><strong>{formatMoney(invoice.amount_paid, invoice.currency)}</strong></td>
+                  <td className="bl-invoice-actions">
+                    {invoice.pdf_url || invoice.hosted_invoice_url ? (
+                      <a className="bl-quiet" href={invoice.pdf_url ?? invoice.hosted_invoice_url ?? undefined} target="_blank" rel="noreferrer">
+                        {invoice.pdf_url ? "Download PDF" : "View invoice"}
+                      </a>
+                    ) : (
+                      <button type="button" className="bl-quiet" onClick={() => downloadReceipt(invoice, workspaceName)}>
+                        Download receipt
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

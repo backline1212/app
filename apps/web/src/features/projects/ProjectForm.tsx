@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Dialog } from "../../components/Dialog";
 import { invalidateProjectMutation, qk } from "../../lib/query-keys";
 import { uploadAsset } from "../assets/api";
+import { planLimitUpgrade } from "../billing/api";
 import { createClient, listClients } from "../clients/api";
 import { listShareLinks } from "../share-links/api";
 import type { WorkspaceOut } from "../workspaces/api";
@@ -173,6 +174,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
       else setPhase("complete");
     },
   });
+  const upgradePlan = planLimitUpgrade(save.error);
 
   if (phase === "complete" && created) {
     return (
@@ -261,23 +263,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
 
         </fieldset>
         {phase === "saving" && <p role="status">{files.length ? `${uploaded.length} of ${files.length} files uploaded. Processing remaining files…` : "Saving project…"}</p>}
-        {save.error && (
-          <div style={{ marginTop: "12px" }}>
-            <p role="alert" className="bl-error">{save.error.message}{created && " The project was saved. Retry to finish the remaining uploads, or open it from Projects."}</p>
-            {save.error.message.toLowerCase().includes("limit") && (
-              <div style={{ marginTop: "8px" }}>
-                <Link
-                  to={`/w/${workspace.slug}/billing?upgrade=solo`}
-                  className="bl-button mint"
-                  style={{ display: "inline-flex" }}
-                  onClick={onClose}
-                >
-                  ⭐ Upgrade Plan to Add More Projects
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
+        {save.error && <p role="alert" className="bl-error">{save.error.message}{created && " The project was saved. Retry to finish the remaining uploads, or open it from Projects."}{upgradePlan && <> <Link to={`/w/${workspace.slug}/billing?upgrade=${upgradePlan}`} onClick={onClose}>See plans</Link></>}</p>}
         <footer className="bl-dialog-actions bl-dialog-actions-in-form"><button type="button" className="bl-quiet" disabled={save.isPending || Boolean(created)} onClick={project ? close : () => setPhase("type")}>{project ? "Cancel" : "Back"}</button><button className="bl-button mint" disabled={save.isPending || !canSubmit}>{save.isPending ? (uploaded.length ? `Uploading ${uploaded.length + 1} of ${files.length}…` : "Saving…") : project ? "Save changes" : created ? "Finish uploads" : "Create project"}</button></footer>
       </form>
     </Dialog>

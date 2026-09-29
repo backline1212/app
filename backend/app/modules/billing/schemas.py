@@ -1,34 +1,42 @@
-"""Pydantic schemas for billing, plans, checkout and subscriptions."""
+"""Pydantic contracts for plans, checkout, subscriptions and invoices."""
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
-BillingInterval = Literal["monthly", "annual"]
-BillingCurrency = Literal["usd", "inr"]
-BillingProvider = Literal["stripe", "razorpay", "sandbox", "free"]
-SubscriptionStatus = Literal["active", "trialing", "past_due", "canceled", "incomplete"]
+from app.modules.billing.plans import BillingCurrency, BillingInterval, PaidPlanId, PlanId
+
+# The gateway a member picks in the checkout dialog.
+CheckoutProvider = Literal["stripe", "razorpay"]
+# What actually processed a payment: the picked gateway, or the test sandbox when that
+# gateway has no keys on this server and the sandbox is allowed (docs/tdr/0051).
+PaymentProvider = Literal["stripe", "razorpay", "sandbox"]
+# "expired": a paid period ended without a renewal, so the workspace is on Free now.
+SubscriptionStatus = Literal["active", "expired"]
+
+
+class PlanFeatureOut(BaseModel):
+    label: str
+    coming_soon: bool = False
 
 
 class PlanTierOut(BaseModel):
-    id: str
+    id: PlanId
     name: str
     badge: str
     description: str
-    popular: bool = False
+    popular: bool
     price_monthly_usd: int
     price_annual_usd: int
     price_monthly_inr: int
     price_annual_inr: int
-    project_limit: int
-    member_limit: int
-    guest_limit_label: str
+    # None means unlimited.
+    project_limit: int | None
+    member_limit: int | None
     ai_credits_monthly: int
     storage_gb: int
-    integrations_allowed: list[str]
-    features: list[str]
-    highlights: list[str]
+    features: list[PlanFeatureOut]
 
 
 class ComparisonRowOut(BaseModel):
@@ -44,115 +52,104 @@ class ComparisonCategoryOut(BaseModel):
     rows: list[ComparisonRowOut]
 
 
+class PaymentOptionsOut(BaseModel):
+    """Which checkout choices work on this server. A gateway without keys is still
+    offered while the sandbox is allowed; it then completes as a test payment."""
+
+    stripe_live: bool
+    razorpay_live: bool
+    sandbox: bool
+
+
 class PlansResponseOut(BaseModel):
     plans: list[PlanTierOut]
     categories: list[ComparisonCategoryOut]
-    current_plan_id: str
-    sandbox_enabled: bool = True
-    stripe_configured: bool = False
-    razorpay_configured: bool = False
+    payment_options: PaymentOptionsOut
 
 
 class UsageMetricsOut(BaseModel):
     projects_used: int
-    projects_limit: int
+    projects_limit: int | None
     members_used: int
-    members_limit: int
+    members_limit: int | None
     ai_credits_used: int
     ai_credits_limit: int
-    storage_gb_used: float = 0.0
-    storage_gb_limit: int = 1
+    # AI credits are counted per calendar month (UTC) and reset at this instant.
+    ai_credits_reset_at: datetime
+    storage_gb_limit: int
 
 
 class SubscriptionOut(BaseModel):
     workspace_id: str
-    plan_id: str
+    plan_id: PlanId
     plan_name: str
-    status: SubscriptionStatus = "active"
-    interval: BillingInterval = "monthly"
-    currency: BillingCurrency = "usd"
-    amount: float = 0.0
-    provider: str = "free"
+    status: SubscriptionStatus
+    interval: BillingInterval | None = None
+    currency: BillingCurrency | None = None
+    # Price of one period of the current plan, in whole currency units.
+    amount: int = 0
+    provider: PaymentProvider | None = None
     current_period_start: datetime | None = None
     current_period_end: datetime | None = None
-    cancel_at_period_end: bool = False
+    # Set when a paid period ran out without a renewal; the workspace is on Free now.
+    expired_plan_id: PaidPlanId | None = None
+    expired_plan_name: str | None = None
     usage: UsageMetricsOut
-    payment_method_summary: str | None = None
-    is_owner: bool = True
+    is_owner: bool
+    stripe_portal_available: bool = False
 
 
 class CheckoutRequest(BaseModel):
-    plan_id: Literal["solo", "team", "enterprise"]
+    plan_id: PaidPlanId
     interval: BillingInterval = "monthly"
     currency: BillingCurrency = "usd"
-    provider: Literal["stripe", "razorpay", "sandbox"] = "stripe"
-    success_url: str | None = None
-    cancel_url: str | None = None
+    provider: CheckoutProvider = "stripe"
 
 
 class CheckoutResponse(BaseModel):
-    provider: str
+    checkout_id: str
+    provider: PaymentProvider
+    plan_id: PaidPlanId
+    plan_name: str
+    interval: BillingInterval
+    currency: BillingCurrency
+    # Whole currency units, and the gateway's smallest unit (cents/paise).
+    amount: int
+    amount_minor: int
+    # Stripe: hosted checkout page to redirect to.
     checkout_url: str | None = None
-    session_id: str | None = None
-    order_id: str | None = None
-    key_id: str | None = None
-    amount: float
-    currency: str
-    plan_id: str
-    interval: str
-    sandbox_mode: bool = False
-    simulated_token: str | None = None
+    # Razorpay: what Razorpay Checkout needs to open its payment sheet.
+    razorpay_order_id: str | None = None
+    razorpay_key_id: str | None = None
 
 
 class VerifyPaymentRequest(BaseModel):
-    plan_id: Literal["solo", "team", "enterprise"]
-    interval: BillingInterval = "monthly"
-    currency: BillingCurrency = "usd"
-    provider: Literal["stripe", "razorpay", "sandbox"] = "sandbox"
-    # Razorpay fields
-    razorpay_payment_id: str | None = None
-    razorpay_order_id: str | None = None
-    razorpay_signature: str | None = None
-    # Stripe fields
-    stripe_session_id: str | None = None
-    # Sandbox / simulated fields
-    simulated: bool = False
-    payment_method: str = "card"  # card, upi, netbanking
+    checkout_id: str = Field(min_length=1, max_length=64)
+    # Razorpay Checkout's success handler returns these two.
+    razorpay_payment_id: str | None = Field(default=None, max_length=128)
+    razorpay_signature: str | None = Field(default=None, max_length=256)
 
 
 class InvoiceOut(BaseModel):
     id: str
-    workspace_id: str
     invoice_number: str
     amount_paid: float
-    currency: str
-    status: str
-    provider: str
+    currency: BillingCurrency
+    status: Literal["paid"]
+    provider: PaymentProvider
+    provider_payment_id: str | None = None
     plan_name: str
-    interval: str
+    interval: BillingInterval
     period_start: datetime
     period_end: datetime
     paid_at: datetime
+    # Stripe-hosted invoice pages; None for Razorpay and test payments.
     pdf_url: str | None = None
     hosted_invoice_url: str | None = None
 
 
-class BillingEventOut(BaseModel):
-    id: str
-    workspace_id: str
-    event_type: str
-    provider: str
-    amount: float
-    currency: str
-    plan_id: str
-    interval: str
-    metadata: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime
-
-
 class CancelSubscriptionRequest(BaseModel):
-    reason: str | None = None
-    feedback: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
 
 
 class PortalResponse(BaseModel):

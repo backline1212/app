@@ -6,6 +6,7 @@ import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
+import { planLimitUpgrade, type PaidPlanId } from "../billing/api";
 import * as projectsApi from "../projects/api";
 import * as workspacesApi from "./api";
 import type { WorkspaceOut } from "./api";
@@ -33,17 +34,20 @@ function AddMemberModal({ workspaceSlug, onInvite, onClose }: AddMemberModalProp
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "member">("member");
   const [error, setError] = useState<string | null>(null);
+  const [upgradePlan, setUpgradePlan] = useState<PaidPlanId | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    setUpgradePlan(null);
     setIsSubmitting(true);
     try {
       await onInvite(email, role);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send invite.");
+      setUpgradePlan(planLimitUpgrade(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -77,20 +81,9 @@ function AddMemberModal({ workspaceSlug, onInvite, onClose }: AddMemberModalProp
           </select>
         </label>
         {error && (
-          <div>
-            <div className="bl-error">{error}</div>
-            {error.toLowerCase().includes("limit") && (
-              <div style={{ marginTop: "8px" }}>
-                <Link
-                  to={`/w/${workspaceSlug}/billing?upgrade=solo`}
-                  className="bl-button mint"
-                  style={{ display: "inline-flex" }}
-                  onClick={onClose}
-                >
-                  ⭐ Upgrade Plan to Add More Members
-                </Link>
-              </div>
-            )}
+          <div className="bl-error">
+            {error}
+            {upgradePlan && <> <Link to={`/w/${workspaceSlug}/billing?upgrade=${upgradePlan}`} onClick={onClose}>See plans</Link></>}
           </div>
         )}
         <footer className="bl-form-actions">

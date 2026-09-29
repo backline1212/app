@@ -1,122 +1,93 @@
-"""Plan limits and quota validation logic."""
+"""Server-side plan limits: active projects, team seats and monthly AI credits."""
 
+from datetime import UTC, datetime
 from typing import Any, Literal
 
-from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import NotFoundError, PlanLimitExceededError
-from app.modules.billing.plans import get_plan_definition
+from app.modules.billing.plans import effective_plan_id, get_plan_definition
+from app.modules.billing.repository import BillingRepository
 
-ResourceType = Literal["projects", "members", "ai_actions", "integrations"]
+LimitedResource = Literal["projects", "members", "ai_credits"]
+
+# Which plan an upgrade prompt points at from each tier.
+_NEXT_PLAN = {"free": "solo", "solo": "team", "team": "enterprise", "enterprise": "enterprise"}
 
 
-async def get_workspace_limits_and_usage(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str
-) -> tuple[dict[str, Any], dict[str, int]]:
-    try:
-        ws_oid = ObjectId(workspace_id)
-        ws_doc = await db.workspaces.find_one({"_id": ws_oid})
-    except Exception:
-        ws_doc = await db.workspaces.find_one({"_id": workspace_id})
-
-    if ws_doc is None:
-        raise NotFoundError("Workspace not found.")
-
-    plan_id = ws_doc.get("plan", "free")
-    default_plan = get_plan_definition(plan_id)
-
-    # Use denormalized snapshot if present, otherwise default plan definition
-    limits = ws_doc.get("plan_limits_json") or {
-        "plan_id": default_plan["id"],
-        "plan_name": default_plan["name"],
-        "project_limit": default_plan["project_limit"],
-        "member_limit": default_plan["member_limit"],
-        "ai_credits_monthly": default_plan["ai_credits_monthly"],
-        "storage_gb": default_plan["storage_gb"],
-        "integrations_allowed": default_plan["integrations_allowed"],
-    }
-
-    # Count actual usage
-    projects_count = await db.projects.count_documents(
-        {"workspace_id": workspace_id, "archived_at": None}
+def ai_credit_window(now: datetime | None = None) -> tuple[datetime, datetime]:
+    """AI credits reset on the first of each calendar month, UTC."""
+    now = now or datetime.now(UTC)
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    end = (
+        start.replace(year=start.year + 1, month=1)
+        if start.month == 12
+        else start.replace(month=start.month + 1)
     )
-    members_count = await db.memberships.count_documents({"workspace_id": workspace_id})
-    ai_actions_count = await db.billing_events.count_documents(
-        {"workspace_id": workspace_id, "event_type": "ai_action_used"}
-    )
+    return start, end
 
-    usage = {
-        "projects": projects_count,
-        "members": members_count,
-        "ai_actions": ai_actions_count,
-    }
 
-    return limits, usage
+async def count_usage(
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, resource: LimitedResource
+) -> int:
+    repo = BillingRepository(db)
+    if resource == "projects":
+        return await repo.count_active_projects(workspace_id)
+    if resource == "members":
+        return await repo.count_members(workspace_id)
+    return await repo.count_ai_credits_since(workspace_id, ai_credit_window()[0])
+
+
+def plan_limit(plan: dict[str, Any], resource: LimitedResource) -> int | None:
+    key = {
+        "projects": "project_limit",
+        "members": "member_limit",
+        "ai_credits": "ai_credits_monthly",
+    }[resource]
+    limit: int | None = plan[key]
+    return limit
+
+
+_LIMIT_MESSAGES = {
+    "projects": "{plan} includes {limit} active projects. Upgrade to add more, or archive one.",
+    "members": "{plan} includes {limit} team members. Upgrade to invite more teammates.",
+    "ai_credits": "{plan} includes {limit} AI credits a month, and they're used up. "
+    "Upgrade for more, or wait for the reset on the 1st.",
+}
 
 
 async def require_within_plan_limit(
-    db: AsyncIOMotorDatabase[dict[str, Any]],
-    workspace_id: str,
-    resource: ResourceType,
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, resource: LimitedResource
 ) -> None:
-    limits, usage = await get_workspace_limits_and_usage(db, workspace_id)
-    plan_name = limits.get("plan_name", "Free")
-    plan_id = limits.get("plan_id", "free")
+    """Raises 402 PLAN_LIMIT_EXCEEDED when adding one more `resource` would exceed the
+    workspace's current plan. The count and the insert that follows are not atomic, so
+    two simultaneous creates at the boundary can both pass - an accepted overshoot of
+    one, not worth a transaction on every project/member/AI call."""
+    workspace = await BillingRepository(db).find_workspace(workspace_id)
+    if workspace is None:
+        raise NotFoundError("Workspace not found.")
+    plan = get_plan_definition(effective_plan_id(workspace))
+    limit = plan_limit(plan, resource)
+    if limit is None:
+        return
+    current = await count_usage(db, workspace_id, resource)
+    if current < limit:
+        return
+    raise PlanLimitExceededError(
+        _LIMIT_MESSAGES[resource].format(plan=plan["name"], limit=f"{limit:,}"),
+        details={
+            "resource": resource,
+            "current": current,
+            "limit": limit,
+            "plan_id": plan["id"],
+            "upgrade_plan_id": _NEXT_PLAN[plan["id"]],
+        },
+    )
 
-    if resource == "projects":
-        max_projects = limits.get("project_limit", 1)
-        current = usage["projects"]
-        if max_projects < 999 and current >= max_projects:
-            msg = (
-                f"You have reached your limit of {max_projects} active project(s) "
-                f"on the {plan_name} plan. Upgrade to add more projects."
-            )
-            raise PlanLimitExceededError(
-                msg,
-                details={
-                    "resource": "projects",
-                    "current": current,
-                    "limit": max_projects,
-                    "plan_id": plan_id,
-                    "plan_name": plan_name,
-                    "upgrade_recommended": "solo" if plan_id == "free" else "team",
-                },
-            )
 
-    elif resource == "members":
-        max_members = limits.get("member_limit", 2)
-        current = usage["members"]
-        if max_members < 999 and current >= max_members:
-            msg = (
-                f"You have reached your limit of {max_members} team member(s) "
-                f"on the {plan_name} plan. Upgrade to invite additional teammates."
-            )
-            raise PlanLimitExceededError(
-                msg,
-                details={
-                    "resource": "members",
-                    "current": current,
-                    "limit": max_members,
-                    "plan_id": plan_id,
-                    "plan_name": plan_name,
-                    "upgrade_recommended": "solo" if plan_id == "free" else "team",
-                },
-            )
-
-    elif resource == "ai_actions":
-        max_ai = limits.get("ai_credits_monthly", 25)
-        current = usage["ai_actions"]
-        if max_ai < 9999 and current >= max_ai:
-            raise PlanLimitExceededError(
-                f"You have used all {max_ai} monthly AI credits on your {plan_name} plan. "
-                "Upgrade for higher AI quota.",
-                details={
-                    "resource": "ai_actions",
-                    "current": current,
-                    "limit": max_ai,
-                    "plan_id": plan_id,
-                    "plan_name": plan_name,
-                    "upgrade_recommended": "team",
-                },
-            )
+async def record_ai_credit(
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, *, action: str
+) -> None:
+    """One credit per completed AI call. Placeholder answers given while AI is not
+    configured never reach this, so they cost nothing."""
+    await BillingRepository(db).record_ai_credit(workspace_id, action=action)

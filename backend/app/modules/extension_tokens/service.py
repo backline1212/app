@@ -6,6 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.errors import NotFoundError
 from app.core.events import append_event
 from app.core.security import generate_opaque_token, hash_secret
+from app.modules.billing.plans import effective_plan_id
 from app.modules.extension_tokens.repository import ExtensionTokenRepository
 from app.modules.extension_tokens.schemas import (
     ExtensionTokenIssued,
@@ -81,7 +82,7 @@ async def whoami(
             id=str(workspace["_id"]),
             name=workspace["name"],
             slug=workspace["slug"],
-            plan=workspace["plan"],
+            plan=effective_plan_id(workspace),
             created_at=workspace["created_at"],
             role=role,
         ),

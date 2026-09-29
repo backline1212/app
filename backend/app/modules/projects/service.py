@@ -248,7 +248,11 @@ async def restore_project(
     workspace_id: str,
     actor_user_id: str,
 ) -> ProjectOut:
-    await get_project(db, project_id=project_id, workspace_id=workspace_id)
+    project = await get_project(db, project_id=project_id, workspace_id=workspace_id)
+    if project.archived_at is not None:
+        # Restoring makes the project active again, so it counts against the plan the
+        # same as creating one - otherwise archive, create, restore walks past the limit.
+        await require_within_plan_limit(db, workspace_id, "projects")
     await ProjectRepository(db).update_metadata(workspace_id, project_id, {"archived_at": None})
     await append_event(
         db,

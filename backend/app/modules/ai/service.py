@@ -23,6 +23,7 @@ from app.modules.ai.schemas import (
     SuggestReplyResult,
     SummarizeResult,
 )
+from app.modules.billing.limits import record_ai_credit, require_within_plan_limit
 from app.modules.comments.repository import CommentRepository
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.repository import ProjectRepository
@@ -162,8 +163,10 @@ async def summarize_thread(
             "The thread context is ready."
         )
 
+    await require_within_plan_limit(db, workspace_id, "ai_credits")
     prompt = f"Summarize the following feedback thread in one concise paragraph:\n\n{context}"
     text = await _complete(prompt)
+    await record_ai_credit(db, workspace_id, action="summarize")
     return SummarizeResult(summary=text.strip() or "Could not generate summary.")
 
 
@@ -178,11 +181,13 @@ async def suggest_reply(
             suggestions=["[AI] I agree.", "[AI] Can you clarify?", "[AI] Will fix."]
         )
 
+    await require_within_plan_limit(db, workspace_id, "ai_credits")
     prompt = (
         "Given the following feedback thread, suggest 3 short, helpful replies the "
         f"team could send. Format each reply on a new line starting with '- ':\n\n{context}"
     )
     text = await _complete(prompt)
+    await record_ai_credit(db, workspace_id, action="suggest_reply")
 
     suggestions = [
         line.strip("- *").strip() for line in text.split("\n") if line.strip().startswith("-")
@@ -229,6 +234,7 @@ async def analyze_project(
     if not candidates:
         return ProjectAnalysisResult(summary="No open issues to analyze.", analyzed_comment_count=0)
 
+    await require_within_plan_limit(db, workspace_id, "ai_credits")
     by_id = {str(doc["_id"]): doc for doc in candidates}
     lines = [
         f'id={cid} ticket=#{doc.get("ticket_number")} '
@@ -248,6 +254,7 @@ async def analyze_project(
     )
 
     text = await _complete(prompt, json_mode=True)
+    await record_ai_credit(db, workspace_id, action="analyze_project")
 
     # A malformed or unexpectedly-shaped model response (not JSON, a JSON array/scalar
     # instead of an object, a `findings`/`possible_duplicates` entry that isn't an

@@ -1635,40 +1635,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/billing/webhooks/stripe": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Stripe Webhook */
-        post: operations["stripe_webhook_api_v1_billing_webhooks_stripe_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/billing/webhooks/razorpay": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Razorpay Webhook */
-        post: operations["razorpay_webhook_api_v1_billing_webhooks_razorpay_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -2044,8 +2010,6 @@ export interface components {
         CancelSubscriptionRequest: {
             /** Reason */
             reason?: string | null;
-            /** Feedback */
-            feedback?: string | null;
         };
         /** CheckoutRequest */
         CheckoutRequest: {
@@ -2071,39 +2035,44 @@ export interface components {
              * @default stripe
              * @enum {string}
              */
-            provider: "stripe" | "razorpay" | "sandbox";
-            /** Success Url */
-            success_url?: string | null;
-            /** Cancel Url */
-            cancel_url?: string | null;
+            provider: "stripe" | "razorpay";
         };
         /** CheckoutResponse */
         CheckoutResponse: {
-            /** Provider */
-            provider: string;
-            /** Checkout Url */
-            checkout_url?: string | null;
-            /** Session Id */
-            session_id?: string | null;
-            /** Order Id */
-            order_id?: string | null;
-            /** Key Id */
-            key_id?: string | null;
+            /** Checkout Id */
+            checkout_id: string;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "stripe" | "razorpay" | "sandbox";
+            /**
+             * Plan Id
+             * @enum {string}
+             */
+            plan_id: "solo" | "team" | "enterprise";
+            /** Plan Name */
+            plan_name: string;
+            /**
+             * Interval
+             * @enum {string}
+             */
+            interval: "monthly" | "annual";
+            /**
+             * Currency
+             * @enum {string}
+             */
+            currency: "usd" | "inr";
             /** Amount */
             amount: number;
-            /** Currency */
-            currency: string;
-            /** Plan Id */
-            plan_id: string;
-            /** Interval */
-            interval: string;
-            /**
-             * Sandbox Mode
-             * @default false
-             */
-            sandbox_mode: boolean;
-            /** Simulated Token */
-            simulated_token?: string | null;
+            /** Amount Minor */
+            amount_minor: number;
+            /** Checkout Url */
+            checkout_url?: string | null;
+            /** Razorpay Order Id */
+            razorpay_order_id?: string | null;
+            /** Razorpay Key Id */
+            razorpay_key_id?: string | null;
         };
         /**
          * ClickOffsetPct
@@ -2865,22 +2834,35 @@ export interface components {
         InvoiceOut: {
             /** Id */
             id: string;
-            /** Workspace Id */
-            workspace_id: string;
             /** Invoice Number */
             invoice_number: string;
             /** Amount Paid */
             amount_paid: number;
-            /** Currency */
-            currency: string;
-            /** Status */
-            status: string;
-            /** Provider */
-            provider: string;
+            /**
+             * Currency
+             * @enum {string}
+             */
+            currency: "usd" | "inr";
+            /**
+             * Status
+             * @constant
+             * @enum {string}
+             */
+            status: "paid";
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "stripe" | "razorpay" | "sandbox";
+            /** Provider Payment Id */
+            provider_payment_id?: string | null;
             /** Plan Name */
             plan_name: string;
-            /** Interval */
-            interval: string;
+            /**
+             * Interval
+             * @enum {string}
+             */
+            interval: "monthly" | "annual";
             /**
              * Period Start
              * Format: date-time
@@ -3174,20 +3156,43 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * PaymentOptionsOut
+         * @description Which checkout choices work on this server. A gateway without keys is still
+         *     offered while the sandbox is allowed; it then completes as a test payment.
+         */
+        PaymentOptionsOut: {
+            /** Stripe Live */
+            stripe_live: boolean;
+            /** Razorpay Live */
+            razorpay_live: boolean;
+            /** Sandbox */
+            sandbox: boolean;
+        };
+        /** PlanFeatureOut */
+        PlanFeatureOut: {
+            /** Label */
+            label: string;
+            /**
+             * Coming Soon
+             * @default false
+             */
+            coming_soon: boolean;
+        };
         /** PlanTierOut */
         PlanTierOut: {
-            /** Id */
-            id: string;
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "free" | "solo" | "team" | "enterprise";
             /** Name */
             name: string;
             /** Badge */
             badge: string;
             /** Description */
             description: string;
-            /**
-             * Popular
-             * @default false
-             */
+            /** Popular */
             popular: boolean;
             /** Price Monthly Usd */
             price_monthly_usd: number;
@@ -3198,21 +3203,15 @@ export interface components {
             /** Price Annual Inr */
             price_annual_inr: number;
             /** Project Limit */
-            project_limit: number;
+            project_limit: number | null;
             /** Member Limit */
-            member_limit: number;
-            /** Guest Limit Label */
-            guest_limit_label: string;
+            member_limit: number | null;
             /** Ai Credits Monthly */
             ai_credits_monthly: number;
             /** Storage Gb */
             storage_gb: number;
-            /** Integrations Allowed */
-            integrations_allowed: string[];
             /** Features */
-            features: string[];
-            /** Highlights */
-            highlights: string[];
+            features: components["schemas"]["PlanFeatureOut"][];
         };
         /** PlansResponseOut */
         PlansResponseOut: {
@@ -3220,23 +3219,7 @@ export interface components {
             plans: components["schemas"]["PlanTierOut"][];
             /** Categories */
             categories: components["schemas"]["ComparisonCategoryOut"][];
-            /** Current Plan Id */
-            current_plan_id: string;
-            /**
-             * Sandbox Enabled
-             * @default true
-             */
-            sandbox_enabled: boolean;
-            /**
-             * Stripe Configured
-             * @default false
-             */
-            stripe_configured: boolean;
-            /**
-             * Razorpay Configured
-             * @default false
-             */
-            razorpay_configured: boolean;
+            payment_options: components["schemas"]["PaymentOptionsOut"];
         };
         /** PortalResponse */
         PortalResponse: {
@@ -3964,55 +3947,45 @@ export interface components {
         SubscriptionOut: {
             /** Workspace Id */
             workspace_id: string;
-            /** Plan Id */
-            plan_id: string;
+            /**
+             * Plan Id
+             * @enum {string}
+             */
+            plan_id: "free" | "solo" | "team" | "enterprise";
             /** Plan Name */
             plan_name: string;
             /**
              * Status
-             * @default active
              * @enum {string}
              */
-            status: "active" | "trialing" | "past_due" | "canceled" | "incomplete";
-            /**
-             * Interval
-             * @default monthly
-             * @enum {string}
-             */
-            interval: "monthly" | "annual";
-            /**
-             * Currency
-             * @default usd
-             * @enum {string}
-             */
-            currency: "usd" | "inr";
+            status: "active" | "expired";
+            /** Interval */
+            interval?: ("monthly" | "annual") | null;
+            /** Currency */
+            currency?: ("usd" | "inr") | null;
             /**
              * Amount
              * @default 0
              */
             amount: number;
-            /**
-             * Provider
-             * @default free
-             */
-            provider: string;
+            /** Provider */
+            provider?: ("stripe" | "razorpay" | "sandbox") | null;
             /** Current Period Start */
             current_period_start?: string | null;
             /** Current Period End */
             current_period_end?: string | null;
+            /** Expired Plan Id */
+            expired_plan_id?: ("solo" | "team" | "enterprise") | null;
+            /** Expired Plan Name */
+            expired_plan_name?: string | null;
+            usage: components["schemas"]["UsageMetricsOut"];
+            /** Is Owner */
+            is_owner: boolean;
             /**
-             * Cancel At Period End
+             * Stripe Portal Available
              * @default false
              */
-            cancel_at_period_end: boolean;
-            usage: components["schemas"]["UsageMetricsOut"];
-            /** Payment Method Summary */
-            payment_method_summary?: string | null;
-            /**
-             * Is Owner
-             * @default true
-             */
-            is_owner: boolean;
+            stripe_portal_available: boolean;
         };
         /** SuggestReplyResult */
         SuggestReplyResult: {
@@ -4244,24 +4217,21 @@ export interface components {
             /** Projects Used */
             projects_used: number;
             /** Projects Limit */
-            projects_limit: number;
+            projects_limit: number | null;
             /** Members Used */
             members_used: number;
             /** Members Limit */
-            members_limit: number;
+            members_limit: number | null;
             /** Ai Credits Used */
             ai_credits_used: number;
             /** Ai Credits Limit */
             ai_credits_limit: number;
             /**
-             * Storage Gb Used
-             * @default 0
+             * Ai Credits Reset At
+             * Format: date-time
              */
-            storage_gb_used: number;
-            /**
-             * Storage Gb Limit
-             * @default 1
-             */
+            ai_credits_reset_at: string;
+            /** Storage Gb Limit */
             storage_gb_limit: number;
         };
         /** UserOut */
@@ -4337,47 +4307,12 @@ export interface components {
         };
         /** VerifyPaymentRequest */
         VerifyPaymentRequest: {
-            /**
-             * Plan Id
-             * @enum {string}
-             */
-            plan_id: "solo" | "team" | "enterprise";
-            /**
-             * Interval
-             * @default monthly
-             * @enum {string}
-             */
-            interval: "monthly" | "annual";
-            /**
-             * Currency
-             * @default usd
-             * @enum {string}
-             */
-            currency: "usd" | "inr";
-            /**
-             * Provider
-             * @default sandbox
-             * @enum {string}
-             */
-            provider: "stripe" | "razorpay" | "sandbox";
+            /** Checkout Id */
+            checkout_id: string;
             /** Razorpay Payment Id */
             razorpay_payment_id?: string | null;
-            /** Razorpay Order Id */
-            razorpay_order_id?: string | null;
             /** Razorpay Signature */
             razorpay_signature?: string | null;
-            /** Stripe Session Id */
-            stripe_session_id?: string | null;
-            /**
-             * Simulated
-             * @default false
-             */
-            simulated: boolean;
-            /**
-             * Payment Method
-             * @default card
-             */
-            payment_method: string;
         };
         /** ViewportIn */
         ViewportIn: {
@@ -8053,72 +7988,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvoiceOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    stripe_webhook_api_v1_billing_webhooks_stripe_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Stripe-Signature"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    razorpay_webhook_api_v1_billing_webhooks_razorpay_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Razorpay-Signature"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
                 };
             };
             /** @description Validation Error */

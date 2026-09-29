@@ -1,55 +1,44 @@
-"""Billing and Plan Limit Schema Migration Script for MongoDB.
-Ensures all additive indexes and backfills default plan limits on existing workspaces.
+"""Create the billing indexes (docs/tdr/0051).
+
+Run from backend: python -m scripts.migrate_billing_schema [--apply]
+
+Dry-run by default: it reports which BILLING_INDEXES are missing and changes nothing.
+No workspace documents need a backfill - a workspace without billing fields reads as
+Free (billing/plans.py's effective_plan_id), which is what every existing workspace is.
+The API also creates these indexes at startup; this script is for applying them ahead
+of a deploy and for checking a database.
 """
 
+import argparse
 import asyncio
-from datetime import UTC, datetime
+import json
 
-from app.core.config import get_settings
 from app.core.db import close_client, get_db
-from app.core.indexes import ensure_indexes
+from app.core.indexes import BILLING_INDEXES, ensure_additive_indexes
 
 
-async def run_migration() -> None:
-    settings = get_settings()
-    print(f"Connecting to MongoDB at {settings.mongo_uri} (db: {settings.mongo_db_name})...")
+async def run(*, apply: bool) -> dict[str, object]:
     db = get_db()
+    try:
+        missing: list[str] = []
+        for spec in BILLING_INDEXES:
+            existing = await db[spec.collection].index_information()
+            if spec.name not in existing:
+                missing.append(f"{spec.collection}.{spec.name}")
+        if apply and missing:
+            await ensure_additive_indexes(db, BILLING_INDEXES)
+    finally:
+        await close_client()
+    return {"mode": "apply" if apply else "dry-run", "missing_indexes": missing}
 
-    # 1. Ensure all indexes including additive BILLING_INDEXES
-    print("Ensuring database indexes...")
-    await ensure_indexes(db)
-    print("✓ Database indexes up to date.")
 
-    # 2. Backfill workspaces without plan_limits_json or default plan
-    cursor = db.workspaces.find({})
-    updated_count = 0
-    async for ws in cursor:
-        updates: dict[str, object] = {}
-
-        if "plan" not in ws:
-            updates["plan"] = "free"
-
-        if "subscription_status" not in ws:
-            updates["subscription_status"] = "active"
-
-        if "billing_interval" not in ws:
-            updates["billing_interval"] = "monthly"
-
-        if "billing_currency" not in ws:
-            updates["billing_currency"] = "usd"
-
-        if "provider" not in ws:
-            updates["provider"] = "free"
-
-        if updates:
-            updates["updated_at"] = datetime.now(UTC)
-            await db.workspaces.update_one({"_id": ws["_id"]}, {"$set": updates})
-            updated_count += 1
-
-    print(f"✓ Workspaces checked. Backfilled {updated_count} workspace records.")
-    await close_client()
-    print("✓ Billing migration completed successfully.")
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--apply", action="store_true", help="create the missing indexes")
+    args = parser.parse_args()
+    report = asyncio.run(run(apply=args.apply))
+    print(json.dumps(report, indent=2))
 
 
 if __name__ == "__main__":
-    asyncio.run(run_migration())
+    main()

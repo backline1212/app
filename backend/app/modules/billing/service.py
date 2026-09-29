@@ -1,38 +1,50 @@
-"""Billing service layer: Stripe, Razorpay/UPI, sandbox checkout, limits and invoices."""
+"""Billing: plans, prepaid checkout through Stripe, Razorpay/UPI or the test sandbox,
+payment confirmation, signed webhooks, invoices and downgrades (docs/tdr/0051).
 
+Every paid plan is prepaid for one period (30 or 365 days) and lapses to Free when that
+period ends unless it is renewed. A checkout document records what is being bought
+before the customer pays; confirmation - from the browser or a gateway webhook, in
+either order - only ever activates what that document says, exactly once.
+"""
+
+import asyncio
 import hashlib
 import hmac
+import json
+import logging
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import uuid4
 
 import httpx
 from bson import ObjectId
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.errors import (
     AuthenticationError,
     ExternalServiceError,
     NotFoundError,
     ValidationError,
 )
-from app.core.events import append_event
-from app.modules.billing.limits import get_workspace_limits_and_usage
+from app.core.events import ActorType, append_event
+from app.modules.auth.repository import UserRepository
+from app.modules.billing.limits import ai_credit_window, count_usage
 from app.modules.billing.plans import (
     COMPARISON_CATEGORIES,
+    FREE_PLAN_ID,
     PLANS,
+    effective_plan_id,
     get_plan_definition,
-    get_plan_limits_snapshot,
+    plan_price,
 )
 from app.modules.billing.repository import BillingRepository
 from app.modules.billing.schemas import (
     CheckoutRequest,
     CheckoutResponse,
     ComparisonCategoryOut,
-    ComparisonRowOut,
     InvoiceOut,
+    PaymentOptionsOut,
     PlansResponseOut,
     PlanTierOut,
     PortalResponse,
@@ -41,149 +53,125 @@ from app.modules.billing.schemas import (
     VerifyPaymentRequest,
 )
 
+logger = logging.getLogger("backline.billing")
 
-def _compute_price(plan_id: str, interval: str, currency: str) -> float:
-    plan = get_plan_definition(plan_id)
-    if currency == "inr":
-        if interval == "annual":
-            return float(plan["price_annual_inr"] * 12)
-        return float(plan["price_monthly_inr"])
-    else:
-        if interval == "annual":
-            return float(plan["price_annual_usd"] * 12)
-        return float(plan["price_monthly_usd"])
+STRIPE_API = "https://api.stripe.com/v1"
+RAZORPAY_API = "https://api.razorpay.com/v1"
+# Stripe's own recommended replay window for signed webhook timestamps.
+STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300
+PERIOD_LENGTH = {"monthly": timedelta(days=30), "annual": timedelta(days=365)}
+PLAN_CHANGED = "workspace.plan_changed"
+
+_GATEWAY_TIMEOUT = httpx.Timeout(15.0)
+_PROVIDER_LABEL = {"stripe": "Stripe", "razorpay": "Razorpay"}
+_PAYMENT_PROVIDERS = frozenset({"stripe", "razorpay", "sandbox"})
 
 
-async def get_available_plans(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str
-) -> PlansResponseOut:
+# -- configuration --------------------------------------------------------------------
+
+
+def sandbox_allowed(settings: Settings) -> bool:
+    """A sandbox payment activates a paid plan without taking money, so it is refused
+    in production no matter what BILLING_SANDBOX_ENABLED says."""
+    return settings.billing_sandbox_enabled and settings.environment != "production"
+
+
+def stripe_live(settings: Settings) -> bool:
+    return bool(settings.stripe_secret_key)
+
+
+def razorpay_live(settings: Settings) -> bool:
+    return bool(settings.razorpay_key_id and settings.razorpay_key_secret)
+
+
+def _stripe_key_mode(settings: Settings) -> str:
+    return "live" if "_live_" in settings.stripe_secret_key else "test"
+
+
+def _stripe_customer(settings: Settings, workspace: dict[str, Any]) -> str | None:
+    """The workspace's Stripe customer, if it is usable with the configured key.
+    Customers made with test keys don't exist for live keys (and vice versa), so one
+    stored under the other key mode is ignored rather than failing the checkout."""
+    customer_id = workspace.get("stripe_customer_id")
+    if not stripe_live(settings) or not customer_id:
+        return None
+    if workspace.get("stripe_customer_mode") != _stripe_key_mode(settings):
+        return None
+    return str(customer_id)
+
+
+# -- plans and subscription ----------------------------------------------------------
+
+
+def get_available_plans() -> PlansResponseOut:
     settings = get_settings()
-    try:
-        ws_doc = await db.workspaces.find_one({"_id": ObjectId(workspace_id)})
-    except Exception:
-        ws_doc = await db.workspaces.find_one({"_id": workspace_id})
-
-    current_plan = (ws_doc.get("plan", "free") if ws_doc else "free").lower()
-
-    plans_list: list[PlanTierOut] = []
-    for p in PLANS.values():
-        plans_list.append(
-            PlanTierOut(
-                id=p["id"],
-                name=p["name"],
-                badge=p["badge"],
-                description=p["description"],
-                popular=p["popular"],
-                price_monthly_usd=p["price_monthly_usd"],
-                price_annual_usd=p["price_annual_usd"],
-                price_monthly_inr=p["price_monthly_inr"],
-                price_annual_inr=p["price_annual_inr"],
-                project_limit=p["project_limit"],
-                member_limit=p["member_limit"],
-                guest_limit_label=p["guest_limit_label"],
-                ai_credits_monthly=p["ai_credits_monthly"],
-                storage_gb=p["storage_gb"],
-                integrations_allowed=p["integrations_allowed"],
-                features=p["features"],
-                highlights=p["highlights"],
-            )
-        )
-
-    categories_list: list[ComparisonCategoryOut] = []
-    for cat in COMPARISON_CATEGORIES:
-        cat_name = str(cat.get("category", ""))
-        raw_rows = cat.get("rows", [])
-        if isinstance(raw_rows, list):
-            rows = [
-                ComparisonRowOut(
-                    name=str(r.get("name", "")),
-                    free=str(r.get("free", "")),
-                    solo=str(r.get("solo", "")),
-                    team=str(r.get("team", "")),
-                    enterprise=str(r.get("enterprise", "")),
-                )
-                for r in raw_rows
-                if isinstance(r, dict)
-            ]
-            categories_list.append(ComparisonCategoryOut(category=cat_name, rows=rows))
-
     return PlansResponseOut(
-        plans=plans_list,
-        categories=categories_list,
-        current_plan_id=current_plan,
-        sandbox_enabled=settings.billing_sandbox_enabled,
-        stripe_configured=bool(settings.stripe_secret_key),
-        razorpay_configured=bool(settings.razorpay_key_id and settings.razorpay_key_secret),
+        plans=[PlanTierOut.model_validate(plan) for plan in PLANS.values()],
+        categories=[ComparisonCategoryOut.model_validate(c) for c in COMPARISON_CATEGORIES],
+        payment_options=PaymentOptionsOut(
+            stripe_live=stripe_live(settings),
+            razorpay_live=razorpay_live(settings),
+            sandbox=sandbox_allowed(settings),
+        ),
     )
 
 
 async def get_workspace_subscription(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, requesting_user_id: str
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, *, is_owner: bool
 ) -> SubscriptionOut:
-    try:
-        ws_doc = await db.workspaces.find_one({"_id": ObjectId(workspace_id)})
-    except Exception:
-        ws_doc = await db.workspaces.find_one({"_id": workspace_id})
-
-    if ws_doc is None:
+    settings = get_settings()
+    workspace = await BillingRepository(db).find_workspace(workspace_id)
+    if workspace is None:
         raise NotFoundError("Workspace not found.")
 
-    membership = await db.memberships.find_one(
-        {"workspace_id": workspace_id, "user_id": requesting_user_id}
+    now = datetime.now(UTC)
+    plan_id = effective_plan_id(workspace, now)
+    plan = get_plan_definition(plan_id)
+    stored_plan_id = str(workspace.get("plan") or FREE_PLAN_ID)
+    expired = plan_id == FREE_PLAN_ID and stored_plan_id != FREE_PLAN_ID and stored_plan_id in PLANS
+    paid = plan_id != FREE_PLAN_ID
+
+    projects, members, ai_credits = await asyncio.gather(
+        count_usage(db, workspace_id, "projects"),
+        count_usage(db, workspace_id, "members"),
+        count_usage(db, workspace_id, "ai_credits"),
     )
-    is_owner = membership is not None and membership.get("role") == "owner"
-
-    plan_id = ws_doc.get("plan", "free").lower()
-    plan_def = get_plan_definition(plan_id)
-    limits, usage = await get_workspace_limits_and_usage(db, workspace_id)
-
-    status = ws_doc.get("subscription_status", "active")
-    interval = ws_doc.get("billing_interval", "monthly")
-    currency = ws_doc.get("billing_currency", "usd")
-    provider = ws_doc.get("provider", "free")
-    cancel_at_period_end = ws_doc.get("cancel_at_period_end", False)
-    current_period_start = ws_doc.get("current_period_start")
-    current_period_end = ws_doc.get("current_period_end")
-
-    amount = _compute_price(plan_id, interval, currency)
-
-    payment_method = None
-    if provider == "stripe":
-        payment_method = "Stripe Card (•••• 4242)"
-    elif provider == "razorpay":
-        payment_method = "Razorpay / UPI (user@upi)"
-    elif provider == "sandbox":
-        payment_method = "Test Sandbox Simulated Card"
-    elif plan_id == "free":
-        payment_method = "Free Workspace"
-
-    usage_metrics = UsageMetricsOut(
-        projects_used=usage["projects"],
-        projects_limit=limits.get("project_limit", plan_def["project_limit"]),
-        members_used=usage["members"],
-        members_limit=limits.get("member_limit", plan_def["member_limit"]),
-        ai_credits_used=usage["ai_actions"],
-        ai_credits_limit=limits.get("ai_credits_monthly", plan_def["ai_credits_monthly"]),
-        storage_gb_used=0.1,
-        storage_gb_limit=limits.get("storage_gb", plan_def["storage_gb"]),
+    usage = UsageMetricsOut(
+        projects_used=projects,
+        projects_limit=plan["project_limit"],
+        members_used=members,
+        members_limit=plan["member_limit"],
+        ai_credits_used=ai_credits,
+        ai_credits_limit=plan["ai_credits_monthly"],
+        ai_credits_reset_at=ai_credit_window(now)[1],
+        storage_gb_limit=plan["storage_gb"],
     )
 
+    interval = workspace.get("billing_interval")
+    currency = workspace.get("billing_currency")
+    provider = workspace.get("billing_provider")
+    if not (paid and interval in PERIOD_LENGTH and currency in ("usd", "inr")):
+        interval = currency = None
     return SubscriptionOut(
         workspace_id=workspace_id,
-        plan_id=plan_id,
-        plan_name=plan_def["name"],
-        status=status,
+        plan_id=plan_id,  # type: ignore[arg-type]
+        plan_name=plan["name"],
+        status="expired" if expired else "active",
         interval=interval,
         currency=currency,
-        amount=amount,
-        provider=provider,
-        current_period_start=current_period_start,
-        current_period_end=current_period_end,
-        cancel_at_period_end=cancel_at_period_end,
-        usage=usage_metrics,
-        payment_method_summary=payment_method,
+        amount=plan_price(plan_id, interval, currency) if interval and currency else 0,
+        provider=provider if paid and provider in _PAYMENT_PROVIDERS else None,
+        current_period_start=workspace.get("current_period_start") if paid else None,
+        current_period_end=workspace.get("current_period_end") if paid or expired else None,
+        expired_plan_id=stored_plan_id if expired else None,  # type: ignore[arg-type]
+        expired_plan_name=get_plan_definition(stored_plan_id)["name"] if expired else None,
+        usage=usage,
         is_owner=is_owner,
+        stripe_portal_available=_stripe_customer(settings, workspace) is not None,
     )
+
+
+# -- checkout -------------------------------------------------------------------------
 
 
 async def create_checkout_session(
@@ -192,131 +180,132 @@ async def create_checkout_session(
     workspace_id: str,
     user_id: str,
     request: CheckoutRequest,
-    user_email: str | None = None,
 ) -> CheckoutResponse:
     settings = get_settings()
-    try:
-        ws_doc = await db.workspaces.find_one({"_id": ObjectId(workspace_id)})
-    except Exception:
-        ws_doc = await db.workspaces.find_one({"_id": workspace_id})
-
-    if ws_doc is None:
+    repo = BillingRepository(db)
+    workspace = await repo.find_workspace(workspace_id)
+    if workspace is None:
         raise NotFoundError("Workspace not found.")
+    if request.provider == "razorpay" and request.currency != "inr":
+        raise ValidationError("Razorpay and UPI payments are charged in INR. Switch to ₹ INR.")
 
-    if user_email is None:
-        try:
-            u_doc = await db.users.find_one({"_id": ObjectId(user_id)})
-            if u_doc and "email" in u_doc:
-                user_email = str(u_doc["email"])
-        except Exception:
-            pass
+    live = stripe_live(settings) if request.provider == "stripe" else razorpay_live(settings)
+    if not live and not sandbox_allowed(settings):
+        raise ValidationError(
+            f"{_PROVIDER_LABEL[request.provider]} payments aren't set up on this server yet."
+        )
 
-    workspace_slug = ws_doc.get("slug", workspace_id)
     plan = get_plan_definition(request.plan_id)
-    total_amount = _compute_price(request.plan_id, request.interval, request.currency)
+    amount = plan_price(request.plan_id, request.interval, request.currency)
+    amount_minor = amount * 100
+    checkout_id = ObjectId()
+    gateway_fields: dict[str, Any] = {}
 
-    dashboard_base = settings.public_dashboard_base_url.rstrip("/")
-    success_url = request.success_url or (
-        f"{dashboard_base}/w/{workspace_slug}/billing"
-        f"?checkout=success&plan={request.plan_id}&interval={request.interval}"
-    )
-    cancel_url = (
-        request.cancel_url or f"{dashboard_base}/w/{workspace_slug}/billing?checkout=canceled"
-    )
-
-    # 1. Real Stripe Integration if provider is stripe and secret key is set
-    if request.provider == "stripe" and settings.stripe_secret_key:
-        unit_amount_cents = int(total_amount * 100)
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            plan_name = plan["name"]
-            interval_title = request.interval.capitalize()
-            form_data = {
-                "success_url": success_url + "&session_id={CHECKOUT_SESSION_ID}",
-                "cancel_url": cancel_url,
-                "mode": "payment",
-                "client_reference_id": workspace_id,
-                "payment_method_types[0]": "card",
-                "line_items[0][price_data][currency]": request.currency.lower(),
-                "line_items[0][price_data][unit_amount]": str(unit_amount_cents),
-                "line_items[0][price_data][product_data][name]": (
-                    f"Backline {plan_name} Plan ({interval_title})"
-                ),
-                "line_items[0][price_data][product_data][description]": plan["description"],
-                "line_items[0][quantity]": "1",
-                "metadata[workspace_id]": workspace_id,
-                "metadata[plan_id]": request.plan_id,
-                "metadata[interval]": request.interval,
-                "metadata[currency]": request.currency,
-            }
-            if user_email:
-                form_data["customer_email"] = user_email
-            res = await client.post(
-                "https://api.stripe.com/v1/checkout/sessions",
-                data=form_data,
-                auth=(settings.stripe_secret_key, ""),
-            )
-            if res.status_code != 200:
-                raise ExternalServiceError(f"Stripe checkout creation failed: {res.text}")
-            data = res.json()
-            return CheckoutResponse(
-                provider="stripe",
-                checkout_url=data.get("url"),
-                session_id=data.get("id"),
-                amount=total_amount,
-                currency=request.currency,
-                plan_id=request.plan_id,
-                interval=request.interval,
-                sandbox_mode=False,
-            )
-
-    # 2. Real Razorpay Integration if provider is razorpay and keys are set
-    if request.provider == "razorpay" and settings.razorpay_key_id and settings.razorpay_key_secret:
-        amount_paise = int(total_amount * 100)
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            order_data = {
-                "amount": amount_paise,
-                "currency": request.currency.upper(),
-                "receipt": f"rcpt_{workspace_id[:8]}_{int(time.time())}",
+    if not live:
+        provider, reference = "sandbox", f"sandbox_{checkout_id}"
+    elif request.provider == "stripe":
+        session = await _create_stripe_session(
+            db,
+            settings,
+            workspace,
+            checkout_id=checkout_id,
+            user_id=user_id,
+            request=request,
+            plan_name=plan["name"],
+            description=plan["description"],
+            amount_minor=amount_minor,
+        )
+        provider, reference = "stripe", str(session["id"])
+        gateway_fields["checkout_url"] = session.get("url")
+    else:
+        order = await _razorpay_request(
+            settings,
+            "POST",
+            "/orders",
+            body={
+                "amount": amount_minor,
+                "currency": "INR",
+                "receipt": str(checkout_id),
                 "notes": {
                     "workspace_id": workspace_id,
+                    "checkout_id": str(checkout_id),
                     "plan_id": request.plan_id,
                     "interval": request.interval,
                 },
-            }
-            res = await client.post(
-                "https://api.razorpay.com/v1/orders",
-                json=order_data,
-                auth=(settings.razorpay_key_id, settings.razorpay_key_secret),
-            )
-            if res.status_code != 200:
-                raise ExternalServiceError(f"Razorpay order creation failed: {res.text}")
-            data = res.json()
-            return CheckoutResponse(
-                provider="razorpay",
-                order_id=data.get("id"),
-                key_id=settings.razorpay_key_id,
-                amount=total_amount,
-                currency=request.currency,
-                plan_id=request.plan_id,
-                interval=request.interval,
-                sandbox_mode=False,
-            )
+            },
+        )
+        provider, reference = "razorpay", str(order["id"])
+        gateway_fields["razorpay_order_id"] = reference
+        gateway_fields["razorpay_key_id"] = settings.razorpay_key_id
 
-    # 3. Sandbox / Mock checkout simulation (for testing before real keys or sandbox test mode)
-    simulated_token = f"sim_{uuid4().hex[:16]}"
-    return CheckoutResponse(
-        provider=request.provider,
-        checkout_url=f"{success_url}&simulated_token={simulated_token}",
-        session_id=f"cs_test_{uuid4().hex[:16]}",
-        order_id=f"order_test_{uuid4().hex[:14]}",
-        key_id="rzp_test_sandbox_mock",
-        amount=total_amount,
-        currency=request.currency,
+    await repo.create_checkout(
+        checkout_id=checkout_id,
+        workspace_id=workspace_id,
+        user_id=user_id,
+        provider=provider,
+        reference=reference,
         plan_id=request.plan_id,
         interval=request.interval,
-        sandbox_mode=True,
-        simulated_token=simulated_token,
+        currency=request.currency,
+        amount_minor=amount_minor,
     )
+    return CheckoutResponse(
+        checkout_id=str(checkout_id),
+        provider=provider,  # type: ignore[arg-type]
+        plan_id=request.plan_id,
+        plan_name=plan["name"],
+        interval=request.interval,
+        currency=request.currency,
+        amount=amount,
+        amount_minor=amount_minor,
+        **gateway_fields,
+    )
+
+
+async def _create_stripe_session(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    settings: Settings,
+    workspace: dict[str, Any],
+    *,
+    checkout_id: ObjectId,
+    user_id: str,
+    request: CheckoutRequest,
+    plan_name: str,
+    description: str,
+    amount_minor: int,
+) -> dict[str, Any]:
+    workspace_id = str(workspace["_id"])
+    billing_url = f"{settings.public_dashboard_base_url.rstrip('/')}/w/{workspace['slug']}/billing"
+    interval_label = "annual" if request.interval == "annual" else "monthly"
+    form: dict[str, str] = {
+        "mode": "payment",
+        "success_url": f"{billing_url}?checkout=success&checkout_id={checkout_id}",
+        "cancel_url": f"{billing_url}?checkout=canceled",
+        "client_reference_id": workspace_id,
+        "metadata[workspace_id]": workspace_id,
+        "metadata[checkout_id]": str(checkout_id),
+        "metadata[plan_id]": request.plan_id,
+        "metadata[interval]": request.interval,
+        "line_items[0][quantity]": "1",
+        "line_items[0][price_data][currency]": request.currency,
+        "line_items[0][price_data][unit_amount]": str(amount_minor),
+        "line_items[0][price_data][product_data][name]": f"Backline {plan_name} ({interval_label})",
+        "line_items[0][price_data][product_data][description]": description,
+        # A real Stripe invoice (hosted page + PDF) for every payment.
+        "invoice_creation[enabled]": "true",
+    }
+    customer_id = _stripe_customer(settings, workspace)
+    if customer_id:
+        form["customer"] = customer_id
+    else:
+        form["customer_creation"] = "always"
+        user = await UserRepository(db).find_by_id(user_id)
+        if user and user.get("email"):
+            form["customer_email"] = str(user["email"])
+    return await _stripe_request(settings, "POST", "/checkout/sessions", data=form)
+
+
+# -- confirmation ---------------------------------------------------------------------
 
 
 async def verify_and_activate_payment(
@@ -326,128 +315,231 @@ async def verify_and_activate_payment(
     user_id: str,
     request: VerifyPaymentRequest,
 ) -> SubscriptionOut:
+    """Called by the browser after a checkout. Safe to call more than once and safe to
+    race a webhook for the same payment: whichever arrives first activates the plan."""
     settings = get_settings()
-    repo = BillingRepository(db)
+    checkout = await BillingRepository(db).find_checkout(workspace_id, request.checkout_id)
+    if checkout is None:
+        raise NotFoundError("Checkout not found.")
 
-    try:
-        ws_doc = await db.workspaces.find_one({"_id": ObjectId(workspace_id)})
-    except Exception:
-        ws_doc = await db.workspaces.find_one({"_id": workspace_id})
-
-    if ws_doc is None:
-        raise NotFoundError("Workspace not found.")
-
-    plan_def = get_plan_definition(request.plan_id)
-    plan_limits = get_plan_limits_snapshot(request.plan_id)
-    amount_paid = _compute_price(request.plan_id, request.interval, request.currency)
-
-    # 1. Verify Razorpay Signature if real Razorpay transaction
-    if request.provider == "razorpay" and not request.simulated:
-        if not (
-            request.razorpay_order_id and request.razorpay_payment_id and request.razorpay_signature
-        ):
-            raise ValidationError("Missing Razorpay verification parameters.")
-        if settings.razorpay_key_secret:
-            expected_sig = hmac.new(
-                settings.razorpay_key_secret.encode("utf-8"),
-                f"{request.razorpay_order_id}|{request.razorpay_payment_id}".encode(),
-                hashlib.sha256,
-            ).hexdigest()
-            if not hmac.compare_digest(expected_sig, request.razorpay_signature):
-                raise AuthenticationError("Invalid Razorpay payment signature.")
-
-    # 2. Verify Stripe Session if real Stripe transaction
-    if request.provider == "stripe" and not request.simulated and request.stripe_session_id:
-        if settings.stripe_secret_key:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.get(
-                    f"https://api.stripe.com/v1/checkout/sessions/{request.stripe_session_id}",
-                    auth=(settings.stripe_secret_key, ""),
+    if checkout["status"] == "pending":
+        provider = checkout["provider"]
+        if provider == "sandbox":
+            if not sandbox_allowed(settings):
+                raise ValidationError("Test payments are turned off on this server.")
+            await _activate_checkout(
+                db, checkout, actor_type="member", actor_id=user_id, source="sandbox"
+            )
+        elif provider == "stripe":
+            session = await _stripe_request(
+                settings,
+                "GET",
+                f"/checkout/sessions/{checkout['reference']}",
+                params={"expand[]": "invoice"},
+            )
+            if session.get("payment_status") != "paid":
+                raise ValidationError(
+                    "Stripe hasn't confirmed this payment yet. Delayed payment methods "
+                    "activate the plan automatically once the payment clears."
                 )
-                if res.status_code != 200:
-                    raise ExternalServiceError("Could not verify Stripe checkout session.")
-                stripe_data = res.json()
-                if stripe_data.get("payment_status") != "paid":
-                    raise ValidationError("Stripe payment not completed.")
+            await _activate_stripe_session(
+                db, settings, checkout, session, actor_type="member", actor_id=user_id
+            )
+        else:
+            if not (request.razorpay_payment_id and request.razorpay_signature):
+                raise ValidationError("Razorpay didn't return a payment confirmation.")
+            if not razorpay_live(settings):
+                raise ValidationError("Razorpay payments aren't set up on this server.")
+            signed = f"{checkout['reference']}|{request.razorpay_payment_id}"
+            if not _hmac_matches(
+                settings.razorpay_key_secret, signed.encode(), request.razorpay_signature
+            ):
+                # 422, not 401: the member's session is fine, the payment proof isn't -
+                # and a 401 would make the dashboard silently refresh and retry.
+                raise ValidationError("The payment signature didn't match. No plan was changed.")
+            await _activate_checkout(
+                db,
+                checkout,
+                actor_type="member",
+                actor_id=user_id,
+                source="confirm",
+                provider_payment_id=request.razorpay_payment_id,
+            )
 
-    # Calculate subscription dates
-    now = datetime.now(UTC)
-    if request.interval == "annual":
-        period_end = now + timedelta(days=365)
-    else:
-        period_end = now + timedelta(days=30)
+    return await get_workspace_subscription(db, workspace_id, is_owner=True)
 
-    # Update workspace billing fields
-    await repo.update_workspace_billing(
-        workspace_id,
-        plan=request.plan_id,
-        plan_limits_json=plan_limits,
-        subscription_status="active",
-        billing_interval=request.interval,
-        billing_currency=request.currency,
-        provider=request.provider,
-        current_period_start=now,
-        current_period_end=period_end,
-        cancel_at_period_end=False,
-    )
 
-    # Generate next invoice
-    invoice_number = await repo.generate_next_invoice_number(workspace_id)
-    provider_invoice_id = (
-        request.razorpay_payment_id or request.stripe_session_id or f"inv_{uuid4().hex[:12]}"
-    )
-    await repo.create_invoice(
-        workspace_id=workspace_id,
-        invoice_number=invoice_number,
-        amount_paid=amount_paid,
-        currency=request.currency,
-        plan_id=request.plan_id,
-        plan_name=plan_def["name"],
-        interval=request.interval,
-        provider=request.provider,
-        period_start=now,
-        period_end=period_end,
-        provider_invoice_id=provider_invoice_id,
-        hosted_invoice_url=f"/invoices/{invoice_number}",
-        pdf_url=f"/invoices/{invoice_number}.pdf",
-    )
+async def _activate_stripe_session(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    settings: Settings,
+    checkout: dict[str, Any],
+    session: dict[str, Any],
+    *,
+    actor_type: ActorType,
+    actor_id: str | None,
+) -> None:
+    if session.get("amount_total") != checkout["amount_minor"] or (
+        str(session.get("currency", "")).lower() != checkout["currency"]
+    ):
+        logger.error(
+            "Stripe session %s paid %s %s, checkout %s expected %s %s",
+            session.get("id"),
+            session.get("amount_total"),
+            session.get("currency"),
+            checkout["_id"],
+            checkout["amount_minor"],
+            checkout["currency"],
+        )
+        raise ValidationError("The paid amount doesn't match this checkout. No plan was changed.")
 
-    # Record billing audit event
-    await repo.create_billing_event(
-        workspace_id=workspace_id,
-        event_type="subscription_created",
-        provider=request.provider,
-        amount=amount_paid,
-        currency=request.currency,
-        plan_id=request.plan_id,
-        interval=request.interval,
-        provider_event_id=request.razorpay_payment_id or request.stripe_session_id,
-        metadata={
-            "plan_name": plan_def["name"],
-            "simulated": request.simulated,
-            "payment_method": request.payment_method,
-            "user_id": user_id,
-        },
-    )
+    invoice = session.get("invoice")
+    if isinstance(invoice, str):
+        # Webhook payloads carry only the invoice id; the URLs are a nicety, so a
+        # failed lookup here must not block activating a payment that has cleared.
+        try:
+            invoice = await _stripe_request(settings, "GET", f"/invoices/{invoice}")
+        except ExternalServiceError:
+            invoice = None
+    payment_intent = session.get("payment_intent")
+    if isinstance(payment_intent, dict):
+        payment_intent = payment_intent.get("id")
+    customer = session.get("customer")
+    if isinstance(customer, dict):
+        customer = customer.get("id")
 
-    # Append timeline event
-    await append_event(
+    await _activate_checkout(
         db,
-        workspace_id=workspace_id,
-        type="workspace:plan_changed",
-        actor_type="member",
-        actor_id=user_id,
-        payload={
-            "plan": request.plan_id,
-            "plan_name": plan_def["name"],
-            "interval": request.interval,
-            "amount": amount_paid,
-            "currency": request.currency,
-            "provider": request.provider,
-        },
+        checkout,
+        actor_type=actor_type,
+        actor_id=actor_id,
+        source="confirm" if actor_type == "member" else "webhook",
+        provider_payment_id=str(payment_intent) if payment_intent else None,
+        stripe_customer=(str(customer), _stripe_key_mode(settings)) if customer else None,
+        hosted_invoice_url=invoice.get("hosted_invoice_url") if isinstance(invoice, dict) else None,
+        invoice_pdf_url=invoice.get("invoice_pdf") if isinstance(invoice, dict) else None,
     )
 
-    return await get_workspace_subscription(db, workspace_id, user_id)
+
+async def _activate_checkout(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    checkout: dict[str, Any],
+    *,
+    actor_type: ActorType,
+    actor_id: str | None,
+    source: str,
+    provider_payment_id: str | None = None,
+    stripe_customer: tuple[str, str] | None = None,
+    hosted_invoice_url: str | None = None,
+    invoice_pdf_url: str | None = None,
+) -> None:
+    """Claims the checkout, applies the plan and issues the invoice in one transaction,
+    so a crash part-way leaves the checkout pending for the next confirm or webhook
+    retry instead of marked paid with no plan applied."""
+    repo = BillingRepository(db)
+    workspace_id: str = checkout["workspace_id"]
+    plan_id: str = checkout["plan_id"]
+    interval: str = checkout["interval"]
+    plan_name = get_plan_definition(plan_id)["name"]
+    applied: dict[str, Any] = {}
+
+    async def _apply(session: AsyncIOMotorClientSession) -> None:
+        applied.clear()
+        claimed = await repo.claim_checkout(
+            workspace_id,
+            checkout["_id"],
+            provider_payment_id=provider_payment_id,
+            session=session,
+        )
+        workspace = await repo.find_workspace(workspace_id, session=session)
+        if not claimed or workspace is None:
+            return
+
+        now = datetime.now(UTC)
+        current_end = workspace.get("current_period_end")
+        # Paying again for the plan you're on extends it from the current end date, so
+        # renewing early never loses days. Any other plan starts a fresh period now.
+        covered_from = now
+        if isinstance(current_end, datetime) and current_end > now:
+            if effective_plan_id(workspace, now) == plan_id:
+                covered_from = current_end
+        extending = covered_from is not now
+        period_end = covered_from + PERIOD_LENGTH[interval]
+        fields: dict[str, Any] = {
+            "plan": plan_id,
+            "subscription_status": "active",
+            "billing_interval": interval,
+            "billing_currency": checkout["currency"],
+            "billing_provider": checkout["provider"],
+            "current_period_start": (
+                workspace.get("current_period_start") or now if extending else now
+            ),
+            "current_period_end": period_end,
+        }
+        if stripe_customer is not None:
+            fields["stripe_customer_id"], fields["stripe_customer_mode"] = stripe_customer
+        await repo.set_workspace_billing(workspace_id, fields, session=session)
+
+        invoice_number = await repo.next_invoice_number(now.year, session=session)
+        await repo.create_invoice(
+            {
+                "workspace_id": workspace_id,
+                "checkout_id": str(checkout["_id"]),
+                "invoice_number": invoice_number,
+                "amount_minor": checkout["amount_minor"],
+                "currency": checkout["currency"],
+                "plan_id": plan_id,
+                "plan_name": plan_name,
+                "interval": interval,
+                "provider": checkout["provider"],
+                "provider_payment_id": provider_payment_id,
+                "hosted_invoice_url": hosted_invoice_url,
+                "pdf_url": invoice_pdf_url,
+                "period_start": covered_from,
+                "period_end": period_end,
+                "paid_at": now,
+            },
+            session=session,
+        )
+        await repo.create_billing_event(
+            workspace_id=workspace_id,
+            event_type="payment_succeeded",
+            provider=checkout["provider"],
+            plan_id=plan_id,
+            amount_minor=checkout["amount_minor"],
+            currency=checkout["currency"],
+            interval=interval,
+            metadata={
+                "checkout_id": str(checkout["_id"]),
+                "invoice_number": invoice_number,
+                "provider_payment_id": provider_payment_id,
+                "source": source,
+            },
+            session=session,
+        )
+        applied.update(invoice_number=invoice_number, period_end=period_end)
+
+    async with await db.client.start_session() as mongo_session:
+        await mongo_session.with_transaction(_apply)
+
+    if applied:
+        await append_event(
+            db,
+            workspace_id=workspace_id,
+            type=PLAN_CHANGED,
+            actor_type=actor_type,
+            actor_id=actor_id,
+            payload={
+                "plan": plan_id,
+                "plan_name": plan_name,
+                "interval": interval,
+                "provider": checkout["provider"],
+                "invoice_number": applied["invoice_number"],
+                "paid_through": applied["period_end"].isoformat(),
+            },
+        )
+
+
+# -- downgrade, portal, invoices ------------------------------------------------------
 
 
 async def cancel_subscription(
@@ -457,230 +549,254 @@ async def cancel_subscription(
     user_id: str,
     reason: str | None = None,
 ) -> SubscriptionOut:
+    """Moves the workspace to Free now. Plans are prepaid and never auto-renew, so
+    there is nothing to stop at the gateway; remaining paid time is not refunded."""
     repo = BillingRepository(db)
-    try:
-        ws_doc = await db.workspaces.find_one({"_id": ObjectId(workspace_id)})
-    except Exception:
-        ws_doc = await db.workspaces.find_one({"_id": workspace_id})
-
-    if ws_doc is None:
+    workspace = await repo.find_workspace(workspace_id)
+    if workspace is None:
         raise NotFoundError("Workspace not found.")
+    previous = effective_plan_id(workspace)
+    if previous == FREE_PLAN_ID:
+        raise ValidationError("This workspace is already on the Free plan.")
 
-    free_limits = get_plan_limits_snapshot("free")
-
-    await repo.update_workspace_billing(
+    await repo.set_workspace_billing(
         workspace_id,
-        plan="free",
-        plan_limits_json=free_limits,
-        subscription_status="canceled",
-        billing_interval="monthly",
-        billing_currency="usd",
-        provider="free",
-        cancel_at_period_end=False,
+        {
+            "plan": FREE_PLAN_ID,
+            "subscription_status": "canceled",
+            "current_period_start": None,
+            "current_period_end": None,
+        },
     )
-
     await repo.create_billing_event(
         workspace_id=workspace_id,
-        event_type="subscription_canceled",
-        provider="manual",
-        amount=0.0,
-        currency="usd",
-        plan_id="free",
-        interval="monthly",
+        event_type="plan_canceled",
+        provider=workspace.get("billing_provider"),
+        plan_id=previous,
         metadata={"reason": reason, "canceled_by": user_id},
     )
-
     await append_event(
         db,
         workspace_id=workspace_id,
-        type="workspace:plan_changed",
+        type=PLAN_CHANGED,
         actor_type="member",
         actor_id=user_id,
-        payload={"plan": "free", "status": "canceled", "reason": reason},
+        payload={"plan": FREE_PLAN_ID, "previous_plan": previous, "reason": reason},
     )
-
-    return await get_workspace_subscription(db, workspace_id, user_id)
+    return await get_workspace_subscription(db, workspace_id, is_owner=True)
 
 
 async def create_customer_portal_session(
-    db: AsyncIOMotorDatabase[dict[str, Any]],
-    *,
-    workspace_id: str,
-    requesting_user_id: str,
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str
 ) -> PortalResponse:
     settings = get_settings()
-    try:
-        ws_doc = await db.workspaces.find_one({"_id": ObjectId(workspace_id)})
-    except Exception:
-        ws_doc = await db.workspaces.find_one({"_id": workspace_id})
-
-    if ws_doc is None:
+    workspace = await BillingRepository(db).find_workspace(workspace_id)
+    if workspace is None:
         raise NotFoundError("Workspace not found.")
-
-    stripe_customer_id = ws_doc.get("stripe_customer_id")
-    workspace_slug = ws_doc.get("slug", workspace_id)
-    dashboard_base = settings.public_dashboard_base_url.rstrip("/")
-    return_url = f"{dashboard_base}/w/{workspace_slug}/billing"
-
-    if stripe_customer_id and settings.stripe_secret_key:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            res = await client.post(
-                "https://api.stripe.com/v1/billing_portal/sessions",
-                data={"customer": stripe_customer_id, "return_url": return_url},
-                auth=(settings.stripe_secret_key, ""),
-            )
-            if res.status_code == 200:
-                data = res.json()
-                return PortalResponse(portal_url=data.get("url", return_url))
-
-    return PortalResponse(portal_url=return_url)
+    customer_id = _stripe_customer(settings, workspace)
+    if customer_id is None:
+        raise ValidationError("This workspace has no Stripe billing profile yet.")
+    return_url = f"{settings.public_dashboard_base_url.rstrip('/')}/w/{workspace['slug']}/billing"
+    session = await _stripe_request(
+        settings,
+        "POST",
+        "/billing_portal/sessions",
+        data={"customer": customer_id, "return_url": return_url},
+    )
+    return PortalResponse(portal_url=str(session["url"]))
 
 
 async def list_workspace_invoices(
     db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str
 ) -> list[InvoiceOut]:
-    repo = BillingRepository(db)
-    docs = await repo.list_invoices(workspace_id)
-    results: list[InvoiceOut] = []
-    for d in docs:
-        results.append(
-            InvoiceOut(
-                id=str(d["_id"]),
-                workspace_id=d["workspace_id"],
-                invoice_number=d["invoice_number"],
-                amount_paid=d["amount_paid"],
-                currency=d["currency"],
-                status=d["status"],
-                provider=d["provider"],
-                plan_name=d["plan_name"],
-                interval=d["interval"],
-                period_start=d["period_start"],
-                period_end=d["period_end"],
-                paid_at=d["paid_at"],
-                pdf_url=d.get("pdf_url"),
-                hosted_invoice_url=d.get("hosted_invoice_url"),
-            )
+    return [
+        InvoiceOut(
+            id=str(doc["_id"]),
+            invoice_number=doc["invoice_number"],
+            amount_paid=doc["amount_minor"] / 100,
+            currency=doc["currency"],
+            status=doc["status"],
+            provider=doc["provider"],
+            provider_payment_id=doc.get("provider_payment_id"),
+            plan_name=doc["plan_name"],
+            interval=doc["interval"],
+            period_start=doc["period_start"],
+            period_end=doc["period_end"],
+            paid_at=doc["paid_at"],
+            pdf_url=doc.get("pdf_url"),
+            hosted_invoice_url=doc.get("hosted_invoice_url"),
         )
-    return results
+        for doc in await BillingRepository(db).list_invoices(workspace_id)
+    ]
+
+
+# -- webhooks -------------------------------------------------------------------------
 
 
 async def handle_stripe_webhook(
-    db: AsyncIOMotorDatabase[dict[str, Any]],
-    payload: dict[str, Any],
+    db: AsyncIOMotorDatabase[dict[str, Any]], payload: bytes, signature_header: str | None
 ) -> dict[str, str]:
-    event_type = payload.get("type", "")
-    data_obj = payload.get("data", {}).get("object", {})
-    metadata = data_obj.get("metadata", {})
-    workspace_id = metadata.get("workspace_id") or data_obj.get("client_reference_id")
+    settings = get_settings()
+    if not settings.stripe_webhook_secret:
+        raise ValidationError("Stripe webhooks aren't configured on this server.")
+    _verify_stripe_signature(settings.stripe_webhook_secret, payload, signature_header)
+    event = _parse_json_object(payload)
 
-    if not workspace_id:
-        return {"status": "ignored", "reason": "no_workspace_id"}
-
-    repo = BillingRepository(db)
-    if event_type == "checkout.session.completed":
-        plan_id = metadata.get("plan_id", "team")
-        interval = metadata.get("interval", "monthly")
-        currency = metadata.get("currency", "usd")
-        amount_total = float(data_obj.get("amount_total", 0)) / 100.0
-
-        plan_def = get_plan_definition(plan_id)
-        plan_limits = get_plan_limits_snapshot(plan_id)
-        now = datetime.now(UTC)
-        period_end = now + timedelta(days=365 if interval == "annual" else 30)
-
-        await repo.update_workspace_billing(
-            workspace_id,
-            plan=plan_id,
-            plan_limits_json=plan_limits,
-            subscription_status="active",
-            billing_interval=interval,
-            billing_currency=currency,
-            provider="stripe",
-            stripe_customer_id=data_obj.get("customer"),
-            stripe_subscription_id=data_obj.get("subscription"),
-            current_period_start=now,
-            current_period_end=period_end,
-        )
-
-        invoice_number = await repo.generate_next_invoice_number(workspace_id)
-        await repo.create_invoice(
-            workspace_id=workspace_id,
-            invoice_number=invoice_number,
-            amount_paid=amount_total,
-            currency=currency,
-            plan_id=plan_id,
-            plan_name=plan_def["name"],
-            interval=interval,
-            provider="stripe",
-            period_start=now,
-            period_end=period_end,
-            provider_invoice_id=data_obj.get("id"),
-        )
-
-        await repo.create_billing_event(
-            workspace_id=workspace_id,
-            event_type="checkout_completed",
-            provider="stripe",
-            amount=amount_total,
-            currency=currency,
-            plan_id=plan_id,
-            interval=interval,
-            provider_event_id=data_obj.get("id"),
-        )
-
+    if event.get("type") not in (
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+    ):
+        return {"status": "ignored"}
+    session = event.get("data", {}).get("object", {})
+    if not isinstance(session, dict) or session.get("payment_status") != "paid":
+        return {"status": "ignored"}
+    checkout = await BillingRepository(db).find_checkout_by_reference(
+        "stripe", str(session.get("id"))
+    )
+    if checkout is None:
+        return {"status": "ignored"}
+    if checkout["status"] == "pending":
+        try:
+            await _activate_stripe_session(
+                db, settings, checkout, session, actor_type="system", actor_id=None
+            )
+        except ValidationError:
+            # Already logged; acknowledge so Stripe stops retrying a payment that will
+            # never match this checkout.
+            return {"status": "ignored"}
     return {"status": "processed"}
 
 
 async def handle_razorpay_webhook(
-    db: AsyncIOMotorDatabase[dict[str, Any]],
-    payload: dict[str, Any],
+    db: AsyncIOMotorDatabase[dict[str, Any]], payload: bytes, signature_header: str | None
 ) -> dict[str, str]:
-    event = payload.get("event", "")
-    payment_obj = payload.get("payload", {}).get("payment", {}).get("entity", {})
-    notes = payment_obj.get("notes", {})
-    workspace_id = notes.get("workspace_id")
+    settings = get_settings()
+    if not settings.razorpay_webhook_secret:
+        raise ValidationError("Razorpay webhooks aren't configured on this server.")
+    if not signature_header or not _hmac_matches(
+        settings.razorpay_webhook_secret, payload, signature_header
+    ):
+        raise AuthenticationError("Invalid Razorpay webhook signature.")
+    event = _parse_json_object(payload)
 
-    if not workspace_id:
-        return {"status": "ignored", "reason": "no_workspace_id"}
-
-    repo = BillingRepository(db)
-    if event in ("payment.captured", "order.paid"):
-        plan_id = notes.get("plan_id", "team")
-        interval = notes.get("interval", "monthly")
-        currency = payment_obj.get("currency", "INR").lower()
-        amount_paid = float(payment_obj.get("amount", 0)) / 100.0
-
-        plan_def = get_plan_definition(plan_id)
-        plan_limits = get_plan_limits_snapshot(plan_id)
-        now = datetime.now(UTC)
-        period_end = now + timedelta(days=365 if interval == "annual" else 30)
-
-        await repo.update_workspace_billing(
-            workspace_id,
-            plan=plan_id,
-            plan_limits_json=plan_limits,
-            subscription_status="active",
-            billing_interval=interval,
-            billing_currency=currency,
-            provider="razorpay",
-            razorpay_customer_id=payment_obj.get("customer_id"),
-            current_period_start=now,
-            current_period_end=period_end,
+    if event.get("event") not in ("payment.captured", "order.paid"):
+        return {"status": "ignored"}
+    payment = event.get("payload", {}).get("payment", {}).get("entity", {})
+    if not isinstance(payment, dict) or not payment.get("order_id"):
+        return {"status": "ignored"}
+    checkout = await BillingRepository(db).find_checkout_by_reference(
+        "razorpay", str(payment["order_id"])
+    )
+    if checkout is None:
+        return {"status": "ignored"}
+    if payment.get("amount") != checkout["amount_minor"]:
+        logger.error(
+            "Razorpay payment %s amount %s does not match checkout %s (%s)",
+            payment.get("id"),
+            payment.get("amount"),
+            checkout["_id"],
+            checkout["amount_minor"],
         )
-
-        invoice_number = await repo.generate_next_invoice_number(workspace_id)
-        await repo.create_invoice(
-            workspace_id=workspace_id,
-            invoice_number=invoice_number,
-            amount_paid=amount_paid,
-            currency=currency,
-            plan_id=plan_id,
-            plan_name=plan_def["name"],
-            interval=interval,
-            provider="razorpay",
-            period_start=now,
-            period_end=period_end,
-            provider_invoice_id=payment_obj.get("id"),
+        return {"status": "ignored"}
+    if checkout["status"] == "pending":
+        await _activate_checkout(
+            db,
+            checkout,
+            actor_type="system",
+            actor_id=None,
+            source="webhook",
+            provider_payment_id=str(payment.get("id")) if payment.get("id") else None,
         )
-
     return {"status": "processed"}
+
+
+def _verify_stripe_signature(secret: str, payload: bytes, header: str | None) -> None:
+    """Stripe signs `{timestamp}.{raw body}` with HMAC-SHA256 and sends
+    `t=<timestamp>,v1=<hex>[,v1=<hex>...]` (more than one v1 while secrets rotate)."""
+    if not header:
+        raise AuthenticationError("Missing Stripe signature.")
+    parts = [item.split("=", 1) for item in header.split(",") if "=" in item]
+    timestamps = [value for key, value in parts if key.strip() == "t"]
+    signatures = [value for key, value in parts if key.strip() == "v1"]
+    if not timestamps or not signatures or not timestamps[0].isdigit():
+        raise AuthenticationError("Malformed Stripe signature.")
+    if abs(time.time() - int(timestamps[0])) > STRIPE_SIGNATURE_TOLERANCE_SECONDS:
+        raise AuthenticationError("Stripe signature timestamp is outside the tolerance.")
+    signed = timestamps[0].encode() + b"." + payload
+    if not any(_hmac_matches(secret, signed, candidate) for candidate in signatures):
+        raise AuthenticationError("Invalid Stripe signature.")
+
+
+def _hmac_matches(secret: str, message: bytes, signature: str) -> bool:
+    expected = hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature.strip())
+
+
+def _parse_json_object(payload: bytes) -> dict[str, Any]:
+    try:
+        parsed = json.loads(payload)
+    except ValueError as exc:
+        raise ValidationError("Webhook body is not valid JSON.") from exc
+    if not isinstance(parsed, dict):
+        raise ValidationError("Webhook body is not a JSON object.")
+    return parsed
+
+
+# -- gateway HTTP ---------------------------------------------------------------------
+
+
+async def _stripe_request(
+    settings: Settings,
+    method: str,
+    path: str,
+    *,
+    data: dict[str, str] | None = None,
+    params: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    return await _gateway_request(
+        "Stripe",
+        method,
+        f"{STRIPE_API}{path}",
+        auth=(settings.stripe_secret_key, ""),
+        data=data,
+        params=params,
+    )
+
+
+async def _razorpay_request(
+    settings: Settings, method: str, path: str, *, body: dict[str, Any]
+) -> dict[str, Any]:
+    return await _gateway_request(
+        "Razorpay",
+        method,
+        f"{RAZORPAY_API}{path}",
+        auth=(settings.razorpay_key_id, settings.razorpay_key_secret),
+        json=body,
+    )
+
+
+async def _gateway_request(
+    label: str, method: str, url: str, *, auth: tuple[str, str], **kwargs: Any
+) -> dict[str, Any]:
+    try:
+        async with httpx.AsyncClient(timeout=_GATEWAY_TIMEOUT) as client:
+            response = await client.request(method, url, auth=auth, **kwargs)
+    except httpx.HTTPError as exc:
+        logger.warning("%s request %s %s failed: %s", label, method, url, exc)
+        raise ExternalServiceError(f"Couldn't reach {label}. Try again in a moment.") from exc
+    try:
+        body = response.json()
+    except ValueError:
+        body = {}
+    if response.status_code >= 400 or not isinstance(body, dict):
+        error = body.get("error") if isinstance(body, dict) else None
+        detail = (
+            error.get("message") or error.get("description") if isinstance(error, dict) else None
+        )
+        logger.warning("%s %s %s -> %s: %s", label, method, url, response.status_code, detail)
+        raise ExternalServiceError(
+            f"{label} declined the request: {detail}"
+            if detail
+            else f"{label} declined the request."
+        )
+    return body

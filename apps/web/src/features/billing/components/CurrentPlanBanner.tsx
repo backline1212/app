@@ -1,328 +1,155 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Dialog } from "../../../components/Dialog";
 import { useToast } from "../../../components/Toast";
 import { qk } from "../../../lib/query-keys";
-import { cancelSubscription, createPortalSession, type SubscriptionOut } from "../api";
+import { cancelSubscription, createPortalSession, type PaidPlanId, type SubscriptionOut } from "../api";
+import { formatDate, formatMoney, limitLabel } from "../format";
 
-interface CurrentPlanBannerProps {
-  subscription: SubscriptionOut;
-  onUpgradeClick: () => void;
+// Renewal nudges start this many days before a paid period ends.
+const RENEW_SOON_DAYS = 7;
+
+function UsageMeter({ label, used, limit, note }: { label: string; used: number; limit: number | null; note?: string }) {
+  const pct = limit === null ? 0 : Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
+  const tone = limit !== null && used >= limit ? " is-full" : pct >= 80 ? " is-high" : "";
+  return (
+    <div className="bl-usage">
+      <p>
+        <span>{label}</span>
+        <b>{used.toLocaleString()} / {limitLabel(limit)}</b>
+      </p>
+      <div
+        className={`bl-usage-bar${tone}`}
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={limit ?? undefined}
+        aria-valuenow={used}
+        aria-valuetext={`${used} of ${limitLabel(limit)}`}
+      >
+        <i style={{ width: `${pct}%` }} />
+      </div>
+      {note && <small>{note}</small>}
+    </div>
+  );
 }
 
 export function CurrentPlanBanner({
   subscription,
-  onUpgradeClick,
-}: CurrentPlanBannerProps) {
+  onChoosePlan,
+}: {
+  subscription: SubscriptionOut;
+  onChoosePlan: (planId: PaidPlanId) => void;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-
+  const [confirmDowngrade, setConfirmDowngrade] = useState(false);
+  const { usage, is_owner: isOwner } = subscription;
   const isFree = subscription.plan_id === "free";
-  const { usage } = subscription;
+  const periodEnd = subscription.current_period_end;
+  const daysLeft = periodEnd ? Math.ceil((new Date(periodEnd).getTime() - Date.now()) / 86_400_000) : null;
+  const renewSoon = !isFree && daysLeft !== null && daysLeft <= RENEW_SOON_DAYS;
 
-  const projectPct = Math.min(
-    100,
-    Math.round((usage.projects_used / Math.max(1, usage.projects_limit)) * 100),
-  );
-  const memberPct = Math.min(
-    100,
-    Math.round((usage.members_used / Math.max(1, usage.members_limit)) * 100),
-  );
-  const aiPct = Math.min(
-    100,
-    Math.round((usage.ai_credits_used / Math.max(1, usage.ai_credits_limit)) * 100),
-  );
-
-  const portalMutation = useMutation({
+  const portal = useMutation({
     mutationFn: () => createPortalSession(subscription.workspace_id),
-    onSuccess: (res) => {
-      if (res.portal_url && res.portal_url.startsWith("http")) {
-        window.location.href = res.portal_url;
-      } else {
-        toast("Billing portal is ready.");
-      }
-    },
-    onError: () => {
-      toast("Could not open billing portal.", "error");
-    },
+    onSuccess: (res) => window.location.assign(res.portal_url),
+    onError: (err) => toast(err instanceof Error ? err.message : "Couldn't open Stripe.", "error"),
   });
 
-  const cancelMutation = useMutation({
+  const downgrade = useMutation({
     mutationFn: () => cancelSubscription(subscription.workspace_id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk.subscription(subscription.workspace_id) });
-      queryClient.invalidateQueries({ queryKey: qk.billingPlans(subscription.workspace_id) });
-      queryClient.invalidateQueries({ queryKey: qk.workspaces() });
-      toast("Subscription downgraded to Free.");
-      setShowCancelConfirm(false);
+    onSuccess: (next) => {
+      queryClient.setQueryData(qk.subscription(subscription.workspace_id), next);
+      void queryClient.invalidateQueries({ queryKey: qk.workspaces() });
+      setConfirmDowngrade(false);
+      toast("This workspace is on Free Starter now.");
     },
-    onError: () => {
-      toast("Could not cancel subscription.", "error");
-    },
+    onError: (err) => toast(err instanceof Error ? err.message : "Couldn't change the plan.", "error"),
   });
 
-  const renewalDate = subscription.current_period_end
-    ? new Date(subscription.current_period_end).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    : null;
+  let summary: string;
+  if (subscription.status === "expired") {
+    summary = `Your ${subscription.expired_plan_name} plan ended${periodEnd ? ` on ${formatDate(periodEnd)}` : ""}. Renew it to get its limits back.`;
+  } else if (isFree) {
+    summary = "Free forever. Upgrade any time for more projects, seats and AI credits.";
+  } else {
+    const price = subscription.currency ? `${formatMoney(subscription.amount, subscription.currency)} ${subscription.interval === "annual" ? "a year" : "a month"}` : null;
+    summary = [
+      periodEnd && `Paid through ${formatDate(periodEnd)}`,
+      price,
+      "Plans don't renew automatically.",
+    ].filter(Boolean).join(" · ");
+  }
 
   return (
-    <section
-      className="bl-attention bl-settings-section"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "20px",
-        padding: "24px",
-        background: "var(--bl-surface)",
-        border: "1px solid var(--bl-line)",
-        borderRadius: "8px",
-        marginBottom: "32px",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          flexWrap: "wrap",
-          gap: "16px",
-          borderBottom: "1px solid var(--bl-line)",
-          paddingBottom: "20px",
-        }}
-      >
+    <section className={`bl-plan-banner${subscription.status === "expired" || renewSoon ? " is-attention" : ""}`} aria-labelledby="bl-plan-banner-title">
+      <div className="bl-plan-banner-head">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-            <span
-              style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                color: "var(--bl-muted)",
-              }}
-            >
-              Current Active Plan
-            </span>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                fontSize: "11px",
-                fontWeight: 600,
-                padding: "2px 8px",
-                borderRadius: "12px",
-                background: isFree ? "var(--bl-paper)" : "var(--mint-tint)",
-                color: isFree ? "var(--ink-2)" : "var(--mint-deep)",
-              }}
-            >
-              <span
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  background: isFree ? "var(--ink-3)" : "var(--mint-deep)",
-                }}
-              />
-              {subscription.status.toUpperCase()}
-            </span>
-          </div>
-
-          <h2 style={{ fontSize: "28px", fontWeight: 800, margin: "0 0 4px", letterSpacing: "-0.02em" }}>
-            {subscription.plan_name} Plan
+          <p className="bl-eyebrow">Current plan</p>
+          <h2 id="bl-plan-banner-title">
+            {subscription.plan_name}
+            {subscription.status === "expired" && <span className="bl-plan-chip is-warn">Expired</span>}
+            {subscription.provider === "sandbox" && <span className="bl-plan-chip">Test payment</span>}
+            {renewSoon && daysLeft !== null && <span className="bl-plan-chip is-warn">{daysLeft <= 0 ? "Ends today" : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`}</span>}
           </h2>
+          <p>{summary}</p>
+        </div>
 
-          <p style={{ fontSize: "13px", color: "var(--bl-muted)", margin: 0 }}>
+        {isOwner ? (
+          <div className="bl-plan-banner-actions">
             {isFree ? (
-              "You are on the Free tier with essential review tools and standard quotas."
+              <button type="button" className="bl-button mint" onClick={() => onChoosePlan(subscription.expired_plan_id ?? "solo")}>
+                {subscription.expired_plan_id ? `Renew ${subscription.expired_plan_name}` : "Upgrade"}
+              </button>
             ) : (
               <>
-                Billed {subscription.interval} (
-                {subscription.currency === "inr" ? "₹" : "$"}
-                {subscription.amount.toLocaleString()})
-                {renewalDate && ` · Next renewal on ${renewalDate}`}
+                <button type="button" className={`bl-button${renewSoon ? " mint" : ""}`} onClick={() => onChoosePlan(subscription.plan_id as PaidPlanId)}>
+                  Renew
+                </button>
+                {subscription.stripe_portal_available && (
+                  <button type="button" className="bl-quiet" disabled={portal.isPending} onClick={() => portal.mutate()}>
+                    {portal.isPending ? "Opening Stripe…" : "Billing details in Stripe"}
+                  </button>
+                )}
+                <button type="button" className="bl-quiet" onClick={() => setConfirmDowngrade(true)}>
+                  Switch to Free
+                </button>
               </>
             )}
-          </p>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-          {isFree ? (
-            <button
-              type="button"
-              onClick={onUpgradeClick}
-              className="bl-button mint"
-              style={{ padding: "9px 18px", fontWeight: 700 }}
-            >
-              ⭐ Upgrade Plan
-            </button>
-          ) : (
-            <>
-              {subscription.provider === "stripe" && (
-                <button
-                  type="button"
-                  onClick={() => portalMutation.mutate()}
-                  disabled={portalMutation.isPending}
-                  className="bl-quiet"
-                >
-                  {portalMutation.isPending ? "Opening…" : "Manage in Stripe"}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowCancelConfirm(true)}
-                className="bl-quiet"
-                style={{ color: "var(--bl-error)" }}
-              >
-                Cancel Subscription
-              </button>
-            </>
-          )}
-        </div>
+          </div>
+        ) : (
+          <p className="bl-billing-muted">Only the workspace owner can change the plan.</p>
+        )}
       </div>
 
-      {/* Usage Progress Metrics */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" }}>
-        {/* Projects Usage */}
-        <div style={{ background: "var(--bl-paper)", padding: "16px", borderRadius: "6px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "12px" }}>
-            <span style={{ fontWeight: 600 }}>Active Projects</span>
-            <span style={{ color: "var(--bl-muted)" }}>
-              {usage.projects_used} / {usage.projects_limit >= 999 ? "∞" : usage.projects_limit}
-            </span>
-          </div>
-          <div
-            style={{
-              width: "100%",
-              height: "6px",
-              background: "var(--bl-line)",
-              borderRadius: "3px",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${projectPct}%`,
-                height: "100%",
-                background: projectPct >= 90 ? "var(--bl-error)" : "var(--mint-deep)",
-                transition: "width 0.3s ease",
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Members Usage */}
-        <div style={{ background: "var(--bl-paper)", padding: "16px", borderRadius: "6px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "12px" }}>
-            <span style={{ fontWeight: 600 }}>Team Seats</span>
-            <span style={{ color: "var(--bl-muted)" }}>
-              {usage.members_used} / {usage.members_limit >= 999 ? "∞" : usage.members_limit}
-            </span>
-          </div>
-          <div
-            style={{
-              width: "100%",
-              height: "6px",
-              background: "var(--bl-line)",
-              borderRadius: "3px",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${memberPct}%`,
-                height: "100%",
-                background: memberPct >= 90 ? "var(--bl-error)" : "var(--mint-deep)",
-                transition: "width 0.3s ease",
-              }}
-            />
-          </div>
-        </div>
-
-        {/* AI Usage */}
-        <div style={{ background: "var(--bl-paper)", padding: "16px", borderRadius: "6px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "12px" }}>
-            <span style={{ fontWeight: 600 }}>AI Actions (Monthly)</span>
-            <span style={{ color: "var(--bl-muted)" }}>
-              {usage.ai_credits_used} / {usage.ai_credits_limit}
-            </span>
-          </div>
-          <div
-            style={{
-              width: "100%",
-              height: "6px",
-              background: "var(--bl-line)",
-              borderRadius: "3px",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${aiPct}%`,
-                height: "100%",
-                background: aiPct >= 90 ? "var(--bl-error)" : "var(--mint-deep)",
-                transition: "width 0.3s ease",
-              }}
-            />
-          </div>
-        </div>
+      <div className="bl-usage-grid">
+        <UsageMeter label="Active projects" used={usage.projects_used} limit={usage.projects_limit} />
+        <UsageMeter label="Team seats" used={usage.members_used} limit={usage.members_limit} />
+        <UsageMeter
+          label="AI credits this month"
+          used={usage.ai_credits_used}
+          limit={usage.ai_credits_limit}
+          note={`Resets ${formatDate(usage.ai_credits_reset_at)}`}
+        />
       </div>
 
-      {/* Cancel Confirmation Modal */}
-      {showCancelConfirm && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "20px",
-          }}
-        >
-          <div
-            style={{
-              background: "var(--bl-surface)",
-              borderRadius: "8px",
-              padding: "24px",
-              maxWidth: "460px",
-              width: "100%",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
-            }}
-          >
-            <h3 style={{ fontSize: "18px", fontWeight: 700, margin: "0 0 10px" }}>
-              Cancel your {subscription.plan_name} subscription?
-            </h3>
-            <p style={{ fontSize: "13px", color: "var(--bl-muted)", lineHeight: 1.5, margin: "0 0 20px" }}>
-              Your workspace will revert to the Free plan. You will lose access to premium features,
-              additional project slots, and higher AI quotas.
+      {confirmDowngrade && (
+        <Dialog title={`Switch to Free Starter?`} onClose={() => setConfirmDowngrade(false)}>
+          <div className="bl-form">
+            <p>
+              {subscription.plan_name} ends now and the rest of this period isn't refunded. Existing projects and
+              members stay, but you can't add more beyond the Free Starter limits.
             </p>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button
-                type="button"
-                className="bl-quiet"
-                onClick={() => setShowCancelConfirm(false)}
-              >
-                Keep Subscription
+            <footer className="bl-dialog-actions">
+              <button type="button" className="bl-quiet" onClick={() => setConfirmDowngrade(false)}>
+                Keep {subscription.plan_name}
               </button>
-              <button
-                type="button"
-                className="bl-button"
-                style={{ background: "var(--bl-error)", color: "#fff" }}
-                disabled={cancelMutation.isPending}
-                onClick={() => cancelMutation.mutate()}
-              >
-                {cancelMutation.isPending ? "Cancelling…" : "Confirm Cancel"}
+              <button type="button" className="bl-button" disabled={downgrade.isPending} onClick={() => downgrade.mutate()}>
+                {downgrade.isPending ? "Switching…" : "Switch to Free"}
               </button>
-            </div>
+            </footer>
           </div>
-        </div>
+        </Dialog>
       )}
     </section>
   );

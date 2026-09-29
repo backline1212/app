@@ -209,7 +209,21 @@ DELETION_SUPPORT_INDEXES: tuple[AdditiveIndex, ...] = (
     ),
 )
 
+# docs/tdr/0051. Webhooks find a checkout by the gateway's own session/order id, and the
+# unique checkout_id on invoices is the backstop behind claim_checkout's exactly-once
+# activation. Invoice numbers are sequential across the service (one seller).
 BILLING_INDEXES: tuple[AdditiveIndex, ...] = (
+    AdditiveIndex(
+        "billing_checkouts",
+        (("provider", 1), ("reference", 1)),
+        "billing_checkouts_provider_reference_unique",
+        {"unique": True},
+    ),
+    AdditiveIndex(
+        "billing_checkouts",
+        (("workspace_id", 1), ("created_at", -1)),
+        "billing_checkouts_workspace_created",
+    ),
     AdditiveIndex(
         "billing_events",
         (("workspace_id", 1), ("created_at", -1)),
@@ -227,28 +241,15 @@ BILLING_INDEXES: tuple[AdditiveIndex, ...] = (
         {"unique": True, "sparse": True},
     ),
     AdditiveIndex(
-        "workspaces",
-        (("stripe_customer_id", 1),),
-        "workspaces_stripe_customer_id",
-        {"sparse": True},
+        "invoices",
+        (("checkout_id", 1),),
+        "invoices_checkout_unique",
+        {"unique": True, "sparse": True},
     ),
     AdditiveIndex(
-        "workspaces",
-        (("razorpay_customer_id", 1),),
-        "workspaces_razorpay_customer_id",
-        {"sparse": True},
-    ),
-    AdditiveIndex(
-        "workspaces",
-        (("stripe_subscription_id", 1),),
-        "workspaces_stripe_subscription_id",
-        {"sparse": True},
-    ),
-    AdditiveIndex(
-        "workspaces",
-        (("razorpay_subscription_id", 1),),
-        "workspaces_razorpay_subscription_id",
-        {"sparse": True},
+        "ai_usage",
+        (("workspace_id", 1), ("created_at", -1)),
+        "ai_usage_workspace_created",
     ),
 )
 
