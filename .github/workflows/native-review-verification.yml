@@ -84,3 +84,11 @@ jobs:
       - name: API log on failure
         if: failure()
         run: cat "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/s3.log"
+
+      - name: Browser evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-review-playwright
+          path: apps/e2e/test-results/
+          retention-days: 3

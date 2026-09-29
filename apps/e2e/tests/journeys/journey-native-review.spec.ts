@@ -75,7 +75,11 @@ test("password and OAuth-style sign-in, member and guest comments stay on the re
     await page.goto(`${web}/login`);
     await page.locator("#lgInMail").fill(email);
     await page.locator("#lgInPw").fill(password);
-    await page.locator("#lg-in button[type=submit]").click();
+    await Promise.all([
+      page.waitForResponse(response => response.url() === `${api}/api/v1/auth/login` && response.status() === 200),
+      page.locator("#lg-in button[type=submit]").click(),
+    ]);
+    await page.waitForURL(url => url.pathname !== "/login");
     await page.goto(`${web}/w/${workspace.slug}/p/${project.id}`);
     const button = page.getByRole("button", { name: "Browser review" });
     await expect(button).toBeVisible();
