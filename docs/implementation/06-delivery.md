@@ -1,5 +1,68 @@
 # Delivery and verification ledger
 
+## 2026-09-29: Illustrations and interaction audit (TDR-0050)
+
+The user asked for the pending findings from TDR-0049 to be finished. They had also
+originally asked for custom SVG artwork and animation. The work is on a new branch from
+`main` (PR #42 had merged). Reasoning is in TDR-0050.
+
+**Delivered:**
+- **Project card artwork** (`ProjectArtwork.tsx`):
+  - a schematic page in three layouts, with the site's favicon in its header;
+  - real pins, one per open comment (up to three, then "+N"), or a check when all are
+    closed;
+  - pins drop in on load and lift and pulse on hover;
+  - dark-mode palettes, so there is no white slab;
+  - the label reads just "Website", "Images" or "PDF".
+- **Illustrations** (`components/illustrations.tsx`):
+  - eight empty-state scenes (tickets, clients, projects, activity, members, share
+    links, guest board, and "no matches");
+  - a 404 lost-pin scene, a growing chart for AI Usage, an invoice with a "SOON" stamp
+    for Billing, and a pinging brand mark for the loading screen.
+  - Colors are theme tokens only, and every animation settles to a complete still frame
+    under reduced motion.
+- **In-page loaders.** Seven pages used the full-viewport loader inside their content;
+  they now use `LoadingScreen inline`.
+- **Tickets empty state:**
+  - the message depends on whether filters are on, a tab is empty, or there are no
+    tickets at all;
+  - "Show all tickets" on an empty tab used to do nothing, and now switches to
+    Everyone.
+- **Activity:**
+  - rows read as sentences with the object named, and the ticket's `#N` plus its first
+    line;
+  - "Open comment" when the row links to a thread.
+  - Backend: additive `ticket_number` and `comment_excerpt` on `ActivityOut`, from one
+    workspace-scoped bulk read (`CommentRepository.find_many_in_workspace`). OpenAPI and
+    `packages/types` were regenerated.
+- **Interaction fixes:**
+  - The New ticket and Account dialog intros were half hidden under the sticky header.
+  - Ticket detail priority showed raw values ("high").
+  - The search box had a double focus ring.
+  - Team-ticket search results said "Project tickets"; they now say "Team ticket"
+    (backend).
+  - "Mark all read" showed with nothing unread.
+  - In the mobile drawer, the close button covered the workspace chevron.
+- **Canvas shortcuts.** "?" opens the shortcuts list, and arrow keys show as ← →.
+
+**Verification:**
+- `pnpm turbo run lint typecheck build --force`: 12/12 passed with zero lint warnings,
+  production builds included.
+- Backend: `ruff check .`, `ruff format --check .` (233 files), strict
+  `mypy app/ scripts/` (193 files) and `scripts/check_workspace_scoping.py` passed.
+- OpenAPI re-exported; the `packages/types` diff is additive only (two optional fields).
+- Scratch browser pass: the real API on `mongomock-motor` and `fakeredis`, with a
+  `$toObjectId` shim added for global search.
+  - Every illustration was captured in light and dark after animations settled, as was
+    the loading screen mid-load.
+  - 16 dialogs, popovers and drawers were opened in both themes.
+  - Activity, search, bell and drawer were re-checked after the fixes.
+  - No console errors other than unresolvable demo hosts and the canvas preview frame.
+
+**Not verified:** the pytest suite and Playwright journeys (no local MongoDB/Redis). No
+test suite was written, per this repository's Claude Code instruction.
+
+## 2026-09-29: Whole-app polish pass (TDR-0049)
 ## 2026-09-29: Whole-app polish pass (TDR-0049)
 
 The user asked for open-ended improvement of the app and for bugs across the site to be

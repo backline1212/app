@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { ComponentType, SVGProps } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { EmptyArt } from "../../components/illustrations";
 import { BoltIcon, BuildingIcon, CommentBubbleIcon, FolderIcon, LinkIcon, PersonIcon } from "../../components/icons";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
@@ -21,6 +22,47 @@ const EVENT_META: Record<string, { icon: ComponentType<SVGProps<SVGSVGElement>>;
   share_link: { icon: LinkIcon, color: "var(--badge-purple)" },
   member: { icon: PersonIcon, color: "var(--badge-yellow)" },
 };
+
+// What the actor did, as a phrase. Unlisted types fall back to the raw event name, so a
+// new backend event still shows up rather than vanishing.
+const EVENT_PHRASES: Record<string, string> = {
+  "comment.created": "commented",
+  "comment.updated": "updated",
+  "comment.status_changed": "changed the status of",
+  "comment.deleted": "deleted",
+  "comment.layer_changed": "changed who can see",
+  "comment.recovery_updated": "re-pinned",
+  "anchor.manually_reassigned": "moved the pin of",
+  "project.created": "created the project",
+  "project.updated": "updated the project",
+  "project.settings_updated": "changed the settings of",
+  "project.archived": "archived the project",
+  "project.restored": "restored the project",
+  "project.duplicated": "duplicated the project",
+  "client.created": "added the client",
+  "client.updated": "updated the client",
+  "client.restored": "restored the client",
+  "share_link.created": "created a share link",
+  "share_link.revoked": "revoked a share link",
+  "member.invited": "invited",
+  "member.removed": "removed",
+  "member.role_changed": "changed the role of",
+  "page.created": "added a page",
+  "page.updated": "updated a page",
+  "page.deleted": "deleted a page",
+  "pages.reordered": "reordered the pages",
+  "integration.connected": "connected an integration",
+  "integration.disconnected": "disconnected an integration",
+  "integration.ticket_created": "filed a tracker issue for",
+  "guest_session.created": "opened a review link",
+  "revision.created": "captured a new page version",
+  "asset.created": "uploaded a file",
+  "workspace.updated": "updated the workspace",
+};
+
+function eventPhrase(type: string) {
+  return EVENT_PHRASES[type] ?? type.replace(/\./g, " ").replace(/_/g, " ");
+}
 
 function eventMeta(type: string) {
   return EVENT_META[type.split(".")[0]] ?? { icon: BoltIcon, color: "var(--bl-muted)" };
@@ -70,7 +112,7 @@ export function ActivityPage() {
       )}
     </div>
 
-    {query.isLoading && <LoadingScreen />}
+    {query.isLoading && <LoadingScreen inline />}
     {query.error && <p role="alert" className="bl-error">{query.error.message}</p>}
 
     {!query.isLoading && !query.error && (
@@ -89,12 +131,14 @@ export function ActivityPage() {
                   <div>
                     <p style={{ margin: 0 }}>
                       <strong>{members.data?.find((m) => m.user_id === event.actor_id)?.name ?? (event.actor_type === "system" ? "Backline" : event.actor_type === "guest" ? "Reviewer" : "Team member")}</strong>
-                      {' ' + event.type.replace(/\./g, ' ').replace(/_/g, ' ')}
-                      {event.name && ` · ${event.name}`}
+                      {" " + eventPhrase(event.type)}
+                      {event.name && <> <span className="bl-activity-obj">{event.name}</span></>}
+                      {event.ticket_number != null && <> <span className="bl-tid">#{event.ticket_number}</span></>}
+                      {event.comment_excerpt && <span className="bl-activity-excerpt"> “{event.comment_excerpt}”</span>}
                     </p>
                     {event.project_id &&
                       <Link className="bl-chip" to={`/w/${workspace.slug}/p/${event.project_id}/board${event.comment_id ? `?comment=${event.comment_id}` : ''}`}>
-                        View project →
+                        {event.comment_id ? "Open comment →" : "View project →"}
                       </Link>
                     }
                   </div>
@@ -108,6 +152,7 @@ export function ActivityPage() {
         </section>
       )) : (
         <div className="bl-empty">
+          <EmptyArt kind="activity" />
           <h2>No activity yet</h2>
           <p>Changes will appear here as your team works.</p>
         </div>

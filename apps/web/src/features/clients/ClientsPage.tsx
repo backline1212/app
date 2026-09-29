@@ -5,6 +5,7 @@ import { Dialog } from "../../components/Dialog";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { useToast } from "../../components/Toast";
 import { PlusIcon, SearchIcon } from "../../components/icons";
+import { EmptyArt } from "../../components/illustrations";
 import { qk } from "../../lib/query-keys";
 import { timeAgo } from "../../lib/time";
 import { useDocumentTitle } from "../../lib/use-document-title";
@@ -83,7 +84,7 @@ export function ClientsPage() {
       </button>
     </div>
 
-    {clients.isLoading && <LoadingScreen />}
+    {clients.isLoading && <LoadingScreen inline />}
     {clients.error && <p role="alert" className="bl-error">{clients.error.message}</p>}
     {projects.error && <p role="alert" className="bl-error">Project associations could not load: {projects.error.message}</p>}
 
@@ -148,6 +149,7 @@ export function ClientsPage() {
         </div>
       ) : (
         <div className="bl-empty">
+          <EmptyArt kind={search ? "search" : "clients"} />
           <h2>{search ? "No clients match" : "Your next client starts here"}</h2>
           <p>{search ? "Try another name or email." : "Add a client, then connect their review projects."}</p>
         </div>

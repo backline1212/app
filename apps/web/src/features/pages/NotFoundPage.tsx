@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
+import { LostPinArt } from "../../components/illustrations";
 
 export function NotFoundPage() {
   return (
     <main className="bl-review-gate">
-      <span className="bl-loading-mark" aria-hidden="true">B</span>
+      <LostPinArt />
       <div className="bl-review-gate-copy">
         <span className="bl-review-eyebrow">404</span>
         <h1>Page not found</h1>

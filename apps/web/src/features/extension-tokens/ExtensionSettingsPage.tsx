@@ -92,7 +92,7 @@ export function ExtensionSettingsPage() {
           {listError instanceof Error ? listError.message : "Could not load extension tokens."}
         </p>
       )}
-      {isLoading && <LoadingScreen />}
+      {isLoading && <LoadingScreen inline />}
 
       <section className="bl-attention bl-settings-section">
         <header>

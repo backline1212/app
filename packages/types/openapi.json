@@ -6449,6 +6449,28 @@
               }
             ],
             "title": "Name"
+          },
+          "ticket_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number"
+          },
+          "comment_excerpt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment Excerpt"
           }
         },
         "type": "object",
