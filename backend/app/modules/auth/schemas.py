@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
+from app.core.email_address import NormalizedEmail
 from app.core.security import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
 
 
@@ -15,12 +16,12 @@ class SignupRequest(BaseModel):
     the policy (content, not shape) is service-side in _validate_new_password."""
 
     name: str = Field(min_length=1, max_length=120)
-    email: EmailStr
+    email: NormalizedEmail
     password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
 
 
 class PasswordLoginRequest(BaseModel):
-    email: EmailStr
+    email: NormalizedEmail
     # Not PASSWORD_MIN_LENGTH: an existing password is whatever it already is, and
     # rejecting a short one here would answer "is this even a valid password format"
     # differently from a wrong password.
@@ -36,11 +37,11 @@ class PasswordSetRequest(BaseModel):
 
 
 class OtpRequestRequest(BaseModel):
-    email: EmailStr
+    email: NormalizedEmail
 
 
 class OtpVerifyRequest(BaseModel):
-    email: EmailStr
+    email: NormalizedEmail
     code: str
 
 
@@ -88,14 +89,14 @@ class PasswordChangeRequest(BaseModel):
 
 
 class EmailChangeRequest(BaseModel):
-    email: EmailStr
+    email: NormalizedEmail
     # Required when the account has a password; Google/code accounts prove it's them
     # with the code sent to the new address alone.
     password: str | None = Field(default=None, max_length=PASSWORD_MAX_LENGTH)
 
 
 class EmailChangeConfirm(BaseModel):
-    email: EmailStr
+    email: NormalizedEmail
     code: str = Field(min_length=1, max_length=12)
 
 

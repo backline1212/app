@@ -11,7 +11,7 @@ from app.modules.billing.limits import require_within_plan_limit
 from app.modules.clients.repository import ClientRepository
 from app.modules.pages.repository import PageRepository
 from app.modules.projects import events as project_events
-from app.modules.projects.repository import ProjectRepository
+from app.modules.projects.repository import ProjectRepository, is_untouched_sample
 from app.modules.projects.schemas import (
     ProjectOut,
     ProjectSettingsOut,
@@ -249,7 +249,8 @@ async def restore_project(
     actor_user_id: str,
 ) -> ProjectOut:
     project = await get_project(db, project_id=project_id, workspace_id=workspace_id)
-    if project.archived_at is not None:
+    stored = await ProjectRepository(db).find_by_id(project_id)
+    if project.archived_at is not None and not (stored and is_untouched_sample(stored)):
         # Restoring makes the project active again, so it counts against the plan the
         # same as creating one - otherwise archive, create, restore walks past the limit.
         await require_within_plan_limit(db, workspace_id, "projects")
@@ -381,7 +382,7 @@ async def duplicate_project(
     return await get_project(db, project_id=new_project.id, workspace_id=workspace_id)
 
 
-_CSV_FORMULA_LEAD_CHARS = ("=", "+", "-", "@")
+_CSV_FORMULA_LEAD_CHARS = ("=", "+", "-", "@", "\t", "\r")
 
 
 def _csv_safe_cell(value: str) -> str:

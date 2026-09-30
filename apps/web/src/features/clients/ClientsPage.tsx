@@ -21,10 +21,18 @@ export function ClientsPage() {
   const { toast } = useToast();
   const [params, setParams] = useSearchParams();
   const search = params.get("search") ?? "";
+  const showArchived = params.get("archived") === "1";
+  // Changes one filter and keeps the other; typing replaces the history entry rather
+  // than adding one per keystroke.
+  function setFilter(key: "search" | "archived", value: string, replace = false) {
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    setParams(next, { replace });
+  }
   const [edit, setEdit] = useState<api.Client | "new" | null>(null);
   const [archive, setArchive] = useState<api.Client | null>(null);
   const [restore, setRestore] = useState<api.Client | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
   const [newProjectFor, setNewProjectFor] = useState<api.Client | null>(null);
   const clients = useQuery({
     queryKey: qk.clientsList(workspace.id, showArchived),
@@ -63,6 +71,7 @@ export function ClientsPage() {
         <p>Your client relationships and the projects you're reviewing together.</p>
       </div>
       <div className="bl-head-actions">
+        <button type="button" className="bl-quiet" disabled={exportClients.isPending || !clients.data?.length} onClick={() => exportClients.mutate()}>{exportClients.isPending ? "Exporting…" : "Export CSV"}</button>
         <button type="button" className="bl-button mint" onClick={() => setEdit("new")}><PlusIcon width="14" height="14" /> Add client</button>
       </div>
     </header>
@@ -75,11 +84,11 @@ export function ClientsPage() {
           aria-label="Search clients"
           placeholder="Search clients, contacts or email…"
           value={search}
-          onChange={(e) => setParams(e.target.value ? { search: e.target.value } : {})}
-          onKeyDown={(e) => { if (e.key === "Escape" && search) { e.stopPropagation(); setParams({}); } }}
+          onChange={(e) => setFilter("search", e.target.value, true)}
+          onKeyDown={(e) => { if (e.key === "Escape" && search) { e.stopPropagation(); setFilter("search", "", true); } }}
         />
       </label>
-      <button type="button" className="bl-quiet" aria-pressed={showArchived} onClick={() => setShowArchived((v) => !v)}>
+      <button type="button" className="bl-quiet" aria-pressed={showArchived} onClick={() => setFilter("archived", showArchived ? "" : "1")}>
         {showArchived ? "Hide archived" : "Show archived"}
       </button>
     </div>
@@ -130,14 +139,12 @@ export function ClientsPage() {
                           const v = e.target.value;
                           if (v === 'edit') setEdit(client);
                           else if (v === 'archive') setArchive(client);
-                          else if (v === 'export') exportClients.mutate();
                           else if (v === 'new') setNewProjectFor(client);
                         }}
                       >
                         <option value="" disabled>Options…</option>
                         <option value="edit">Rename / edit</option>
                         <option value="new">New project</option>
-                        <option value="export" disabled={exportClients.isPending}>{exportClients.isPending ? "Exporting…" : "Export"}</option>
                         <option value="archive">Archive</option>
                       </select>
                     </td>

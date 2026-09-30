@@ -7,6 +7,7 @@ from app.core.permissions import require_permission
 from app.core.session import Session, require_workspace_match
 from app.modules.billing import service as billing_service
 from app.modules.billing.schemas import (
+    AiUsageOut,
     CancelSubscriptionRequest,
     CheckoutRequest,
     CheckoutResponse,
@@ -38,6 +39,15 @@ async def get_subscription(
     return await billing_service.get_workspace_subscription(
         get_db(), workspace_id, is_owner=session.role == "owner"
     )
+
+
+@router.get("/workspaces/{workspace_id}/billing/ai-usage", response_model=AiUsageOut)
+async def get_ai_usage(
+    workspace_id: str,
+    session: Session = Depends(require_permission("workspace:view_settings")),
+) -> AiUsageOut:
+    require_workspace_match(session, workspace_id)
+    return await billing_service.get_ai_usage(get_db(), workspace_id)
 
 
 @router.post("/workspaces/{workspace_id}/billing/checkout", response_model=CheckoutResponse)

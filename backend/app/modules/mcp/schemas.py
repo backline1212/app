@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.core.text import Trimmed
+
 AgentHint = Literal[
     "claude",
     "claude_desktop",
@@ -24,7 +26,7 @@ SCOPE_WRITE = "backline:write"
 
 
 class McpTokenCreate(BaseModel):
-    label: str = Field(min_length=1, max_length=200)
+    label: Trimmed = Field(min_length=1, max_length=200)
     agent_hint: AgentHint | None = None
     access: McpAccess = "read_write"
 

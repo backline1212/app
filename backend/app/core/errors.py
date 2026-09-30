@@ -33,6 +33,15 @@ class PermissionDeniedError(BacklineError):
     status_code = status.HTTP_403_FORBIDDEN
 
 
+class WorkspaceAccessChangedError(PermissionDeniedError):
+    """The session's workspace role is no longer the member's role (changed or removed
+    since the access token was issued). Its own code lets the web app reopen the
+    workspace for a token with the current role and retry, rather than failing every
+    request until a reload."""
+
+    code = "WORKSPACE_ACCESS_CHANGED"
+
+
 class ValidationError(BacklineError):
     code = "VALIDATION_ERROR"
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY

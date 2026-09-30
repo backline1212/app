@@ -35,7 +35,7 @@ function passwordScore(value: string): number {
 
 export function LoginPage() {
   const { t } = useTranslation();
-  const { requestOtp, verifyOtp, signup, loginWithPassword, setPassword: savePassword, user, updateUser } = useAuth();
+  const { status, requestOtp, verifyOtp, signup, loginWithPassword, setPassword: savePassword, user, updateUser } = useAuth();
   // Not the "Sign in to Backline" heading: the hook appends "— Backline" itself.
   useDocumentTitle("Sign in");
   const navigate = useNavigate();
@@ -83,6 +83,15 @@ export function LoginPage() {
     }
     setCapsOn(false);
   }, [step]);
+
+  // A session restored from the refresh cookie (a bookmarked /login, the back button
+  // after signing in) goes straight to the app instead of asking to sign in again.
+  // Not mid-submit or on "Set a password": a verified code is already signed in there.
+  useEffect(() => {
+    if (status === "authenticated" && !isSubmitting && step !== "newpw") {
+      navigate("/", { replace: true });
+    }
+  }, [status, isSubmitting, step, navigate]);
 
   async function sendOtp() {
     setError(null);

@@ -5,6 +5,19 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.mongo_utils import to_object_id
 
+# The "Example Project" every new workspace is seeded with (workspaces/onboarding.py).
+# It doesn't use up the plan's project allowance while it still reviews the sample
+# site - otherwise Free's "2 active projects" meant one real one. Pointed at a real
+# site, it is a real project and counts like any other.
+SAMPLE_PROJECT_ORIGIN = "https://example.com"
+EXCLUDE_UNTOUCHED_SAMPLE: dict[str, Any] = {
+    "$nor": [{"is_sample": True, "target_origin": SAMPLE_PROJECT_ORIGIN}]
+}
+
+
+def is_untouched_sample(project: dict[str, Any]) -> bool:
+    return bool(project.get("is_sample")) and project.get("target_origin") == SAMPLE_PROJECT_ORIGIN
+
 
 class ProjectRepository:
     """`projects` - 11-Database.md §11.4."""
@@ -23,9 +36,10 @@ class ProjectRepository:
         environment: str = "live",
         client_id: str | None = None,
         hero_url: str | None = None,
+        is_sample: bool = False,
     ) -> dict[str, Any]:
         now = datetime.now(UTC)
-        doc = {
+        doc: dict[str, Any] = {
             "workspace_id": workspace_id,
             "name": name,
             "project_type": project_type,
@@ -39,6 +53,8 @@ class ProjectRepository:
             "created_at": now,
             "updated_at": now,
         }
+        if is_sample:
+            doc["is_sample"] = True
         result = await self.db.projects.insert_one(doc)
         doc["_id"] = result.inserted_id
         return doc

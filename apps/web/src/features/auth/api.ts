@@ -1,6 +1,6 @@
 import type { Schemas } from "@backline/types";
 
-import { apiFetch } from "../../lib/api-client";
+import { apiFetch, refreshSession as refreshApiSession } from "../../lib/api-client";
 
 export type UserOut = Schemas["UserOut"];
 export type TokenPairOut = Schemas["TokenPairOut"];
@@ -59,17 +59,12 @@ export function logout(): Promise<void> {
   return apiFetch<void>("/api/v1/auth/logout", { method: "POST" });
 }
 
-let refreshSessionInFlight: Promise<TokenPairOut> | null = null;
-
-/** One request at a time: refresh tokens rotate, and a second concurrent call with the
- * same cookie trips the server's reuse detection, which revokes the whole session.
- * StrictMode's double-run of AuthProvider's restore effect did exactly that on every
- * dev reload. */
+/** One refresh at a time, shared with the API client's own 401 retry: refresh tokens
+ * rotate, and a second concurrent call with the same cookie trips the server's reuse
+ * detection, which revokes the whole session. StrictMode's double-run of AuthProvider's
+ * restore effect used to do exactly that on every dev reload. */
 export function refreshSession(): Promise<TokenPairOut> {
-  refreshSessionInFlight ??= apiFetch<TokenPairOut>("/api/v1/auth/refresh", { method: "POST" }).finally(() => {
-    refreshSessionInFlight = null;
-  });
-  return refreshSessionInFlight;
+  return refreshApiSession<TokenPairOut>();
 }
 
 export type UserPreferencesOut = Schemas["UserPreferencesOut"];

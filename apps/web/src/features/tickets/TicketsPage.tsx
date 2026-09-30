@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { STATUS_COLORS, STATUS_LABELS } from "../../lib/workflow";
@@ -86,7 +86,29 @@ export function TicketsPage() {
     client: "Nothing is waiting on a client.",
     overdue: "Nothing is overdue.",
   };
-  const selected = params.get("comment");
+  // "ticket" is the name older links used for the same thing (search, asset review and
+  // the dashboard sent it until TDR-0053); still honoured so saved links keep opening.
+  const selected = params.get("comment") ?? params.get("ticket");
+  function closeDetail() {
+    const next = new URLSearchParams(params);
+    next.delete("comment");
+    next.delete("ticket");
+    setParams(next);
+  }
+
+  // A page past the end - an old link, or the last ticket on the last page just closed
+  // or deleted - moves back to the last page that has tickets instead of showing an
+  // empty list captioned "Showing 201–30 of 30".
+  const total = query.data?.total;
+  const pageIsEmpty = query.data !== undefined && query.data.items.length === 0;
+  useEffect(() => {
+    if (query.isPlaceholderData || !pageIsEmpty || offset === 0 || total === undefined) return;
+    const next = new URLSearchParams(params);
+    const lastPage = total > 0 ? Math.floor((total - 1) / 50) * 50 : 0;
+    if (lastPage > 0) next.set("offset", String(lastPage));
+    else next.delete("offset");
+    setParams(next, { replace: true });
+  }, [query.isPlaceholderData, pageIsEmpty, offset, total, params, setParams]);
   const sort = params.get("sort") ?? "newest";
   const group = params.get("group") ?? "none";
 
@@ -247,7 +269,7 @@ export function TicketsPage() {
 
       {showCreate && <NewTicket workspace={workspace} members={members.data ?? []} onClose={() => setShowCreate(false)} />}
       {deleting && <DeleteTicketDialog ticket={deleting} workspaceId={workspace.id} onCancel={() => setDeleting(null)} onDeleted={() => setDeleting(null)} />}
-      {selected && <TicketDetail id={selected} workspace={workspace} members={members.data ?? []} onClose={() => set("comment", "")} />}
+      {selected && <TicketDetail id={selected} workspace={workspace} members={members.data ?? []} onClose={closeDetail} />}
     </main>
   );
 }

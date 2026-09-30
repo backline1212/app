@@ -45,6 +45,7 @@ export const qk = {
   billingPlans: (workspaceId: string) => ["workspace", workspaceId, "billing", "plans"] as const,
   subscription: (workspaceId: string) => ["workspace", workspaceId, "billing", "subscription"] as const,
   invoices: (workspaceId: string) => ["workspace", workspaceId, "billing", "invoices"] as const,
+  aiUsage: (workspaceId: string) => ["workspace", workspaceId, "billing", "ai-usage"] as const,
 };
 
 // A single ticket status/reply/priority change only ever affects the ticket list

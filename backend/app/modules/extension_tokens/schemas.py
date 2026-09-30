@@ -2,11 +2,12 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.core.text import Trimmed
 from app.modules.workspaces.schemas import WorkspaceOut
 
 
 class ExtensionTokenCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
+    name: Trimmed = Field(min_length=1, max_length=200)
 
 
 class ExtensionTokenIssued(BaseModel):

@@ -3,6 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.core.text import Trimmed
+
 Layer = Literal["client", "team"]
 Status = Literal["todo", "in_progress", "in_review", "blocked", "resolved", "wont_fix"]
 Priority = Literal["low", "medium", "high"]
@@ -91,7 +93,7 @@ class AttachmentOut(BaseModel):
 
 
 class CommentCreate(BaseModel):
-    body: str = Field(min_length=1, max_length=10_000)
+    body: Trimmed = Field(min_length=1, max_length=10_000)
     layer: Layer = "client"
     anchor: AnchorIn
     context: ContextIn
@@ -110,7 +112,7 @@ class CommentCreate(BaseModel):
 
 
 class ReplyCreate(BaseModel):
-    body: str = Field(min_length=1, max_length=10_000)
+    body: Trimmed = Field(min_length=1, max_length=10_000)
     layer: Layer = "client"
     attachments: list[AttachmentIn] = Field(default_factory=list, max_length=10)
     client_request_id: str | None = Field(default=None, min_length=1, max_length=100)
@@ -128,11 +130,11 @@ class CommentBodyEdit(BaseModel):
     comment, any field); this is just the comment's own author correcting their own
     text via the widget (docs/tdr's "only the comment's own author" scope decision)."""
 
-    body: str = Field(min_length=1, max_length=10_000)
+    body: Trimmed = Field(min_length=1, max_length=10_000)
 
 
 class CommentUpdate(BaseModel):
-    body: str | None = Field(default=None, min_length=1, max_length=10_000)
+    body: Trimmed | None = Field(default=None, min_length=1, max_length=10_000)
     status: Status | None = None
     assignee_id: str | None = None
     due_at: datetime | None = None

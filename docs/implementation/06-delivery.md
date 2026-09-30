@@ -1,5 +1,61 @@
 # Delivery and verification ledger
 
+## 2026-09-30: Page-by-page fix sweep (TDR-0053)
+
+The user asked for the rest of the code to be fixed page by page, across UI, backend
+and database, on the billing branch. The backend suite ran on a real MongoDB 7.0
+replica set for the first time, from a scratch directory, so the repo's `.env` with its
+live keys was never loaded. Reasoning is in TDR-0053.
+
+**Fixed:**
+- **Accounts.**
+  - Sign-in emails are case-insensitive, so an invite with capitals no longer splits
+    into a second account at Google or code sign-in.
+  - "Set a password" needs a code sign-in from the last 15 minutes.
+  - `/login` with a live session opens the app.
+- **Plan limits.** The seeded "Example Project" no longer takes one of Free's two
+  project slots.
+- **AI Usage** is real: this month's credits against the plan, and breakdowns by
+  feature, member, day and month (new `GET .../billing/ai-usage`). AI actions that hit
+  the limit now say so.
+- **Access.**
+  - A changed or removed role reopens the workspace or routes to the picker, instead
+    of failing every request.
+  - ClickUp, Jira and Asana OAuth connect again: the callback waits for the session and
+    switches workspace first, and all refreshes share one request.
+  - Guest passcodes allow 25 wrong tries per link per 15 minutes.
+- **Links and pages.**
+  - Search, asset review and dashboard ticket links open the ticket.
+  - Stale ticket page offsets clamp to the last page.
+  - Blank workspace, comment, token and label names are rejected.
+  - The filter boxes don't flood browser history.
+  - Clients export moved to the header, and its archived toggle is in the URL.
+  - Activity rows show their dates.
+  - Settings is read-only for members, without the fake upload text.
+  - Members, extension-token and MCP errors are shown, and revoking a token asks first.
+  - CSV formula guards cover a leading tab or carriage return.
+
+**Database:** additive fields `refresh_tokens.auth_method/authenticated_at`,
+`projects.is_sample` and `ai_usage.user_id`. There are no new indexes. Two dry-run-first
+scripts come with it:
+- `migrate_lowercase_user_emails.py` reports case-only duplicates and never merges them;
+- `migrate_mark_sample_projects.py`.
+
+**Verification:**
+- Backend `ruff`, format, `mypy` (205 files) and the scoping check pass.
+- Backend suite: 270 passed, 11 failed. All 11 predate this work:
+  - 6 are pub/sub tests the fake Redis can't deliver;
+  - 5 are stale proxy and Jira tests (see TDR-0053).
+- Scratch checks covered the auth, limit, usage and passcode changes, and both
+  migrations.
+- `pnpm turbo run lint typecheck build --force`: 12/12.
+
+**Not verified:** a browser pass of the new AI Usage page, and live OAuth apps.
+
+**Open:**
+- Whether to enforce the pricing table's integration, cloud-login and MCP rows.
+- Updating the 5 stale tests.
+
 ## 2026-09-30: Billing plans, Stripe, Razorpay/UPI and plan limits (TDR-0052)
 
 The user asked for the billing branch's first cut to be verified against

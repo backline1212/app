@@ -152,8 +152,11 @@ export function ActivityPage() {
                       );
                     })()}
                   </div>
-                  <time dateTime={event.created_at}>
-                    {new Date(event.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                  <time dateTime={event.created_at} title={new Date(event.created_at).toLocaleString()}>
+                    {/* "Earlier" spans every older day, so its rows need the date as well. */}
+                    {date === "Earlier"
+                      ? new Date(event.created_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+                      : new Date(event.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                   </time>
                 </article>
               );
@@ -162,9 +165,10 @@ export function ActivityPage() {
         </section>
       )) : (
         <div className="bl-empty">
-          <EmptyArt kind="activity" />
-          <h2>No activity yet</h2>
-          <p>Changes will appear here as your team works.</p>
+          <EmptyArt kind={filter ? "search" : "activity"} />
+          <h2>{filter ? "Nothing here" : "No activity yet"}</h2>
+          <p>{filter ? "Nothing in this workspace matches this filter yet." : "Changes will appear here as your team works."}</p>
+          {filter && <button type="button" className="bl-quiet" onClick={() => setParams({ type: "", offset: "0" })}>Show everything</button>}
         </div>
       )
     )}

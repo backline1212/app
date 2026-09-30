@@ -31,5 +31,10 @@ export function aiErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError && error.code === "AI_SERVICE_BUSY") {
     return "AI is busy right now — try again in a moment.";
   }
+  // The month's AI credits are used up: the server's message names the plan's
+  // allowance and when it resets, which a generic failure line would hide.
+  if (error instanceof ApiError && error.code === "PLAN_LIMIT_EXCEEDED") {
+    return error.message;
+  }
   return fallback;
 }

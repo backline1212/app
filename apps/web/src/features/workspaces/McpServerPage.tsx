@@ -282,13 +282,14 @@ export function McpServerPage() {
           title="Revoke token?"
           message={
             <>
-              Any agent using <strong>{revokeCandidate.label}</strong> loses access to Backline immediately.
+              <p>Any agent using <strong>{revokeCandidate.label}</strong> loses access to Backline immediately.</p>
+              {revoke.error && <p role="alert" className="bl-error">{revoke.error.message}</p>}
             </>
           }
           confirmLabel={revoke.isPending ? "Revoking…" : "Revoke token"}
           destructive
           pending={revoke.isPending}
-          onCancel={() => setRevokeCandidate(null)}
+          onCancel={() => { revoke.reset(); setRevokeCandidate(null); }}
           onConfirm={() => revoke.mutate(revokeCandidate.id)}
         />
       )}

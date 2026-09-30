@@ -40,6 +40,10 @@ from app.modules.billing.plans import (
 )
 from app.modules.billing.repository import BillingRepository
 from app.modules.billing.schemas import (
+    AiUsageActionOut,
+    AiUsageMemberOut,
+    AiUsageOut,
+    AiUsagePointOut,
     CheckoutRequest,
     CheckoutResponse,
     ComparisonCategoryOut,
@@ -168,6 +172,72 @@ async def get_workspace_subscription(
         usage=usage,
         is_owner=is_owner,
         stripe_portal_available=_stripe_customer(settings, workspace) is not None,
+    )
+
+
+# -- AI usage -------------------------------------------------------------------------
+
+_AI_ACTIONS = ("summarize", "suggest_reply", "analyze_project")
+_USAGE_TREND_MONTHS = 6
+
+
+def _month_start(value: datetime, months_back: int) -> datetime:
+    year, month = value.year, value.month - months_back
+    while month < 1:
+        year, month = year - 1, month + 12
+    return value.replace(year=year, month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+async def get_ai_usage(db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str) -> AiUsageOut:
+    """Where this month's AI credits went, from the same ledger the plan limit counts
+    (billing/limits.py), so the page and the limit can never disagree."""
+    repo = BillingRepository(db)
+    workspace = await repo.find_workspace(workspace_id)
+    if workspace is None:
+        raise NotFoundError("Workspace not found.")
+
+    now = datetime.now(UTC)
+    plan = get_plan_definition(effective_plan_id(workspace, now))
+    period_start, resets_at = ai_credit_window(now)
+    trend_start = _month_start(now, _USAGE_TREND_MONTHS - 1)
+    breakdown, by_month = await asyncio.gather(
+        repo.ai_usage_breakdown(workspace_id, period_start=period_start),
+        repo.ai_usage_by_month(workspace_id, since=trend_start),
+    )
+
+    action_counts = {row["_id"]: row["count"] for row in breakdown["by_action"]}
+    member_rows = sorted(breakdown["by_member"], key=lambda row: -row["count"])
+    member_ids = [row["_id"] for row in member_rows if row["_id"]]
+    users = await UserRepository(db).find_many_by_ids(member_ids)
+    day_counts = {row["_id"]: row["count"] for row in breakdown["by_day"]}
+    days = [period_start.replace(day=day).strftime("%Y-%m-%d") for day in range(1, now.day + 1)]
+    months = [
+        _month_start(now, back).strftime("%Y-%m") for back in range(_USAGE_TREND_MONTHS - 1, -1, -1)
+    ]
+
+    def member_name(user_id: str | None) -> str:
+        if user_id is None:
+            return "Before per-member tracking"
+        return str(users[user_id]["name"]) if user_id in users else "Former member"
+
+    return AiUsageOut(
+        plan_id=plan["id"],
+        plan_name=plan["name"],
+        used=sum(action_counts.values()),
+        limit=plan["ai_credits_monthly"],
+        period_start=period_start,
+        resets_at=resets_at,
+        ai_enabled=bool(get_settings().groq_api_keys),
+        by_action=[
+            AiUsageActionOut(action=action, count=action_counts.get(action, 0))  # type: ignore[arg-type]
+            for action in _AI_ACTIONS
+        ],
+        by_member=[
+            AiUsageMemberOut(user_id=row["_id"], name=member_name(row["_id"]), count=row["count"])
+            for row in member_rows
+        ],
+        daily=[AiUsagePointOut(period=day, count=day_counts.get(day, 0)) for day in days],
+        monthly=[AiUsagePointOut(period=month, count=by_month.get(month, 0)) for month in months],
     )
 
 

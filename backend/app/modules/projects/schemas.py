@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core.ssrf_guard import is_public_hostname_literal
+from app.core.text import Trimmed
 
 ProjectType = Literal["website", "image", "pdf"]
 Environment = Literal["live", "staging"]
@@ -169,7 +170,7 @@ class ProjectHardDeletePreviewOut(BaseModel):
 
 class ProjectHardDeleteConfirm(BaseModel):
     correlation_id: str = Field(min_length=36, max_length=36)
-    project_name: str = Field(min_length=1, max_length=200)
+    project_name: Trimmed = Field(min_length=1, max_length=200)
     acknowledge_permanent_deletion: Literal[True]
 
 

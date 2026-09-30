@@ -105,7 +105,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
     if (result.project_id) {
       return `${base}/p/${result.project_id}/board?comment=${encodeURIComponent(result.id)}`;
     }
-    return `${base}/tickets?ticket=${encodeURIComponent(result.id)}`;
+    return `${base}/tickets?comment=${encodeURIComponent(result.id)}`;
   }
 
   function open(result: SearchItem) {
