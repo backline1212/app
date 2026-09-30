@@ -2454,6 +2454,12 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-nav .bl-dot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block}
 .bl-nav .bl-dot.is-grey{background:var(--line)}
 
+/* Collapsible section toggles (sidebar groups) */
+.bl-nav-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;cursor:pointer;color:var(--ink-4);text-align:left;text-transform:uppercase}
+.bl-nav-toggle:hover{color:var(--ink-3)}
+.bl-nav-chevron{width:14px;height:14px;flex:none;transition:transform .2s ease}
+.bl-nav-chevron.is-open{transform:rotate(180deg)}
+
 .bl-rail-foot{margin-top:auto;padding:12px;border-top:1px solid var(--line-soft)}
 .bl-plan-card{padding:12px;border:1px solid var(--line);border-radius:4px}
 .bl-plan-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
@@ -2462,6 +2468,19 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-plan-card p{margin:0 0 10px;font-size:12px;line-height:1.4;color:var(--ink-3)}
 .bl-btn-plan{display:block;width:100%;padding:7px;border-radius:4px;background:var(--mint);color:#0B0B0B;font-size:12.5px;font-weight:600;text-align:center}
 .bl-btn-plan:hover{background:#57d3a4}
+
+/* AI capabilities page */
+.bl-ai-capabilities{flex:1;padding:20px;display:flex;flex-direction:column;gap:12px}
+.bl-ai-cap{padding:14px;border:1px solid var(--line);border-radius:var(--r);background:var(--bl-surface)}
+.bl-ai-cap-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.bl-ai-cap-head strong{font-size:13px}
+.bl-ai-cap p{font-size:12px;line-height:1.5;color:var(--ink-3);margin:0}
+
+/* Stat blocks (small number + label pairs) */
+.bl-stat{display:flex;flex-direction:column;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--bl-surface);min-width:100px}
+.bl-stat-value{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+.bl-stat-label{font:10px var(--mono);color:var(--ink-3);margin-top:2px;letter-spacing:.03em;text-transform:uppercase}
+
 
 .bl-topbar{gap:14px;padding:11px 28px;background:rgba(241,242,240,.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 :root.dark .bl-topbar{background:rgba(14,18,16,.88)}

@@ -196,3 +196,38 @@ export function SwitchIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function ExtensionsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 2v4M12 18v4M4 12H2M22 12h-2" />
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </Icon>
+  );
+}
+
+export function IntegrationsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M8 8v8l8-8v8" />
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+    </Icon>
+  );
+}
+
+export function SparklesIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" />
+    </Icon>
+  );
+}
+
+export function KeyIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="7" cy="15" r="4" />
+      <path d="M10 12l8-8 3 3-2 2-1-1-2 2 1 1-3 3z" />
+    </Icon>
+  );
+}

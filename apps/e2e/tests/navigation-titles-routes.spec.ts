@@ -70,11 +70,24 @@ test.describe("Navigation, Routing and Standardized Document Titles", () => {
     await page.goto(`/w/${workspaceSlug}/mcp`);
     await expect(page).toHaveTitle(new RegExp(`${wsName} · MCP Server — Backline`));
 
-    // 13. Workspace Browser Extension Page
-    await page.goto(`/w/${workspaceSlug}/extension`);
+    // 13. Workspace Browser Extension Page (renamed from /extension to /extensions)
+    await page.goto(`/w/${workspaceSlug}/extensions`);
     await expect(page).toHaveTitle(new RegExp(`${wsName} · Browser Extension — Backline`));
 
-    // 14. 404 Not Found Page Title
+    // 13b. Legacy /extension path redirects to /extensions
+    await page.goto(`/w/${workspaceSlug}/extension`);
+    await expect(page).toHaveURL(new RegExp(`/w/${workspaceSlug}/extensions$`));
+    await expect(page).toHaveTitle(new RegExp(`${wsName} · Browser Extension — Backline`));
+
+    // 14. Workspace AI Page
+    await page.goto(`/w/${workspaceSlug}/ai`);
+    await expect(page).toHaveTitle(new RegExp(`${wsName} · AI — Backline`));
+
+    // 15. Workspace API Keys Page
+    await page.goto(`/w/${workspaceSlug}/keys`);
+    await expect(page).toHaveTitle(new RegExp(`${wsName} · API Keys — Backline`));
+
+    // 16. 404 Not Found Page Title
     await page.goto(`/w/${workspaceSlug}/non-existent-page-route-12345`);
     await expect(page).toHaveTitle(/Page Not Found — Backline/);
   });

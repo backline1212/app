@@ -101,12 +101,22 @@ const router = createBrowserRouter([
                 lazy: page(() => import("../features/integrations/IntegrationsPage"), "IntegrationsPage"),
               },
               {
-                path: "extension",
+                path: "extensions",
                 lazy: page(
                   () => import("../features/extension-tokens/ExtensionSettingsPage"),
                   "ExtensionSettingsPage",
                 ),
               },
+              {
+                path: "ai",
+                lazy: page(() => import("../features/ai/AiPage"), "AiPage"),
+              },
+              {
+                path: "keys",
+                lazy: page(() => import("../features/api-keys/ApiKeysPage"), "ApiKeysPage"),
+              },
+              // Legacy path - redirect to renamed route so existing bookmarks keep working
+              { path: "extension", element: <Navigate to="../extensions" replace /> },
             ],
           },
           {
