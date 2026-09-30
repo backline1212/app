@@ -31,10 +31,10 @@ export function JoinWorkspacePage() {
   });
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", backgroundColor: "var(--color-bg)" }}>
-      <div className="bl-attention" style={{ padding: "40px", width: "100%", maxWidth: "400px", textAlign: "center" }}>
-        <h1 style={{ marginBottom: "16px", fontSize: "24px" }}>Join a Workspace</h1>
-        <p className="bl-mono" style={{ marginBottom: "32px", color: "var(--color-text-secondary)" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", backgroundColor: "var(--paper)" }}>
+      <div className="bl-attention" style={{ padding: "40px", width: "100%", maxWidth: "400px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--r)" }}>
+        <h1 style={{ marginBottom: "16px", fontSize: "24px", color: "var(--ink)" }}>Join a Workspace</h1>
+        <p className="bl-mono" style={{ marginBottom: "32px", color: "var(--bl-muted)" }}>
           Enter the room code provided by your admin to request access.
         </p>
         <form

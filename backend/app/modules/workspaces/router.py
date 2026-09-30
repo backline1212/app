@@ -6,14 +6,14 @@ from app.core.session import Session, get_current_session, require_workspace_mat
 from app.modules.workspaces import service as workspace_service
 from app.modules.workspaces.schemas import (
     InviteMemberRequest,
+    JoinRequestCreate,
+    JoinRequestOut,
+    JoinRequestResponse,
     MemberOut,
     MemberRoleUpdateRequest,
     WorkspaceCreate,
     WorkspaceOut,
     WorkspaceUpdate,
-    JoinRequestCreate,
-    JoinRequestOut,
-    JoinRequestResponse,
 )
 
 router = APIRouter(tags=["workspaces"])
@@ -49,14 +49,18 @@ async def update_workspace(
     session: Session = Depends(require_permission("workspace:update_settings")),
 ) -> WorkspaceOut:
     require_workspace_match(session, workspace_id)
+    # body.room_code being an explicit empty string means "clear the room code"
+    clear_room_code = body.room_code is not None and body.room_code.strip() == ""
+    room_code_val = None if clear_room_code else body.room_code
     return await workspace_service.update_workspace(
         get_db(),
         workspace_id=workspace_id,
         name=body.name,
-        room_code=body.room_code,
+        room_code=room_code_val,
         join_requires_approval=body.join_requires_approval,
         actor_user_id=session.user_id,
         actor_role=session.role,
+        _clear_room_code=clear_room_code,
     )
 
 
@@ -113,14 +117,15 @@ async def remove_member(
         get_db(), workspace_id=workspace_id, membership_id=member_id, actor_user_id=session.user_id
     )
 
+
 @router.post("/workspaces/join", response_model=JoinRequestResponse)
 async def submit_join_request(
-    body: JoinRequestCreate,
-    session: Session = Depends(get_current_session)
+    body: JoinRequestCreate, session: Session = Depends(get_current_session)
 ) -> JoinRequestResponse:
     return await workspace_service.submit_join_request(
         get_db(), room_code=body.room_code, user_id=session.user_id
     )
+
 
 @router.get("/workspaces/{workspace_id}/join-requests", response_model=list[JoinRequestOut])
 async def list_join_requests(
@@ -130,7 +135,10 @@ async def list_join_requests(
     require_workspace_match(session, workspace_id)
     return await workspace_service.list_join_requests(get_db(), workspace_id)
 
-@router.post("/workspaces/{workspace_id}/join-requests/{request_id}/approve", response_model=MemberOut)
+
+@router.post(
+    "/workspaces/{workspace_id}/join-requests/{request_id}/approve", response_model=MemberOut
+)
 async def approve_join_request(
     workspace_id: str,
     request_id: str,
@@ -140,6 +148,7 @@ async def approve_join_request(
     return await workspace_service.approve_join_request(
         get_db(), workspace_id=workspace_id, request_id=request_id, actor_user_id=session.user_id
     )
+
 
 @router.post("/workspaces/{workspace_id}/join-requests/{request_id}/reject", status_code=204)
 async def reject_join_request(

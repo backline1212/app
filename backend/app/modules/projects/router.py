@@ -29,7 +29,11 @@ async def list_projects(
 ) -> list[ProjectOut]:
     require_workspace_match(session, workspace_id)
     return await project_service.list_projects(
-        get_db(), workspace_id, include_archived=include_archived, actor_user_id=session.user_id, actor_role=session.role
+        get_db(),
+        workspace_id,
+        include_archived=include_archived,
+        actor_user_id=session.user_id,
+        actor_role=session.role,
     )
 
 
@@ -81,7 +85,11 @@ async def get_project(
     session: Session = Depends(require_permission("project:manage")),
 ) -> ProjectOut:
     return await project_service.get_project(
-        get_db(), project_id=project_id, workspace_id=require_workspace_context(session), actor_user_id=session.user_id, actor_role=session.role
+        get_db(),
+        project_id=project_id,
+        workspace_id=require_workspace_context(session),
+        actor_user_id=session.user_id,
+        actor_role=session.role,
     )
 
 

@@ -147,16 +147,28 @@ async def find_or_create_project_for_origin(
 
 
 async def list_projects(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, *, include_archived: bool = False, actor_user_id: str, actor_role: str
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    *,
+    include_archived: bool = False,
+    actor_user_id: str | None = None,
+    actor_role: str | None = None,
 ) -> list[ProjectOut]:
     repo = ProjectRepository(db)
     member_id_filter = actor_user_id if actor_role == "member" else None
-    docs = await repo.list_for_workspace(workspace_id, include_archived=include_archived, member_id_filter=member_id_filter)
+    docs = await repo.list_for_workspace(
+        workspace_id, include_archived=include_archived, member_id_filter=member_id_filter
+    )
     return [_project_out(doc) for doc in docs]
 
 
 async def get_project(
-    db: AsyncIOMotorDatabase[dict[str, Any]], *, project_id: str, workspace_id: str, actor_user_id: str | None = None, actor_role: str | None = None
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    project_id: str,
+    workspace_id: str,
+    actor_user_id: str | None = None,
+    actor_role: str | None = None,
 ) -> ProjectOut:
     repo = ProjectRepository(db)
     doc = await repo.find_by_id(project_id)
@@ -175,7 +187,7 @@ async def update_project(
     project_id: str,
     workspace_id: str,
     actor_user_id: str,
-    actor_role: str,
+    actor_role: str | None = None,
     name: str | None,
     target_origin: str | None,
     changes: ProjectUpdate | None = None,
@@ -233,7 +245,7 @@ async def archive_project(
     project_id: str,
     workspace_id: str,
     actor_user_id: str,
-    actor_role: str,
+    actor_role: str | None = None,
 ) -> None:
     repo = ProjectRepository(db)
     existing = await repo.find_by_id(project_id)
@@ -259,9 +271,15 @@ async def restore_project(
     project_id: str,
     workspace_id: str,
     actor_user_id: str,
-    actor_role: str,
+    actor_role: str | None = None,
 ) -> ProjectOut:
-    project = await get_project(db, project_id=project_id, workspace_id=workspace_id, actor_user_id=actor_user_id, actor_role=actor_role)
+    project = await get_project(
+        db,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        actor_user_id=actor_user_id,
+        actor_role=actor_role,
+    )
     stored = await ProjectRepository(db).find_by_id(project_id)
     if project.archived_at is not None and not (stored and is_untouched_sample(stored)):
         # Restoring makes the project active again, so it counts against the plan the
@@ -285,7 +303,7 @@ async def update_project_settings(
     project_id: str,
     workspace_id: str,
     actor_user_id: str,
-    actor_role: str,
+    actor_role: str | None = None,
     settings: ProjectSettingsUpdate,
 ) -> ProjectSettingsOut:
     """FD-AUD-018: persist the five review-settings flags.
@@ -294,7 +312,13 @@ async def update_project_settings(
     explicitly included in the request; proxy_mode and snippet_installed are
     managed by separate code paths and must not be cleared here.
     """
-    existing = await get_project(db, project_id=project_id, workspace_id=workspace_id, actor_user_id=actor_user_id, actor_role=actor_role)
+    existing = await get_project(
+        db,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        actor_user_id=actor_user_id,
+        actor_role=actor_role,
+    )
     patch = settings.model_dump(exclude_unset=True)
     if not patch:
         return existing.settings
@@ -318,10 +342,16 @@ async def duplicate_project(
     project_id: str,
     workspace_id: str,
     actor_user_id: str,
-    actor_role: str,
+    actor_role: str | None = None,
 ) -> ProjectOut:
     # 1. Fetch original project
-    original = await get_project(db, project_id=project_id, workspace_id=workspace_id, actor_user_id=actor_user_id, actor_role=actor_role)
+    original = await get_project(
+        db,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        actor_user_id=actor_user_id,
+        actor_role=actor_role,
+    )
 
     # 2. Create the duplicated project
     new_project = await create_project(
@@ -350,6 +380,7 @@ async def duplicate_project(
         project_id=new_project.id,
         workspace_id=workspace_id,
         actor_user_id=actor_user_id,
+        actor_role=actor_role,
         settings=settings_patch,
     )
 
@@ -422,14 +453,20 @@ async def export_project_comments(
     project_id: str,
     workspace_id: str,
     actor_user_id: str,
-    actor_role: str,
+    actor_role: str | None = None,
 ) -> str:
     """M-08: this previously returned a header-only stub - no comments were ever
     fetched. The caller (`GET /projects/{id}/export`) already enforces
     `project:manage` (member-only) + workspace scope; this function's own
     get_project call re-confirms the project belongs to this workspace before
     exporting anything from it."""
-    await get_project(db, project_id=project_id, workspace_id=workspace_id, actor_user_id=actor_user_id, actor_role=actor_role)
+    await get_project(
+        db,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        actor_user_id=actor_user_id,
+        actor_role=actor_role,
+    )
 
     # Deferred import: comments.service transitively imports notifications.service,
     # which imports workspaces.repository - no cycle back to projects.service today,

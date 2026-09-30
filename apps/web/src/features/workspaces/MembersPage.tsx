@@ -144,7 +144,7 @@ export function MembersPage() {
   const { data: joinRequests, refetch: refetchRequests } = useQuery({
     queryKey: ["join-requests", workspace.id],
     queryFn: () => workspacesApi.listJoinRequests(workspace.id),
-    enabled: canManageMembers(myRole) && activeTab === "requests",
+    enabled: canManageMembers(myRole),
   });
 
   const approveMutation = useMutation({
@@ -182,11 +182,33 @@ export function MembersPage() {
         )}
       </header>
 
-      <div className="bl-tabs" style={{ display: "flex", gap: "20px", borderBottom: "1px solid var(--bl-line)", marginBottom: "20px", padding: "0 24px" }}>
-        <button className={`bl-tab ${activeTab === "members" ? "active" : ""}`} onClick={() => setActiveTab("members")} style={{ background: "none", border: "none", padding: "10px 0", borderBottom: activeTab === "members" ? "2px solid var(--bl-brand)" : "2px solid transparent", cursor: "pointer", fontWeight: activeTab === "members" ? 600 : 400 }}>List View</button>
-        <button className={`bl-tab ${activeTab === "org-chart" ? "active" : ""}`} onClick={() => setActiveTab("org-chart")} style={{ background: "none", border: "none", padding: "10px 0", borderBottom: activeTab === "org-chart" ? "2px solid var(--bl-brand)" : "2px solid transparent", cursor: "pointer", fontWeight: activeTab === "org-chart" ? 600 : 400 }}>Org Chart</button>
+      <div className="bl-tabs" aria-label="Member views" style={{ padding: "0 24px", marginBottom: "20px" }}>
+        <button
+          type="button"
+          aria-pressed={activeTab === "members"}
+          onClick={() => setActiveTab("members")}
+        >
+          List View
+          <span className="bl-count">{members?.length ?? 0}</span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={activeTab === "org-chart"}
+          onClick={() => setActiveTab("org-chart")}
+        >
+          Org Chart
+        </button>
         {canManage && (
-          <button className={`bl-tab ${activeTab === "requests" ? "active" : ""}`} onClick={() => setActiveTab("requests")} style={{ background: "none", border: "none", padding: "10px 0", borderBottom: activeTab === "requests" ? "2px solid var(--bl-brand)" : "2px solid transparent", cursor: "pointer", fontWeight: activeTab === "requests" ? 600 : 400 }}>Pending Requests</button>
+          <button
+            type="button"
+            aria-pressed={activeTab === "requests"}
+            onClick={() => setActiveTab("requests")}
+          >
+            Pending Requests
+            {(joinRequests?.length ?? 0) > 0 && (
+              <span className="bl-count">{joinRequests?.length}</span>
+            )}
+          </button>
         )}
       </div>
 
@@ -339,58 +361,103 @@ export function MembersPage() {
       )}
 
       {activeTab === "org-chart" && members && (
-        <div style={{ padding: "40px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: "40px" }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-            <h3 style={{ fontSize: "14px", color: "var(--bl-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>Owner</h3>
+        <div style={{ padding: "32px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: "32px" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+            <span className="bl-chip staging" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Workspace Owner</span>
             <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
               {members.filter(m => m.role === "owner").map(m => (
-                <div key={m.id} className="bl-attention" style={{ padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", width: "160px", textAlign: "center" }}>
+                <div
+                  key={m.id}
+                  style={{
+                    padding: "20px 16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "10px",
+                    width: "180px",
+                    textAlign: "center",
+                    background: "var(--bl-surface)",
+                    border: "1px solid var(--bl-line)",
+                    borderRadius: "6px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                  }}
+                >
                   <Avatar name={m.name} avatarUrl={m.avatar_url} size={48} />
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</div>
-                    <div style={{ fontSize: "11px", color: "var(--bl-muted)", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</div>
+                  <div style={{ minWidth: 0, width: "100%" }}>
+                    <div style={{ fontWeight: 600, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.name}>{m.name}</div>
+                    <div style={{ fontSize: "11px", color: "var(--bl-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.email}>{m.email}</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
           
-          <div style={{ width: "2px", height: "40px", backgroundColor: "var(--bl-line)" }} />
+          <div style={{ width: "2px", height: "32px", backgroundColor: "var(--bl-line)" }} />
           
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-            <h3 style={{ fontSize: "14px", color: "var(--bl-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>Admins</h3>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+            <span className="bl-chip live" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Admins</span>
             <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
               {members.filter(m => m.role === "admin").map(m => (
-                <div key={m.id} className="bl-attention" style={{ padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", width: "160px", textAlign: "center" }}>
+                <div
+                  key={m.id}
+                  style={{
+                    padding: "20px 16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "10px",
+                    width: "180px",
+                    textAlign: "center",
+                    background: "var(--bl-surface)",
+                    border: "1px solid var(--bl-line)",
+                    borderRadius: "6px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                  }}
+                >
                   <Avatar name={m.name} avatarUrl={m.avatar_url} size={48} />
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</div>
-                    <div style={{ fontSize: "11px", color: "var(--bl-muted)", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</div>
+                  <div style={{ minWidth: 0, width: "100%" }}>
+                    <div style={{ fontWeight: 600, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.name}>{m.name}</div>
+                    <div style={{ fontSize: "11px", color: "var(--bl-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.email}>{m.email}</div>
                   </div>
                 </div>
               ))}
               {members.filter(m => m.role === "admin").length === 0 && (
-                <div style={{ padding: "16px", color: "var(--bl-muted)", fontSize: "12px", border: "1px dashed var(--bl-line)", borderRadius: "8px", width: "160px", textAlign: "center" }}>No Admins</div>
+                <div style={{ padding: "16px 24px", color: "var(--bl-muted)", fontSize: "12px", border: "1px dashed var(--bl-line)", borderRadius: "6px", textAlign: "center" }}>No Admins</div>
               )}
             </div>
           </div>
           
-          <div style={{ width: "2px", height: "40px", backgroundColor: "var(--bl-line)" }} />
+          <div style={{ width: "2px", height: "32px", backgroundColor: "var(--bl-line)" }} />
           
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-            <h3 style={{ fontSize: "14px", color: "var(--bl-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>Members</h3>
-            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center", maxWidth: "800px" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+            <span className="bl-chip" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Members</span>
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center", maxWidth: "900px" }}>
               {members.filter(m => m.role === "member").map(m => (
-                <div key={m.id} className="bl-attention" style={{ padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", width: "160px", textAlign: "center" }}>
+                <div
+                  key={m.id}
+                  style={{
+                    padding: "20px 16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "10px",
+                    width: "180px",
+                    textAlign: "center",
+                    background: "var(--bl-surface)",
+                    border: "1px solid var(--bl-line)",
+                    borderRadius: "6px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                  }}
+                >
                   <Avatar name={m.name} avatarUrl={m.avatar_url} size={48} />
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</div>
-                    <div style={{ fontSize: "11px", color: "var(--bl-muted)", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</div>
+                  <div style={{ minWidth: 0, width: "100%" }}>
+                    <div style={{ fontWeight: 600, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.name}>{m.name}</div>
+                    <div style={{ fontSize: "11px", color: "var(--bl-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.email}>{m.email}</div>
                   </div>
                 </div>
               ))}
               {members.filter(m => m.role === "member").length === 0 && (
-                <div style={{ padding: "16px", color: "var(--bl-muted)", fontSize: "12px", border: "1px dashed var(--bl-line)", borderRadius: "8px", width: "160px", textAlign: "center" }}>No Members</div>
+                <div style={{ padding: "16px 24px", color: "var(--bl-muted)", fontSize: "12px", border: "1px dashed var(--bl-line)", borderRadius: "6px", textAlign: "center" }}>No Members</div>
               )}
             </div>
           </div>

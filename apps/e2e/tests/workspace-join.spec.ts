@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { createWorkspace, loginViaOtp } from "../helpers/login";
-import { chromium } from "@playwright/test";
 
 test.describe("Workspace Room Code & Join Requests", () => {
   test("user can request to join via room code and admin can approve", async ({ browser }) => {

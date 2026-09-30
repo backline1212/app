@@ -13,8 +13,17 @@ from app.modules.billing.limits import require_within_plan_limit
 from app.modules.billing.plans import effective_plan_id
 from app.modules.workspaces import events as workspace_events
 from app.modules.workspaces.onboarding import seed_sample_project
-from app.modules.workspaces.repository import MembershipRepository, WorkspaceRepository, JoinRequestRepository
-from app.modules.workspaces.schemas import MemberOut, WorkspaceOut, JoinRequestOut, JoinRequestResponse
+from app.modules.workspaces.repository import (
+    JoinRequestRepository,
+    MembershipRepository,
+    WorkspaceRepository,
+)
+from app.modules.workspaces.schemas import (
+    JoinRequestOut,
+    JoinRequestResponse,
+    MemberOut,
+    WorkspaceOut,
+)
 
 logger = logging.getLogger("backline.workspaces")
 
@@ -144,6 +153,7 @@ async def update_workspace(
     join_requires_approval: bool | None = None,
     actor_user_id: str | None = None,
     actor_role: str | None = None,
+    _clear_room_code: bool = False,
 ) -> WorkspaceOut:
     workspace_repo = WorkspaceRepository(db)
     workspace_doc = await workspace_repo.find_by_id(workspace_id)
@@ -155,14 +165,24 @@ async def update_workspace(
         if existing and str(existing["_id"]) != workspace_id:
             raise ConflictError("Room code is already in use by another workspace.")
 
-    await workspace_repo.update(workspace_id, name=name, room_code=room_code, join_requires_approval=join_requires_approval)
+    await workspace_repo.update(
+        workspace_id,
+        name=name,
+        room_code=room_code,
+        join_requires_approval=join_requires_approval,
+        clear_room_code=_clear_room_code,
+    )
     await append_event(
         db,
         workspace_id=workspace_id,
         type=workspace_events.WORKSPACE_UPDATED,
         actor_type="member",
         actor_id=actor_user_id,
-        payload={"name": name, "room_code": room_code, "join_requires_approval": join_requires_approval},
+        payload={
+            "name": name,
+            "room_code": room_code,
+            "join_requires_approval": join_requires_approval,
+        },
     )
 
     updated = await workspace_repo.find_by_id(workspace_id)
@@ -298,6 +318,7 @@ async def remove_member(
         payload={"membership_id": membership_id},
     )
 
+
 def _join_request_out(doc: dict[str, Any], user_doc: dict[str, Any]) -> JoinRequestOut:
     return JoinRequestOut(
         id=str(doc["_id"]),
@@ -310,79 +331,117 @@ def _join_request_out(doc: dict[str, Any], user_doc: dict[str, Any]) -> JoinRequ
     )
 
 
-async def list_join_requests(db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str) -> list[JoinRequestOut]:
+async def list_join_requests(
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str
+) -> list[JoinRequestOut]:
     join_repo = JoinRequestRepository(db)
     user_repo = UserRepository(db)
     requests = await join_repo.list_for_workspace(workspace_id)
+    if not requests:
+        return []
+    users_by_id = await user_repo.find_many_by_ids([req["user_id"] for req in requests])
     results = []
     for req in requests:
-        user_doc = await user_repo.find_by_id(req["user_id"])
+        user_doc = users_by_id.get(req["user_id"])
         if user_doc:
             results.append(_join_request_out(req, user_doc))
     return results
 
 
-async def submit_join_request(db: AsyncIOMotorDatabase[dict[str, Any]], *, room_code: str, user_id: str) -> JoinRequestResponse:
+async def submit_join_request(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, room_code: str, user_id: str
+) -> JoinRequestResponse:
     workspace_repo = WorkspaceRepository(db)
     workspace = await workspace_repo.find_by_room_code(room_code)
     if not workspace:
         raise NotFoundError("Invalid room code.")
-    
+
     workspace_id = str(workspace["_id"])
     membership_repo = MembershipRepository(db)
     if await membership_repo.find(workspace_id=workspace_id, user_id=user_id):
         raise ConflictError("You are already a member of this workspace.")
-        
+
     if not workspace.get("join_requires_approval", True):
         # Instant join
-        await membership_repo.create(workspace_id=workspace_id, user_id=user_id, role="member", invited_by=None)
+        await membership_repo.create(
+            workspace_id=workspace_id, user_id=user_id, role="member", invited_by=None
+        )
         await append_event(
-            db, workspace_id, type="workspace.member_joined_via_code", actor_type="member", actor_id=user_id, payload={"room_code": room_code}
+            db,
+            workspace_id=workspace_id,
+            type="workspace.member_joined_via_code",
+            actor_type="member",
+            actor_id=user_id,
+            payload={"room_code": room_code},
         )
         return JoinRequestResponse(status="joined", workspace_id=workspace_id)
-    
+
     # Needs approval
     join_repo = JoinRequestRepository(db)
     existing = await join_repo.find_pending(workspace_id, user_id)
     if existing:
         return JoinRequestResponse(status="pending", workspace_id=workspace_id)
-        
+
     await join_repo.create(workspace_id=workspace_id, user_id=user_id)
     return JoinRequestResponse(status="pending", workspace_id=workspace_id)
 
 
-async def approve_join_request(db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, request_id: str, actor_user_id: str) -> MemberOut:
+async def approve_join_request(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    request_id: str,
+    actor_user_id: str,
+) -> MemberOut:
     join_repo = JoinRequestRepository(db)
     req = await join_repo.find_by_id(workspace_id, request_id)
     if not req or req["status"] != "pending":
         raise NotFoundError("Request not found or already processed.")
-        
+
     user_id = req["user_id"]
     await require_within_plan_limit(db, workspace_id, "members")
-    
-    await join_repo.update_status(request_id, "approved")
+
+    await join_repo.update_status(workspace_id, request_id, "approved")
     membership_repo = MembershipRepository(db)
-    if not await membership_repo.find(workspace_id=workspace_id, user_id=user_id):
-        membership = await membership_repo.create(workspace_id=workspace_id, user_id=user_id, role="member", invited_by=actor_user_id)
-    else:
-        membership = await membership_repo.find(workspace_id=workspace_id, user_id=user_id)
+    membership = await membership_repo.find(workspace_id=workspace_id, user_id=user_id)
+    if membership is None:
+        membership = await membership_repo.create(
+            workspace_id=workspace_id, user_id=user_id, role="member", invited_by=actor_user_id
+        )
 
     user_doc = await UserRepository(db).find_by_id(user_id)
     assert user_doc is not None
-    
+    assert membership is not None
+
     await append_event(
-        db, workspace_id, type="workspace.join_request_approved", actor_type="member", actor_id=actor_user_id, payload={"user_id": user_id, "request_id": request_id}
+        db,
+        workspace_id=workspace_id,
+        type="workspace.join_request_approved",
+        actor_type="member",
+        actor_id=actor_user_id,
+        payload={"user_id": user_id, "request_id": request_id},
     )
     return _member_out(membership, user_doc)
 
 
-async def reject_join_request(db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, request_id: str, actor_user_id: str) -> None:
+async def reject_join_request(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    request_id: str,
+    actor_user_id: str,
+) -> None:
     join_repo = JoinRequestRepository(db)
     req = await join_repo.find_by_id(workspace_id, request_id)
     if not req or req["status"] != "pending":
         raise NotFoundError("Request not found or already processed.")
-        
-    await join_repo.update_status(request_id, "rejected")
+
+    await join_repo.update_status(workspace_id, request_id, "rejected")
     await append_event(
-        db, workspace_id, type="workspace.join_request_rejected", actor_type="member", actor_id=actor_user_id, payload={"user_id": req["user_id"], "request_id": request_id}
+        db,
+        workspace_id=workspace_id,
+        type="workspace.join_request_rejected",
+        actor_type="member",
+        actor_id=actor_user_id,
+        payload={"user_id": req["user_id"], "request_id": request_id},
     )

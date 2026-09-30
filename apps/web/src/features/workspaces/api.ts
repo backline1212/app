@@ -22,7 +22,7 @@ export function getWorkspace(workspaceId: string): Promise<WorkspaceOut> {
   return apiFetch<WorkspaceOut>(`/api/v1/workspaces/${workspaceId}`);
 }
 
-export function updateWorkspace(workspaceId: string, update: { name?: string; room_code?: string; join_requires_approval?: boolean }): Promise<WorkspaceOut> {
+export function updateWorkspace(workspaceId: string, update: { name?: string; room_code?: string | null; join_requires_approval?: boolean }): Promise<WorkspaceOut> {
   return apiFetch<WorkspaceOut>(`/api/v1/workspaces/${workspaceId}`, {
     method: "PATCH",
     body: JSON.stringify(update),

@@ -71,7 +71,11 @@ class ProjectRepository:
         return await self.db.projects.find_one({"_id": oid})
 
     async def list_for_workspace(
-        self, workspace_id: str, *, include_archived: bool = False, member_id_filter: str | None = None
+        self,
+        workspace_id: str,
+        *,
+        include_archived: bool = False,
+        member_id_filter: str | None = None,
     ) -> list[dict[str, Any]]:
         query: dict[str, Any] = {"workspace_id": workspace_id}
         if not include_archived:

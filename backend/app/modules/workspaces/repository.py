@@ -45,18 +45,29 @@ class WorkspaceRepository:
     async def find_by_room_code(self, room_code: str) -> dict[str, Any] | None:
         return await self.db.workspaces.find_one({"room_code": room_code})
 
-    async def update(self, workspace_id: str, *, name: str | None, room_code: str | None = None, join_requires_approval: bool | None = None) -> None:
+    async def update(
+        self,
+        workspace_id: str,
+        *,
+        name: str | None,
+        room_code: str | None = None,
+        join_requires_approval: bool | None = None,
+        clear_room_code: bool = False,
+    ) -> None:
         oid = to_object_id(workspace_id)
         if oid is None:
             return
         patch: dict[str, Any] = {"updated_at": datetime.now(UTC)}
         if name is not None:
             patch["name"] = name
-        if room_code is not None:
-            patch["room_code"] = room_code
+        # Allow explicit clear (room_code="" or clear_room_code=True sets to None in DB)
+        if clear_room_code:
+            patch["room_code"] = None
+        elif room_code is not None:
+            patch["room_code"] = room_code or None  # empty string -> None
         if join_requires_approval is not None:
             patch["join_requires_approval"] = join_requires_approval
-        if not patch:
+        if len(patch) == 1:  # only updated_at - nothing to do
             return
         await self.db.workspaces.update_one({"_id": oid}, {"$set": patch})
 
@@ -173,14 +184,27 @@ class JoinRequestRepository:
 
     async def find_by_id(self, workspace_id: str, request_id: str) -> dict[str, Any] | None:
         oid = to_object_id(request_id)
-        if not oid: return None
+        if not oid:
+            return None
         return await self.db.join_requests.find_one({"_id": oid, "workspace_id": workspace_id})
 
     async def find_pending(self, workspace_id: str, user_id: str) -> dict[str, Any] | None:
-        return await self.db.join_requests.find_one({"workspace_id": workspace_id, "user_id": user_id, "status": "pending"})
+        return await self.db.join_requests.find_one(
+            {"workspace_id": workspace_id, "user_id": user_id, "status": "pending"}
+        )
 
-    async def update_status(self, request_id: str, status: str) -> None:
-        await self.db.join_requests.update_one({"_id": to_object_id(request_id)}, {"$set": {"status": status}})
+    async def update_status(self, workspace_id: str, request_id: str, status: str) -> None:
+        oid = to_object_id(request_id)
+        if not oid:
+            return
+        await self.db.join_requests.update_one(
+            {"_id": oid, "workspace_id": workspace_id}, {"$set": {"status": status}}
+        )
 
     async def list_for_workspace(self, workspace_id: str) -> list[dict[str, Any]]:
-        return [doc async for doc in self.db.join_requests.find({"workspace_id": workspace_id, "status": "pending"}).sort("created_at", -1)]
+        return [
+            doc
+            async for doc in self.db.join_requests.find(
+                {"workspace_id": workspace_id, "status": "pending"}
+            ).sort("created_at", -1)
+        ]

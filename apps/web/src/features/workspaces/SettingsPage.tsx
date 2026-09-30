@@ -30,7 +30,7 @@ export function SettingsPage() {
   useUnsavedChanges(canEdit && hasChanges);
 
   const updateMutation = useMutation({
-    mutationFn: (update: { name?: string; room_code?: string; join_requires_approval?: boolean }) => workspacesApi.updateWorkspace(workspace.id, update),
+    mutationFn: (update: { name?: string; room_code?: string | null; join_requires_approval?: boolean }) => workspacesApi.updateWorkspace(workspace.id, update),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.workspaces() });
       toast("Workspace settings updated.", "success");
