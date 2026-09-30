@@ -1048,6 +1048,208 @@
         }
       }
     },
+    "/api/v1/workspaces/join": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Submit Join Request",
+        "operationId": "submit_join_request_api_v1_workspaces_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinRequestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinRequestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/join-requests": {
+      "get": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "List Join Requests",
+        "operationId": "list_join_requests_api_v1_workspaces__workspace_id__join_requests_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JoinRequestOut"
+                  },
+                  "title": "Response List Join Requests Api V1 Workspaces  Workspace Id  Join Requests Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/join-requests/{request_id}/approve": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Approve Join Request",
+        "operationId": "approve_join_request_api_v1_workspaces__workspace_id__join_requests__request_id__approve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/join-requests/{request_id}/reject": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Reject Join Request",
+        "operationId": "reject_join_request_api_v1_workspaces__workspace_id__join_requests__request_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/projects": {
       "get": {
         "tags": [
@@ -9698,6 +9900,90 @@
         "title": "JiraIntegrationCreate",
         "description": "Either an OAuth `code` (needs the operator's Atlassian OAuth app) or the site\nURL + account email + API token (id.atlassian.com -> Security -> API tokens)."
       },
+      "JoinRequestCreate": {
+        "properties": {
+          "room_code": {
+            "type": "string",
+            "title": "Room Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "room_code"
+        ],
+        "title": "JoinRequestCreate"
+      },
+      "JoinRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "user_email": {
+            "type": "string",
+            "title": "User Email"
+          },
+          "user_name": {
+            "type": "string",
+            "title": "User Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace_id",
+          "user_id",
+          "user_email",
+          "user_name",
+          "status",
+          "created_at"
+        ],
+        "title": "JoinRequestOut"
+      },
+      "JoinRequestResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "joined",
+              "pending"
+            ],
+            "title": "Status"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "workspace_id"
+        ],
+        "title": "JoinRequestResponse"
+      },
       "LayerToggleRequest": {
         "properties": {
           "layer": {
@@ -10652,6 +10938,13 @@
               }
             ],
             "title": "Hero Url"
+          },
+          "assigned_member_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assigned Member Ids"
           }
         },
         "type": "object",
@@ -10941,6 +11234,13 @@
               }
             ],
             "title": "Duplicated From Project Id"
+          },
+          "assigned_member_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assigned Member Ids"
           }
         },
         "type": "object",
@@ -11234,6 +11534,20 @@
               }
             ],
             "title": "Hero Url"
+          },
+          "assigned_member_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Member Ids"
           }
         },
         "type": "object",
@@ -13291,6 +13605,22 @@
               }
             ],
             "title": "Role"
+          },
+          "room_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Code"
+          },
+          "join_requires_approval": {
+            "type": "boolean",
+            "title": "Join Requires Approval",
+            "default": true
           }
         },
         "type": "object",
@@ -13317,6 +13647,30 @@
               }
             ],
             "title": "Name"
+          },
+          "room_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Code"
+          },
+          "join_requires_approval": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Join Requires Approval"
           }
         },
         "type": "object",

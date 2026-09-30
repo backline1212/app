@@ -84,6 +84,13 @@ const router = createBrowserRouter([
             ),
           },
           {
+            path: "/join",
+            lazy: page(
+              () => import("../features/workspaces/JoinWorkspacePage"),
+              "JoinWorkspacePage",
+            ),
+          },
+          {
             path: "/w/:workspaceSlug",
             element: <WorkspaceLayout />,
             children: [

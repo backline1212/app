@@ -8,6 +8,7 @@ import { uploadAsset } from "../assets/api";
 import { planLimitUpgrade } from "../billing/api";
 import { createClient, listClients } from "../clients/api";
 import { listShareLinks } from "../share-links/api";
+import { listMembers } from "../workspaces/api";
 import type { WorkspaceOut } from "../workspaces/api";
 import * as api from "./api";
 
@@ -86,6 +87,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const cache = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const clients = useQuery({ queryKey: qk.clients(workspace.id), queryFn: () => listClients(workspace.id) });
+  const membersQuery = useQuery({ queryKey: qk.members(workspace.id), queryFn: () => listMembers(workspace.id) });
   const [phase, setPhase] = useState<"type" | "details" | "saving" | "retry" | "complete">(project ? "details" : "type");
   const submitting = useRef(false);
   const close = () => { if (!submitting.current) onClose(); };
@@ -113,6 +115,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
+  const [assignedMemberIds, setAssignedMemberIds] = useState<string[]>(project?.assigned_member_ids ?? []);
 
 
   const selectedClient = useMemo(() => clients.data?.find((item) => item.id === client), [client, clients.data]);
@@ -153,9 +156,9 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           show_board_to_client: showBoardToClient,
           enable_cross_browser_render: enableCrossBrowserRender,
         });
-        return api.updateProject(project.id, { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId || null });
+        return api.updateProject(project.id, { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId || null, assigned_member_ids: assignedMemberIds });
       }
-      const current = created ?? await api.createProject(workspace.id, name.trim(), type === "website" ? url.trim() : "", { project_type: type, environment, client_id: clientId || null });
+      const current = created ?? await api.createProject(workspace.id, name.trim(), type === "website" ? url.trim() : "", { project_type: type, environment, client_id: clientId || null, assigned_member_ids: assignedMemberIds });
       setCreated(current);
       for (const file of files) {
         const key = `${file.name}:${file.size}:${file.lastModified}`;
@@ -244,6 +247,24 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         {client === "new" && <div className="bl-new-client-fields"><label>Client name<input className="bl-input" required maxLength={200} placeholder="Sarvam AI" value={newClientName} onChange={(event) => setNewClientName(event.target.value)} disabled={Boolean(created) || save.isPending} /></label><div className="bl-two-fields"><label>Main contact<input className="bl-input" maxLength={200} placeholder="Ravi Kulkarni" value={newClientContact} onChange={(event) => setNewClientContact(event.target.value)} disabled={Boolean(created) || save.isPending} /></label><label>Their email<input className="bl-input" type="email" placeholder="ravi@client.com" value={newClientEmail} onChange={(event) => setNewClientEmail(event.target.value)} disabled={Boolean(created) || save.isPending} /></label></div></div>}
 
         <div className="bl-form-section"><label htmlFor="project-name">Project name</label><input id="project-name" className="bl-input" required maxLength={200} value={name} onChange={(event) => setName(event.target.value)} placeholder={type === "website" ? "Sarvam AI redesign" : "Launch creative"} disabled={Boolean(created) || save.isPending} /></div>
+
+        <div className="bl-form-section">
+          <label>Assigned Members</label>
+          {membersQuery.isLoading ? <div className="bl-input bl-input-loading" role="status">Loading members…</div> : membersQuery.isError ? <div className="bl-inline-error" role="alert"><span>Members could not load.</span><button type="button" onClick={() => membersQuery.refetch()}>Try again</button></div> : (
+            <div className="bl-checkbox-list" style={{ border: "1px solid var(--bl-line)", borderRadius: "8px", maxHeight: "150px", overflowY: "auto", padding: "8px" }}>
+               {membersQuery.data?.map(m => (
+                 <label key={m.id} style={{ display: "flex", gap: "8px", alignItems: "center", padding: "4px", margin: 0, fontWeight: "normal", fontSize: "14px" }}>
+                   <input type="checkbox" checked={assignedMemberIds.includes(m.id)} onChange={e => {
+                     if (e.target.checked) setAssignedMemberIds([...assignedMemberIds, m.id]);
+                     else setAssignedMemberIds(assignedMemberIds.filter(id => id !== m.id));
+                   }} />
+                   {m.name} ({m.email})
+                 </label>
+               ))}
+            </div>
+          )}
+          <small>Select the team members who should have access to this project.</small>
+        </div>
 
         {type === "website" ? <>
           <div className="bl-form-section"><label htmlFor="project-url">Review URL <span className="bl-required">Required</span></label><input id="project-url" className="bl-input" required type="text" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); if (!environmentEdited) setEnvironment(detectEnvironment(event.target.value)); }} placeholder="staging.yoursite.com" disabled={Boolean(created) || save.isPending} /><small>Backline loads this page each time a reviewer opens the project. HTTP and HTTPS addresses are supported.</small></div>

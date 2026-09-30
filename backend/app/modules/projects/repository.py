@@ -36,6 +36,7 @@ class ProjectRepository:
         environment: str = "live",
         client_id: str | None = None,
         hero_url: str | None = None,
+        assigned_member_ids: list[str] | None = None,
         is_sample: bool = False,
     ) -> dict[str, Any]:
         now = datetime.now(UTC)
@@ -48,6 +49,7 @@ class ProjectRepository:
             "target_origin": target_origin,
             "created_by": created_by,
             "hero_url": hero_url,
+            "assigned_member_ids": assigned_member_ids or [],
             "settings_json": {"proxy_mode": False, "snippet_installed": False},
             "archived_at": None,
             "created_at": now,
@@ -69,11 +71,13 @@ class ProjectRepository:
         return await self.db.projects.find_one({"_id": oid})
 
     async def list_for_workspace(
-        self, workspace_id: str, *, include_archived: bool = False
+        self, workspace_id: str, *, include_archived: bool = False, member_id_filter: str | None = None
     ) -> list[dict[str, Any]]:
         query: dict[str, Any] = {"workspace_id": workspace_id}
         if not include_archived:
             query["archived_at"] = None
+        if member_id_filter:
+            query["assigned_member_ids"] = member_id_filter
         cursor = self.db.projects.find(query).sort("created_at", -1)
         return [doc async for doc in cursor]
 
@@ -117,6 +121,7 @@ class ProjectRepository:
         name: str | None,
         target_origin: str | None,
         hero_url: str | None = None,
+        assigned_member_ids: list[str] | None = None,
     ) -> None:
         patch: dict[str, Any] = {"updated_at": datetime.now(UTC)}
         if name is not None:
@@ -125,6 +130,8 @@ class ProjectRepository:
             patch["target_origin"] = target_origin
         if hero_url is not None:
             patch["hero_url"] = hero_url
+        if assigned_member_ids is not None:
+            patch["assigned_member_ids"] = assigned_member_ids
         # workspace-scope-exempt: update_project (projects/service.py) already verified
         # doc["workspace_id"] == workspace_id via find_by_id before calling this.
         await self.db.projects.update_one({"_id": to_object_id(project_id)}, {"$set": patch})

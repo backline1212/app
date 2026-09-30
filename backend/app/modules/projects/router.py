@@ -29,7 +29,7 @@ async def list_projects(
 ) -> list[ProjectOut]:
     require_workspace_match(session, workspace_id)
     return await project_service.list_projects(
-        get_db(), workspace_id, include_archived=include_archived
+        get_db(), workspace_id, include_archived=include_archived, actor_user_id=session.user_id, actor_role=session.role
     )
 
 
@@ -50,6 +50,7 @@ async def create_project(
         environment=body.environment,
         client_id=body.client_id,
         hero_url=body.hero_url,
+        assigned_member_ids=body.assigned_member_ids,
     )
 
 
@@ -80,7 +81,7 @@ async def get_project(
     session: Session = Depends(require_permission("project:manage")),
 ) -> ProjectOut:
     return await project_service.get_project(
-        get_db(), project_id=project_id, workspace_id=require_workspace_context(session)
+        get_db(), project_id=project_id, workspace_id=require_workspace_context(session), actor_user_id=session.user_id, actor_role=session.role
     )
 
 
@@ -95,6 +96,7 @@ async def update_project(
         project_id=project_id,
         workspace_id=require_workspace_context(session),
         actor_user_id=session.user_id,
+        actor_role=session.role,
         name=body.name,
         target_origin=body.target_origin,
         changes=body,
@@ -111,6 +113,7 @@ async def archive_project(
         project_id=project_id,
         workspace_id=require_workspace_context(session),
         actor_user_id=session.user_id,
+        actor_role=session.role,
     )
 
 
@@ -124,6 +127,7 @@ async def restore_project(
         project_id=project_id,
         workspace_id=require_workspace_context(session),
         actor_user_id=session.user_id,
+        actor_role=session.role,
     )
 
 
@@ -139,6 +143,7 @@ async def update_project_settings(
         project_id=project_id,
         workspace_id=require_workspace_context(session),
         actor_user_id=session.user_id,
+        actor_role=session.role,
         settings=body,
     )
 
@@ -153,6 +158,7 @@ async def duplicate_project(
         project_id=project_id,
         workspace_id=require_workspace_context(session),
         actor_user_id=session.user_id,
+        actor_role=session.role,
     )
 
 
@@ -199,6 +205,8 @@ async def export_project(
         get_db(),
         project_id=project_id,
         workspace_id=require_workspace_context(session),
+        actor_user_id=session.user_id,
+        actor_role=session.role,
     )
     return PlainTextResponse(
         content=csv_content,

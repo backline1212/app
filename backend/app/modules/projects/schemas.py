@@ -35,6 +35,7 @@ class ProjectCreate(BaseModel):
     environment: Environment = "live"
     client_id: str | None = None
     hero_url: str | None = None
+    assigned_member_ids: list[str] = Field(default_factory=list)
 
     @field_validator("target_origin")
     @classmethod
@@ -82,6 +83,7 @@ class ProjectUpdate(BaseModel):
     environment: Environment | None = None
     client_id: str | None = None
     hero_url: str | None = None
+    assigned_member_ids: list[str] | None = None
 
     @field_validator("target_origin")
     @classmethod
@@ -139,6 +141,7 @@ class ProjectOut(BaseModel):
     client_id: str | None = None
     hero_url: str | None = None
     duplicated_from_project_id: str | None = None
+    assigned_member_ids: list[str] = Field(default_factory=list)
 
 
 class ProjectDeletionCounts(BaseModel):

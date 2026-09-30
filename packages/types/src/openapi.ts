@@ -367,6 +367,74 @@ export interface paths {
         patch: operations["update_member_role_api_v1_workspaces__workspace_id__members__member_id__patch"];
         trace?: never;
     };
+    "/api/v1/workspaces/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Join Request */
+        post: operations["submit_join_request_api_v1_workspaces_join_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/join-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Join Requests */
+        get: operations["list_join_requests_api_v1_workspaces__workspace_id__join_requests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/join-requests/{request_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Join Request */
+        post: operations["approve_join_request_api_v1_workspaces__workspace_id__join_requests__request_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/join-requests/{request_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Join Request */
+        post: operations["reject_join_request_api_v1_workspaces__workspace_id__join_requests__request_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/projects": {
         parameters: {
             query?: never;
@@ -2985,6 +3053,44 @@ export interface components {
             /** Project Key */
             project_key?: string | null;
         };
+        /** JoinRequestCreate */
+        JoinRequestCreate: {
+            /** Room Code */
+            room_code: string;
+        };
+        /** JoinRequestOut */
+        JoinRequestOut: {
+            /** Id */
+            id: string;
+            /** Workspace Id */
+            workspace_id: string;
+            /** User Id */
+            user_id: string;
+            /** User Email */
+            user_email: string;
+            /** User Name */
+            user_name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "rejected";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** JoinRequestResponse */
+        JoinRequestResponse: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "joined" | "pending";
+            /** Workspace Id */
+            workspace_id: string;
+        };
         /** LayerToggleRequest */
         LayerToggleRequest: {
             /**
@@ -3342,6 +3448,8 @@ export interface components {
             client_id?: string | null;
             /** Hero Url */
             hero_url?: string | null;
+            /** Assigned Member Ids */
+            assigned_member_ids?: string[];
         };
         /** ProjectDeletionCounts */
         ProjectDeletionCounts: {
@@ -3503,6 +3611,8 @@ export interface components {
             hero_url?: string | null;
             /** Duplicated From Project Id */
             duplicated_from_project_id?: string | null;
+            /** Assigned Member Ids */
+            assigned_member_ids?: string[];
         };
         /**
          * ProjectResolve
@@ -3607,6 +3717,8 @@ export interface components {
             client_id?: string | null;
             /** Hero Url */
             hero_url?: string | null;
+            /** Assigned Member Ids */
+            assigned_member_ids?: string[] | null;
         };
         /** ReanchorRequest */
         ReanchorRequest: {
@@ -4450,11 +4562,22 @@ export interface components {
             created_at: string;
             /** Role */
             role?: string | null;
+            /** Room Code */
+            room_code?: string | null;
+            /**
+             * Join Requires Approval
+             * @default true
+             */
+            join_requires_approval: boolean;
         };
         /** WorkspaceUpdate */
         WorkspaceUpdate: {
             /** Name */
             name?: string | null;
+            /** Room Code */
+            room_code?: string | null;
+            /** Join Requires Approval */
+            join_requires_approval?: boolean | null;
         };
     };
     responses: never;
@@ -5170,6 +5293,132 @@ export interface operations {
                 "application/json": components["schemas"]["MemberRoleUpdateRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_join_request_api_v1_workspaces_join_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinRequestCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_join_requests_api_v1_workspaces__workspace_id__join_requests_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequestOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_join_request_api_v1_workspaces__workspace_id__join_requests__request_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_join_request_api_v1_workspaces__workspace_id__join_requests__request_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             204: {

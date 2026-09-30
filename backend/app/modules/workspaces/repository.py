@@ -20,6 +20,8 @@ class WorkspaceRepository:
             "slug": slug,
             "plan": "free",
             "branding_json": {},
+            "room_code": None,
+            "join_requires_approval": True,
             # None until the first daily digest run touches it (17.6,
             # modules/notifications/digest.py) - a fresh workspace's first run just
             # establishes this checkpoint rather than emailing its entire history.
@@ -40,13 +42,22 @@ class WorkspaceRepository:
             return None
         return await self.db.workspaces.find_one({"_id": oid})
 
-    async def update(self, workspace_id: str, *, name: str | None) -> None:
+    async def find_by_room_code(self, room_code: str) -> dict[str, Any] | None:
+        return await self.db.workspaces.find_one({"room_code": room_code})
+
+    async def update(self, workspace_id: str, *, name: str | None, room_code: str | None = None, join_requires_approval: bool | None = None) -> None:
         oid = to_object_id(workspace_id)
         if oid is None:
             return
         patch: dict[str, Any] = {"updated_at": datetime.now(UTC)}
         if name is not None:
             patch["name"] = name
+        if room_code is not None:
+            patch["room_code"] = room_code
+        if join_requires_approval is not None:
+            patch["join_requires_approval"] = join_requires_approval
+        if not patch:
+            return
         await self.db.workspaces.update_one({"_id": oid}, {"$set": patch})
 
     async def list_all(self) -> list[dict[str, Any]]:
@@ -143,3 +154,33 @@ class MembershipRepository:
         return await self.db.memberships.count_documents(
             {"workspace_id": workspace_id, "role": role}
         )
+
+
+class JoinRequestRepository:
+    def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
+        self.db = db
+
+    async def create(self, *, workspace_id: str, user_id: str) -> dict[str, Any]:
+        doc = {
+            "workspace_id": workspace_id,
+            "user_id": user_id,
+            "status": "pending",
+            "created_at": datetime.now(UTC),
+        }
+        result = await self.db.join_requests.insert_one(doc)
+        doc["_id"] = result.inserted_id
+        return doc
+
+    async def find_by_id(self, workspace_id: str, request_id: str) -> dict[str, Any] | None:
+        oid = to_object_id(request_id)
+        if not oid: return None
+        return await self.db.join_requests.find_one({"_id": oid, "workspace_id": workspace_id})
+
+    async def find_pending(self, workspace_id: str, user_id: str) -> dict[str, Any] | None:
+        return await self.db.join_requests.find_one({"workspace_id": workspace_id, "user_id": user_id, "status": "pending"})
+
+    async def update_status(self, request_id: str, status: str) -> None:
+        await self.db.join_requests.update_one({"_id": to_object_id(request_id)}, {"$set": {"status": status}})
+
+    async def list_for_workspace(self, workspace_id: str) -> list[dict[str, Any]]:
+        return [doc async for doc in self.db.join_requests.find({"workspace_id": workspace_id, "status": "pending"}).sort("created_at", -1)]

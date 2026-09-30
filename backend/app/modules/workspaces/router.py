@@ -11,6 +11,9 @@ from app.modules.workspaces.schemas import (
     WorkspaceCreate,
     WorkspaceOut,
     WorkspaceUpdate,
+    JoinRequestCreate,
+    JoinRequestOut,
+    JoinRequestResponse,
 )
 
 router = APIRouter(tags=["workspaces"])
@@ -50,6 +53,8 @@ async def update_workspace(
         get_db(),
         workspace_id=workspace_id,
         name=body.name,
+        room_code=body.room_code,
+        join_requires_approval=body.join_requires_approval,
         actor_user_id=session.user_id,
         actor_role=session.role,
     )
@@ -106,4 +111,43 @@ async def remove_member(
     require_workspace_match(session, workspace_id)
     await workspace_service.remove_member(
         get_db(), workspace_id=workspace_id, membership_id=member_id, actor_user_id=session.user_id
+    )
+
+@router.post("/workspaces/join", response_model=JoinRequestResponse)
+async def submit_join_request(
+    body: JoinRequestCreate,
+    session: Session = Depends(get_current_session)
+) -> JoinRequestResponse:
+    return await workspace_service.submit_join_request(
+        get_db(), room_code=body.room_code, user_id=session.user_id
+    )
+
+@router.get("/workspaces/{workspace_id}/join-requests", response_model=list[JoinRequestOut])
+async def list_join_requests(
+    workspace_id: str,
+    session: Session = Depends(require_permission("member:invite")),
+) -> list[JoinRequestOut]:
+    require_workspace_match(session, workspace_id)
+    return await workspace_service.list_join_requests(get_db(), workspace_id)
+
+@router.post("/workspaces/{workspace_id}/join-requests/{request_id}/approve", response_model=MemberOut)
+async def approve_join_request(
+    workspace_id: str,
+    request_id: str,
+    session: Session = Depends(require_permission("member:invite")),
+) -> MemberOut:
+    require_workspace_match(session, workspace_id)
+    return await workspace_service.approve_join_request(
+        get_db(), workspace_id=workspace_id, request_id=request_id, actor_user_id=session.user_id
+    )
+
+@router.post("/workspaces/{workspace_id}/join-requests/{request_id}/reject", status_code=204)
+async def reject_join_request(
+    workspace_id: str,
+    request_id: str,
+    session: Session = Depends(require_permission("member:invite")),
+) -> None:
+    require_workspace_match(session, workspace_id)
+    await workspace_service.reject_join_request(
+        get_db(), workspace_id=workspace_id, request_id=request_id, actor_user_id=session.user_id
     )

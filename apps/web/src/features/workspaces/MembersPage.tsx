@@ -106,6 +106,7 @@ export function MembersPage() {
   const [search, setSearch] = useState("");
   const [showAddMember, setShowAddMember] = useState(false);
   const [removeCandidate, setRemoveCandidate] = useState<MemberOut | null>(null);
+  const [activeTab, setActiveTab] = useState<"members" | "requests" | "org-chart">("members");
 
   const { data: members, isLoading, error: membersError } = useQuery({
     queryKey: qk.members(workspace.id),
@@ -140,6 +141,22 @@ export function MembersPage() {
     },
   });
 
+  const { data: joinRequests, refetch: refetchRequests } = useQuery({
+    queryKey: ["join-requests", workspace.id],
+    queryFn: () => workspacesApi.listJoinRequests(workspace.id),
+    enabled: canManageMembers(myRole) && activeTab === "requests",
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (requestId: string) => workspacesApi.approveJoinRequest(workspace.id, requestId),
+    onSuccess: () => { refetchRequests(); invalidateMembers(); },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (requestId: string) => workspacesApi.rejectJoinRequest(workspace.id, requestId),
+    onSuccess: () => { refetchRequests(); },
+  });
+
   const canManage = canManageMembers(myRole);
   const visibleMembers = (members ?? []).filter(
     (m) =>
@@ -165,104 +182,217 @@ export function MembersPage() {
         )}
       </header>
 
-      <div className="bl-toolbar wrap">
-        <div className="bl-search" style={{ maxWidth: "340px" }}>
-          <span className="bl-search-icon" aria-hidden="true"><SearchIcon /></span>
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by name or email..."
-            aria-label="Search members"
-          />
-        </div>
+      <div className="bl-tabs" style={{ display: "flex", gap: "20px", borderBottom: "1px solid var(--bl-line)", marginBottom: "20px", padding: "0 24px" }}>
+        <button className={`bl-tab ${activeTab === "members" ? "active" : ""}`} onClick={() => setActiveTab("members")} style={{ background: "none", border: "none", padding: "10px 0", borderBottom: activeTab === "members" ? "2px solid var(--bl-brand)" : "2px solid transparent", cursor: "pointer", fontWeight: activeTab === "members" ? 600 : 400 }}>List View</button>
+        <button className={`bl-tab ${activeTab === "org-chart" ? "active" : ""}`} onClick={() => setActiveTab("org-chart")} style={{ background: "none", border: "none", padding: "10px 0", borderBottom: activeTab === "org-chart" ? "2px solid var(--bl-brand)" : "2px solid transparent", cursor: "pointer", fontWeight: activeTab === "org-chart" ? 600 : 400 }}>Org Chart</button>
+        {canManage && (
+          <button className={`bl-tab ${activeTab === "requests" ? "active" : ""}`} onClick={() => setActiveTab("requests")} style={{ background: "none", border: "none", padding: "10px 0", borderBottom: activeTab === "requests" ? "2px solid var(--bl-brand)" : "2px solid transparent", cursor: "pointer", fontWeight: activeTab === "requests" ? 600 : 400 }}>Pending Requests</button>
+        )}
       </div>
 
-      {isLoading && <LoadingScreen inline />}
-      {roleMutation.error && (
-        <p role="alert" className="bl-error">Couldn't change that role: {roleMutation.error.message}</p>
-      )}
-      {membersError && (
-        <p role="alert" className="bl-error">
-          {membersError instanceof Error ? membersError.message : "Could not load members."}
-        </p>
+      {activeTab === "members" && (
+        <>
+          <div className="bl-toolbar wrap" style={{ padding: "0 24px" }}>
+            <div className="bl-search" style={{ maxWidth: "340px" }}>
+              <span className="bl-search-icon" aria-hidden="true"><SearchIcon /></span>
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by name or email..."
+                aria-label="Search members"
+              />
+            </div>
+          </div>
+
+          {isLoading && <LoadingScreen inline />}
+          {roleMutation.error && (
+            <p role="alert" className="bl-error">Couldn't change that role: {roleMutation.error.message}</p>
+          )}
+          {membersError && (
+            <p role="alert" className="bl-error">
+              {membersError instanceof Error ? membersError.message : "Could not load members."}
+            </p>
+          )}
+
+          {members && visibleMembers.length === 0 && (
+            <div className="bl-empty">
+              <EmptyArt kind={search ? "search" : "people"} />
+              <h2>{search ? "No members match" : "No members yet"}</h2>
+              <p>{search ? "Try another name or email." : "Invite a teammate to get started."}</p>
+            </div>
+          )}
+
+          {members && visibleMembers.length > 0 && (
+            <div className="bl-table-wrap" style={{ margin: "0 24px" }}>
+              <table className="bl-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Projects</th>
+                    {canManage && <th aria-label="Actions"></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleMembers.map((member) => (
+                    <tr key={member.id}>
+                      <td>
+                        <div className="bl-text-button">
+                          <Avatar name={member.name} avatarUrl={member.avatar_url} size={29} />
+                          <div>
+                            <strong>{member.name}</strong>
+                            <small>{member.email}</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        {canManage && member.role !== "owner" ? (
+                          <select
+                            className="bl-select"
+                            value={member.role}
+                            disabled={roleMutation.isPending}
+                            onChange={(event) =>
+                              roleMutation.mutate({
+                                memberId: member.id,
+                                role: event.target.value as "admin" | "member",
+                              })
+                            }
+                            aria-label={`Change role for ${member.name}`}
+                          >
+                            <option value="admin">Admin</option>
+                            <option value="member">Member</option>
+                          </select>
+                        ) : (
+                          <span style={{ textTransform: "capitalize", fontSize: "12px", padding: "0 6px" }}>{member.role}</span>
+                        )}
+                      </td>
+                      <td>
+                        <small>
+                          {projectCount} Project{projectCount === 1 ? "" : "s"}
+                        </small>
+                      </td>
+                      {canManage && (
+                        <td style={{ textAlign: "right" }}>
+                          {member.role !== "owner" && (
+                            <button
+                              className="bl-quiet"
+                              style={{ color: "var(--bl-error)", borderColor: "transparent" }}
+                              onClick={() => setRemoveCandidate(member)}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ padding: "12px 14px", fontSize: "10px", color: "var(--bl-muted)", borderTop: "1px solid var(--bl-line)" }}>
+                {visibleMembers.length} users
+              </div>
+            </div>
+          )}
+        </>
       )}
 
-      {members && visibleMembers.length === 0 && (
-        <div className="bl-empty">
-          <EmptyArt kind={search ? "search" : "people"} />
-          <h2>{search ? "No members match" : "No members yet"}</h2>
-          <p>{search ? "Try another name or email." : "Invite a teammate to get started."}</p>
+      {activeTab === "requests" && canManage && (
+        <div style={{ padding: "0 24px" }}>
+          {!joinRequests ? <LoadingScreen inline /> : joinRequests.length === 0 ? (
+            <div className="bl-empty">
+              <h2>No pending requests</h2>
+              <p>When users enter your room code, their requests will appear here.</p>
+            </div>
+          ) : (
+            <div className="bl-table-wrap">
+              <table className="bl-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Requested At</th>
+                    <th aria-label="Actions"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {joinRequests.map(req => (
+                    <tr key={req.id}>
+                      <td>
+                        <div className="bl-text-button">
+                          <div>
+                            <strong>{req.user_name}</strong>
+                            <small>{req.user_email}</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{new Date(req.created_at).toLocaleDateString()}</td>
+                      <td style={{ textAlign: "right", display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                        <button className="bl-quiet" onClick={() => rejectMutation.mutate(req.id)} disabled={rejectMutation.isPending || approveMutation.isPending}>Reject</button>
+                        <button className="bl-button mint" onClick={() => approveMutation.mutate(req.id)} disabled={approveMutation.isPending || rejectMutation.isPending}>Approve</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      {members && visibleMembers.length > 0 && (
-        <div className="bl-table-wrap">
-          <table className="bl-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Projects</th>
-                {canManage && <th aria-label="Actions"></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {visibleMembers.map((member) => (
-                <tr key={member.id}>
-                  <td>
-                    <div className="bl-text-button">
-                      <Avatar name={member.name} avatarUrl={member.avatar_url} size={29} />
-                      <div>
-                        <strong>{member.name}</strong>
-                        <small>{member.email}</small>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    {canManage && member.role !== "owner" ? (
-                      <select
-                        className="bl-select"
-                        value={member.role}
-                        disabled={roleMutation.isPending}
-                        onChange={(event) =>
-                          roleMutation.mutate({
-                            memberId: member.id,
-                            role: event.target.value as "admin" | "member",
-                          })
-                        }
-                        aria-label={`Change role for ${member.name}`}
-                      >
-                        <option value="admin">Admin</option>
-                        <option value="member">Member</option>
-                      </select>
-                    ) : (
-                      <span style={{ textTransform: "capitalize", fontSize: "12px", padding: "0 6px" }}>{member.role}</span>
-                    )}
-                  </td>
-                  <td>
-                    <small>
-                      {projectCount} Project{projectCount === 1 ? "" : "s"}
-                    </small>
-                  </td>
-                  {canManage && (
-                    <td style={{ textAlign: "right" }}>
-                      {member.role !== "owner" && (
-                        <button
-                          className="bl-quiet"
-                          style={{ color: "var(--bl-error)", borderColor: "transparent" }}
-                          onClick={() => setRemoveCandidate(member)}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </td>
-                  )}
-                </tr>
+      {activeTab === "org-chart" && members && (
+        <div style={{ padding: "40px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: "40px" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+            <h3 style={{ fontSize: "14px", color: "var(--bl-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>Owner</h3>
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
+              {members.filter(m => m.role === "owner").map(m => (
+                <div key={m.id} className="bl-attention" style={{ padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", width: "160px", textAlign: "center" }}>
+                  <Avatar name={m.name} avatarUrl={m.avatar_url} size={48} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</div>
+                    <div style={{ fontSize: "11px", color: "var(--bl-muted)", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</div>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-          <div style={{ padding: "12px 14px", fontSize: "10px", color: "var(--bl-muted)", borderTop: "1px solid var(--bl-line)" }}>
-            {visibleMembers.length} users
+            </div>
+          </div>
+          
+          <div style={{ width: "2px", height: "40px", backgroundColor: "var(--bl-line)" }} />
+          
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+            <h3 style={{ fontSize: "14px", color: "var(--bl-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>Admins</h3>
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
+              {members.filter(m => m.role === "admin").map(m => (
+                <div key={m.id} className="bl-attention" style={{ padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", width: "160px", textAlign: "center" }}>
+                  <Avatar name={m.name} avatarUrl={m.avatar_url} size={48} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</div>
+                    <div style={{ fontSize: "11px", color: "var(--bl-muted)", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</div>
+                  </div>
+                </div>
+              ))}
+              {members.filter(m => m.role === "admin").length === 0 && (
+                <div style={{ padding: "16px", color: "var(--bl-muted)", fontSize: "12px", border: "1px dashed var(--bl-line)", borderRadius: "8px", width: "160px", textAlign: "center" }}>No Admins</div>
+              )}
+            </div>
+          </div>
+          
+          <div style={{ width: "2px", height: "40px", backgroundColor: "var(--bl-line)" }} />
+          
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+            <h3 style={{ fontSize: "14px", color: "var(--bl-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>Members</h3>
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center", maxWidth: "800px" }}>
+              {members.filter(m => m.role === "member").map(m => (
+                <div key={m.id} className="bl-attention" style={{ padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", width: "160px", textAlign: "center" }}>
+                  <Avatar name={m.name} avatarUrl={m.avatar_url} size={48} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</div>
+                    <div style={{ fontSize: "11px", color: "var(--bl-muted)", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</div>
+                  </div>
+                </div>
+              ))}
+              {members.filter(m => m.role === "member").length === 0 && (
+                <div style={{ padding: "16px", color: "var(--bl-muted)", fontSize: "12px", border: "1px dashed var(--bl-line)", borderRadius: "8px", width: "160px", textAlign: "center" }}>No Members</div>
+              )}
+            </div>
           </div>
         </div>
       )}

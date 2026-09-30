@@ -4,6 +4,8 @@ import { apiFetch } from "../../lib/api-client";
 
 export type WorkspaceOut = Schemas["WorkspaceOut"];
 export type MemberOut = Schemas["MemberOut"];
+export type JoinRequestOut = Schemas["JoinRequestOut"];
+export type JoinRequestResponse = Schemas["JoinRequestResponse"];
 
 export function listWorkspaces(): Promise<WorkspaceOut[]> {
   return apiFetch<WorkspaceOut[]>("/api/v1/workspaces");
@@ -20,10 +22,10 @@ export function getWorkspace(workspaceId: string): Promise<WorkspaceOut> {
   return apiFetch<WorkspaceOut>(`/api/v1/workspaces/${workspaceId}`);
 }
 
-export function updateWorkspace(workspaceId: string, name: string): Promise<WorkspaceOut> {
+export function updateWorkspace(workspaceId: string, update: { name?: string; room_code?: string; join_requires_approval?: boolean }): Promise<WorkspaceOut> {
   return apiFetch<WorkspaceOut>(`/api/v1/workspaces/${workspaceId}`, {
     method: "PATCH",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(update),
   });
 }
 
@@ -56,5 +58,28 @@ export function updateMemberRole(
 export function removeMember(workspaceId: string, memberId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/workspaces/${workspaceId}/members/${memberId}`, {
     method: "DELETE",
+  });
+}
+
+export function submitJoinRequest(roomCode: string): Promise<JoinRequestResponse> {
+  return apiFetch<JoinRequestResponse>("/api/v1/workspaces/join", {
+    method: "POST",
+    body: JSON.stringify({ room_code: roomCode }),
+  });
+}
+
+export function listJoinRequests(workspaceId: string): Promise<JoinRequestOut[]> {
+  return apiFetch<JoinRequestOut[]>(`/api/v1/workspaces/${workspaceId}/join-requests`);
+}
+
+export function approveJoinRequest(workspaceId: string, requestId: string): Promise<MemberOut> {
+  return apiFetch<MemberOut>(`/api/v1/workspaces/${workspaceId}/join-requests/${requestId}/approve`, {
+    method: "POST",
+  });
+}
+
+export function rejectJoinRequest(workspaceId: string, requestId: string): Promise<void> {
+  return apiFetch<void>(`/api/v1/workspaces/${workspaceId}/join-requests/${requestId}/reject`, {
+    method: "POST",
   });
 }

@@ -19,18 +19,24 @@ export function SettingsPage() {
   const canEdit = role === "owner" || role === "admin";
   const queryClient = useQueryClient();
   const [name, setName] = useState(workspace.name);
+  const [roomCode, setRoomCode] = useState(workspace.room_code || "");
+  const [requiresApproval, setRequiresApproval] = useState(workspace.join_requires_approval);
 
   const nameChanged = name.trim().length > 0 && name.trim() !== workspace.name;
-  useUnsavedChanges(canEdit && nameChanged);
+  const roomCodeChanged = roomCode !== (workspace.room_code || "");
+  const approvalChanged = requiresApproval !== workspace.join_requires_approval;
+  const hasChanges = nameChanged || roomCodeChanged || approvalChanged;
+  
+  useUnsavedChanges(canEdit && hasChanges);
 
-  const renameMutation = useMutation({
-    mutationFn: (newName: string) => workspacesApi.updateWorkspace(workspace.id, newName),
+  const updateMutation = useMutation({
+    mutationFn: (update: { name?: string; room_code?: string; join_requires_approval?: boolean }) => workspacesApi.updateWorkspace(workspace.id, update),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.workspaces() });
-      toast("Workspace name updated.", "success");
+      toast("Workspace settings updated.", "success");
     },
     onError: (error) => {
-      toast(error instanceof Error ? error.message : "Could not update workspace name.", "error");
+      toast(error instanceof Error ? error.message : "Could not update workspace settings.", "error");
     },
   });
 
@@ -60,17 +66,7 @@ export function SettingsPage() {
         <header>
           <h2>Workspace Name</h2>
         </header>
-        <form
-          style={{ flex: 1, padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "20px", flexWrap: "wrap" }}
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (canEdit && nameChanged && !renameMutation.isPending) renameMutation.mutate(name.trim());
-          }}
-        >
-          <div>
-            <label htmlFor="workspace-name" style={{ display: "block", fontSize: "12px", fontWeight: 500, marginBottom: "4px" }}>Name</label>
-            <p className="bl-mono">This is your workspace's visible name within Backline.</p>
-          </div>
+        <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <input
               id="workspace-name"
@@ -81,14 +77,72 @@ export function SettingsPage() {
               className="bl-input"
               style={{ width: "220px" }}
             />
-            {canEdit && (
-              <button type="submit" className="bl-button mint" disabled={!nameChanged || renameMutation.isPending}>
-                {renameMutation.isPending ? "Saving…" : "Save"}
-              </button>
-            )}
           </div>
-        </form>
+        </div>
       </section>
+
+      <section className="bl-attention bl-settings-section">
+        <header>
+          <h2>Room Code Access</h2>
+        </header>
+        <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "20px", flexWrap: "wrap" }}>
+            <div>
+              <label htmlFor="room-code" style={{ display: "block", fontSize: "12px", fontWeight: 500, marginBottom: "4px" }}>Room Code</label>
+              <p className="bl-mono">Users can request to join using this code.</p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <input
+                id="room-code"
+                value={roomCode}
+                maxLength={50}
+                placeholder="e.g. MYTEAM2024"
+                readOnly={!canEdit}
+                onChange={(event) => setRoomCode(event.target.value)}
+                className="bl-input"
+                style={{ width: "220px" }}
+              />
+            </div>
+          </div>
+          
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "20px", flexWrap: "wrap" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, marginBottom: "4px" }}>Join Requires Approval</label>
+              <p className="bl-mono">If disabled, users with the room code join instantly.</p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <input
+                type="checkbox"
+                checked={requiresApproval}
+                disabled={!canEdit}
+                onChange={(event) => setRequiresApproval(event.target.checked)}
+                className="bl-checkbox"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {canEdit && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "24px" }}>
+          <button 
+            type="button" 
+            className="bl-button mint" 
+            disabled={!hasChanges || updateMutation.isPending}
+            onClick={() => {
+              if (canEdit && hasChanges && !updateMutation.isPending) {
+                const update: { name?: string; room_code?: string | null; join_requires_approval?: boolean } = {};
+                if (nameChanged) update.name = name.trim();
+                if (roomCodeChanged) update.room_code = roomCode.trim() || null;
+                if (approvalChanged) update.join_requires_approval = requiresApproval;
+                updateMutation.mutate(update);
+              }
+            }}
+          >
+            {updateMutation.isPending ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      )}
     </main>
   );
 }
