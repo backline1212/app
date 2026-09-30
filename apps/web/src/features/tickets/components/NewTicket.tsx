@@ -63,8 +63,9 @@ export function NewTicket({ workspace, members, onClose }: { workspace: Workspac
     if (!files?.length || !projectId) return;
     setUploading(true);
     setUploadError("");
+    // Kept even if a later file fails, so the screenshots that did upload stay attached.
+    const added: Shot[] = [];
     try {
-      const added: Shot[] = [];
       for (const file of Array.from(files)) {
         if (!file.type.startsWith("image/")) continue;
         const upload = await createUpload(projectId, file.type, file.size);
@@ -72,10 +73,10 @@ export function NewTicket({ workspace, members, onClose }: { workspace: Workspac
         if (!put.ok) throw new Error(`Couldn't upload ${file.name}.`);
         added.push({ key: upload.key, filename: file.name, content_type: file.type, preview: URL.createObjectURL(file) });
       }
-      setShots((prev) => [...prev, ...added].slice(0, 10));
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Couldn't upload that screenshot.");
     } finally {
+      setShots((prev) => [...prev, ...added].slice(0, 10));
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }

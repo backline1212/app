@@ -314,7 +314,7 @@ export function AssetReview({
             <small className="inline-flex items-center gap-2">{selectedComment.author_name} <StatusBadge status={selectedComment.status} /></small>
             <p style={{ margin: "8px 0", fontSize: "14px", lineHeight: 1.5 }}>{selectedComment.body}</p>
             {workspaceSlug && !guest && (
-              <Link className="bl-chip" style={{ marginTop: "8px" }} to={`/w/${workspaceSlug}/tickets?ticket=${selectedComment.id}`}>Edit status, assignees and due date →</Link>
+              <Link className="bl-chip" style={{ marginTop: "8px" }} to={`/w/${workspaceSlug}/tickets?comment=${selectedComment.id}`}>Edit status, assignees and due date →</Link>
             )}
           </div>
 

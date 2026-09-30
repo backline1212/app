@@ -1,7 +1,12 @@
 import { getAccessToken, setAccessToken } from "./auth-token";
+import { decodeAccessToken } from "./jwt";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const REFRESH_PATH = "/api/v1/auth/refresh";
+const SWITCH_PATH = "/api/v1/auth/switch-workspace";
+/** Fired when the member can no longer open the workspace their session is in (they
+ * were removed); AuthProvider refreshes the workspace list, which routes them out. */
+export const WORKSPACE_ACCESS_LOST_EVENT = "backline:workspace-access-lost";
 
 export class ApiError extends Error {
   constructor(
@@ -34,26 +39,97 @@ async function rawRequest(path: string, init?: RequestInit): Promise<Response> {
   }
 }
 
-let refreshInFlight: Promise<boolean> | null = null;
+type RefreshResult = { ok: true; body: { access_token: string } } | { ok: false; error: ApiError };
+let refreshInFlight: Promise<RefreshResult> | null = null;
+
+// Every /auth/refresh goes through this one request at a time. Refresh tokens rotate,
+// and two concurrent refreshes with the same cookie trip the server's reuse detection,
+// which revokes the whole session: the start-up restore (refreshSession below) and a
+// 401 retry from a page that fires a request on mount used to race exactly like that.
+function refreshOnce(): Promise<RefreshResult> {
+  refreshInFlight ??= (async (): Promise<RefreshResult> => {
+    try {
+      const response = await rawRequest(REFRESH_PATH, { method: "POST" });
+      if (!response.ok) {
+        setAccessToken(null);
+        return { ok: false, error: await toApiError(response) };
+      }
+      const body = (await response.json()) as { access_token: string };
+      setAccessToken(body.access_token);
+      return { ok: true, body };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof ApiError ? error : new ApiError(0, "NETWORK_ERROR", "Can't reach Backline."),
+      };
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
 
 async function refreshAccessToken(): Promise<boolean> {
-  if (!refreshInFlight) {
-    refreshInFlight = (async () => {
-      try {
-        const response = await rawRequest(REFRESH_PATH, { method: "POST" });
-        if (!response.ok) {
-          setAccessToken(null);
-          return false;
-        }
-        const body = (await response.json()) as { access_token: string };
-        setAccessToken(body.access_token);
-        return true;
-      } finally {
-        refreshInFlight = null;
+  return (await refreshOnce()).ok;
+}
+
+/** Restores the session from the httpOnly refresh cookie; shares any refresh already in
+ * flight. Resolves with the refresh response body, or throws its error. */
+export async function refreshSession<T>(): Promise<T> {
+  const result = await refreshOnce();
+  if (!result.ok) throw result.error;
+  return result.body as T;
+}
+
+let reopenInFlight: Promise<boolean> | null = null;
+
+// The member's role changed (or they were removed) after this access token was
+// issued, and the API refuses a token whose role is stale. Switching into the same
+// workspace again issues one with the current role; if that is refused too, they
+// are no longer a member.
+async function reopenWorkspace(): Promise<boolean> {
+  const workspaceId = decodeAccessToken(getAccessToken() ?? "")?.workspace_id;
+  if (!workspaceId) return false;
+  reopenInFlight ??= (async () => {
+    try {
+      const response = await rawRequest(SWITCH_PATH, {
+        method: "POST",
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      });
+      if (!response.ok) {
+        window.dispatchEvent(new Event(WORKSPACE_ACCESS_LOST_EVENT));
+        return false;
       }
-    })();
+      setAccessToken(((await response.json()) as { access_token: string }).access_token);
+      return true;
+    } finally {
+      reopenInFlight = null;
+    }
+  })();
+  return reopenInFlight;
+}
+
+// A 401 (AuthenticationError, 06-Backend-Architecture.md §6.7) means the access
+// token is missing/expired - worth exactly one silent refresh-and-retry. A 403 is
+// surfaced as-is, except WORKSPACE_ACCESS_CHANGED: the session is fine but its role
+// is stale, so the workspace is reopened once and the request retried.
+async function send(path: string, init?: RequestInit): Promise<Response> {
+  let response = await rawRequest(path, init);
+  if (response.status === 401 && path !== REFRESH_PATH) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) response = await rawRequest(path, init);
   }
-  return refreshInFlight;
+  if (response.status === 403 && path !== SWITCH_PATH) {
+    const code = await response
+      .clone()
+      .json()
+      .then((body: { error?: { code?: string } } | null) => body?.error?.code)
+      .catch(() => undefined);
+    if (code === "WORKSPACE_ACCESS_CHANGED" && (await reopenWorkspace())) {
+      response = await rawRequest(path, init);
+    }
+  }
+  return response;
 }
 
 // FastAPI's own errors (a request that fails schema validation, an HTTPException)
@@ -90,18 +166,7 @@ async function toApiError(response: Response): Promise<ApiError> {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  let response = await rawRequest(path, init);
-
-  // A 401 (AuthenticationError, 06-Backend-Architecture.md §6.7) means the access
-  // token is missing/expired - worth exactly one silent refresh-and-retry. A 403
-  // (PermissionDeniedError) means the session is valid but not authorized; retrying
-  // would never help, so it's surfaced as-is.
-  if (response.status === 401 && path !== REFRESH_PATH) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
-      response = await rawRequest(path, init);
-    }
-  }
+  const response = await send(path, init);
 
   if (!response.ok) {
     throw await toApiError(response);
@@ -115,11 +180,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 }
 
 export async function apiFetchBlob(path: string, init?: RequestInit): Promise<Blob> {
-  let response = await rawRequest(path, init);
-  if (response.status === 401 && path !== REFRESH_PATH) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) response = await rawRequest(path, init);
-  }
+  const response = await send(path, init);
   if (!response.ok) throw await toApiError(response);
   return response.blob();
 }

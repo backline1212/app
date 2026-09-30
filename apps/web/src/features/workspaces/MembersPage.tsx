@@ -178,6 +178,9 @@ export function MembersPage() {
       </div>
 
       {isLoading && <LoadingScreen inline />}
+      {roleMutation.error && (
+        <p role="alert" className="bl-error">Couldn't change that role: {roleMutation.error.message}</p>
+      )}
       {membersError && (
         <p role="alert" className="bl-error">
           {membersError instanceof Error ? membersError.message : "Could not load members."}
@@ -220,6 +223,7 @@ export function MembersPage() {
                       <select
                         className="bl-select"
                         value={member.role}
+                        disabled={roleMutation.isPending}
                         onChange={(event) =>
                           roleMutation.mutate({
                             memberId: member.id,
@@ -276,11 +280,14 @@ export function MembersPage() {
       {removeCandidate && (
         <ConfirmDialog
           title="Remove member?"
-          message={<>Remove <strong>{removeCandidate.name}</strong> from this workspace? They'll lose access to every project here.</>}
+          message={<>
+            <p>Remove <strong>{removeCandidate.name}</strong> from this workspace? They'll lose access to every project here.</p>
+            {removeMutation.error && <p role="alert" className="bl-error">{removeMutation.error.message}</p>}
+          </>}
           confirmLabel={removeMutation.isPending ? "Removing…" : "Remove member"}
           destructive
           pending={removeMutation.isPending}
-          onCancel={() => setRemoveCandidate(null)}
+          onCancel={() => { removeMutation.reset(); setRemoveCandidate(null); }}
           onConfirm={() => removeMutation.mutate(removeCandidate.id)}
         />
       )}

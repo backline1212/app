@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -5,6 +6,7 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
+from app.core.email_address import normalize_email
 from app.core.mongo_utils import to_object_id
 
 
@@ -16,7 +18,16 @@ class UserRepository:
         self.db = db
 
     async def find_by_email(self, email: str) -> dict[str, Any] | None:
-        return await self.db.users.find_one({"email": email})
+        """Case-insensitive. Addresses are stored lowercase, so the exact match is the
+        indexed hit; the anchored regex finds an account stored in its original case
+        before that (core/email_address.py) and only runs when the exact match misses."""
+        normalized = normalize_email(email)
+        doc = await self.db.users.find_one({"email": normalized})
+        if doc is not None:
+            return doc
+        return await self.db.users.find_one(
+            {"email": {"$regex": f"^{re.escape(normalized)}$", "$options": "i"}}
+        )
 
     async def find_by_id(self, user_id: str) -> dict[str, Any] | None:
         oid = to_object_id(user_id)
@@ -48,7 +59,7 @@ class UserRepository:
         by Google or an OTP sign-in have no password at all, which is what
         login_with_password checks for rather than assuming the field exists."""
         doc = {
-            "email": email,
+            "email": normalize_email(email),
             "name": name,
             "avatar_url": avatar_url,
             "auth_providers": [auth_provider],
@@ -136,7 +147,11 @@ class RefreshTokenRepository:
         browser: str | None = None,
         os: str | None = None,
         ip_address: str | None = None,
+        auth_method: str | None = None,
+        authenticated_at: datetime | None = None,
     ) -> None:
+        """`auth_method`/`authenticated_at` describe the sign-in that started the family
+        and are copied onto every rotated token, so they hold for the whole session."""
         now = datetime.now(UTC)
         await self.db.refresh_tokens.insert_one(
             {
@@ -146,6 +161,8 @@ class RefreshTokenRepository:
                 "browser": browser,
                 "os": os,
                 "ip_address": ip_address,
+                "auth_method": auth_method,
+                "authenticated_at": authenticated_at,
                 "issued_at": now,
                 "expires_at": now + timedelta(days=ttl_days),
                 "revoked_at": None,
@@ -186,6 +203,21 @@ class RefreshTokenRepository:
                 }
             )
             is not None
+        )
+
+    async def find_active_in_family(self, user_id: str, family_id: str) -> dict[str, Any] | None:
+        """Any live token of the family; each carries the family's sign-in method."""
+        user_object_id = to_object_id(user_id)
+        if user_object_id is None:
+            return None
+        return await self.db.refresh_tokens.find_one(
+            {
+                "user_id": user_object_id,
+                "family_id": family_id,
+                "revoked_at": None,
+                "expires_at": {"$gt": datetime.now(UTC)},
+            },
+            projection={"auth_method": 1, "authenticated_at": 1},
         )
 
     async def list_active(self, user_id: str) -> list[dict[str, Any]]:

@@ -47,7 +47,11 @@ async def update_workspace(
 ) -> WorkspaceOut:
     require_workspace_match(session, workspace_id)
     return await workspace_service.update_workspace(
-        get_db(), workspace_id=workspace_id, name=body.name
+        get_db(),
+        workspace_id=workspace_id,
+        name=body.name,
+        actor_user_id=session.user_id,
+        actor_role=session.role,
     )
 
 

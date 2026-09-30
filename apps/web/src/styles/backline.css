@@ -2856,3 +2856,44 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-checkout-summary .is-total{padding-top:8px;border-top:1px solid var(--bl-line);font-size:15px}
 .bl-checkout-summary .is-total dt{color:var(--bl-ink);font-weight:700}
 @media(max-width:640px){.bl-plan-banner{padding:16px}.bl-plan-banner-head h2{font-size:20px}.bl-billing-filters,.bl-billing-filters .bl-segment{width:100%}.bl-billing-filters .bl-segment button{flex:1;justify-content:center}}
+
+/* ── AI Usage page (TDR-0053) ───────────────────────────────────────────────────
+   One series per chart, so one hue: --bl-chart-1, the mint accent stepped to pass
+   the chart palette checks (chroma and lightness band) on each theme's surface. */
+:root{--bl-chart-1:#0B8A5E}
+:root.dark{--bl-chart-1:#25A878}
+.bl-usage-card{background:var(--bl-surface);border:1px solid var(--bl-line);border-radius:3px;margin-bottom:20px}
+.bl-usage-card>header{padding:12px 16px;border-bottom:1px solid var(--bl-line)}
+.bl-usage-card>header h2{font-size:13px;font-weight:600}
+.bl-usage-tiles{margin-top:0;padding:14px}
+.bl-usage-tiles .bl-usage small a{color:var(--bl-accent-text,var(--mint-deep));text-decoration:underline}
+.bl-usage-note{margin-bottom:14px}
+.bl-usage-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.bl-usage-split>.bl-usage-card{margin-bottom:20px}
+.bl-usage-card>.bl-table th:first-child,.bl-usage-card>.bl-table td:first-child{padding-left:16px}
+.bl-usage-card .bl-col-num{text-align:right;font-variant-numeric:tabular-nums;padding-right:16px}
+.bl-usage-none{padding:16px;font-size:12px;color:var(--bl-muted)}
+.bl-usage-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:40px 24px;text-align:center}
+.bl-usage-empty h2{font-size:16px;font-weight:600}
+.bl-usage-empty p{font-size:12px;color:var(--bl-muted);max-width:52ch}
+.bl-colchart{margin:0;padding:14px 16px 12px}
+.bl-colchart-head{display:flex;align-items:baseline;gap:10px;min-height:22px;font-size:12px;color:var(--bl-muted)}
+.bl-colchart-head b{font-size:15px;font-weight:600;color:var(--bl-ink)}
+.bl-colchart-plot{position:relative;display:flex;align-items:flex-end;gap:2px;height:140px;margin-top:10px;border-bottom:1px solid var(--bl-line)}
+.bl-colchart-max{position:absolute;top:-2px;left:0;font:10px var(--bl-mono);color:var(--bl-muted);pointer-events:none}
+.bl-colchart-col{flex:1;display:flex;align-items:flex-end;justify-content:center;height:100%;min-width:4px;padding:0;border-radius:0}
+.bl-colchart-col>i{display:block;width:100%;max-width:24px;min-height:2px;border-radius:4px 4px 0 0;background:var(--bl-chart-1)}
+.bl-colchart-col:hover,.bl-colchart-col.is-active{background:var(--bl-paper)}
+.bl-colchart-col:focus-visible{outline:2px solid var(--bl-focus);outline-offset:-2px}
+.bl-colchart-axis{display:flex;justify-content:space-between;margin-top:6px;font:10px var(--bl-mono);color:var(--bl-muted)}
+.bl-colchart-table{margin-top:10px;font-size:12px}
+.bl-colchart-table summary{cursor:pointer;color:var(--bl-muted);font-size:11px}
+.bl-colchart-table .bl-table{margin-top:8px}
+.bl-colchart-table .bl-table td{padding:6px 10px}
+.bl-hbars{list-style:none;margin:0;padding:12px 16px;display:flex;flex-direction:column;gap:12px}
+.bl-hbars li{display:grid;grid-template-columns:minmax(120px,40%) 1fr auto;align-items:center;gap:12px;font-size:12px}
+.bl-hbars b{font-weight:600;font-variant-numeric:tabular-nums;min-width:3ch;text-align:right}
+.bl-hbar-track{display:block;height:12px}
+.bl-hbar-track>i{display:block;height:100%;min-width:2px;border-radius:0 4px 4px 0;background:var(--bl-chart-1)}
+@media(max-width:800px){.bl-usage-split{grid-template-columns:1fr;gap:0}.bl-hbars li{grid-template-columns:1fr auto}.bl-hbar-track{grid-column:1/-1;grid-row:2}}
+.bl-confirm-message>p+p{margin-top:8px}

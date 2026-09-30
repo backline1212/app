@@ -134,7 +134,12 @@ async def get_workspace(
 
 
 async def update_workspace(
-    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, name: str | None
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    name: str | None,
+    actor_user_id: str | None = None,
+    actor_role: str | None = None,
 ) -> WorkspaceOut:
     workspace_repo = WorkspaceRepository(db)
     workspace_doc = await workspace_repo.find_by_id(workspace_id)
@@ -147,13 +152,13 @@ async def update_workspace(
         workspace_id=workspace_id,
         type=workspace_events.WORKSPACE_UPDATED,
         actor_type="member",
-        actor_id=None,
+        actor_id=actor_user_id,
         payload={"name": name},
     )
 
     updated = await workspace_repo.find_by_id(workspace_id)
     assert updated is not None
-    return _workspace_out(updated, role=None)
+    return _workspace_out(updated, role=actor_role)
 
 
 async def list_members(

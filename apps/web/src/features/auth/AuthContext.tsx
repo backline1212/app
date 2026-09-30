@@ -2,8 +2,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
+import { WORKSPACE_ACCESS_LOST_EVENT } from "../../lib/api-client";
 import { getAccessToken, onAccessTokenChange, setAccessToken } from "../../lib/auth-token";
 import { decodeAccessToken } from "../../lib/jwt";
+import { qk } from "../../lib/query-keys";
 import * as authApi from "./api";
 import type { UserOut } from "./api";
 
@@ -38,6 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // array to keep in sync with it.
   const [, forceUpdate] = useState(0);
   useEffect(() => onAccessTokenChange(() => forceUpdate((v) => v + 1)), []);
+  // Removed from the open workspace: reloading the workspace list drops it, and the
+  // workspace layout then routes to the picker instead of failing every request.
+  useEffect(() => {
+    const reload = () => void queryClient.invalidateQueries({ queryKey: qk.workspaces() });
+    window.addEventListener(WORKSPACE_ACCESS_LOST_EVENT, reload);
+    return () => window.removeEventListener(WORKSPACE_ACCESS_LOST_EVENT, reload);
+  }, [queryClient]);
 
   const currentToken = getAccessToken();
   const payload = currentToken ? decodeAccessToken(currentToken) : null;

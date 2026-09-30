@@ -1,17 +1,20 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
+
+from app.core.email_address import NormalizedEmail
+from app.core.text import Trimmed
 
 MemberRole = Literal["admin", "member"]
 
 
 class WorkspaceCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
+    name: Trimmed = Field(min_length=1, max_length=200)
 
 
 class WorkspaceUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=200)
+    name: Trimmed | None = Field(default=None, min_length=1, max_length=200)
 
 
 class WorkspaceOut(BaseModel):
@@ -34,7 +37,7 @@ class MemberOut(BaseModel):
 
 
 class InviteMemberRequest(BaseModel):
-    email: EmailStr
+    email: NormalizedEmail
     role: MemberRole = "member"
 
 

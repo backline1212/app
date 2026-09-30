@@ -139,7 +139,7 @@ async def set_password(
 ) -> None:
     """TDR-0037: reachable from the sign-in code flow (which already proved control
     of the inbox) to set a first password or replace an existing one."""
-    await auth_service.set_password(get_db(), session.user_id, body.password)
+    await auth_service.set_password(get_db(), session.user_id, session.sid, body.password)
 
 
 @router.post("/refresh", response_model=TokenPairOut)

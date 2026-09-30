@@ -26,7 +26,9 @@ async def summarize_thread(
     # workspace_id is taken from the caller's own session, never the path param -
     # the path param is untrusted and must not be used to scope the lookup (it
     # previously allowed reading any other workspace's comment threads).
-    return await service.summarize_thread(db, require_workspace_context(session), comment_id)
+    return await service.summarize_thread(
+        db, require_workspace_context(session), comment_id, user_id=session.user_id
+    )
 
 
 @router.post(
@@ -40,7 +42,9 @@ async def suggest_reply(
     db: AsyncIOMotorDatabase[dict[str, Any]] = Depends(get_db),
     session: Session = Depends(require_permission("comment:view_team")),
 ) -> SuggestReplyResult:
-    return await service.suggest_reply(db, require_workspace_context(session), comment_id)
+    return await service.suggest_reply(
+        db, require_workspace_context(session), comment_id, user_id=session.user_id
+    )
 
 
 @router.post(
@@ -55,4 +59,6 @@ async def analyze_project(
     # update_comment) - this endpoint writes that same field.
     session: Session = Depends(require_permission("comment:update_status")),
 ) -> ProjectAnalysisResult:
-    return await service.analyze_project(db, require_workspace_context(session), project_id)
+    return await service.analyze_project(
+        db, require_workspace_context(session), project_id, user_id=session.user_id
+    )

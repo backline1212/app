@@ -8,6 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
 from app.core.mongo_utils import to_object_id
+from app.modules.projects.repository import EXCLUDE_UNTOUCHED_SAMPLE
 
 MongoSession = AsyncIOMotorClientSession | None
 
@@ -153,7 +154,7 @@ class BillingRepository:
 
     async def count_active_projects(self, workspace_id: str) -> int:
         return await self.db.projects.count_documents(
-            {"workspace_id": workspace_id, "archived_at": None}
+            {"workspace_id": workspace_id, "archived_at": None, **EXCLUDE_UNTOUCHED_SAMPLE}
         )
 
     async def count_members(self, workspace_id: str) -> int:
@@ -164,10 +165,59 @@ class BillingRepository:
             {"workspace_id": workspace_id, "created_at": {"$gte": since}}
         )
 
-    async def record_ai_credit(self, workspace_id: str, *, action: str) -> None:
+    async def record_ai_credit(
+        self, workspace_id: str, *, action: str, user_id: str | None = None
+    ) -> None:
         await self.db.ai_usage.insert_one(
-            {"workspace_id": workspace_id, "action": action, "created_at": datetime.now(UTC)}
+            {
+                "workspace_id": workspace_id,
+                "action": action,
+                "user_id": user_id,
+                "created_at": datetime.now(UTC),
+            }
         )
+
+    async def ai_usage_breakdown(
+        self, workspace_id: str, *, period_start: datetime
+    ) -> dict[str, list[dict[str, Any]]]:
+        """This period's credits grouped by feature, by member and by UTC day. Credits
+        recorded before members were tracked group under a null user_id."""
+        pipeline: list[dict[str, Any]] = [
+            {"$match": {"workspace_id": workspace_id, "created_at": {"$gte": period_start}}},
+            {
+                "$facet": {
+                    "by_action": [{"$group": {"_id": "$action", "count": {"$sum": 1}}}],
+                    "by_member": [
+                        {"$group": {"_id": {"$ifNull": ["$user_id", None]}, "count": {"$sum": 1}}}
+                    ],
+                    "by_day": [
+                        {
+                            "$group": {
+                                "_id": {
+                                    "$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}
+                                },
+                                "count": {"$sum": 1},
+                            }
+                        }
+                    ],
+                }
+            },
+        ]
+        rows = await self.db.ai_usage.aggregate(pipeline).to_list(1)
+        return rows[0] if rows else {"by_action": [], "by_member": [], "by_day": []}
+
+    async def ai_usage_by_month(self, workspace_id: str, *, since: datetime) -> dict[str, int]:
+        """Credits per UTC calendar month ("YYYY-MM") from `since` on."""
+        pipeline: list[dict[str, Any]] = [
+            {"$match": {"workspace_id": workspace_id, "created_at": {"$gte": since}}},
+            {
+                "$group": {
+                    "_id": {"$dateToString": {"format": "%Y-%m", "date": "$created_at"}},
+                    "count": {"$sum": 1},
+                }
+            },
+        ]
+        return {row["_id"]: row["count"] async for row in self.db.ai_usage.aggregate(pipeline)}
 
     # -- workspace plan fields -------------------------------------------------------
 

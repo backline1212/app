@@ -166,7 +166,7 @@ function HardDeleteDialog({ project, onClose, onDeleted }: { project: ProjectOut
   const preview = useQuery({ queryKey: qk.hardDeletePreview(project.id), queryFn: () => api.previewHardDeleteProject(project.id) });
   const confirm = useMutation({ mutationFn: () => api.confirmHardDeleteProject(project.id, { correlation_id: preview.data!.correlation_id, project_name: typedName }), onSuccess: onDeleted });
   const isArchived = preview.data?.archived ?? false;
-  const nameMatches = typedName.trim() === project.name;
+  const nameMatches = typedName.trim() === project.name.trim();
   const hasUnsafeReferences = (preview.data?.counts.unsafe_object_references ?? 0) > 0;
 
   return <Dialog title={`Delete “${project.name}”?`} onClose={onClose}>

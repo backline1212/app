@@ -11,6 +11,7 @@ export type CheckoutResponse = Schemas["CheckoutResponse"];
 export type VerifyPaymentRequest = Schemas["VerifyPaymentRequest"];
 export type InvoiceOut = Schemas["InvoiceOut"];
 export type PortalResponse = Schemas["PortalResponse"];
+export type AiUsageOut = Schemas["AiUsageOut"];
 
 export type PlanId = PlanTierOut["id"];
 export type PaidPlanId = CheckoutRequest["plan_id"];
@@ -32,6 +33,10 @@ export function getBillingPlans(workspaceId: string): Promise<PlansResponseOut> 
 
 export function getSubscription(workspaceId: string): Promise<SubscriptionOut> {
   return apiFetch<SubscriptionOut>(`${base(workspaceId)}/subscription`);
+}
+
+export function getAiUsage(workspaceId: string): Promise<AiUsageOut> {
+  return apiFetch<AiUsageOut>(`${base(workspaceId)}/ai-usage`);
 }
 
 export function createCheckout(workspaceId: string, payload: CheckoutRequest): Promise<CheckoutResponse> {

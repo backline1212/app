@@ -203,7 +203,7 @@ async def confirm_hard_delete(
         raise NotFoundError("Deletion plan not found.")
     if plan["expires_at"] <= datetime.now(UTC):
         raise ConflictError("Deletion plan expired. Run a new dry-run first.")
-    if confirmation.project_name != plan["project_name"]:
+    if confirmation.project_name != plan["project_name"].strip():
         raise ConflictError("Project name confirmation does not match the dry-run.")
     if plan["status"] == "complete":
         return ProjectHardDeleteResult(

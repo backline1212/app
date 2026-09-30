@@ -28,6 +28,11 @@ const BAR_STATUSES = ["todo", "in_progress", "in_review", "blocked", "wont_fix"]
 
 interface PickerOption { id: string; label: string; sub: string }
 
+// "A", "A and B", "A, B and C".
+function joinNames(names: string[]): string {
+  return names.length < 3 ? names.join(" and ") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 // Shared popover for both Sort and Layout: a labeled trigger + a panel of
 // options, each with a one-line "what this means" caption and a checkmark on the
 // active one - replaces the plain native <select>s the mockup's own richer pickers
@@ -87,7 +92,9 @@ export function ProjectsPage() {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
-  function filter(key: string, value: string) { const next = new URLSearchParams(params); if (value) next.set(key, value); else next.delete(key); setParams(next); }
+  // Typing in the filter box replaces the history entry instead of adding one per
+  // keystroke, so Back leaves the page rather than un-typing the query a letter at a time.
+  function filter(key: string, value: string) { const next = new URLSearchParams(params); if (value) next.set(key, value); else next.delete(key); setParams(next, { replace: key === "search" }); }
   const projects = useQuery({ queryKey: qk.projects(workspace.id), queryFn: () => api.listProjects(workspace.id, true) });
   const clients = useQuery({ queryKey: qk.clients(workspace.id), queryFn: () => listClients(workspace.id) });
   const members = useQuery({ queryKey: qk.members(workspace.id), queryFn: () => listMembers(workspace.id) });
@@ -189,7 +196,7 @@ export function ProjectsPage() {
   return <>
     <main className="bl-wrap">
       <header className="bl-head">
-        <div><h1>{headline}</h1><p>{archived ? "Finished for now. Restore a project to review it again." : search ? `${visible.length} result${visible.length === 1 ? "" : "s"} for "${search}".` : type !== "all" && !soonType ? `Every ${(TYPE_LABELS[type] ?? "project").toLowerCase()} review, all in one place.` : <>{needsReply > 0 ? <><b>{needsReply} comment{needsReply === 1 ? "" : "s"}</b> {needsReply === 1 ? "is" : "are"} waiting on a reply from you</> : <><b>Nothing</b> is waiting on a reply from you</>}{fullyResolved.length > 0 ? `, and ${fullyResolved.join(" and ")} ${fullyResolved.length === 1 ? "has" : "have"} been fully resolved.` : "."}</>}</p></div>
+        <div><h1>{headline}</h1><p>{archived ? "Finished for now. Restore a project to review it again." : search ? `${visible.length} result${visible.length === 1 ? "" : "s"} for "${search}".` : type !== "all" && !soonType ? `Every ${(TYPE_LABELS[type] ?? "project").toLowerCase()} review, all in one place.` : <>{needsReply > 0 ? <><b>{needsReply} comment{needsReply === 1 ? "" : "s"}</b> {needsReply === 1 ? "is" : "are"} waiting on a reply from you</> : <><b>Nothing</b> is waiting on a reply from you</>}{fullyResolved.length > 0 ? `, and ${joinNames(fullyResolved)} ${fullyResolved.length === 1 ? "has" : "have"} been fully resolved.` : "."}</>}</p></div>
         <div className="bl-head-actions">
           <time className="bl-mono bl-head-clock">{now.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}<br />{now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
         </div>
@@ -206,7 +213,7 @@ export function ProjectsPage() {
           {attention.isLoading ? (
             <div className="bl-attention-empty" aria-hidden="true"><div className="bl-skeleton" style={{ height: 12, width: 240, borderRadius: 3 }} /></div>
           ) : attention.isError ? (<p role="alert">Could not load items waiting on you. <button onClick={() => void attention.refetch()}>Retry</button></p>) : (attention.data?.items.length ?? 0) > 0 ? (
-            <div>{attention.data?.items.map((t) => <Link key={t.id} to={`/w/${workspace.slug}/tickets?ticket=${t.id}&project_id=${t.project_id}`}><small>{t.project_name} · {t.page_title}</small><strong>{t.body}</strong><span>{t.author_name} · {timeAgo(t.created_at)}</span></Link>)}</div>
+            <div>{attention.data?.items.map((t) => <Link key={t.id} to={`/w/${workspace.slug}/tickets?comment=${t.id}&project_id=${t.project_id}`}><small>{t.project_name} · {t.page_title}</small><strong>{t.body}</strong><span>{t.author_name} · {timeAgo(t.created_at)}</span></Link>)}</div>
           ) : (
             <div className="bl-attention-empty">
               <p>Tickets and comments waiting on your reply will show up here.</p>
@@ -285,7 +292,7 @@ export function ProjectsPage() {
             {newProjectTile()}
           </div>
         )}
-        {!projects.error && visible.length === 0 && <div className="bl-empty"><EmptyArt kind={search || type !== "all" ? "search" : "projects"} /><h2>{archived ? "No archived projects" : "No projects here yet"}</h2><p>{search || type !== "all" ? "Try a different search or project type." : "Create a project to get a shareable review link."}</p></div>}
+        {!projects.error && visible.length === 0 && <div className="bl-empty"><EmptyArt kind={search || type !== "all" || params.get("client") ? "search" : "projects"} /><h2>{archived ? "No archived projects" : "No projects here yet"}</h2><p>{search || type !== "all" || params.get("client") ? "Try a different search, client or project type." : "Create a project to get a shareable review link."}</p></div>}
       </>}
       </>}
     </main>

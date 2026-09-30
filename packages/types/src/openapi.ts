@@ -1550,6 +1550,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/billing/ai-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ai Usage */
+        get: operations["get_ai_usage_api_v1_workspaces__workspace_id__billing_ai_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/billing/checkout": {
         parameters: {
             query?: never;
@@ -1867,6 +1884,69 @@ export interface components {
             ticket_number?: number | null;
             /** Comment Excerpt */
             comment_excerpt?: string | null;
+        };
+        /** AiUsageActionOut */
+        AiUsageActionOut: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "summarize" | "suggest_reply" | "analyze_project";
+            /** Count */
+            count: number;
+        };
+        /** AiUsageMemberOut */
+        AiUsageMemberOut: {
+            /** User Id */
+            user_id: string | null;
+            /** Name */
+            name: string;
+            /** Count */
+            count: number;
+        };
+        /**
+         * AiUsageOut
+         * @description The AI Usage page: this month's credits against the plan, and where they went.
+         */
+        AiUsageOut: {
+            /**
+             * Plan Id
+             * @enum {string}
+             */
+            plan_id: "free" | "solo" | "team" | "enterprise";
+            /** Plan Name */
+            plan_name: string;
+            /** Used */
+            used: number;
+            /** Limit */
+            limit: number;
+            /**
+             * Period Start
+             * Format: date-time
+             */
+            period_start: string;
+            /**
+             * Resets At
+             * Format: date-time
+             */
+            resets_at: string;
+            /** Ai Enabled */
+            ai_enabled: boolean;
+            /** By Action */
+            by_action: components["schemas"]["AiUsageActionOut"][];
+            /** By Member */
+            by_member: components["schemas"]["AiUsageMemberOut"][];
+            /** Daily */
+            daily: components["schemas"]["AiUsagePointOut"][];
+            /** Monthly */
+            monthly: components["schemas"]["AiUsagePointOut"][];
+        };
+        /** AiUsagePointOut */
+        AiUsagePointOut: {
+            /** Period */
+            period: string;
+            /** Count */
+            count: number;
         };
         /**
          * AnchorIn
@@ -7821,6 +7901,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubscriptionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ai_usage_api_v1_workspaces__workspace_id__billing_ai_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiUsageOut"];
                 };
             };
             /** @description Validation Error */

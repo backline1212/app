@@ -86,8 +86,13 @@ async def require_within_plan_limit(
 
 
 async def record_ai_credit(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, *, action: str
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    *,
+    action: str,
+    user_id: str | None = None,
 ) -> None:
-    """One credit per completed AI call. Placeholder answers given while AI is not
-    configured never reach this, so they cost nothing."""
-    await BillingRepository(db).record_ai_credit(workspace_id, action=action)
+    """One credit per completed AI call, attributed to the member who asked for it (the
+    AI Usage page breaks usage down by member). Placeholder answers given while AI is
+    not configured never reach this, so they cost nothing."""
+    await BillingRepository(db).record_ai_credit(workspace_id, action=action, user_id=user_id)

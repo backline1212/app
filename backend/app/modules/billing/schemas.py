@@ -79,6 +79,47 @@ class UsageMetricsOut(BaseModel):
     storage_gb_limit: int
 
 
+AiAction = Literal["summarize", "suggest_reply", "analyze_project"]
+
+
+class AiUsageActionOut(BaseModel):
+    action: AiAction
+    count: int
+
+
+class AiUsageMemberOut(BaseModel):
+    # None groups credits recorded before calls were attributed to a member.
+    user_id: str | None
+    name: str
+    count: int
+
+
+class AiUsagePointOut(BaseModel):
+    # "YYYY-MM-DD" for a day, "YYYY-MM" for a month; both UTC.
+    period: str
+    count: int
+
+
+class AiUsageOut(BaseModel):
+    """The AI Usage page: this month's credits against the plan, and where they went."""
+
+    plan_id: PlanId
+    plan_name: str
+    used: int
+    limit: int
+    period_start: datetime
+    resets_at: datetime
+    # False when no AI provider key is configured: AI answers are placeholders and free.
+    ai_enabled: bool
+    by_action: list[AiUsageActionOut]
+    # Most credits first.
+    by_member: list[AiUsageMemberOut]
+    # Every day of this month up to today, zeros included.
+    daily: list[AiUsagePointOut]
+    # The last six calendar months, oldest first, this month included.
+    monthly: list[AiUsagePointOut]
+
+
 class SubscriptionOut(BaseModel):
     workspace_id: str
     plan_id: PlanId

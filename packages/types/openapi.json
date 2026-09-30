@@ -5900,6 +5900,53 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_id}/billing/ai-usage": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Get Ai Usage",
+        "operationId": "get_ai_usage_api_v1_workspaces__workspace_id__billing_ai_usage_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiUsageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/billing/checkout": {
       "post": {
         "tags": [
@@ -6852,6 +6899,161 @@
           "created_at"
         ],
         "title": "ActivityOut"
+      },
+      "AiUsageActionOut": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "summarize",
+              "suggest_reply",
+              "analyze_project"
+            ],
+            "title": "Action"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "count"
+        ],
+        "title": "AiUsageActionOut"
+      },
+      "AiUsageMemberOut": {
+        "properties": {
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "count"
+        ],
+        "title": "AiUsageMemberOut"
+      },
+      "AiUsageOut": {
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "enum": [
+              "free",
+              "solo",
+              "team",
+              "enterprise"
+            ],
+            "title": "Plan Id"
+          },
+          "plan_name": {
+            "type": "string",
+            "title": "Plan Name"
+          },
+          "used": {
+            "type": "integer",
+            "title": "Used"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Period Start"
+          },
+          "resets_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Resets At"
+          },
+          "ai_enabled": {
+            "type": "boolean",
+            "title": "Ai Enabled"
+          },
+          "by_action": {
+            "items": {
+              "$ref": "#/components/schemas/AiUsageActionOut"
+            },
+            "type": "array",
+            "title": "By Action"
+          },
+          "by_member": {
+            "items": {
+              "$ref": "#/components/schemas/AiUsageMemberOut"
+            },
+            "type": "array",
+            "title": "By Member"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/AiUsagePointOut"
+            },
+            "type": "array",
+            "title": "Daily"
+          },
+          "monthly": {
+            "items": {
+              "$ref": "#/components/schemas/AiUsagePointOut"
+            },
+            "type": "array",
+            "title": "Monthly"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan_id",
+          "plan_name",
+          "used",
+          "limit",
+          "period_start",
+          "resets_at",
+          "ai_enabled",
+          "by_action",
+          "by_member",
+          "daily",
+          "monthly"
+        ],
+        "title": "AiUsageOut",
+        "description": "The AI Usage page: this month's credits against the plan, and where they went."
+      },
+      "AiUsagePointOut": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "count"
+        ],
+        "title": "AiUsagePointOut"
       },
       "AnchorIn": {
         "properties": {

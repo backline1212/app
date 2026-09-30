@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { API_BASE_URL } from "../../lib/api-client";
 import { formatRelativeTime } from "../../lib/date-format";
@@ -17,6 +18,7 @@ export function ExtensionSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [copied, setCopied] = useState(false);
+  const [revokeCandidate, setRevokeCandidate] = useState<extensionTokensApi.ExtensionTokenOut | null>(null);
 
   const queryKey = qk.extensionTokens(workspace.id);
   const { data: tokens, isLoading, error: listError } = useQuery({
@@ -53,7 +55,10 @@ export function ExtensionSettingsPage() {
 
   const revokeMutation = useMutation({
     mutationFn: (tokenId: string) => extensionTokensApi.revokeExtensionToken(tokenId),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setRevokeCandidate(null);
+      void invalidate();
+    },
   });
 
   function handleCreate(event: FormEvent) {
@@ -132,6 +137,8 @@ export function ExtensionSettingsPage() {
           <form onSubmit={handleCreate} style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "4px" }}>
             <input
               required
+              maxLength={200}
+              aria-label="Token name"
               placeholder="Work laptop - Chrome"
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -216,8 +223,7 @@ export function ExtensionSettingsPage() {
                   <button
                     className="bl-quiet"
                     style={{ color: "var(--bl-error)", borderColor: "transparent", padding: "4px 8px" }}
-                    onClick={() => revokeMutation.mutate(token.id)}
-                    disabled={revokeMutation.isPending}
+                    onClick={() => setRevokeCandidate(token)}
                   >
                     Revoke
                   </button>
@@ -226,6 +232,21 @@ export function ExtensionSettingsPage() {
             </div>
           </div>
         </section>
+      )}
+
+      {revokeCandidate && (
+        <ConfirmDialog
+          title="Revoke this token?"
+          message={<>
+            <p>The extension signed in with <strong>{revokeCandidate.name}</strong> stops working at once. You can generate a new token any time.</p>
+            {revokeMutation.error && <p role="alert" className="bl-error">{revokeMutation.error.message}</p>}
+          </>}
+          confirmLabel={revokeMutation.isPending ? "Revoking…" : "Revoke token"}
+          destructive
+          pending={revokeMutation.isPending}
+          onCancel={() => { revokeMutation.reset(); setRevokeCandidate(null); }}
+          onConfirm={() => revokeMutation.mutate(revokeCandidate.id)}
+        />
       )}
     </main>
   );

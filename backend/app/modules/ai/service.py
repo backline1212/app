@@ -152,7 +152,11 @@ async def _complete(prompt: str, *, json_mode: bool = False) -> str:
 
 
 async def summarize_thread(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, comment_id: str
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    comment_id: str,
+    *,
+    user_id: str | None = None,
 ) -> SummarizeResult:
     context = await _get_thread_context(db, workspace_id, comment_id)
 
@@ -166,12 +170,16 @@ async def summarize_thread(
     await require_within_plan_limit(db, workspace_id, "ai_credits")
     prompt = f"Summarize the following feedback thread in one concise paragraph:\n\n{context}"
     text = await _complete(prompt)
-    await record_ai_credit(db, workspace_id, action="summarize")
+    await record_ai_credit(db, workspace_id, action="summarize", user_id=user_id)
     return SummarizeResult(summary=text.strip() or "Could not generate summary.")
 
 
 async def suggest_reply(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, comment_id: str
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    comment_id: str,
+    *,
+    user_id: str | None = None,
 ) -> SuggestReplyResult:
     context = await _get_thread_context(db, workspace_id, comment_id)
 
@@ -187,7 +195,7 @@ async def suggest_reply(
         f"team could send. Format each reply on a new line starting with '- ':\n\n{context}"
     )
     text = await _complete(prompt)
-    await record_ai_credit(db, workspace_id, action="suggest_reply")
+    await record_ai_credit(db, workspace_id, action="suggest_reply", user_id=user_id)
 
     suggestions = [
         line.strip("- *").strip() for line in text.split("\n") if line.strip().startswith("-")
@@ -199,7 +207,11 @@ async def suggest_reply(
 
 
 async def analyze_project(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, project_id: str
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    project_id: str,
+    *,
+    user_id: str | None = None,
 ) -> ProjectAnalysisResult:
     """BugHunt AI (docs/tdr/0043): reads every open, top-level comment in a project,
     asks Groq to prioritize by severity and flag likely duplicate threads, and writes
@@ -254,7 +266,7 @@ async def analyze_project(
     )
 
     text = await _complete(prompt, json_mode=True)
-    await record_ai_credit(db, workspace_id, action="analyze_project")
+    await record_ai_credit(db, workspace_id, action="analyze_project", user_id=user_id)
 
     # A malformed or unexpectedly-shaped model response (not JSON, a JSON array/scalar
     # instead of an object, a `findings`/`possible_duplicates` entry that isn't an

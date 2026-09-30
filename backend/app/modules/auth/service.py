@@ -1,6 +1,6 @@
 import secrets
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import anyio
@@ -9,6 +9,7 @@ from pymongo.errors import DuplicateKeyError
 
 from app.core.config import get_settings
 from app.core.email import send_email
+from app.core.email_address import normalize_email
 from app.core.errors import (
     AuthenticationError,
     ConflictError,
@@ -87,6 +88,8 @@ def _parse_user_agent(ua: str | None) -> tuple[str | None, str | None]:
 async def _issue_tokens(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     user_doc: dict[str, Any],
+    *,
+    auth_method: str,
     ua: str | None = None,
     ip: str | None = None,
 ) -> IssuedTokens:
@@ -109,6 +112,8 @@ async def _issue_tokens(
         browser=browser,
         os=os,
         ip_address=ip,
+        auth_method=auth_method,
+        authenticated_at=datetime.now(UTC),
     )
     # A member works from one active session at a time: signing in anywhere signs out
     # every other device (TDR-0034).
@@ -138,7 +143,7 @@ async def login_with_google(
     )
     await user_repo.touch_login(existing["_id"], "google")
 
-    return await _issue_tokens(db, existing, ua=ua, ip=ip)
+    return await _issue_tokens(db, existing, auth_method="google", ua=ua, ip=ip)
 
 
 # One real digest, derived once per process, to verify against when the email has no
@@ -209,7 +214,7 @@ async def signup_with_password(
         # one address in flight at once, both past the check above.
         raise ConflictError("That email already has a Backline account. Sign in instead.") from None
 
-    return await _issue_tokens(db, user_doc, ua=ua, ip=ip)
+    return await _issue_tokens(db, user_doc, auth_method="password", ua=ua, ip=ip)
 
 
 async def login_with_password(
@@ -235,7 +240,7 @@ async def login_with_password(
         raise AuthenticationError("Incorrect email or password.")
 
     await user_repo.touch_login(user_doc["_id"], "password")
-    return await _issue_tokens(db, user_doc, ua=ua, ip=ip)
+    return await _issue_tokens(db, user_doc, auth_method="password", ua=ua, ip=ip)
 
 
 async def request_otp(db: AsyncIOMotorDatabase[dict[str, Any]], email: str) -> None:
@@ -281,7 +286,7 @@ async def verify_otp(
     )
     await user_repo.touch_login(existing["_id"], "email_otp")
 
-    return await _issue_tokens(db, existing, ua=ua, ip=ip)
+    return await _issue_tokens(db, existing, auth_method="email_otp", ua=ua, ip=ip)
 
 
 async def refresh_tokens(
@@ -332,6 +337,8 @@ async def refresh_tokens(
         browser=browser,
         os=os,
         ip_address=ip,
+        auth_method=token_doc.get("auth_method"),
+        authenticated_at=token_doc.get("authenticated_at"),
     )
 
     access_token = create_access_token(str(user_doc["_id"]), sid=token_doc["family_id"])
@@ -422,18 +429,38 @@ async def revoke_all_sessions(db: AsyncIOMotorDatabase[dict[str, Any]], user_id:
     )
 
 
+# How long after an emailed-code sign-in the "Set a password" step stays open.
+PASSWORD_RESET_WINDOW = timedelta(minutes=15)
+
+
 async def set_password(
-    db: AsyncIOMotorDatabase[dict[str, Any]], user_id: str, password: str
+    db: AsyncIOMotorDatabase[dict[str, Any]], user_id: str, sid: str | None, password: str
 ) -> None:
-    """TDR-0037: lets a signed-in member set (or replace) their own password. Unlike
-    signup_with_password, this never has to guess whether the caller owns the
-    account - they already hold a valid session - so a member who joined by Google
-    or an OTP code can finally attach a first password, and one who already has a
-    password can replace it without knowing the old value, the same way any
-    OTP-verified reset works elsewhere."""
+    """TDR-0037: sets or replaces the member's password without the old one - the
+    "Set a password" step that follows signing in with an emailed code, which is how a
+    member who joined by Google or a code gets a first password and how a forgotten one
+    is reset. The code is the proof, so only a session that a code sign-in started in
+    the last 15 minutes may use this; anyone else changes their password with the
+    current one (change_password). Without that check, any live session - a borrowed
+    laptop, a leaked access token - could take the account over (TDR-0053)."""
     user_object_id = to_object_id(user_id)
     if user_object_id is None:
         raise AuthenticationError("Invalid session.")
+
+    login = await RefreshTokenRepository(db).find_active_in_family(user_id, sid) if sid else None
+    authenticated_at = login.get("authenticated_at") if login else None
+    if isinstance(authenticated_at, datetime) and authenticated_at.tzinfo is None:
+        authenticated_at = authenticated_at.replace(tzinfo=UTC)
+    if (
+        login is None
+        or login.get("auth_method") != "email_otp"
+        or not isinstance(authenticated_at, datetime)
+        or authenticated_at < datetime.now(UTC) - PASSWORD_RESET_WINDOW
+    ):
+        raise PermissionDeniedError(
+            "To set a new password, sign in with an emailed code first, or use "
+            "Change password in your account."
+        )
 
     user_repo = UserRepository(db)
     user_doc = await user_repo.find_by_id(user_id)
@@ -530,7 +557,7 @@ async def request_email_change(
     user_doc = await user_repo.find_by_id(session_user_id)
     if user_doc is None:
         raise AuthenticationError("User not found.")
-    if email == user_doc["email"]:
+    if email == normalize_email(user_doc["email"]):
         raise ValidationError("That's already your email.")
     stored = user_doc.get("password_hash")
     if stored:

@@ -3,7 +3,11 @@ from dataclasses import dataclass
 from fastapi import Depends, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.core.errors import AuthenticationError, PermissionDeniedError
+from app.core.errors import (
+    AuthenticationError,
+    PermissionDeniedError,
+    WorkspaceAccessChangedError,
+)
 from app.core.events import ActorType
 from app.core.security import (
     InvalidTokenError,
@@ -169,4 +173,4 @@ async def validate_member_session(session: Session) -> None:
             workspace_id=session.workspace_id, user_id=session.user_id
         )
         if member is None or member["role"] != session.role:
-            raise PermissionDeniedError("Workspace access changed. Reopen the workspace.")
+            raise WorkspaceAccessChangedError("Workspace access changed. Reopen the workspace.")

@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.modules.comments.repository import CommentRepository
 from app.modules.pages.repository import PageRepository
 from app.modules.pages.url_normalize import normalize_url
-from app.modules.projects.repository import ProjectRepository
+from app.modules.projects.repository import SAMPLE_PROJECT_ORIGIN, ProjectRepository
 
 # F7 (01-Product-Vision.md, 16-Dashboard.md): "teach by doing" - a brand-new workspace
 # isn't a blank slate, it already has one project with a page and three comments
@@ -18,7 +18,7 @@ SAMPLE_PROJECT_NAME = "Example Project"
 # ProjectOverviewPage.tsx) embeds this live via the real proxy, so it has to actually
 # resolve. The seeded anchor/comment text below no longer describes example.com's real
 # markup - harmless until pin overlays actually render on the canvas (not built yet).
-SAMPLE_TARGET_ORIGIN = "https://example.com"
+SAMPLE_TARGET_ORIGIN = SAMPLE_PROJECT_ORIGIN
 SAMPLE_PAGE_URL = "https://example.com/"
 
 _SAMPLE_ANCHOR = {
@@ -98,6 +98,7 @@ async def seed_sample_project(
         name=SAMPLE_PROJECT_NAME,
         target_origin=SAMPLE_TARGET_ORIGIN,
         created_by=owner_user_id,
+        is_sample=True,
     )
     project_id = str(project_doc["_id"])
 

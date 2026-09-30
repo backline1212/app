@@ -10,6 +10,9 @@ from app.core.events import append_event
 from app.modules.clients.repository import ClientRepository
 from app.modules.clients.schemas import ClientCreate, ClientOut, ClientUpdate
 
+# Spreadsheet formula leads (OWASP CSV injection); a quote keeps the cell inert.
+_CSV_FORMULA_LEAD_CHARS = ("=", "+", "-", "@", "\t", "\r")
+
 
 def client_out(doc: dict[str, Any]) -> ClientOut:
     return ClientOut(**{**doc, "id": str(doc["_id"])})
@@ -130,9 +133,7 @@ async def export_clients(
             c.stats.last_activity_at.isoformat() if c.stats and c.stats.last_activity_at else "",
             c.created_at.isoformat(),
         ]
-        escaped_row = [
-            f"'{cell}" if isinstance(cell, str) and cell.startswith(("=", "+", "-", "@")) else cell
-            for cell in row
-        ]
-        writer.writerow(escaped_row)
+        writer.writerow(
+            [f"'{cell}" if cell.startswith(_CSV_FORMULA_LEAD_CHARS) else cell for cell in row]
+        )
     return output.getvalue()

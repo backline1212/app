@@ -19,7 +19,7 @@ export function WorkspacePickerPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: workspaces, isLoading } = useQuery({
+  const { data: workspaces, isLoading, error: listError, refetch } = useQuery({
     queryKey: qk.workspaces(),
     queryFn: workspacesApi.listWorkspaces,
   });
@@ -39,7 +39,7 @@ export function WorkspacePickerPage() {
     setError(null);
     setIsSubmitting(true);
     try {
-      const workspace = await workspacesApi.createWorkspace(newWorkspaceName);
+      const workspace = await workspacesApi.createWorkspace(newWorkspaceName.trim());
       await queryClient.invalidateQueries({ queryKey: qk.workspaces() });
       await enterWorkspace(workspace.id, workspace.slug);
     } catch (err) {
@@ -70,6 +70,12 @@ export function WorkspacePickerPage() {
 
           {/* Loading state */}
           {isLoading && <p className="wsp-loading">Loading workspaces…</p>}
+          {listError && (
+            <p className="wsp-err" role="alert">
+              <span>{listError.message}</span>{" "}
+              <button type="button" className="wsp-signout" onClick={() => void refetch()}>Try again</button>
+            </p>
+          )}
 
           {/* Workspace list */}
           {workspaces && workspaces.length > 0 && (
@@ -108,6 +114,8 @@ export function WorkspacePickerPage() {
             <input
               type="text"
               required
+              maxLength={200}
+              aria-label="Workspace name"
               placeholder="Acme Corp"
               value={newWorkspaceName}
               onChange={(event) => setNewWorkspaceName(event.target.value)}
@@ -119,7 +127,7 @@ export function WorkspacePickerPage() {
                 <span>{error}</span>
               </p>
             )}
-            <button type="submit" className="wsp-submit" disabled={isSubmitting}>
+            <button type="submit" className="wsp-submit" disabled={isSubmitting || !newWorkspaceName.trim()}>
               {isSubmitting ? <span className="lg-spin" /> : null}
               {t('workspacePicker.newWorkspace' as TranslationKeys)}
             </button>

@@ -1,4 +1,6 @@
 import hmac
+import secrets
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -6,6 +8,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.events import append_event
+from app.core.rate_limit import RateLimitedError
+from app.core.redis_client import get_redis
 from app.core.security import create_guest_token, generate_share_token, hash_secret
 from app.modules.projects import service as project_service
 from app.modules.projects.repository import ProjectRepository
@@ -35,6 +39,36 @@ def _share_link_out(doc: dict[str, Any]) -> ShareLinkOut:
 
 def _preview_origin(link: dict[str, Any]) -> str | None:
     return preview_origin_for_token(link["token"]) if link["mode"] == "proxy" else None
+
+
+# Wrong passcodes allowed per link in the window, from every address combined. The
+# per-IP limit on /guest-sessions alone let a guesser spread over many addresses work
+# through a 4-digit passcode in minutes; this makes that take days. Correct passcodes
+# are never counted, so reviewers who type it right are unaffected.
+PASSCODE_FAILURE_LIMIT = 25
+PASSCODE_FAILURE_WINDOW_SECONDS = 15 * 60
+
+
+def _passcode_failures_key(link: dict[str, Any]) -> str:
+    return f"rate-limit:passcode-failures:{link['_id']}"
+
+
+async def _require_passcode_attempts_left(link: dict[str, Any]) -> None:
+    client = get_redis()
+    key = _passcode_failures_key(link)
+    await client.zremrangebyscore(key, 0, time.time() - PASSCODE_FAILURE_WINDOW_SECONDS)
+    if await client.zcard(key) >= PASSCODE_FAILURE_LIMIT:
+        raise RateLimitedError(
+            "Too many wrong passcodes for this link. Wait a few minutes and try again."
+        )
+
+
+async def _record_passcode_failure(link: dict[str, Any]) -> None:
+    client = get_redis()
+    key = _passcode_failures_key(link)
+    now = time.time()
+    await client.zadd(key, {f"{now}:{secrets.token_hex(4)}": now})
+    await client.expire(key, PASSCODE_FAILURE_WINDOW_SECONDS)
 
 
 def _ensure_active(link: dict[str, Any]) -> None:
@@ -170,8 +204,10 @@ async def create_guest_session(
     resolved_name = resolve_guest_display_name(link, display_name)
 
     if link["passcode_hash"] is not None:
+        await _require_passcode_attempts_left(link)
         supplied = hash_secret(passcode) if passcode else ""
         if not hmac.compare_digest(supplied, link["passcode_hash"]):
+            await _record_passcode_failure(link)
             raise PermissionDeniedError("Incorrect passcode.")
 
     project = await ProjectRepository(db).find_by_id(link["project_id"])

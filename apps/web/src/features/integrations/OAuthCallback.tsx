@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { useDocumentTitle } from "../../lib/use-document-title";
+import { useAuth } from "../auth/AuthContext";
 import * as integrationsApi from "./api";
 import { type OAuthProvider, takePendingOAuth } from "./oauth-state";
 
@@ -18,14 +19,22 @@ const NAMES: Record<OAuthProvider, string> = { clickup: "ClickUp", jira: "Jira",
 export function OAuthCallback({ provider }: { provider: OAuthProvider }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { status, switchWorkspace } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const attempted = useRef(false);
   const name = NAMES[provider];
   useDocumentTitle(`Connecting ${name}`);
 
   useEffect(() => {
-    if (attempted.current) return;
+    // The provider's redirect was a full page load, so the session is still being
+    // restored from the refresh cookie; connecting before it's back would go out with
+    // no token at all.
+    if (status === "loading" || attempted.current) return;
     attempted.current = true;
+    if (status === "unauthenticated") {
+      setError("Your Backline session ended while you were away. Sign in, then connect again.");
+      return;
+    }
 
     const code = searchParams.get("code");
     const pending = takePendingOAuth(provider);
@@ -45,14 +54,17 @@ export function OAuthCallback({ provider }: { provider: OAuthProvider }) {
       return;
     }
 
-    const connect =
+    const connectInWorkspace = () =>
       provider === "clickup"
         ? integrationsApi.connectClickUp(pending.workspaceId, { oauthCode: code, listId: pending.listId })
         : provider === "jira"
           ? integrationsApi.connectJira(pending.workspaceId, { oauthCode: code, projectKey: pending.projectKey })
           : integrationsApi.connectAsana(pending.workspaceId, { oauthCode: code, projectGid: pending.projectGid });
 
-    connect
+    // A restored session isn't in any workspace yet, and connecting needs the member's
+    // role there (integration:manage), so reopen the one the flow started from first.
+    switchWorkspace(pending.workspaceId)
+      .then(connectInWorkspace)
       .then((integration) =>
         navigate(`/w/${pending.workspaceSlug}/integrations?setup=${encodeURIComponent(integration.id)}`, {
           replace: true,
@@ -61,7 +73,7 @@ export function OAuthCallback({ provider }: { provider: OAuthProvider }) {
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : `${name} connection failed.`);
       });
-  }, [searchParams, navigate, provider, name]);
+  }, [status, switchWorkspace, searchParams, navigate, provider, name]);
 
   if (error) {
     return (

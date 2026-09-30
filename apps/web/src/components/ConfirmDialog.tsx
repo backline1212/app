@@ -28,7 +28,8 @@ export function ConfirmDialog({
   return (
     <Dialog title={title} onClose={onCancel}>
       <div className="p-4">
-        <p className="mb-4">{message}</p>
+        {/* A div, not a p: callers pass paragraphs of their own (and error lines). */}
+        <div className="mb-4 bl-confirm-message">{message}</div>
         <div className="flex justify-end gap-3">
           {/* Disabled while pending too - onCancel only closes the dialog, it can't abort an
               in-flight destructive request, so letting it stay clickable would look like it
