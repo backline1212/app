@@ -55,7 +55,7 @@ test("member connects the extension and drops a point comment on a live site", a
 
     // Generate the extension token from the real settings page, same as a real member
     // would - reveal-once input lives in the "Copy your token" section (ExtensionSettingsPage.tsx).
-    await dashboardPage.goto(`${WEB_BASE_URL}/w/${workspaceSlug}/extension`);
+    await dashboardPage.goto(`${WEB_BASE_URL}/w/${workspaceSlug}/extensions`);
     await dashboardPage.fill('input[placeholder="Work laptop - Chrome"]', "Journey 9 Chrome");
     await dashboardPage.click('button:has-text("Generate token")');
     const tokenInput = dashboardPage.locator('section:has-text("Copy your token") input');

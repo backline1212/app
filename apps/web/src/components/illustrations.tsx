@@ -6,7 +6,7 @@
 // The widget's comment pin (apps/widget ui-styles.ts .bl-pin), point at the origin.
 const PIN = "M0 -9A9 9 0 0 1 9 -18A9 9 0 0 1 18 -9A9 9 0 0 1 9 0L2 0Q0 0 0 -2Z";
 
-export type EmptyKind = "tickets" | "search" | "clients" | "activity" | "links" | "people" | "projects" | "board";
+export type EmptyKind = "tickets" | "search" | "clients" | "activity" | "links" | "people" | "projects" | "board" | "keys";
 
 function Backdrop() {
   return <ellipse cx="66" cy="52" rx="54" ry="38" className="ea-bg" />;
@@ -138,7 +138,53 @@ function Scene({ kind }: { kind: EmptyKind }) {
           </g>
         </>
       );
+    case "keys":
+      return (
+        <>
+          <g className="ea-float">
+            <circle cx="46" cy="50" r="15" className="ea-mint" />
+            <circle cx="46" cy="50" r="5.5" className="ea-card" />
+            <path d="M61 50h40M92 50v9M83 50v6" className="ea-stroke ea-thick" />
+          </g>
+          <path d="M100 22v8M96 26h8" className="ea-stroke ea-twinkle" />
+          <path d="M28 74v6M25 77h6" className="ea-stroke ea-twinkle ea-late" />
+        </>
+      );
   }
+}
+
+// A four-point sparkle centred on the origin, the AI mark used across the app.
+const SPARK = "M0 -7 1.6 -1.6 7 0 1.6 1.6 0 7 -1.6 1.6 -7 0 -1.6 -1.6Z";
+
+/** AI: a comment thread on the left condenses into a short summary card on the right. */
+export function AiSummaryArt() {
+  return (
+    <svg className="bl-ai-art" viewBox="0 0 200 120" aria-hidden="true" focusable="false">
+      <ellipse cx="100" cy="62" rx="94" ry="54" className="ea-bg" />
+      <g className="ea-float">
+        {[20, 46, 72].map((y, i) => (
+          <g key={y} transform={`translate(${i === 1 ? 30 : 20} ${y})`}>
+            <rect width="74" height="22" rx="4" className="ea-card" />
+            <circle cx="11" cy="11" r="4.5" className={i === 1 ? "ea-mint" : "ea-dot"} />
+            <rect x="21" y="6.5" width={[42, 34, 46][i]} height="3.5" rx="1.75" className="ea-line" />
+            <rect x="21" y="13" width={[28, 38, 22][i]} height="3" rx="1.5" className="ea-dashline" />
+          </g>
+        ))}
+      </g>
+      <path d="M106 57c6 0 6 4 12 4" className="ea-rail ea-draw" />
+      <g className="ea-pop" style={{ animationDelay: ".45s" }}>
+        <rect x="120" y="34" width="62" height="54" rx="5" className="ea-ink" />
+        <rect x="129" y="44" width="26" height="4" rx="2" className="ea-mint" />
+        {[55, 63, 71].map((y, i) => (
+          <rect key={y} x="129" y={y} width={[44, 38, 24][i]} height="3.5" rx="1.75" className="ea-summary-line ea-type" style={{ animationDelay: `${0.7 + i * 0.16}s` }} />
+        ))}
+      </g>
+      {/* Positioned by the outer <g>: the twinkle animates `transform`, which would
+          override a transform attribute on the path itself. */}
+      <g transform="translate(182 30)"><path d={SPARK} className="ea-mint ea-spark ea-twinkle" /></g>
+      <g transform="translate(114 22) scale(.6)"><path d={SPARK} className="ea-mint ea-spark ea-twinkle ea-late" /></g>
+    </svg>
+  );
 }
 
 /** A small scene above an empty state's heading. Decorative only. */
