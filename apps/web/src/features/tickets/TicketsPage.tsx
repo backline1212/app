@@ -64,7 +64,9 @@ export function TicketsPage() {
   };
 
   const activeFilters: { label: string; dot?: string; onClear: () => void }[] = [
-    ...(params.get("status") ? [{ label: STATUS_LABELS[params.get("status") as keyof typeof STATUS_LABELS], dot: STATUS_COLORS[params.get("status") as keyof typeof STATUS_COLORS], onClear: () => set("status", "") }] : []),
+    // An unknown status (a typo'd or outdated link) still gets a named, clearable chip
+    // instead of a blank one with no React key.
+    ...(params.get("status") ? [{ label: STATUS_LABELS[params.get("status") as keyof typeof STATUS_LABELS] ?? params.get("status")!, dot: STATUS_COLORS[params.get("status") as keyof typeof STATUS_COLORS], onClear: () => set("status", "") }] : []),
     ...(params.get("project_id")
       ? [{ label: projects.data?.find((p) => p.id === params.get("project_id"))?.name ?? "Project", onClear: () => set("project_id", "") }]
       : []),

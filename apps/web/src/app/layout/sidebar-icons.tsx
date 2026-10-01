@@ -196,3 +196,41 @@ export function SwitchIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+/** Browser extension: a puzzle piece, the usual "add-on" glyph. */
+export function ExtensionsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M9 4.5a2.5 2.5 0 0 1 5 0V6h4a1 1 0 0 1 1 1v4h-1.5a2.5 2.5 0 0 0 0 5H19v3a1 1 0 0 1-1 1h-3v-1.5a2.5 2.5 0 0 0-5 0V20H6a1 1 0 0 1-1-1v-4h1.5a2.5 2.5 0 0 0 0-5H5V7a1 1 0 0 1 1-1h3Z" />
+    </Icon>
+  );
+}
+
+/** Integrations: two linked nodes - Backline wired to another tool. */
+export function IntegrationsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="3" width="8" height="8" rx="2" />
+      <rect x="13" y="13" width="8" height="8" rx="2" />
+      <path d="M11 7h4a2 2 0 0 1 2 2v4M13 17H9a2 2 0 0 1-2-2v-4" />
+    </Icon>
+  );
+}
+
+export function SparklesIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M10 3.5 11.6 8a3 3 0 0 0 1.9 1.9L18 11.5l-4.5 1.6a3 3 0 0 0-1.9 1.9L10 19.5 8.4 15a3 3 0 0 0-1.9-1.9L2 11.5l4.5-1.6A3 3 0 0 0 8.4 8Z" />
+      <path d="M19 2.5v4M17 4.5h4M19 17v3M17.5 18.5h3" />
+    </Icon>
+  );
+}
+
+export function KeyIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="7.5" cy="15.5" r="4.5" />
+      <path d="m10.7 12.3 9.8-9.8M16.5 6.5l3 3M14 9l2 2" />
+    </Icon>
+  );
+}

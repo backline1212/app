@@ -1,5 +1,56 @@
 # Delivery and verification ledger
 
+## 2026-10-01: Dashboard sidebar groups, AI page and API keys (TDR-0055)
+
+The user asked for `feature/dashboard-sidebar-updates` to be reviewed, fixed and
+improved, then opened as a PR to `main`. The reasoning is in TDR-0055.
+
+**Fixed:**
+- **Rail.**
+  - Members, AI usage, Billing, Settings and MCP server are reachable from the rail
+    again, in new Tools and Workspace groups.
+  - Only the current link has `aria-current="page"`. Before, all ticket views were
+    marked, and "Projects" was marked on every page.
+  - Groups remember whether they are open and open when you land on one of their
+    pages. Collapsed links leave the tab order.
+  - Toggles have `aria-controls`, and their chevrons point the right way.
+- **AI page.**
+  - Shows real credits, plan and reset date, and this month's count per feature.
+  - Says whether AI is ready, paused or not connected.
+  - The server `GROQ_MODEL` detail is gone.
+  - The "where to find it" copy matches the real buttons.
+- **API keys page.**
+  - Lists API keys and MCP tokens together and revokes either kind.
+  - No longer claims that API keys authenticate MCP.
+  - Shows a copyable `curl` check.
+  - Uses the shared classes, with no inline styles.
+- **Icons.** The Integrations, Extensions, AI and Key icons are redrawn.
+- **Tickets.** An unknown `?status=` no longer renders a blank filter chip with no React
+  key.
+- **Tests.** `journey-9` visits `/extensions`.
+
+**Verification:**
+- **`apps/web`.** `pnpm typecheck`, `pnpm lint` and `pnpm build` pass.
+- **e2e specs.** `navigation-titles-routes.spec.ts` and `journey-9` compile and list
+  under `playwright test --list`. They were not run: there is no local MongoDB or
+  Redis.
+- **Browser pass.** The real FastAPI app ran on mongomock/fakeredis with Vite and
+  Playwright at 1440×1000 (light and dark) and 390×844. 39 of 40 checks passed. The
+  40th, the desktop console check, flagged only the `ERR_ABORTED` noted under Console
+  below. The checks covered:
+  - one `aria-current` on each of 11 routes;
+  - Tools collapses, stays collapsed after a reload and reopens on `/keys`;
+  - `/extension` redirects to `/extensions`;
+  - the AI chip, meter and three feature cards render, with no `GROQ_MODEL`;
+  - an API key can be created, copied, used as a Bearer token on `whoami` (200) and
+    revoked (then 401);
+  - an MCP token made on `/mcp` is listed and revoked;
+  - no horizontal overflow on a phone, and the drawer closes after navigating.
+- **Console.** No errors apart from two known messages:
+  - React Router's v7 future-flag warnings, which appear in dev only;
+  - Chromium's `ERR_ABORTED` on 204 DELETE responses, which the unchanged Browser
+    Extension page also shows.
+
 ## 2026-09-30: Page-by-page fix sweep (TDR-0053)
 
 The user asked for the rest of the code to be fixed page by page, across UI, backend
