@@ -54,6 +54,9 @@ class ReviewResolveOut(BaseModel):
     show_board_to_client: bool = False
     # Same as ShareLinkOut.preview_origin - the proxy-mode handoff destination.
     preview_origin: str | None = None
+    # TDR-0057: the dashboard canvas's own link. It opens only inside the dashboard, for
+    # a signed-in member - the entry page says so instead of asking for a name.
+    canvas_only: bool = False
 
 
 class GuestSessionCreate(BaseModel):
@@ -71,3 +74,17 @@ class GuestSessionCreate(BaseModel):
 class GuestSessionOut(BaseModel):
     guest_session_token: str
     display_name: str
+
+
+class CanvasSessionOut(BaseModel):
+    """TDR-0057: what the dashboard's review canvas loads with. `token` and
+    `preview_origin` address the project's canvas link; `guest_session_token` is the
+    widget's session on it, bound to the signed-in member, so every call the widget makes
+    is checked against that member's project role."""
+
+    token: str
+    preview_origin: str | None = None
+    guest_session_token: str
+    display_name: str
+    # Convenience for the UI only - the API re-checks the member's role on every call.
+    can_comment: bool

@@ -3679,6 +3679,54 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/canvas-session": {
+      "post": {
+        "tags": [
+          "share-links"
+        ],
+        "summary": "Create Canvas Session",
+        "description": "The review canvas's link and the widget's member-bound session on it (TDR-0057).\nEvery project member may open the canvas; what the widget may then do is checked\nagainst their project role on each call.",
+        "operationId": "create_canvas_session_api_v1_projects__project_id__canvas_session_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanvasSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/share-links/{share_link_id}/revoke": {
       "patch": {
         "tags": [
@@ -8357,6 +8405,46 @@
         },
         "type": "object",
         "title": "CancelSubscriptionRequest"
+      },
+      "CanvasSessionOut": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "preview_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Origin"
+          },
+          "guest_session_token": {
+            "type": "string",
+            "title": "Guest Session Token"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "can_comment": {
+            "type": "boolean",
+            "title": "Can Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "guest_session_token",
+          "display_name",
+          "can_comment"
+        ],
+        "title": "CanvasSessionOut",
+        "description": "TDR-0057: what the dashboard's review canvas loads with. `token` and\n`preview_origin` address the project's canvas link; `guest_session_token` is the\nwidget's session on it, bound to the signed-in member, so every call the widget makes\nis checked against that member's project role."
       },
       "CheckoutRequest": {
         "properties": {
@@ -13203,6 +13291,11 @@
               }
             ],
             "title": "Preview Origin"
+          },
+          "canvas_only": {
+            "type": "boolean",
+            "title": "Canvas Only",
+            "default": false
           }
         },
         "type": "object",

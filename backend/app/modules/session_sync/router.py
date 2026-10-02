@@ -30,4 +30,5 @@ async def create_session_sync_ticket(
         workspace_id=require_workspace_context(session),
         project_id=project_id,
         body=body,
+        actor_user_id=session.user_id,
     )

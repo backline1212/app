@@ -53,6 +53,8 @@ access change writes that implied block down, so the creator keeps manager.
 
 **Share links.** Viewers can list a project's links, because the review canvas loads the
 site through the active proxy link. Creating and revoking links stays with editors.
+*Superseded by TDR-0057:* the canvas now has its own link, and listing client links needs
+commenter or above.
 
 **Viewer canvas.** The canvas widget always runs as a guest of the review link, so the API
 can't tell a viewer apart from a client there. Instead, the widget has a `view` mode: pins
@@ -91,7 +93,6 @@ setting, and an access matrix endpoint.
 - `scripts/migrate_org_access.py` runs as a dry run by default. It backfills
   `project_id` on old comment events, normalizes branch-era room codes and drops
   `assigned_member_ids`.
-- Known limit: a review link is a credential. A viewer who copies the link out of the
-  canvas can open it on its own and comment as a guest, as any client holding it can.
-  That comment is attributed as a guest's, not the member's. Closing this fully needs
-  canvas sessions bound to the member, which is a separate change.
+- Known limit, closed by TDR-0057: a viewer could copy the review link out of the canvas
+  and comment as a guest. The canvas now loads through its own link, whose sessions are
+  bound to the member and checked against their project role.

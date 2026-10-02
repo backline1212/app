@@ -11,6 +11,7 @@ from app.core.redis_client import get_redis
 from app.core.session import Session, require_workspace_context
 from app.modules.share_links import service as share_link_service
 from app.modules.share_links.schemas import (
+    CanvasSessionOut,
     GuestSessionCreate,
     GuestSessionOut,
     ReviewResolveOut,
@@ -21,15 +22,39 @@ from app.modules.share_links.schemas import (
 router = APIRouter(tags=["share-links"])
 
 
+def _ua_fingerprint(request: Request) -> str:
+    user_agent = request.headers.get("user-agent")
+    if not user_agent:
+        raise ValidationError("Missing User-Agent header.")
+    return hashlib.sha256(user_agent.encode()).hexdigest()
+
+
 @router.get("/projects/{project_id}/share-links", response_model=list[ShareLinkOut])
 async def list_share_links(
     project_id: str,
-    # Viewers too (TDR-0056): the review canvas loads the site through the active
-    # proxy link. Creating and revoking links stays with editors and managers.
-    session: Session = Depends(require_project_permission("project:view")),
+    # A client link lets whoever holds it comment as a guest, so a viewer never gets one
+    # (TDR-0057). The canvas loads through its own link instead (canvas-session below).
+    session: Session = Depends(require_project_permission("share_link:view")),
 ) -> list[ShareLinkOut]:
     return await share_link_service.list_share_links(
         get_db(), project_id=project_id, workspace_id=require_workspace_context(session)
+    )
+
+
+@router.post("/projects/{project_id}/canvas-session", response_model=CanvasSessionOut)
+async def create_canvas_session(
+    project_id: str,
+    request: Request,
+    session: Session = Depends(require_project_permission("project:view")),
+) -> CanvasSessionOut:
+    """The review canvas's link and the widget's member-bound session on it (TDR-0057).
+    Every project member may open the canvas; what the widget may then do is checked
+    against their project role on each call."""
+    return await share_link_service.create_canvas_session(
+        get_db(),
+        session=session,
+        project_id=project_id,
+        ua_fingerprint=_ua_fingerprint(request),
     )
 
 
@@ -88,10 +113,7 @@ async def create_guest_session(body: GuestSessionCreate, request: Request) -> Gu
         window_seconds=60,
     )
 
-    user_agent = request.headers.get("user-agent")
-    if not user_agent:
-        raise ValidationError("Missing User-Agent header.")
-    ua_fingerprint = hashlib.sha256(user_agent.encode()).hexdigest()
+    ua_fingerprint = _ua_fingerprint(request)
 
     return await share_link_service.create_guest_session(
         get_db(),

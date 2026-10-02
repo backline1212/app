@@ -289,8 +289,15 @@ async def _require_member_can_comment(
 ) -> None:
     """A member editing or deleting their own comment still needs to be able to
     comment on its project (TDR-0056) - dropping to viewer, or off a private project,
-    ends that. Guests are bound to their share link instead."""
-    if not isinstance(actor, Session):
+    ends that. Guests are bound to their share link instead, except a dashboard canvas
+    session, which answers to its member's role the same way (TDR-0057)."""
+    if isinstance(actor, GuestSession):
+        if actor.member_user_id is None:
+            return
+        page = await PageRepository(db).find_by_id(existing["page_id"])
+        if page is None:
+            raise NotFoundError("Comment not found.")
+        await resolve_actor_project_access(db, actor, page["project_id"], "comment:create")
         return
     if actor.workspace_id != existing["workspace_id"]:
         raise NotFoundError("Comment not found.")

@@ -2,7 +2,7 @@ import { createApiClient, WidgetApiError } from "./api-client";
 import { anchorPointFor, computeAnchor, waitForAnchorElement } from "./anchor";
 import { uploadAttachment, uploadScreenshot } from "./attachment-upload";
 import { connectDashboardStatusBridge } from "./dashboard-bridge";
-import { ensureGuestSession, requestDashboardDisplayName } from "./guest-session";
+import { ensureGuestSession, requestDashboardCanvasSession, requestDashboardDisplayName } from "./guest-session";
 import { registerCurrentPage, realPageUrl, submitPageSnapshot } from "./page-registration";
 import { wireRealtimeUpdates } from "./realtime";
 import { captureScreenshot } from "./screenshot";
@@ -116,22 +116,34 @@ async function init(config: BacklineConfig): Promise<void> {
   // ever sets this param there).
   const browserOverride = modeParams.get("blBrowser");
 
-  // blMode is only ever set by the dashboard's canvas iframe (see above), so only there
-  // is a signed-in member's name available to skip the prompt with.
-  const guest = await ensureGuestSession(api, config.shareToken, async () => {
-    const dashboardName = blMode ? await requestDashboardDisplayName() : null;
-    return dashboardName ?? promptForName(shadow);
-  });
-  guestToken = guest.guestSessionToken;
-
   // We don't yet know the project - it's resolved from the share link server-side via
   // the guest token itself (every endpoint the guest calls checks their share link's
   // project, core/actor_access.py). The widget still needs it for the /uploads call's
-  // request body, so it's resolved once here via the public review-resolve endpoint.
+  // request body, so it's resolved once here via the public review-resolve endpoint -
+  // first, since it also says whether this is the dashboard canvas's own link.
   const resolved = await withRetry(() =>
-    api.request<{ project_id: string; target_origin: string }>(`/api/v1/review/${config.shareToken}`),
+    api.request<{ project_id: string; target_origin: string; canvas_only?: boolean }>(
+      `/api/v1/review/${config.shareToken}`,
+    ),
   );
   const projectId = resolved.project_id;
+
+  // blMode is only ever set by the dashboard's canvas iframe (see above). There the
+  // dashboard hands over the signed-in member's own session (TDR-0057); the guest flow
+  // is only a fallback for a dashboard from before that, which still asks for a name.
+  const dashboardSession = blMode ? await requestDashboardCanvasSession() : null;
+  if (!dashboardSession && resolved.canvas_only) {
+    // The canvas link opened on its own, outside the dashboard: no session can be made
+    // for it here, so don't ask for a name the API would then refuse.
+    throw new Error("This page is the Backline dashboard's canvas. Open the project in Backline to review it.");
+  }
+  const guest =
+    dashboardSession ??
+    (await ensureGuestSession(api, config.shareToken, async () => {
+      const dashboardName = blMode ? await requestDashboardDisplayName() : null;
+      return dashboardName ?? promptForName(shadow);
+    }));
+  guestToken = guest.guestSessionToken;
 
   const pageUrl = realPageUrl(config.shareToken, resolved.target_origin);
   // `let`: a single-page app's own route changes move this widget to another page

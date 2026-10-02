@@ -42,6 +42,9 @@ class GuestSession:
 
     guest_session_id: str
     share_link_id: str
+    # TDR-0057: the member a dashboard canvas session acts for. None for a client's own
+    # guest session; core/actor_access.py checks the member's project role when set.
+    member_user_id: str | None = None
 
 
 async def get_current_session(
@@ -99,7 +102,11 @@ async def get_guest_session(
     except InvalidTokenError as exc:
         raise AuthenticationError("Invalid or expired guest session.") from exc
 
-    return GuestSession(guest_session_id=claims.sub, share_link_id=claims.share_link_id)
+    return GuestSession(
+        guest_session_id=claims.sub,
+        share_link_id=claims.share_link_id,
+        member_user_id=claims.member_user_id,
+    )
 
 
 Actor = Session | GuestSession

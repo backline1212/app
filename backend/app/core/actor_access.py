@@ -7,7 +7,38 @@ from app.core.errors import PermissionDeniedError
 from app.core.project_access import load_project_for
 from app.core.session import Actor, GuestSession, Session
 from app.modules.projects import service as project_service
-from app.modules.share_links.repository import GuestSessionRepository, ShareLinkRepository
+from app.modules.share_links.repository import (
+    GuestSessionRepository,
+    ShareLinkRepository,
+    is_canvas_link,
+)
+from app.modules.workspaces.repository import MembershipRepository
+
+
+async def _check_canvas_member(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    guest: GuestSession,
+    link: dict[str, Any],
+    project_id: str,
+    action: str,
+) -> None:
+    """A dashboard canvas session acts for one member (TDR-0057): it may do exactly
+    what that member's project role allows today, re-read on every call, so a role
+    change or removal applies at once. A canvas link with no member behind it - a
+    session minted any other way - is refused outright."""
+    if guest.member_user_id is None:
+        raise PermissionDeniedError("This link only opens inside the Backline dashboard.")
+    membership = await MembershipRepository(db).find(
+        workspace_id=link["workspace_id"], user_id=guest.member_user_id
+    )
+    if membership is None:
+        raise PermissionDeniedError("You're no longer a member of this workspace.")
+    member = Session(
+        user_id=guest.member_user_id,
+        workspace_id=link["workspace_id"],
+        role=membership["role"],
+    )
+    await load_project_for(db, member, project_id, action)
 
 
 async def resolve_actor_project_access(
@@ -22,7 +53,9 @@ async def resolve_actor_project_access(
     workspace-scoped token (raises NotFoundError via project_service if the project
     belongs to another workspace) and against their project role for `action`
     (TDR-0056); guests are checked against their share link's project -
-    the guest-side equivalent of the cross-tenant guarantee (03-System-Architecture.md §3.5)."""
+    the guest-side equivalent of the cross-tenant guarantee (03-System-Architecture.md §3.5).
+    A guest session from the dashboard canvas also answers to its member's project role
+    for `action` (TDR-0057); a client's own guest session isn't role-checked."""
     if isinstance(actor, Session):
         workspace_id = actor.workspace_id
         if workspace_id is None:
@@ -43,6 +76,8 @@ async def resolve_actor_project_access(
         raise PermissionDeniedError("Guest session is not scoped to this project.")
     if link.get("expires_at") and link["expires_at"] <= datetime.now(UTC):
         raise PermissionDeniedError("This review link has expired.")
+    if guest.member_user_id is not None or is_canvas_link(link):
+        await _check_canvas_member(db, guest, link, project_id, action)
     project = await project_service.get_project(
         db, project_id=project_id, workspace_id=link["workspace_id"]
     )

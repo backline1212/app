@@ -213,15 +213,26 @@ export function ProjectOverviewPage() {
   });
   const projectQuery = useProject(projectId);
   // A viewer's canvas (TDR-0056) shows the pins and opens their cards but never a
-  // composer: "view" stands in for Comment and Draw. The widget always runs as a guest
-  // of the review link, so this is what keeps a viewer from posting from the canvas.
+  // composer: "view" stands in for Comment and Draw. The API enforces the same thing -
+  // the widget's session acts for this member (TDR-0057) - this just doesn't offer it.
   const canComment = projectCan(projectQuery.data, "comment");
   const canTriage = projectCan(projectQuery.data, "edit");
   const mode: CanvasMode = canComment ? requestedMode : requestedMode === "browse" ? "browse" : "view";
+  // The canvas loads through the project's own canvas link, with a widget session bound
+  // to this member (TDR-0057) - not through a client review link, which a viewer is
+  // never handed. The server reuses the member's session, so this is cached for good.
+  const canvasSessionQuery = useQuery({
+    queryKey: qk.canvasSession(projectId ?? ""),
+    queryFn: () => shareLinksApi.createCanvasSession(projectId!),
+    enabled: !!projectId && !!projectQuery.data && !projectQuery.data.archived_at,
+    staleTime: Infinity,
+  });
+  const canvasSession = canvasSessionQuery.data ?? null;
+  // Client review links, for "Open review" - only for those allowed to see them.
   const shareLinksQuery = useQuery({
     queryKey: qk.shareLinks(projectId ?? ""),
     queryFn: () => shareLinksApi.listShareLinks(projectId!),
-    enabled: !!projectId,
+    enabled: !!projectId && canComment,
   });
   const commentsQuery = useQuery({
     queryKey: qk.projectComments(projectId ?? ""),
@@ -229,9 +240,7 @@ export function ProjectOverviewPage() {
     enabled: !!projectId,
   });
   useDocumentTitle([projectQuery.data?.name, "Review"]);
-  const hasProxyCandidate = (shareLinksQuery.data ?? []).some(
-    (link) => link.revoked_at === null && link.mode === "proxy",
-  );
+  const hasProxyCandidate = canvasSession !== null;
 
   // Hoisted above every early return below (project.isLoading/.error/.archived_at/
   // non-website type) so useBrowserRenderSnapshot is never called conditionally -
@@ -285,7 +294,7 @@ export function ProjectOverviewPage() {
     orientation,
     // hasProxyCandidate rather than the later `iframeSrc`: this hook is declared
     // before the early-return guards, so it can't reference anything computed after
-    // them, but an active proxy link existing is a close-enough stand-in for "there's
+    // them, but the canvas session having loaded is a close-enough stand-in for "there's
     // something to render" without duplicating iframeSrc's own resolution logic here.
     enabled: isCrossBrowserRenderActive && Boolean(activePage) && hasProxyCandidate,
   });
@@ -449,9 +458,33 @@ export function ProjectOverviewPage() {
     return () => window.removeEventListener("message", onMessage);
   }, [projectId, queryClient]);
 
+  // Hands the canvas widget the member's own session on the canvas link (widget
+  // guest-session.ts's requestDashboardCanvasSession, TDR-0057). The widget can't make
+  // one itself: the API only issues canvas sessions to a signed-in member. Sent only to
+  // the frame this page loaded, at the origin it's on.
+  useEffect(() => {
+    if (!canvasSession) return;
+    function onMessage(event: MessageEvent) {
+      const canvasWindow = canvasRef.current?.contentWindow;
+      if (!canvasWindow || event.source !== canvasWindow) return;
+      if (event.data?.type !== "backline:request-canvas-session" || !canvasSession) return;
+      canvasWindow.postMessage(
+        {
+          type: "backline:canvas-session",
+          guestSessionToken: canvasSession.guest_session_token,
+          displayName: canvasSession.display_name,
+        },
+        event.origin,
+      );
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [canvasSession]);
+
   // Answers the canvas widget's name request (widget guest-session.ts's
   // requestDashboardDisplayName) with the signed-in member's own name, so the widget
-  // doesn't show its guest "Your name" prompt to someone who's already signed in.
+  // doesn't show its guest "Your name" prompt to someone who's already signed in. Only
+  // a widget from before TDR-0057 still asks.
   const memberDisplayName = user?.name.trim() || user?.email || "";
   useEffect(() => {
     if (!memberDisplayName) return;
@@ -718,11 +751,10 @@ export function ProjectOverviewPage() {
 
   const activeLinks = (shareLinksQuery.data ?? []).filter((link) => link.revoked_at === null);
   const reviewLink = activeLinks[0] ?? null;
-  const embedLink = activeLinks.find((link) => link.mode === "proxy") ?? null;
-  // A link's own preview origin when the API reports one (docs/tdr/0040), so the site
-  // runs at its real paths; the legacy path on the API origin otherwise.
-  const canvasBase = embedLink
-    ? embedLink.preview_origin ?? `${API_BASE_URL}/proxy/${embedLink.token}`
+  // The canvas link's own preview origin when the API reports one (docs/tdr/0040), so
+  // the site runs at its real paths; the legacy path on the API origin otherwise.
+  const canvasBase = canvasSession
+    ? canvasSession.preview_origin ?? `${API_BASE_URL}/proxy/${canvasSession.token}`
     : null;
   const canvasUrl = canvasBase ? `${canvasBase}/` : null;
 
@@ -754,7 +786,7 @@ export function ProjectOverviewPage() {
   // handed to the iframe, not state - nothing renders off it but the iframe itself.
   // Everything but the page: a different link or browser still reloads the canvas, even
   // on a page the frame navigated to by itself.
-  const frameKey = embedLink ? `${embedLink.token}|${browser.name}` : null;
+  const frameKey = canvasSession ? `${canvasSession.token}|${browser.name}` : null;
   if (frameSrcRef.current.target !== canvasTarget) {
     const keepFrame =
       canvasTarget !== null &&
@@ -864,14 +896,15 @@ export function ProjectOverviewPage() {
           <a className="bl-review-icon-button" href={displayUrl} target="_blank" rel="noreferrer" aria-label="Open live page" title="Open live page">
             <ExternalLinkIcon />
           </a>
+          {/* A client review link - never shown to a viewer, who isn't given one (TDR-0057). */}
           {reviewLink ? (
             <a className="bl-review-control bl-review-open" href={reviewUrl(reviewLink.token)} target="_blank" rel="noreferrer">
               Open review
               <ExternalLinkIcon width={12} height={12} />
             </a>
-          ) : (
+          ) : canComment ? (
             <button type="button" className="bl-review-control" disabled title="Create a review link from Share first">Open review</button>
-          )}
+          ) : null}
           <button type="button" className="bl-review-control" onClick={() => setShowShare(true)}>
             <ShareIcon width={13} height={13} />
             Share
@@ -929,20 +962,20 @@ export function ProjectOverviewPage() {
           ref={stageRef}
           className={`bl-review-stage ${mode === "comment" || mode === "draw" ? "is-commenting" : "is-browsing"} ${mode === "draw" ? "is-drawing" : ""}`}
         >
-          {shareLinksQuery.isLoading ? (
+          {canvasSessionQuery.isLoading ? (
             <div className="bl-review-empty-canvas" role="status">
               <span className="bl-review-loader" aria-hidden="true" />
               <strong>Preparing the review source</strong>
-              <p>Checking for an active proxy review link…</p>
+              <p>Opening the site through Backline’s private review proxy…</p>
             </div>
-          ) : shareLinksQuery.error ? (
+          ) : canvasSessionQuery.error ? (
             <div className="bl-review-empty-canvas" role="alert">
               <span className="bl-review-state-icon is-warning"><GlobeIcon /></span>
-              <strong>Couldn’t check the review link</strong>
-              <p>{shareLinksQuery.error.message}</p>
-              <button type="button" className="bl-button" onClick={() => void shareLinksQuery.refetch()}>Try again</button>
+              <strong>Couldn’t open the review canvas</strong>
+              <p>{canvasSessionQuery.error.message}</p>
+              <button type="button" className="bl-button" onClick={() => void canvasSessionQuery.refetch()}>Try again</button>
             </div>
-          ) : embedLink && !activePageRequest ? (
+          ) : canvasSession && !activePageRequest ? (
             <div className="bl-review-empty-canvas" role="alert">
               <span className="bl-review-state-icon is-warning"><GlobeIcon /></span>
               <strong>This saved page is outside the project URL</strong>
@@ -1076,12 +1109,10 @@ export function ProjectOverviewPage() {
               )}
             </div>
           ) : (
-            <div className="bl-review-empty-canvas">
-              <span className="bl-review-state-icon"><ShareIcon /></span>
-              <strong>{reviewLink ? "A proxy review link is required" : "No active review link yet"}</strong>
-              <p>{reviewLink ? "The active link uses snippet mode and cannot power this embedded canvas. Create a proxy link to review here." : "Create a proxy review link to load the live site and its genuine comment pins in this workspace."}</p>
-              <button type="button" className="bl-button mint" onClick={() => setShowShare(true)}>Open Share</button>
-              <span>Nothing is simulated until a real link exists.</span>
+            <div className="bl-review-empty-canvas" role="status">
+              <span className="bl-review-loader" aria-hidden="true" />
+              <strong>Preparing the review source</strong>
+              <p>Opening the site through Backline’s private review proxy…</p>
             </div>
           )}
         </div>

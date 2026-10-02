@@ -1,5 +1,45 @@
 # Delivery and verification ledger
 
+## 2026-10-02: Member-bound canvas sessions (TDR-0057)
+
+This closes TDR-0056's known limit: a viewer could copy the review link out of the canvas
+and comment as a guest. Reasoning is in TDR-0057.
+
+**Built:**
+- **Canvas link.** Each project gets one system-managed canvas link, made on first use.
+  It's never listed with client links and can't be revoked.
+- **Canvas sessions.** `POST /projects/{id}/canvas-session` issues a guest token bound to
+  the member, and the dashboard hands it to the widget. `POST /guest-sessions` refuses
+  canvas links.
+- **Live role checks.** Every guest-capable path checks a member-bound session against the
+  member's current project role, and the realtime socket checks it on connect.
+- **Client links** are listed to commenters and up (`share_link:view`). "Open review" is
+  hidden for viewers.
+- **Session sync and cloud login** target the canvas link.
+- **Copied canvas links.** The review entry page and the widget explain that a canvas link
+  only opens inside the dashboard.
+
+**Verification:**
+- **Backend.** 274 passed on local MongoDB and real Redis. Ruff, mypy (strict) and the
+  scoping lint pass. `packages/types` was regenerated.
+- **Scratch API checks.** 7 of 7 pass: the 5 TDR-0056 scenarios plus 2 new ones.
+  - Canvas sessions: shared link, reused session, viewer read-only, commenter posts and
+    replies, demotion and removal take effect at once, forged and copied tokens refused,
+    the canvas link is unlisted and unrevokable, client guests unaffected.
+  - Session sync lands on the canvas link.
+- **`apps/web` and `apps/widget`.** Typecheck, lint and build pass.
+- **Browser pass**, real API on local MongoDB and real Redis:
+  - Canvas: 30 of 30. The canvas loads from the canvas link, not a client link. A viewer
+    can't post through the API with their canvas session, and the copied token makes no
+    guest session. The canvas URL opened alone asks for no name and explains why. The
+    entry page explains a canvas link. An editor comments.
+  - Live updates: a new pin reaches a viewer's open canvas live (~1.5s), and the access
+    changes from TDR-0056 still pass.
+
+**Open:**
+- Canvas comments are still guest comments. Attributing them to the member is possible now
+  that the session records the member, but isn't done.
+
 ## 2026-10-02: Project roles, org chart and room codes (TDR-0056)
 
 Branch `feature/room-code-org-chart`, with `main` (TDR-0055) merged in. Reasoning is in
@@ -78,7 +118,7 @@ TDR-0056.
 - Run `scripts/migrate_org_access.py` as a dry run, then `--apply`, on each environment.
 - The canvas widget runs as a guest of the review link. Anyone holding that link, a
   viewer included, can open it outside the dashboard and comment as a guest, as any
-  client can. Closing that needs member-bound canvas sessions (see TDR-0056).
+  client can. Closed by TDR-0057 (member-bound canvas sessions, entry above).
 
 
 ## 2026-10-01: Dashboard sidebar groups, AI page and API keys (TDR-0055)

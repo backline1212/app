@@ -71,6 +71,33 @@ export function requestDashboardDisplayName(timeoutMs = 3000): Promise<string | 
   });
 }
 
+// The dashboard's canvas loads through the project's canvas link (TDR-0057), whose
+// sessions the API only issues to a signed-in member - so the widget there doesn't make
+// one, it asks the dashboard for the member's own. Never stored: the next page load
+// asks again, and the dashboard answers from its cache. Resolves null when nothing
+// answers in time (not inside a dashboard, or a dashboard from before TDR-0057), and
+// the caller falls back to the guest flow above.
+export function requestDashboardCanvasSession(timeoutMs = 3000): Promise<StoredGuestSession | null> {
+  if (window.parent === window) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    function finish(session: StoredGuestSession | null): void {
+      clearTimeout(timer);
+      window.removeEventListener("message", onMessage);
+      resolve(session);
+    }
+    function onMessage(event: MessageEvent): void {
+      if (event.source !== window.parent) return;
+      if (event.data?.type !== "backline:canvas-session") return;
+      const token: unknown = event.data.guestSessionToken;
+      const name: unknown = event.data.displayName;
+      finish(typeof token === "string" && token ? { guestSessionToken: token, displayName: typeof name === "string" ? name : "" } : null);
+    }
+    window.addEventListener("message", onMessage);
+    window.parent.postMessage({ type: "backline:request-canvas-session" }, "*");
+  });
+}
+
 export async function ensureGuestSession(
   api: ApiClient,
   shareToken: string,

@@ -297,6 +297,21 @@ ORG_ACCESS_INDEXES: tuple[AdditiveIndex, ...] = (
         (("workspace_id", 1), ("manager_user_id", 1)),
         "memberships_workspace_manager",
     ),
+    # TDR-0057: one canvas link per project, however many members open the canvas at
+    # once (share_links/service.py's get_or_create_canvas_link re-reads on a clash).
+    AdditiveIndex(
+        "share_links",
+        (("workspace_id", 1), ("project_id", 1)),
+        "share_links_one_canvas_link",
+        {"unique": True, "partialFilterExpression": {"purpose": "canvas"}},
+    ),
+    # A member's canvas session on that link, reused across visits.
+    AdditiveIndex(
+        "guest_sessions",
+        (("workspace_id", 1), ("share_link_id", 1), ("member_user_id", 1)),
+        "guest_sessions_canvas_member",
+        {"partialFilterExpression": {"member_user_id": {"$type": "string"}}},
+    ),
 )
 
 

@@ -18,11 +18,12 @@ from typing import Any
 import redis.asyncio as redis
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.errors import NotFoundError, ValidationError
 from app.modules.projects.repository import ProjectRepository
 from app.modules.proxy.preview_host import preview_cookies_can_be_secure, preview_origin_for_token
 from app.modules.session_sync.schemas import SessionSyncCreate, SessionSyncTicketOut
 from app.modules.share_links.repository import ShareLinkRepository
+from app.modules.share_links.service import get_or_create_canvas_link
 
 _TICKET_PREFIX = "session_sync:"
 # Generous enough for the extension's own "open a background tab, wait for it to
@@ -43,19 +44,20 @@ async def create_ticket(
     workspace_id: str,
     project_id: str,
     body: SessionSyncCreate,
+    actor_user_id: str | None = None,
 ) -> SessionSyncTicketOut:
     project = await ProjectRepository(db).find_by_id(project_id)
     if project is None or project["workspace_id"] != workspace_id:
         raise NotFoundError("Project not found.")
 
-    links = await ShareLinkRepository(db).list_for_project(workspace_id, project_id)
-    link = next(
-        (link for link in links if link["mode"] == "proxy" and link["revoked_at"] is None), None
+    # The session goes where the dashboard's canvas loads: the project's canvas link
+    # (TDR-0057), not whichever client link happens to be newest.
+    link = await get_or_create_canvas_link(
+        db,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        actor_user_id=actor_user_id or project["created_by"],
     )
-    if link is None:
-        raise NotFoundError("This project has no active review link to sync a session into.")
-    if link.get("expires_at") and link["expires_at"] <= datetime.now(UTC):
-        raise ConflictError("This project's review link has expired.")
 
     origin = preview_origin_for_token(link["token"])
     if origin is None:

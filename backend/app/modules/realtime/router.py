@@ -1,14 +1,20 @@
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
+from app.core.actor_access import resolve_actor_project_access
 from app.core.db import get_db
+from app.core.errors import NotFoundError, PermissionDeniedError
 from app.core.security import InvalidTokenError, decode_access_token, decode_guest_token
 from app.core.session import Actor, GuestSession, Session
 from app.modules.pages.repository import PageRepository
 from app.modules.realtime import presence
 from app.modules.realtime.manager import MemberEventFilter, manager
 from app.modules.realtime.pubsub import publish
-from app.modules.share_links.repository import GuestSessionRepository, ShareLinkRepository
+from app.modules.share_links.repository import (
+    GuestSessionRepository,
+    ShareLinkRepository,
+    is_canvas_link,
+)
 
 router = APIRouter(tags=["realtime"])
 
@@ -23,7 +29,9 @@ def _resolve_actor(token: str) -> Actor:
     try:
         guest_claims = decode_guest_token(token)
         return GuestSession(
-            guest_session_id=guest_claims.sub, share_link_id=guest_claims.share_link_id
+            guest_session_id=guest_claims.sub,
+            share_link_id=guest_claims.share_link_id,
+            member_user_id=guest_claims.member_user_id,
         )
     except (InvalidTokenError, ValidationError):
         pass
@@ -78,6 +86,14 @@ async def websocket_endpoint(
         ):
             await websocket.close(code=4403)
             return
+        # A dashboard canvas session follows its member's access (TDR-0057): someone
+        # taken off the project can't reconnect with the session they already hold.
+        if actor.member_user_id is not None or is_canvas_link(link):
+            try:
+                await resolve_actor_project_access(db, actor, link["project_id"])
+            except (NotFoundError, PermissionDeniedError):
+                await websocket.close(code=4403)
+                return
         await guest_repo.touch_last_seen(
             workspace_id=workspace_id, guest_session_id=actor.guest_session_id
         )

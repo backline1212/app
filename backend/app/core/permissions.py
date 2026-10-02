@@ -28,6 +28,7 @@ PERMISSIONS: dict[str, frozenset[Role]] = {
     "project:manage": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
     "project:hard_delete": frozenset({Role.OWNER, Role.ADMIN}),
     "share_link:manage": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "share_link:view": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
     "integration:manage": frozenset({Role.OWNER, Role.ADMIN}),
     "comment:view_client": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER, Role.GUEST}),
     "comment:view_team": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
@@ -95,6 +96,9 @@ PROJECT_PERMISSIONS: dict[str, ProjectRole] = {
     "comment:view_team": ProjectRole.VIEWER,
     "comment:create": ProjectRole.COMMENTER,
     "comment:reply": ProjectRole.COMMENTER,
+    # A client link lets its holder comment as a guest, so it's shown to those who may
+    # comment anyway (TDR-0057).
+    "share_link:view": ProjectRole.COMMENTER,
     "ai:assist": ProjectRole.COMMENTER,
     "project:render": ProjectRole.COMMENTER,
     "comment:update_status": ProjectRole.EDITOR,

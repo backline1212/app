@@ -1000,6 +1000,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/canvas-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Canvas Session
+         * @description The review canvas's link and the widget's member-bound session on it (TDR-0057).
+         *     Every project member may open the canvas; what the widget may then do is checked
+         *     against their project role on each call.
+         */
+        post: operations["create_canvas_session_api_v1_projects__project_id__canvas_session_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/share-links/{share_link_id}/revoke": {
         parameters: {
             query?: never;
@@ -2389,6 +2411,25 @@ export interface components {
         CancelSubscriptionRequest: {
             /** Reason */
             reason?: string | null;
+        };
+        /**
+         * CanvasSessionOut
+         * @description TDR-0057: what the dashboard's review canvas loads with. `token` and
+         *     `preview_origin` address the project's canvas link; `guest_session_token` is the
+         *     widget's session on it, bound to the signed-in member, so every call the widget makes
+         *     is checked against that member's project role.
+         */
+        CanvasSessionOut: {
+            /** Token */
+            token: string;
+            /** Preview Origin */
+            preview_origin?: string | null;
+            /** Guest Session Token */
+            guest_session_token: string;
+            /** Display Name */
+            display_name: string;
+            /** Can Comment */
+            can_comment: boolean;
         };
         /** CheckoutRequest */
         CheckoutRequest: {
@@ -4285,6 +4326,11 @@ export interface components {
             show_board_to_client: boolean;
             /** Preview Origin */
             preview_origin?: string | null;
+            /**
+             * Canvas Only
+             * @default false
+             */
+            canvas_only: boolean;
         };
         /** RevisionChangeSummary */
         RevisionChangeSummary: {
@@ -7236,6 +7282,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShareLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_canvas_session_api_v1_projects__project_id__canvas_session_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CanvasSessionOut"];
                 };
             };
             /** @description Validation Error */
