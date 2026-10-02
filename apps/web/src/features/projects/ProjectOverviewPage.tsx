@@ -6,6 +6,7 @@ import { Link, useOutletContext, useParams, useSearchParams } from "react-router
 import { useWSEvent } from "../../app/WSProvider";
 import { API_BASE_URL, apiFetch } from "../../lib/api-client";
 import { removeProjectComment, upsertProjectComment } from "../../lib/comment-cache";
+import { projectCan } from "../../lib/project-roles";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { useSearchParamsUpdater } from "../../lib/use-search-params-updater";
@@ -162,7 +163,7 @@ export function ProjectOverviewPage() {
   // drag can produce (snapped back to filling the container).
   const [dragWidth, setDragWidth] = useState<number | null | undefined>(undefined);
   const queryClient = useQueryClient();
-  const { user, role } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleOpenShortcuts = () => setShowShortcuts(true);
@@ -172,7 +173,7 @@ export function ProjectOverviewPage() {
 
   const activePageIdParam = searchParams.get("page");
   const searchMode = searchParams.get("mode");
-  const mode: CanvasMode = searchMode === "browse" ? "browse" : searchMode === "draw" ? "draw" : "comment";
+  const requestedMode: CanvasMode = searchMode === "browse" ? "browse" : searchMode === "draw" ? "draw" : "comment";
   const orientation = searchParams.get("orientation") === "landscape" ? "landscape" : "portrait";
   const zoomScale = clampZoom(Number(searchParams.get("zoom") ?? 1));
   const viewport = useMemo<ViewportOption | null>(() => {
@@ -211,10 +212,27 @@ export function ProjectOverviewPage() {
     enabled: !!projectId,
   });
   const projectQuery = useProject(projectId);
+  // A viewer's canvas (TDR-0056) shows the pins and opens their cards but never a
+  // composer: "view" stands in for Comment and Draw. The API enforces the same thing -
+  // the widget's session acts for this member (TDR-0057) - this just doesn't offer it.
+  const canComment = projectCan(projectQuery.data, "comment");
+  const canTriage = projectCan(projectQuery.data, "edit");
+  const mode: CanvasMode = canComment ? requestedMode : requestedMode === "browse" ? "browse" : "view";
+  // The canvas loads through the project's own canvas link, with a widget session bound
+  // to this member (TDR-0057) - not through a client review link, which a viewer is
+  // never handed. The server reuses the member's session, so this is cached for good.
+  const canvasSessionQuery = useQuery({
+    queryKey: qk.canvasSession(projectId ?? ""),
+    queryFn: () => shareLinksApi.createCanvasSession(projectId!),
+    enabled: !!projectId && !!projectQuery.data && !projectQuery.data.archived_at,
+    staleTime: Infinity,
+  });
+  const canvasSession = canvasSessionQuery.data ?? null;
+  // Client review links, for "Open review" - only for those allowed to see them.
   const shareLinksQuery = useQuery({
     queryKey: qk.shareLinks(projectId ?? ""),
     queryFn: () => shareLinksApi.listShareLinks(projectId!),
-    enabled: !!projectId,
+    enabled: !!projectId && canComment,
   });
   const commentsQuery = useQuery({
     queryKey: qk.projectComments(projectId ?? ""),
@@ -222,9 +240,7 @@ export function ProjectOverviewPage() {
     enabled: !!projectId,
   });
   useDocumentTitle([projectQuery.data?.name, "Review"]);
-  const hasProxyCandidate = (shareLinksQuery.data ?? []).some(
-    (link) => link.revoked_at === null && link.mode === "proxy",
-  );
+  const hasProxyCandidate = canvasSession !== null;
 
   // Hoisted above every early return below (project.isLoading/.error/.archived_at/
   // non-website type) so useBrowserRenderSnapshot is never called conditionally -
@@ -278,7 +294,7 @@ export function ProjectOverviewPage() {
     orientation,
     // hasProxyCandidate rather than the later `iframeSrc`: this hook is declared
     // before the early-return guards, so it can't reference anything computed after
-    // them, but an active proxy link existing is a close-enough stand-in for "there's
+    // them, but the canvas session having loaded is a close-enough stand-in for "there's
     // something to render" without duplicating iframeSrc's own resolution logic here.
     enabled: isCrossBrowserRenderActive && Boolean(activePage) && hasProxyCandidate,
   });
@@ -442,9 +458,33 @@ export function ProjectOverviewPage() {
     return () => window.removeEventListener("message", onMessage);
   }, [projectId, queryClient]);
 
+  // Hands the canvas widget the member's own session on the canvas link (widget
+  // guest-session.ts's requestDashboardCanvasSession, TDR-0057). The widget can't make
+  // one itself: the API only issues canvas sessions to a signed-in member. Sent only to
+  // the frame this page loaded, at the origin it's on.
+  useEffect(() => {
+    if (!canvasSession) return;
+    function onMessage(event: MessageEvent) {
+      const canvasWindow = canvasRef.current?.contentWindow;
+      if (!canvasWindow || event.source !== canvasWindow) return;
+      if (event.data?.type !== "backline:request-canvas-session" || !canvasSession) return;
+      canvasWindow.postMessage(
+        {
+          type: "backline:canvas-session",
+          guestSessionToken: canvasSession.guest_session_token,
+          displayName: canvasSession.display_name,
+        },
+        event.origin,
+      );
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [canvasSession]);
+
   // Answers the canvas widget's name request (widget guest-session.ts's
   // requestDashboardDisplayName) with the signed-in member's own name, so the widget
-  // doesn't show its guest "Your name" prompt to someone who's already signed in.
+  // doesn't show its guest "Your name" prompt to someone who's already signed in. Only
+  // a widget from before TDR-0057 still asks.
   const memberDisplayName = user?.name.trim() || user?.email || "";
   useEffect(() => {
     if (!memberDisplayName) return;
@@ -461,9 +501,10 @@ export function ProjectOverviewPage() {
   // The canvas widget's comment card has a status menu in its header (widget
   // dashboard-bridge.ts), but the widget itself runs as a guest, and guests can't change
   // a status - so it asks this page, where the member is signed in, to make the change
-  // with the member's own session. Every workspace role holds comment:update_status
-  // (backend core/permissions.py); anything else gets the card's read-only status.
-  const canUpdateStatus = role === "owner" || role === "admin" || role === "member";
+  // with the member's own session. comment:update_status needs an editor on the project
+  // (backend core/permissions.py PROJECT_PERMISSIONS); anyone else gets the card's
+  // read-only status.
+  const canUpdateStatus = canTriage;
   const statusMutation = useMutation({
     mutationFn: ({ commentId, status }: { commentId: string; status: CommentStatus }) =>
       boardApi.updateComment(commentId, { status }),
@@ -604,7 +645,9 @@ export function ProjectOverviewPage() {
   }
 
   function setMode(nextMode: CanvasMode) {
-    updateViewParams({ mode: nextMode === "comment" ? null : nextMode });
+    // "view" is never stored in the URL: it is what Comment and Draw become for a viewer.
+    const stored = nextMode === "view" || (!canComment && nextMode === "draw") ? "comment" : nextMode;
+    updateViewParams({ mode: stored === "comment" ? null : stored });
   }
 
   function setViewport(nextViewport: ViewportOption | null) {
@@ -708,11 +751,10 @@ export function ProjectOverviewPage() {
 
   const activeLinks = (shareLinksQuery.data ?? []).filter((link) => link.revoked_at === null);
   const reviewLink = activeLinks[0] ?? null;
-  const embedLink = activeLinks.find((link) => link.mode === "proxy") ?? null;
-  // A link's own preview origin when the API reports one (docs/tdr/0040), so the site
-  // runs at its real paths; the legacy path on the API origin otherwise.
-  const canvasBase = embedLink
-    ? embedLink.preview_origin ?? `${API_BASE_URL}/proxy/${embedLink.token}`
+  // The canvas link's own preview origin when the API reports one (docs/tdr/0040), so
+  // the site runs at its real paths; the legacy path on the API origin otherwise.
+  const canvasBase = canvasSession
+    ? canvasSession.preview_origin ?? `${API_BASE_URL}/proxy/${canvasSession.token}`
     : null;
   const canvasUrl = canvasBase ? `${canvasBase}/` : null;
 
@@ -744,7 +786,7 @@ export function ProjectOverviewPage() {
   // handed to the iframe, not state - nothing renders off it but the iframe itself.
   // Everything but the page: a different link or browser still reloads the canvas, even
   // on a page the frame navigated to by itself.
-  const frameKey = embedLink ? `${embedLink.token}|${browser.name}` : null;
+  const frameKey = canvasSession ? `${canvasSession.token}|${browser.name}` : null;
   if (frameSrcRef.current.target !== canvasTarget) {
     const keepFrame =
       canvasTarget !== null &&
@@ -814,24 +856,39 @@ export function ProjectOverviewPage() {
         </div>
 
         <div className="bl-review-header-tools">
-          {user && <NativeReviewButton projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
+          {/* Browser review exists to leave comments, which the API refuses a viewer. */}
+          {user && canComment && <NativeReviewButton projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
           <div className="bl-review-mode" aria-label="Canvas mode">
             <button type="button" aria-pressed={mode === "browse"} onClick={() => setMode("browse")}>
               <PointerIcon width={13} height={13} />
               Browse
             </button>
-            <button type="button" aria-pressed={mode === "comment"} onClick={() => setMode("comment")}>
-              <CommentsIcon width={13} height={13} />
-              Comment
-            </button>
-            {/* Draw was reachable only from the dock (and D); with it missing here, drawing
-                left this switch showing no mode at all. */}
-            <button type="button" aria-pressed={mode === "draw"} onClick={() => setMode("draw")} title="Draw an area to comment on (D)">
-              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeDasharray="3 2.5" aria-hidden="true">
-                <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
-              </svg>
-              Draw
-            </button>
+            {canComment ? (
+              <>
+                <button type="button" aria-pressed={mode === "comment"} onClick={() => setMode("comment")}>
+                  <CommentsIcon width={13} height={13} />
+                  Comment
+                </button>
+                {/* Draw was reachable only from the dock (and D); with it missing here, drawing
+                    left this switch showing no mode at all. */}
+                <button type="button" aria-pressed={mode === "draw"} onClick={() => setMode("draw")} title="Draw an area to comment on (D)">
+                  <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeDasharray="3 2.5" aria-hidden="true">
+                    <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+                  </svg>
+                  Draw
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                aria-pressed={mode === "view"}
+                onClick={() => setMode("view")}
+                title="You can read comments on this project. Ask a project manager to make you a commenter to leave your own."
+              >
+                <CommentsIcon width={13} height={13} />
+                View comments
+              </button>
+            )}
           </div>
           <button type="button" className="bl-review-icon-button" aria-label="Reload preview" title="Reload preview" onClick={reloadPreview} disabled={!iframeSrc}>
             <ReloadIcon className={iframeStatus === "loading" && iframeSrc ? "bl-is-spinning" : ""} />
@@ -839,14 +896,15 @@ export function ProjectOverviewPage() {
           <a className="bl-review-icon-button" href={displayUrl} target="_blank" rel="noreferrer" aria-label="Open live page" title="Open live page">
             <ExternalLinkIcon />
           </a>
+          {/* A client review link - never shown to a viewer, who isn't given one (TDR-0057). */}
           {reviewLink ? (
             <a className="bl-review-control bl-review-open" href={reviewUrl(reviewLink.token)} target="_blank" rel="noreferrer">
               Open review
               <ExternalLinkIcon width={12} height={12} />
             </a>
-          ) : (
+          ) : canComment ? (
             <button type="button" className="bl-review-control" disabled title="Create a review link from Share first">Open review</button>
-          )}
+          ) : null}
           <button type="button" className="bl-review-control" onClick={() => setShowShare(true)}>
             <ShareIcon width={13} height={13} />
             Share
@@ -904,20 +962,20 @@ export function ProjectOverviewPage() {
           ref={stageRef}
           className={`bl-review-stage ${mode === "comment" || mode === "draw" ? "is-commenting" : "is-browsing"} ${mode === "draw" ? "is-drawing" : ""}`}
         >
-          {shareLinksQuery.isLoading ? (
+          {canvasSessionQuery.isLoading ? (
             <div className="bl-review-empty-canvas" role="status">
               <span className="bl-review-loader" aria-hidden="true" />
               <strong>Preparing the review source</strong>
-              <p>Checking for an active proxy review link…</p>
+              <p>Opening the site through Backline’s private review proxy…</p>
             </div>
-          ) : shareLinksQuery.error ? (
+          ) : canvasSessionQuery.error ? (
             <div className="bl-review-empty-canvas" role="alert">
               <span className="bl-review-state-icon is-warning"><GlobeIcon /></span>
-              <strong>Couldn’t check the review link</strong>
-              <p>{shareLinksQuery.error.message}</p>
-              <button type="button" className="bl-button" onClick={() => void shareLinksQuery.refetch()}>Try again</button>
+              <strong>Couldn’t open the review canvas</strong>
+              <p>{canvasSessionQuery.error.message}</p>
+              <button type="button" className="bl-button" onClick={() => void canvasSessionQuery.refetch()}>Try again</button>
             </div>
-          ) : embedLink && !activePageRequest ? (
+          ) : canvasSession && !activePageRequest ? (
             <div className="bl-review-empty-canvas" role="alert">
               <span className="bl-review-state-icon is-warning"><GlobeIcon /></span>
               <strong>This saved page is outside the project URL</strong>
@@ -1037,7 +1095,7 @@ export function ProjectOverviewPage() {
                 )}
               </div>
               <div className="bl-live-frame-meta">
-                <span className={widgetError ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{widgetError ? "Commenting couldn't start on this page — reload the canvas to try again" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : "Browse mode — comments are hidden, use the site as normal")}</span>
+                <span className={widgetError ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{widgetError ? "Commenting couldn't start on this page — reload the canvas to try again" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : mode === "view" ? "View only — open a pin to read it. Your role on this project can't add comments" : "Browse mode — comments are hidden, use the site as normal")}</span>
                 <span>Source: proxy</span>
               </div>
               {!viewport && (
@@ -1051,12 +1109,10 @@ export function ProjectOverviewPage() {
               )}
             </div>
           ) : (
-            <div className="bl-review-empty-canvas">
-              <span className="bl-review-state-icon"><ShareIcon /></span>
-              <strong>{reviewLink ? "A proxy review link is required" : "No active review link yet"}</strong>
-              <p>{reviewLink ? "The active link uses snippet mode and cannot power this embedded canvas. Create a proxy link to review here." : "Create a proxy review link to load the live site and its genuine comment pins in this workspace."}</p>
-              <button type="button" className="bl-button mint" onClick={() => setShowShare(true)}>Open Share</button>
-              <span>Nothing is simulated until a real link exists.</span>
+            <div className="bl-review-empty-canvas" role="status">
+              <span className="bl-review-loader" aria-hidden="true" />
+              <strong>Preparing the review source</strong>
+              <p>Opening the site through Backline’s private review proxy…</p>
             </div>
           )}
         </div>
@@ -1064,6 +1120,7 @@ export function ProjectOverviewPage() {
         <QuickToolsDock
           environment={project.environment}
           mode={mode}
+          canComment={canComment}
           onModeChange={(m) => setMode(m)}
         />
 

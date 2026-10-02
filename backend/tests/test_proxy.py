@@ -1,15 +1,13 @@
-"""Proxy route integration tests (03-System-Architecture.md §3.3). The upstream fetch
-is mocked by replacing `httpx.AsyncClient` itself with a fake, rather than patching
-`AsyncClient.get` on the shared class - the latter would also intercept this test file's
-own `client` fixture (also an `httpx.AsyncClient`, via ASGITransport), since methods are
-resolved on the class regardless of which module's `import httpx` reached it. Replacing
-the class reference only affects code that looks it up dynamically at call time
-(`app.modules.proxy.service`'s `import httpx; httpx.AsyncClient(...)`) - `conftest.py`
-already bound its own `AsyncClient` name via `from httpx import AsyncClient` before any
-patching happens, so it's unaffected either way."""
+"""Proxy route integration tests (03-System-Architecture.md §3.3). The upstream is
+mocked at the transport: `proxy/service.py` builds its own `httpx.AsyncClient` on a
+shared pooled transport (`_shared_transport_view`), and these tests hand it an
+`httpx.MockTransport` instead - so this file's own `client` fixture, also an
+`httpx.AsyncClient`, is untouched. The SSRF guard resolves the target's hostname before
+every hop; it's stubbed here so the tests never depend on DNS - what it allows is
+app/core/ssrf_guard.py's concern, not the proxy route's."""
 
-from types import TracebackType
-from typing import Any
+from collections.abc import Iterator
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import httpx
@@ -18,44 +16,30 @@ from httpx import AsyncClient
 
 from tests.helpers import create_workspace_and_get_owner_token
 
-
-class _FakeUpstreamClient:
-    """Stands in for `httpx.AsyncClient` inside `proxy/service.py` only (see module
-    docstring). Records every requested URL and always returns the same canned
-    response, which is all these tests need - no real network access."""
-
-    requested_urls: list[str] = []
-    response: httpx.Response = httpx.Response(
-        200, headers={"content-type": "text/html"}, content=b""
-    )
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        pass
-
-    async def __aenter__(self) -> "_FakeUpstreamClient":
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        return None
-
-    async def get(self, url: str, *args: Any, **kwargs: Any) -> httpx.Response:
-        _FakeUpstreamClient.requested_urls.append(url)
-        return _FakeUpstreamClient.response
+# Every URL the mocked upstream was asked for, in order - reset by each _mock_upstream.
+requested_urls: list[str] = []
 
 
+@contextmanager
 def _mock_upstream(
     *, status_code: int = 200, content_type: str = "text/html", body: bytes = b"<html></html>"
-):
-    _FakeUpstreamClient.requested_urls = []
-    _FakeUpstreamClient.response = httpx.Response(
-        status_code=status_code, headers={"content-type": content_type}, content=body
-    )
-    return patch("app.modules.proxy.service.httpx.AsyncClient", new=_FakeUpstreamClient)
+) -> Iterator[None]:
+    requested_urls.clear()
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requested_urls.append(str(request.url))
+        return httpx.Response(
+            status_code=status_code, headers={"content-type": content_type}, content=body
+        )
+
+    with (
+        patch(
+            "app.modules.proxy.service._shared_transport_view",
+            new=lambda: httpx.MockTransport(respond),
+        ),
+        patch("app.modules.proxy.service.assert_safe_to_fetch", new=lambda *_a, **_k: None),
+    ):
+        yield
 
 
 async def _create_project_and_share_link(
@@ -163,7 +147,7 @@ async def test_proxy_root_path_defaults_to_slash(
         resp = await client.get(f"/proxy/{token}")
 
     assert resp.status_code == 200
-    assert _FakeUpstreamClient.requested_urls == ["https://target.example.com/"]
+    assert requested_urls == ["https://target.example.com/"]
 
 
 async def test_proxy_is_rate_limited_per_ip(

@@ -1,5 +1,126 @@
 # Delivery and verification ledger
 
+## 2026-10-02: Member-bound canvas sessions (TDR-0057)
+
+This closes TDR-0056's known limit: a viewer could copy the review link out of the canvas
+and comment as a guest. Reasoning is in TDR-0057.
+
+**Built:**
+- **Canvas link.** Each project gets one system-managed canvas link, made on first use.
+  It's never listed with client links and can't be revoked.
+- **Canvas sessions.** `POST /projects/{id}/canvas-session` issues a guest token bound to
+  the member, and the dashboard hands it to the widget. `POST /guest-sessions` refuses
+  canvas links.
+- **Live role checks.** Every guest-capable path checks a member-bound session against the
+  member's current project role, and the realtime socket checks it on connect.
+- **Client links** are listed to commenters and up (`share_link:view`). "Open review" is
+  hidden for viewers.
+- **Session sync and cloud login** target the canvas link.
+- **Copied canvas links.** The review entry page and the widget explain that a canvas link
+  only opens inside the dashboard.
+
+**Verification:**
+- **Backend.** 274 passed on local MongoDB and real Redis. Ruff, mypy (strict) and the
+  scoping lint pass. `packages/types` was regenerated.
+- **Scratch API checks.** 7 of 7 pass: the 5 TDR-0056 scenarios plus 2 new ones.
+  - Canvas sessions: shared link, reused session, viewer read-only, commenter posts and
+    replies, demotion and removal take effect at once, forged and copied tokens refused,
+    the canvas link is unlisted and unrevokable, client guests unaffected.
+  - Session sync lands on the canvas link.
+- **`apps/web` and `apps/widget`.** Typecheck, lint and build pass.
+- **Browser pass**, real API on local MongoDB and real Redis:
+  - Canvas: 30 of 30. The canvas loads from the canvas link, not a client link. A viewer
+    can't post through the API with their canvas session, and the copied token makes no
+    guest session. The canvas URL opened alone asks for no name and explains why. The
+    entry page explains a canvas link. An editor comments.
+  - Live updates: a new pin reaches a viewer's open canvas live (~1.5s), and the access
+    changes from TDR-0056 still pass.
+
+**Open:**
+- Canvas comments are still guest comments. Attributing them to the member is possible now
+  that the session records the member, but isn't done.
+
+## 2026-10-02: Project roles, org chart and room codes (TDR-0056)
+
+Branch `feature/room-code-org-chart`, with `main` (TDR-0055) merged in. Reasoning is in
+TDR-0056.
+
+**Built:**
+- **Project roles** (viewer, commenter, editor, manager) and private projects, enforced in:
+  - every project, page, comment and share-link route;
+  - tickets, search, activity, dashboard counts and client stats;
+  - MCP, the email digest, notifications and realtime.
+- **Team page** with four tabs:
+  - People: filters and CSV export;
+  - Org chart: pan and zoom, search and fly-to, project lens, drag to set reporting
+    lines with Undo, collapse, minimap, full screen, keyboard navigation, dark mode;
+  - Access: an editable role matrix;
+  - Requests.
+- Person drawer, profile dialog, leave workspace, transfer ownership.
+- **Room codes:** generated or custom codes, a Join page with preview and `/join?code=`
+  links, approval with a role, notes, withdraw, cooldown and seat limits.
+- **Share dialogs** show who has access and let managers edit it. The create-project
+  form gets an access step. Controls are gated by project role across the project menu,
+  comment drawer, board and cards.
+
+**Fixed from the branch:**
+- membership ids being compared against user ids;
+- members locked out of legacy projects;
+- instant join bypassing the seat limit;
+- members shown an invite form the API refuses;
+- duplicate not copying the cross-browser render and Slack settings;
+- N+1 queries when listing members and workspaces.
+
+**Follow-up the same day:**
+- **Viewer canvas.** The widget gains a `view` mode. Pins and their cards work, but no
+  click or drag opens a composer.
+  - For a project viewer the dashboard swaps Comment and Draw for "View comments". The
+    dock's tools, the C and D shortcuts, `?mode=draw` and Browser review follow suit.
+  - The canvas status menu now needs an editor on the project, not just any member,
+    matching `comment:update_status`.
+- **E2E login helper.** `loginViaOtp` predated TDR-0053's password-first login page. It
+  now goes through "Forgot password?" and skips the set-password step, so every spec
+  that signs in works again.
+- **Stale backend tests.**
+  - The four proxy tests mock the upstream at the transport and stub the DNS-resolving
+    SSRF check.
+  - The Jira rotation test uses `IntegrationContext`.
+- **Project card favicons** are requested from the project's full origin. Before, a
+  site on http or on a non-default port asked `https://host/` instead.
+
+**Verification:**
+- **Backend.**
+  - On a real Redis (5.0, local): 269 passed, and the six pub/sub tests that only failed
+    on fakeredis pass. The 5 remaining failures were the stale proxy and Jira tests;
+    after fixing them, `test_proxy.py` passes 8/8 and `test_integrations.py` 25/25.
+  - Ruff, mypy (strict) and the scoping lint pass.
+- **Scratch checks.** 5 RBAC scenarios pass: access end to end, room codes, org chart
+  with transfer and leave, the realtime filter, and MCP plus the digest.
+- **`apps/web` and `apps/widget`.** Typecheck, lint and build pass.
+- **E2E.** `workspace-join.spec.ts` passes against a live local stack: real API,
+  MongoDB replica set, Vite and Playwright.
+- **Migration.** `scripts/migrate_org_access.py` was run on seeded legacy rows:
+  - the dry run wrote nothing;
+  - `--apply` backfilled 2 events, normalized a room code and dropped
+    `assigned_member_ids`;
+  - it left a colliding pair of codes untouched and listed them;
+  - a second run found nothing new.
+- **Browser passes**, real API on local MongoDB and real Redis:
+  - Team pages: 39 of 39, in light and dark.
+  - Live access changes: a project appears and disappears on a member's open dashboard
+    within ~350ms. After removal, their socket gets nothing about it while a member
+    still on it does.
+  - Review canvas: 21 of 21. A viewer sees pins and cards, gets no composer, Draw, status
+    menu or Browser review, and can still browse. An editor comments and gets the status
+    menu.
+
+**Open:**
+- Run `scripts/migrate_org_access.py` as a dry run, then `--apply`, on each environment.
+- The canvas widget runs as a guest of the review link. Anyone holding that link, a
+  viewer included, can open it outside the dashboard and comment as a guest, as any
+  client can. Closed by TDR-0057 (member-bound canvas sessions, entry above).
+
+
 ## 2026-10-01: Dashboard sidebar groups, AI page and API keys (TDR-0055)
 
 The user asked for `feature/dashboard-sidebar-updates` to be reviewed, fixed and

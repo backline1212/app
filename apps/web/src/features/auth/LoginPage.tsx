@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "./AuthContext";
+import { takeReturnPath } from "../../lib/return-path";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { buildGoogleAuthUrl } from "./google-oauth-url";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -89,7 +90,7 @@ export function LoginPage() {
   // Not mid-submit or on "Set a password": a verified code is already signed in there.
   useEffect(() => {
     if (status === "authenticated" && !isSubmitting && step !== "newpw") {
-      navigate("/", { replace: true });
+      navigate(takeReturnPath(), { replace: true });
     }
   }, [status, isSubmitting, step, navigate]);
 
@@ -125,7 +126,7 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await loginWithPassword(email, password);
-      navigate("/", { replace: true });
+      navigate(takeReturnPath(), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Incorrect email or password.");
     } finally {
@@ -147,7 +148,7 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await signup(name, email, password);
-      navigate("/", { replace: true });
+      navigate(takeReturnPath(), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create that account.");
     } finally {
@@ -186,7 +187,7 @@ export function LoginPage() {
       // The account modal's has_password gate (TDR-0034) would otherwise still show
       // stale "no password to change" copy until the next token refresh.
       if (user) updateUser({ ...user, has_password: true });
-      navigate("/", { replace: true });
+      navigate(takeReturnPath(), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save that password.");
     } finally {
@@ -195,7 +196,7 @@ export function LoginPage() {
   }
 
   function skipSetPassword() {
-    navigate("/", { replace: true });
+    navigate(takeReturnPath(), { replace: true });
   }
 
   function goToHelp() {

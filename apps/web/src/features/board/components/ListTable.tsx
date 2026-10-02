@@ -4,6 +4,8 @@ import { WORKFLOW_STATUSES as STATUSES, STATUS_LABELS } from "../../../lib/workf
 import type { CommentOut, CommentStatus } from "../api";
 
 interface ListTableProps {
+  /** TDR-0056: bulk status changes are for editors and managers. */
+  canEdit?: boolean;
   filtered: CommentOut[];
   selected: Set<string>;
   setSelected: (next: Set<string>) => void;
@@ -25,10 +27,11 @@ export function ListTable({
   repliesByParent,
   setOpenThreadId,
   bulkUpdateMutation,
+  canEdit = true,
 }: ListTableProps) {
   return (
     <div className="bl-board-list">
-      {selected.size > 0 && (
+      {canEdit && selected.size > 0 && (
         <div className="bl-board-bulkbar">
           <span>{selected.size} selected</span>
           <select

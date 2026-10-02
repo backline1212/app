@@ -17,7 +17,9 @@ async def list_clients(
     session: Session = Depends(require_permission("project:manage")),
 ) -> list[ClientOut]:
     require_workspace_match(session, workspace_id)
-    return await service.list_clients(get_db(), workspace_id, include_archived=include_archived)
+    return await service.list_clients(
+        get_db(), workspace_id, include_archived=include_archived, viewer=session
+    )
 
 
 @router.post("/workspaces/{workspace_id}/clients", response_model=ClientOut, status_code=201)
@@ -67,7 +69,7 @@ async def export_clients(
     session: Session = Depends(require_permission("project:manage")),
 ) -> PlainTextResponse:
     require_workspace_match(session, workspace_id)
-    csv_content = await service.export_clients(get_db(), workspace_id)
+    csv_content = await service.export_clients(get_db(), workspace_id, viewer=session)
     return PlainTextResponse(
         content=csv_content,
         media_type="text/csv",

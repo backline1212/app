@@ -10,7 +10,15 @@ class ClientRepository:
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
 
-    async def list(self, workspace_id: str, include_archived: bool = False) -> list[dict[str, Any]]:
+    async def list(
+        self,
+        workspace_id: str,
+        include_archived: bool = False,
+        hidden_project_ids: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Clients with their project and ticket stats. Projects in
+        `hidden_project_ids` (ones the reader can't open, TDR-0056) aren't counted."""
+        hidden_oids = [oid for oid in map(to_object_id, hidden_project_ids or []) if oid]
         match: dict[str, Any] = {"workspace_id": workspace_id}
         if not include_archived:
             match["archived_at"] = None
@@ -24,7 +32,9 @@ class ClientRepository:
                         {
                             "$match": {
                                 "$expr": {"$eq": ["$client_id", "$$client_id"]},
+                                "workspace_id": workspace_id,
                                 "archived_at": None,
+                                "_id": {"$nin": hidden_oids},
                             }
                         },
                         {"$project": {"_id": 1}},

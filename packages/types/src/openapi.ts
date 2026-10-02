@@ -297,6 +297,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/join/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Join
+         * @description Which workspace a room code belongs to, before joining it (TDR-0056).
+         */
+        post: operations["preview_join_api_v1_workspaces_join_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Join Request */
+        post: operations["submit_join_request_api_v1_workspaces_join_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/join-requests/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Join Requests */
+        get: operations["list_my_join_requests_api_v1_join_requests_mine_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/join-requests/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Cancel My Join Request */
+        delete: operations["cancel_my_join_request_api_v1_join_requests__request_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}": {
         parameters: {
             query?: never;
@@ -315,6 +386,28 @@ export interface paths {
         patch: operations["update_workspace_api_v1_workspaces__workspace_id__patch"];
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/room-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Room Code
+         * @description Turns on joining by code - with `code`, or a freshly generated one - replacing
+         *     any previous code.
+         */
+        post: operations["set_room_code_api_v1_workspaces__workspace_id__room_code_post"];
+        /** Disable Room Code */
+        delete: operations["disable_room_code_api_v1_workspaces__workspace_id__room_code_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/members": {
         parameters: {
             query?: never;
@@ -324,6 +417,26 @@ export interface paths {
         };
         /** List Members */
         get: operations["list_members_api_v1_workspaces__workspace_id__members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/access-matrix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Access Matrix
+         * @description Each member's role on every project the caller can see (TDR-0056).
+         */
+        get: operations["access_matrix_api_v1_workspaces__workspace_id__access_matrix_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -367,6 +480,111 @@ export interface paths {
         patch: operations["update_member_role_api_v1_workspaces__workspace_id__members__member_id__patch"];
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/members/{member_id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Member Profile
+         * @description Title, team and reporting line for the org chart (TDR-0056).
+         */
+        patch: operations["update_member_profile_api_v1_workspaces__workspace_id__members__member_id__profile_patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leave Workspace */
+        post: operations["leave_workspace_api_v1_workspaces__workspace_id__leave_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/transfer-ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer Ownership */
+        post: operations["transfer_ownership_api_v1_workspaces__workspace_id__transfer_ownership_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/join-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Join Requests */
+        get: operations["list_join_requests_api_v1_workspaces__workspace_id__join_requests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/join-requests/{request_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Join Request */
+        post: operations["approve_join_request_api_v1_workspaces__workspace_id__join_requests__request_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/join-requests/{request_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Join Request */
+        post: operations["reject_join_request_api_v1_workspaces__workspace_id__join_requests__request_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/projects": {
         parameters: {
             query?: never;
@@ -374,7 +592,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Projects */
+        /**
+         * List Projects
+         * @description Only the projects the caller can open (TDR-0056): a member never sees a private
+         *     project they aren't on.
+         */
         get: operations["list_projects_api_v1_workspaces__workspace_id__projects_get"];
         put?: never;
         /** Create Project */
@@ -475,6 +697,45 @@ export interface paths {
         /** Duplicate Project */
         post: operations["duplicate_project_api_v1_projects__project_id__duplicate_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Access
+         * @description Who can open this project and with what role (TDR-0056).
+         */
+        get: operations["get_project_access_api_v1_projects__project_id__access_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Project Access */
+        patch: operations["update_project_access_api_v1_projects__project_id__access_patch"];
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/access/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Project Member Role */
+        put: operations["set_project_member_role_api_v1_projects__project_id__access_members__user_id__put"];
+        post?: never;
+        /** Remove Project Member */
+        delete: operations["remove_project_member_api_v1_projects__project_id__access_members__user_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -733,6 +994,28 @@ export interface paths {
         put?: never;
         /** Create Share Link */
         post: operations["create_share_link_api_v1_projects__project_id__share_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/canvas-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Canvas Session
+         * @description The review canvas's link and the widget's member-bound session on it (TDR-0057).
+         *     Every project member may open the canvas; what the widget may then do is checked
+         *     against their project role on each call.
+         */
+        post: operations["create_canvas_session_api_v1_projects__project_id__canvas_session_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1840,6 +2123,44 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccessMatrixOut
+         * @description Every project the caller can see, and every member's role on each - the
+         *     Members page's Access tab and the org chart's project lens.
+         */
+        AccessMatrixOut: {
+            /** Projects */
+            projects: components["schemas"]["AccessMatrixProjectOut"][];
+        };
+        /** AccessMatrixProjectOut */
+        AccessMatrixProjectOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Project Type */
+            project_type: string;
+            /**
+             * Visibility
+             * @enum {string}
+             */
+            visibility: "workspace" | "private";
+            /**
+             * Default Role
+             * @enum {string}
+             */
+            default_role: "viewer" | "commenter" | "editor" | "manager";
+            /** Archived */
+            archived: boolean;
+            /** Roles */
+            roles: {
+                [key: string]: "viewer" | "commenter" | "editor" | "manager";
+            };
+            /** Sources */
+            sources: {
+                [key: string]: "workspace_admin" | "explicit" | "creator" | "default" | "none";
+            };
+        };
         /** AccessTokenOut */
         AccessTokenOut: {
             /** Access Token */
@@ -2090,6 +2411,25 @@ export interface components {
         CancelSubscriptionRequest: {
             /** Reason */
             reason?: string | null;
+        };
+        /**
+         * CanvasSessionOut
+         * @description TDR-0057: what the dashboard's review canvas loads with. `token` and
+         *     `preview_origin` address the project's canvas link; `guest_session_token` is the
+         *     widget's session on it, bound to the signed-in member, so every call the widget makes
+         *     is checked against that member's project role.
+         */
+        CanvasSessionOut: {
+            /** Token */
+            token: string;
+            /** Preview Origin */
+            preview_origin?: string | null;
+            /** Guest Session Token */
+            guest_session_token: string;
+            /** Display Name */
+            display_name: string;
+            /** Can Comment */
+            can_comment: boolean;
         };
         /** CheckoutRequest */
         CheckoutRequest: {
@@ -2985,6 +3325,86 @@ export interface components {
             /** Project Key */
             project_key?: string | null;
         };
+        /** JoinPreviewOut */
+        JoinPreviewOut: {
+            /** Workspace Id */
+            workspace_id: string;
+            /** Workspace Name */
+            workspace_name: string;
+            /** Member Count */
+            member_count: number;
+            /** Requires Approval */
+            requires_approval: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "can_join" | "pending" | "already_member";
+            /** Workspace Slug */
+            workspace_slug?: string | null;
+        };
+        /** JoinPreviewRequest */
+        JoinPreviewRequest: {
+            /** Room Code */
+            room_code: string;
+        };
+        /** JoinRequestApprove */
+        JoinRequestApprove: {
+            /**
+             * Role
+             * @default member
+             * @enum {string}
+             */
+            role: "admin" | "member";
+        };
+        /** JoinRequestCreate */
+        JoinRequestCreate: {
+            /** Room Code */
+            room_code: string;
+            /** Message */
+            message?: string | null;
+        };
+        /** JoinRequestOut */
+        JoinRequestOut: {
+            /** Id */
+            id: string;
+            /** Workspace Id */
+            workspace_id: string;
+            /** User Id */
+            user_id: string;
+            /** User Email */
+            user_email: string;
+            /** User Name */
+            user_name: string;
+            /** User Avatar Url */
+            user_avatar_url?: string | null;
+            /** Message */
+            message?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "rejected" | "cancelled";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** JoinRequestResponse */
+        JoinRequestResponse: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "joined" | "pending" | "already_member";
+            /** Workspace Id */
+            workspace_id: string;
+            /** Workspace Name */
+            workspace_name: string;
+            /** Workspace Slug */
+            workspace_slug?: string | null;
+        };
         /** LayerToggleRequest */
         LayerToggleRequest: {
             /**
@@ -3091,6 +3511,32 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Title */
+            title?: string | null;
+            /** Team */
+            team?: string | null;
+            /** Manager User Id */
+            manager_user_id?: string | null;
+            /**
+             * Invite Pending
+             * @default false
+             */
+            invite_pending: boolean;
+            /** Joined Via */
+            joined_via?: ("created" | "invite" | "room_code" | "join_request") | null;
+        };
+        /**
+         * MemberProfileUpdate
+         * @description Partial. Send `manager_user_id: null` to clear a reporting line; leave a field
+         *     out to keep it.
+         */
+        MemberProfileUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Team */
+            team?: string | null;
+            /** Manager User Id */
+            manager_user_id?: string | null;
         };
         /** MemberRoleUpdateRequest */
         MemberRoleUpdateRequest: {
@@ -3100,6 +3546,27 @@ export interface components {
              */
             role: "admin" | "member";
         };
+        /** MyJoinRequestOut */
+        MyJoinRequestOut: {
+            /** Id */
+            id: string;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Workspace Name */
+            workspace_name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "rejected";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Decided At */
+            decided_at?: string | null;
+        };
         /** NotificationOut */
         NotificationOut: {
             /** Id */
@@ -3108,7 +3575,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "comment_assigned" | "comment_reply" | "comment_mention" | "comment_status_changed" | "share_link_created" | "integration_disconnected" | "deploy_recovery_completed";
+            type: "comment_assigned" | "comment_reply" | "comment_mention" | "comment_status_changed" | "share_link_created" | "integration_disconnected" | "deploy_recovery_completed" | "join_requested" | "member_joined" | "project_access_granted" | "ownership_transferred";
             /** Payload */
             payload: Record<string, never>;
             /** Target Route */
@@ -3306,6 +3773,73 @@ export interface components {
             /** Portal Url */
             portal_url: string;
         };
+        /** ProjectAccessDetailOut */
+        ProjectAccessDetailOut: {
+            /** Project Id */
+            project_id: string;
+            /**
+             * Visibility
+             * @enum {string}
+             */
+            visibility: "workspace" | "private";
+            /**
+             * Default Role
+             * @enum {string}
+             */
+            default_role: "viewer" | "commenter" | "editor" | "manager";
+            /**
+             * My Role
+             * @enum {string}
+             */
+            my_role: "viewer" | "commenter" | "editor" | "manager";
+            /** People */
+            people: components["schemas"]["ProjectPersonOut"][];
+        };
+        /** ProjectAccessMemberIn */
+        ProjectAccessMemberIn: {
+            /** User Id */
+            user_id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "viewer" | "commenter" | "editor" | "manager";
+        };
+        /** ProjectAccessMemberOut */
+        ProjectAccessMemberOut: {
+            /** User Id */
+            user_id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "viewer" | "commenter" | "editor" | "manager";
+        };
+        /** ProjectAccessOut */
+        ProjectAccessOut: {
+            /**
+             * Visibility
+             * @enum {string}
+             */
+            visibility: "workspace" | "private";
+            /**
+             * Default Role
+             * @enum {string}
+             */
+            default_role: "viewer" | "commenter" | "editor" | "manager";
+            /** Members */
+            members: components["schemas"]["ProjectAccessMemberOut"][];
+        };
+        /**
+         * ProjectAccessUpdate
+         * @description Partial: only the fields sent change.
+         */
+        ProjectAccessUpdate: {
+            /** Visibility */
+            visibility?: ("workspace" | "private") | null;
+            /** Default Role */
+            default_role?: ("viewer" | "commenter" | "editor" | "manager") | null;
+        };
         /** ProjectAnalysisResult */
         ProjectAnalysisResult: {
             /** Summary */
@@ -3342,6 +3876,20 @@ export interface components {
             client_id?: string | null;
             /** Hero Url */
             hero_url?: string | null;
+            /**
+             * Visibility
+             * @default workspace
+             * @enum {string}
+             */
+            visibility: "workspace" | "private";
+            /**
+             * Default Role
+             * @default editor
+             * @enum {string}
+             */
+            default_role: "viewer" | "commenter" | "editor" | "manager";
+            /** Members */
+            members?: components["schemas"]["ProjectAccessMemberIn"][];
         };
         /** ProjectDeletionCounts */
         ProjectDeletionCounts: {
@@ -3460,6 +4008,14 @@ export interface components {
             status: "deleted";
             counts: components["schemas"]["ProjectDeletionCounts"];
         };
+        /** ProjectMemberRoleUpdate */
+        ProjectMemberRoleUpdate: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "viewer" | "commenter" | "editor" | "manager";
+        };
         /** ProjectOut */
         ProjectOut: {
             /** Id */
@@ -3503,6 +4059,37 @@ export interface components {
             hero_url?: string | null;
             /** Duplicated From Project Id */
             duplicated_from_project_id?: string | null;
+            access: components["schemas"]["ProjectAccessOut"];
+            /** My Role */
+            my_role?: ("viewer" | "commenter" | "editor" | "manager") | null;
+        };
+        /**
+         * ProjectPersonOut
+         * @description One workspace member as this project sees them. `project_role` None means no
+         *     access; `source` says where the role comes from, so the UI can explain it.
+         */
+        ProjectPersonOut: {
+            /** User Id */
+            user_id: string;
+            /** Member Id */
+            member_id: string;
+            /** Name */
+            name: string;
+            /** Email */
+            email: string;
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /** Workspace Role */
+            workspace_role: string;
+            /** Title */
+            title?: string | null;
+            /** Project Role */
+            project_role: ("viewer" | "commenter" | "editor" | "manager") | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "workspace_admin" | "explicit" | "creator" | "default" | "none";
         };
         /**
          * ProjectResolve
@@ -3739,6 +4326,11 @@ export interface components {
             show_board_to_client: boolean;
             /** Preview Origin */
             preview_origin?: string | null;
+            /**
+             * Canvas Only
+             * @default false
+             */
+            canvas_only: boolean;
         };
         /** RevisionChangeSummary */
         RevisionChangeSummary: {
@@ -3825,6 +4417,14 @@ export interface components {
              * @default 0
              */
             permanently_orphaned: number;
+        };
+        /**
+         * RoomCodeSet
+         * @description No code generates a random one.
+         */
+        RoomCodeSet: {
+            /** Code */
+            code?: string | null;
         };
         /**
          * SearchResultOut
@@ -4262,6 +4862,11 @@ export interface components {
             access_token: string;
             user: components["schemas"]["UserOut"];
         };
+        /** TransferOwnershipRequest */
+        TransferOwnershipRequest: {
+            /** Member Id */
+            member_id: string;
+        };
         /** TrelloIntegrationCreate */
         TrelloIntegrationCreate: {
             /**
@@ -4450,11 +5055,32 @@ export interface components {
             created_at: string;
             /** Role */
             role?: string | null;
+            /** Room Code */
+            room_code?: string | null;
+            /**
+             * Room Code Enabled
+             * @default false
+             */
+            room_code_enabled: boolean;
+            /**
+             * Join Requires Approval
+             * @default true
+             */
+            join_requires_approval: boolean;
+            /**
+             * Members Can Create Projects
+             * @default true
+             */
+            members_can_create_projects: boolean;
         };
         /** WorkspaceUpdate */
         WorkspaceUpdate: {
             /** Name */
             name?: string | null;
+            /** Join Requires Approval */
+            join_requires_approval?: boolean | null;
+            /** Members Can Create Projects */
+            members_can_create_projects?: boolean | null;
         };
     };
     responses: never;
@@ -4993,6 +5619,121 @@ export interface operations {
             };
         };
     };
+    preview_join_api_v1_workspaces_join_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_join_request_api_v1_workspaces_join_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinRequestCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_join_requests_api_v1_join_requests_mine_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyJoinRequestOut"][];
+                };
+            };
+        };
+    };
+    cancel_my_join_request_api_v1_join_requests__request_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_workspace_api_v1_workspaces__workspace_id__get: {
         parameters: {
             query?: never;
@@ -5059,6 +5800,72 @@ export interface operations {
             };
         };
     };
+    set_room_code_api_v1_workspaces__workspace_id__room_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomCodeSet"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_room_code_api_v1_workspaces__workspace_id__room_code_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_members_api_v1_workspaces__workspace_id__members_get: {
         parameters: {
             query?: never;
@@ -5077,6 +5884,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    access_matrix_api_v1_workspaces__workspace_id__access_matrix_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessMatrixOut"];
                 };
             };
             /** @description Validation Error */
@@ -5170,6 +6008,201 @@ export interface operations {
                 "application/json": components["schemas"]["MemberRoleUpdateRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_member_profile_api_v1_workspaces__workspace_id__members__member_id__profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    leave_workspace_api_v1_workspaces__workspace_id__leave_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfer_ownership_api_v1_workspaces__workspace_id__transfer_ownership_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnershipRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_join_requests_api_v1_workspaces__workspace_id__join_requests_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequestOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_join_request_api_v1_workspaces__workspace_id__join_requests__request_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["JoinRequestApprove"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_join_request_api_v1_workspaces__workspace_id__join_requests__request_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             204: {
@@ -5472,6 +6505,138 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProjectOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_access_api_v1_projects__project_id__access_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectAccessDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_project_access_api_v1_projects__project_id__access_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectAccessUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectAccessDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_project_member_role_api_v1_projects__project_id__access_members__user_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectMemberRoleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectAccessDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_project_member_api_v1_projects__project_id__access_members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -6117,6 +7282,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShareLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_canvas_session_api_v1_projects__project_id__canvas_session_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CanvasSessionOut"];
                 };
             };
             /** @description Validation Error */

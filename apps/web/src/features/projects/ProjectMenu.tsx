@@ -6,6 +6,7 @@ import { Dialog } from "../../components/Dialog";
 import { useToast } from "../../components/Toast";
 import { invalidateProjectMutation, qk } from "../../lib/query-keys";
 import { useOnClickOutside } from "../../lib/use-click-outside";
+import { projectCan } from "../../lib/project-roles";
 import { useAuth } from "../auth/AuthContext";
 import { listShareLinks } from "../share-links/api";
 import type { ProjectOut } from "./api";
@@ -55,6 +56,12 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(project.name);
   const canHardDelete = role === "owner" || role === "admin";
+  // TDR-0056: what this person's role on the project allows. The API enforces the
+  // same split; these only keep the menu honest about it.
+  const canEdit = projectCan(project, "edit");
+  const canManage = projectCan(project, "manage");
+  const editorsNote = "Editors and managers";
+  const managersNote = "Project managers";
 
   useOnClickOutside(menuRef, () => setOpen(false));
 
@@ -116,18 +123,20 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
 
       {open && <div role="menu" className="bl-dropdown-pop bl-project-menu" aria-label={`${project.name} project`}>
         <p className="bl-dropdown-label">{project.name}</p>
-        {onSettings && item("Project settings", "settings", () => { setOpen(false); onSettings(); }, { disabled: Boolean(project.archived_at), note: project.archived_at ? "Restore to edit" : undefined })}
-        {onShare && item("Share project", "share", () => { setOpen(false); onShare(); }, { disabled: Boolean(project.archived_at) })}
-        {item(copyLink.isPending ? "Copying…" : "Copy review link", "link", () => { setOpen(false); copyLink.mutate(); }, { disabled: Boolean(project.archived_at) || copyLink.isPending })}
-        {item("Manage share links", "link", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/share-links`); }, { disabled: Boolean(project.archived_at) })}
-        {item("Rename project", "rename", () => { setRenameValue(project.name); setRenaming(true); setOpen(false); })}
+        {onSettings && item("Project settings", "settings", () => { setOpen(false); onSettings(); }, { disabled: Boolean(project.archived_at) || !canManage, note: project.archived_at ? "Restore to edit" : !canManage ? managersNote : undefined })}
+        {onShare && item(canManage ? "Share & access" : "Who has access", "share", () => { setOpen(false); onShare(); }, { disabled: Boolean(project.archived_at) })}
+        {item(copyLink.isPending ? "Copying…" : "Copy review link", "link", () => { setOpen(false); copyLink.mutate(); }, { disabled: Boolean(project.archived_at) || copyLink.isPending || !canEdit, note: !canEdit ? editorsNote : undefined })}
+        {item("Manage share links", "link", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/share-links`); }, { disabled: Boolean(project.archived_at) || !canEdit, note: !canEdit ? editorsNote : undefined })}
+        {item("Rename project", "rename", () => { setRenameValue(project.name); setRenaming(true); setOpen(false); }, { disabled: !canManage, note: !canManage ? managersNote : undefined })}
         {item("Ticket board", "board", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/board`); }, { disabled: Boolean(project.archived_at) })}
-        {onManagePages && item("Manage pages", "page", () => { setOpen(false); onManagePages(); }, { disabled: Boolean(project.archived_at), note: project.archived_at ? "Restore to edit" : undefined })}
+        {onManagePages && item("Manage pages", "page", () => { setOpen(false); onManagePages(); }, { disabled: Boolean(project.archived_at) || !canEdit, note: project.archived_at ? "Restore to edit" : !canEdit ? editorsNote : undefined })}
         {!onManagePages && project.project_type !== "website" && item("Manage files", "page", () => undefined, { disabled: true, note: "Coming soon" })}
         <div className="bl-dropdown-sep" role="separator" />
-        {item("Duplicate project", "duplicate", () => { setConfirmDuplicate(true); setOpen(false); })}
-        {item("Export comments", "download", () => { setConfirmExport(true); setOpen(false); })}
-        {project.archived_at ? item("Restore project", "restore", () => { setConfirmRestore(true); setOpen(false); }) : item("Archive project", "archive", () => { setConfirmArchive(true); setOpen(false); })}
+        {item("Duplicate project", "duplicate", () => { setConfirmDuplicate(true); setOpen(false); }, { disabled: !canEdit, note: !canEdit ? editorsNote : undefined })}
+        {item("Export comments", "download", () => { setConfirmExport(true); setOpen(false); }, { disabled: !canEdit, note: !canEdit ? editorsNote : undefined })}
+        {project.archived_at
+          ? item("Restore project", "restore", () => { setConfirmRestore(true); setOpen(false); }, { disabled: !canManage, note: !canManage ? managersNote : undefined })
+          : item("Archive project", "archive", () => { setConfirmArchive(true); setOpen(false); }, { disabled: !canManage, note: !canManage ? managersNote : undefined })}
         <div className="bl-dropdown-sep" role="separator" />
         {item("Delete project", "trash", () => { setShowHardDelete(true); setOpen(false); }, { danger: true, disabled: !canHardDelete, note: !canHardDelete ? "Owners and admins only" : "Permanent" })}
       </div>}

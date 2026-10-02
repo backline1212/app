@@ -9,11 +9,13 @@ import { NotificationBell } from "../../notifications/NotificationBell";
 
 interface QuickToolsDockProps {
   environment: string;
-  mode: "browse" | "comment" | "draw";
+  mode: "browse" | "comment" | "draw" | "view";
+  /** False for a project viewer (TDR-0056): the Comment and Draw tools are left out. */
+  canComment?: boolean;
   onModeChange?: (mode: "browse" | "comment" | "draw") => void;
 }
 
-export function QuickToolsDock({ environment, mode, onModeChange }: QuickToolsDockProps) {
+export function QuickToolsDock({ environment, mode, canComment = true, onModeChange }: QuickToolsDockProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [startHidden, setStartHidden] = useState(() => localStorage.getItem("bl-dock-hidden") === "true");
@@ -71,12 +73,16 @@ export function QuickToolsDock({ environment, mode, onModeChange }: QuickToolsDo
           {environment}
         </button>
         <div className="bl-dock-divider" />
-        <button type="button" className={`bl-dock-btn ${mode === "comment" ? "active" : ""}`} onClick={() => onModeChange?.("comment")} aria-label="Comment (C)" title="Comment (C)">
-          <CommentsIcon width={16} height={16} />
-        </button>
-        <button type="button" className={`bl-dock-btn ${mode === "draw" ? "active" : ""}`} onClick={() => onModeChange?.("draw")} aria-label="Draw Region (D)" title="Draw Region (D)">
-          <span style={{ fontSize: "16px", lineHeight: 1 }}>✛</span>
-        </button>
+        {canComment && (
+          <>
+            <button type="button" className={`bl-dock-btn ${mode === "comment" ? "active" : ""}`} onClick={() => onModeChange?.("comment")} aria-label="Comment (C)" title="Comment (C)">
+              <CommentsIcon width={16} height={16} />
+            </button>
+            <button type="button" className={`bl-dock-btn ${mode === "draw" ? "active" : ""}`} onClick={() => onModeChange?.("draw")} aria-label="Draw Region (D)" title="Draw Region (D)">
+              <span style={{ fontSize: "16px", lineHeight: 1 }}>✛</span>
+            </button>
+          </>
+        )}
         <NotificationBell />
         <div className="bl-dock-divider" />
         <div style={{ position: "relative" }} ref={menuRef}>

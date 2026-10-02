@@ -8,16 +8,14 @@ import { useToast } from "../../components/Toast";
 import { qk } from "../../lib/query-keys";
 import { useUnsavedChanges } from "../../lib/use-unsaved-changes";
 import { useAuth } from "../auth/AuthContext";
+import { projectCan, roleLabel } from "../../lib/project-roles";
+import { ProjectAccessPanel } from "../projects/access/ProjectAccessPanel";
 import type { ProjectOut } from "../projects/api";
 import * as shareLinksApi from "../share-links/api";
 import * as workspacesApi from "./api";
 
 function reviewUrl(token: string): string {
   return `${window.location.origin}/review/${token}`;
-}
-
-function initials(value: string): string {
-  return value.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 }
 
 interface ShareProjectModalProps {
@@ -28,8 +26,9 @@ interface ShareProjectModalProps {
   onClose: () => void;
 }
 
-// Teammate invites remain explicitly workspace-wide: there is no per-project member
-// ACL in the current contract. Client access stays project-scoped through share links.
+// Teammates: who can open this project and with what role (TDR-0056), plus - for owners
+// and admins - inviting someone new to the workspace. Clients: the project's review
+// link, which editors and managers create and copy.
 export function ShareProjectModal({ project, workspaceId, workspaceSlug, workspaceName, onClose }: ShareProjectModalProps) {
   const { role: currentRole } = useAuth();
   const { toast } = useToast();
@@ -48,8 +47,12 @@ export function ShareProjectModal({ project, workspaceId, workspaceSlug, workspa
   const isDirty = email.trim().length > 0 || passcode.trim().length > 0 || domainRestrictionsStr.trim().length > 0;
   useUnsavedChanges(isDirty);
 
-  const linksQuery = useQuery({ queryKey: qk.shareLinks(project.id), queryFn: () => shareLinksApi.listShareLinks(project.id) });
-  const membersQuery = useQuery({ queryKey: qk.members(workspaceId), queryFn: () => workspacesApi.listMembers(workspaceId) });
+  const canShareLink = projectCan(project, "edit");
+  const linksQuery = useQuery({
+    queryKey: qk.shareLinks(project.id),
+    queryFn: () => shareLinksApi.listShareLinks(project.id),
+    enabled: canShareLink,
+  });
   const activeLink = linksQuery.data?.find((link) => link.revoked_at === null);
 
   const inviteMutation = useMutation({
@@ -57,7 +60,12 @@ export function ShareProjectModal({ project, workspaceId, workspaceSlug, workspa
     onSuccess: async () => {
       setEmail("");
       await queryClient.invalidateQueries({ queryKey: qk.members(workspaceId) });
-      toast("Workspace invitation sent.");
+      await queryClient.invalidateQueries({ queryKey: qk.projectAccess(project.id) });
+      toast(
+        project.access.visibility === "private"
+          ? "Invitation sent. Add them to this project below once they're in the list."
+          : "Workspace invitation sent.",
+      );
     },
   });
 
@@ -95,22 +103,18 @@ export function ShareProjectModal({ project, workspaceId, workspaceSlug, workspa
       <div className="bl-dialog-intro"><p>{project.name}</p></div>
       <div className="bl-share-body">
         <section className="bl-share-section">
-          <div className="bl-section-heading"><div><h3>Invite a teammate</h3><p>Workspace access · every project</p></div><span className="bl-scope-badge">Workspace</span></div>
-          {canInvite ? (
-            <form className="bl-invite-row" onSubmit={(event) => { event.preventDefault(); if (email.trim()) inviteMutation.mutate(); }}>
-              <input className="bl-input" type="email" required placeholder="name@youragency.com" aria-label="Teammate email" value={email} onChange={(event) => setEmail(event.target.value)} />
-              <select className="bl-input" aria-label="Workspace role" value={role} onChange={(event) => setRole(event.target.value as "member" | "admin")}><option value="member">Member</option><option value="admin">Admin</option></select>
-              <button className="bl-button" disabled={inviteMutation.isPending || !email.trim()}>{inviteMutation.isPending ? "Sending…" : "Invite"}</button>
-            </form>
-          ) : <p className="bl-inline-note">Only workspace owners and admins can invite teammates.</p>}
-          <p className="bl-share-disclosure">Inviting here adds someone to <strong>{workspaceName}</strong>, not just this project. Client reviewers should use the project link below.</p>
-          {inviteMutation.isError && <p role="alert" className="bl-error">{inviteMutation.error.message}</p>}
-
-          {membersQuery.isLoading ? <div className="bl-member-skeleton" role="status" aria-label="Loading workspace members"><i /><i /></div> : membersQuery.isError ? <div className="bl-inline-error" role="alert"><span>Workspace members could not load.</span><button type="button" onClick={() => membersQuery.refetch()}>Try again</button></div> : (
-            <div className="bl-share-people">
-              {membersQuery.data?.slice(0, 4).map((member) => <div className="bl-share-person" key={member.id}><span className="bl-avatar">{initials(member.name || member.email)}</span><span><strong>{member.name || member.email}</strong><small>{member.email}</small></span><em>{member.role}</em></div>)}
-              {(membersQuery.data?.length ?? 0) > 4 && <p className="bl-mono">+{(membersQuery.data?.length ?? 0) - 4} more workspace members</p>}
-            </div>
+          <ProjectAccessPanel projectId={project.id} workspaceId={workspaceId} workspaceName={workspaceName} />
+          {canInvite && (
+            <details className="pa-invite">
+              <summary>Invite someone new to {workspaceName}</summary>
+              <form className="bl-invite-row" onSubmit={(event) => { event.preventDefault(); if (email.trim()) inviteMutation.mutate(); }}>
+                <input className="bl-input" type="email" required placeholder="name@youragency.com" aria-label="Teammate email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                <select className="bl-input" aria-label="Workspace role" value={role} onChange={(event) => setRole(event.target.value as "member" | "admin")}><option value="member">Member</option><option value="admin">Admin</option></select>
+                <button className="bl-button" disabled={inviteMutation.isPending || !email.trim()}>{inviteMutation.isPending ? "Sending…" : "Invite"}</button>
+              </form>
+              <p className="bl-share-disclosure">This adds them to <strong>{workspaceName}</strong>. Client reviewers should use the project link below instead.</p>
+              {inviteMutation.isError && <p role="alert" className="bl-error">{inviteMutation.error.message}</p>}
+            </details>
           )}
         </section>
 
@@ -118,7 +122,7 @@ export function ShareProjectModal({ project, workspaceId, workspaceSlug, workspa
           <div className="bl-section-heading"><div><h3>Anyone with the link</h3><p>Project-scoped guest access</p></div><span className={`bl-access-state${activeLink ? " is-on" : ""}`}><i />{activeLink ? "On" : "Off"}</span></div>
           <p>Reviewers can open this project and leave comments without creating an account.</p>
 
-          {linksQuery.isLoading ? <div className="bl-link-skeleton" role="status">Loading review link…</div> : linksQuery.isError ? <div className="bl-inline-error" role="alert"><span>Review links could not load.</span><button type="button" onClick={() => linksQuery.refetch()}>Try again</button></div> : activeLink ? <>
+          {!canShareLink ? <p className="bl-inline-note">Editors and managers of this project create and copy its review link. Your role is {roleLabel(project.my_role).toLowerCase()}.</p> : linksQuery.isLoading ? <div className="bl-link-skeleton" role="status">Loading review link…</div> : linksQuery.isError ? <div className="bl-inline-error" role="alert"><span>Review links could not load.</span><button type="button" onClick={() => linksQuery.refetch()}>Try again</button></div> : activeLink ? <>
             <div className="bl-link-row">
               <input className="bl-input bl-mono" aria-label="Client review link" readOnly value={reviewUrl(activeLink.token)} onFocus={(event) => event.target.select()} />
               <button type="button" className="bl-quiet" onClick={copyLink}>{copied ? "Copied" : "Copy link"}</button>

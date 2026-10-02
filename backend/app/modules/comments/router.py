@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request
 
 from app.core.config import get_settings
 from app.core.db import get_db
-from app.core.permissions import require_permission
+from app.core.permissions import require_project_permission
 from app.core.rate_limit import actor_rate_limit_key, check_rate_limit
 from app.core.redis_client import get_redis
 from app.core.session import Actor, Session, get_current_actor, require_workspace_context
@@ -35,7 +35,7 @@ async def list_comments(
 @router.get("/projects/{project_id}/comments", response_model=list[CommentOut])
 async def list_comments_for_project(
     project_id: str,
-    session: Session = Depends(require_permission("comment:view_team")),
+    session: Session = Depends(require_project_permission("comment:view_team")),
 ) -> list[CommentOut]:
     return await comment_service.list_comments_for_project(
         get_db(), project_id=project_id, workspace_id=require_workspace_context(session)
@@ -181,7 +181,7 @@ async def delete_thread(
 # own-author-only guest self-service surface with no role gate at all.
 @router.delete("/comments/{comment_id}/moderate", status_code=204)
 async def delete_comment_moderated(
-    comment_id: str, session: Session = Depends(require_permission("comment:delete"))
+    comment_id: str, session: Session = Depends(require_project_permission("comment:delete"))
 ) -> None:
     await comment_service.delete_comment_moderated(
         get_db(),
@@ -193,7 +193,7 @@ async def delete_comment_moderated(
 
 @router.delete("/comments/{comment_id}/thread/moderate", status_code=204)
 async def delete_thread_moderated(
-    comment_id: str, session: Session = Depends(require_permission("comment:delete"))
+    comment_id: str, session: Session = Depends(require_project_permission("comment:delete"))
 ) -> None:
     await comment_service.delete_thread_moderated(
         get_db(),
@@ -207,7 +207,7 @@ async def delete_thread_moderated(
 async def update_comment(
     comment_id: str,
     body: CommentUpdate,
-    session: Session = Depends(require_permission("comment:update_status")),
+    session: Session = Depends(require_project_permission("comment:update_status")),
 ) -> CommentOut:
     return await comment_service.update_comment(
         get_db(),
@@ -226,7 +226,7 @@ async def update_comment(
 async def toggle_layer(
     comment_id: str,
     body: LayerToggleRequest,
-    session: Session = Depends(require_permission("comment:toggle_layer")),
+    session: Session = Depends(require_project_permission("comment:toggle_layer")),
 ) -> CommentOut:
     return await comment_service.toggle_layer(
         get_db(),
@@ -242,7 +242,7 @@ async def toggle_layer(
 async def reanchor(
     comment_id: str,
     body: ReanchorRequest,
-    session: Session = Depends(require_permission("comment:reanchor")),
+    session: Session = Depends(require_project_permission("comment:reanchor")),
 ) -> CommentOut:
     return await comment_service.reanchor(
         get_db(),

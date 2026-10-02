@@ -2,7 +2,7 @@ from collections.abc import Callable, Coroutine
 from enum import StrEnum
 from typing import Any
 
-from fastapi import Depends
+from fastapi import Depends, Request
 
 from app.core.errors import PermissionDeniedError
 from app.core.session import Session, get_current_session
@@ -28,6 +28,7 @@ PERMISSIONS: dict[str, frozenset[Role]] = {
     "project:manage": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
     "project:hard_delete": frozenset({Role.OWNER, Role.ADMIN}),
     "share_link:manage": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "share_link:view": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
     "integration:manage": frozenset({Role.OWNER, Role.ADMIN}),
     "comment:view_client": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER, Role.GUEST}),
     "comment:view_team": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
@@ -45,11 +46,84 @@ PERMISSIONS: dict[str, frozenset[Role]] = {
     # (owner/admin/member), not guest - matches every other comment-mutating action.
     "comment:create_integration_task": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
     "notification:manage": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    # TDR-0056 project-level actions. Every workspace role may attempt them; whether a
+    # member actually may is decided per project by PROJECT_PERMISSIONS below.
+    "project:view": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "project:update": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "project:manage_access": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "project:export": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "project:duplicate": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "project:review_tools": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "project:render": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "page:manage": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "asset:upload": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "ai:assist": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    # A member's profile (title, team) is theirs to edit; reporting lines are not.
+    "member:edit_profile": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    # The owner can ask too; the service tells them to hand ownership over first.
+    "workspace:leave": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
+    "workspace:transfer_ownership": frozenset({Role.OWNER}),
 }
 
 
 def role_allows(action: str, role: Role) -> bool:
     return role in PERMISSIONS[action]
+
+
+class ProjectRole(StrEnum):
+    """A person's role on one project (TDR-0056). Ordered: each role can do everything
+    the roles before it can."""
+
+    VIEWER = "viewer"
+    COMMENTER = "commenter"
+    EDITOR = "editor"
+    MANAGER = "manager"
+
+
+PROJECT_ROLE_RANK: dict[ProjectRole, int] = {
+    ProjectRole.VIEWER: 1,
+    ProjectRole.COMMENTER: 2,
+    ProjectRole.EDITOR: 3,
+    ProjectRole.MANAGER: 4,
+}
+
+# The project-level half of the matrix (13-Authentication.md §13.5a): the lowest project
+# role that may perform each action on a project. Workspace owners and admins are
+# managers of every project, so this only ever narrows what a workspace *member* can do.
+# An action missing from this dict is workspace-level only and never project-checked.
+PROJECT_PERMISSIONS: dict[str, ProjectRole] = {
+    "project:view": ProjectRole.VIEWER,
+    "comment:view_team": ProjectRole.VIEWER,
+    "comment:create": ProjectRole.COMMENTER,
+    "comment:reply": ProjectRole.COMMENTER,
+    # A client link lets its holder comment as a guest, so it's shown to those who may
+    # comment anyway (TDR-0057).
+    "share_link:view": ProjectRole.COMMENTER,
+    "ai:assist": ProjectRole.COMMENTER,
+    "project:render": ProjectRole.COMMENTER,
+    "comment:update_status": ProjectRole.EDITOR,
+    "comment:toggle_layer": ProjectRole.EDITOR,
+    "comment:reanchor": ProjectRole.EDITOR,
+    "comment:delete": ProjectRole.EDITOR,
+    "comment:create_integration_task": ProjectRole.EDITOR,
+    "page:manage": ProjectRole.EDITOR,
+    "asset:upload": ProjectRole.EDITOR,
+    "share_link:manage": ProjectRole.EDITOR,
+    "project:export": ProjectRole.EDITOR,
+    "project:duplicate": ProjectRole.EDITOR,
+    "project:review_tools": ProjectRole.EDITOR,
+    "project:update": ProjectRole.MANAGER,
+    "project:manage_access": ProjectRole.MANAGER,
+    "project:manage": ProjectRole.MANAGER,
+}
+
+
+def project_role_allows(action: str, role: ProjectRole | None) -> bool:
+    """False for no role at all. True for actions that aren't project-scoped."""
+    if role is None:
+        return False
+    required = PROJECT_PERMISSIONS.get(action)
+    return required is None or PROJECT_ROLE_RANK[role] >= PROJECT_ROLE_RANK[required]
 
 
 def require_permission(action: str) -> Callable[..., Coroutine[Any, Any, Session]]:
@@ -62,6 +136,23 @@ def require_permission(action: str) -> Callable[..., Coroutine[Any, Any, Session
             raise PermissionDeniedError("No active workspace context.")
         if not role_allows(action, Role(session.role)):
             raise PermissionDeniedError(f"Role '{session.role}' cannot perform '{action}'.")
+        return session
+
+    return dependency
+
+
+def require_project_permission(action: str) -> Callable[..., Coroutine[Any, Any, Session]]:
+    """require_permission(action) plus the project half of the matrix: every project,
+    page, comment or share link named in the route's path must be one the caller's
+    project role allows `action` on (core/project_access.py). Use it on every route
+    whose path names a project-scoped resource."""
+    workspace_check = require_permission(action)
+
+    async def dependency(request: Request, session: Session = Depends(workspace_check)) -> Session:
+        from app.core.db import get_db
+        from app.core.project_access import enforce_path_project_access
+
+        await enforce_path_project_access(get_db(), session, request.path_params, action)
         return session
 
     return dependency

@@ -3,6 +3,7 @@ from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.core.project_access import can_view_project
 from app.modules.auth.repository import UserRepository
 from app.modules.notifications import events as notification_events
 from app.modules.notifications.repository import NotificationRepository
@@ -63,7 +64,19 @@ async def _create_and_broadcast(
     notification - even an empty-bodied one carrying only IDs - to someone without
     legitimate workspace access (M-06: "team-only content reaching wrong
     recipients"), rather than trusting every future call site to get that right."""
-    if not await MembershipRepository(db).find(workspace_id=workspace_id, user_id=user_id):
+    membership = await MembershipRepository(db).find(workspace_id=workspace_id, user_id=user_id)
+    if membership is None:
+        return None
+    # TDR-0056: nothing about a project reaches someone who can't open it - a reply
+    # on a private project's thread must not notify a past participant removed from it.
+    project_id = payload_json.get("project_id")
+    if isinstance(project_id, str) and not await can_view_project(
+        db,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        user_id=user_id,
+        workspace_role=membership["role"],
+    ):
         return None
     preference = {
         notification_events.COMMENT_ASSIGNED: "notify_on_assignment",
@@ -221,6 +234,114 @@ async def notify_integration_disconnected(
         type=notification_events.INTEGRATION_DISCONNECTED,
         payload_json={"integration_id": integration_id, "integration_type": integration_type},
         target_route=target_route,
+    )
+
+
+async def notify_project_access_granted(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    project_id: str,
+    recipient_user_id: str,
+    role: str,
+    actor_user_id: str,
+) -> None:
+    """Someone was added to a project (TDR-0056)."""
+    if recipient_user_id == actor_user_id:
+        return
+    from app.modules.projects.repository import ProjectRepository
+
+    project = await ProjectRepository(db).find_by_id(project_id)
+    actor = await UserRepository(db).find_by_id(actor_user_id)
+    slug = await _workspace_slug(db, workspace_id)
+    await _create_and_broadcast(
+        db,
+        workspace_id=workspace_id,
+        user_id=recipient_user_id,
+        type=notification_events.PROJECT_ACCESS_GRANTED,
+        payload_json={
+            "project_id": project_id,
+            "project_name": project["name"] if project else "a project",
+            "role": role,
+            "actor_name": (actor or {}).get("name") or "A teammate",
+        },
+        target_route=f"/w/{slug}/p/{project_id}" if slug else None,
+    )
+
+
+async def _workspace_managers(
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str
+) -> list[str]:
+    return [
+        m["user_id"]
+        for m in await MembershipRepository(db).list_for_workspace(workspace_id)
+        if m["role"] in ("owner", "admin")
+    ]
+
+
+async def notify_join_requested(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    request_id: str,
+    requester_user_id: str,
+    requester_name: str,
+) -> None:
+    """Every owner and admin hears about a room-code join request waiting on them."""
+    slug = await _workspace_slug(db, workspace_id)
+    for user_id in await _workspace_managers(db, workspace_id):
+        await _create_and_broadcast(
+            db,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            type=notification_events.JOIN_REQUESTED,
+            payload_json={
+                "request_id": request_id,
+                "requester_user_id": requester_user_id,
+                "actor_name": requester_name,
+            },
+            target_route=f"/w/{slug}/members?view=requests" if slug else None,
+        )
+
+
+async def notify_member_joined(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    member_user_id: str,
+    member_name: str,
+) -> None:
+    """Someone joined with the room code, no approval needed."""
+    slug = await _workspace_slug(db, workspace_id)
+    for user_id in await _workspace_managers(db, workspace_id):
+        if user_id == member_user_id:
+            continue
+        await _create_and_broadcast(
+            db,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            type=notification_events.MEMBER_JOINED,
+            payload_json={"member_user_id": member_user_id, "actor_name": member_name},
+            target_route=f"/w/{slug}/members?view=org" if slug else None,
+        )
+
+
+async def notify_ownership_transferred(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    recipient_user_id: str,
+    actor_user_id: str,
+) -> None:
+    actor = await UserRepository(db).find_by_id(actor_user_id)
+    slug = await _workspace_slug(db, workspace_id)
+    await _create_and_broadcast(
+        db,
+        workspace_id=workspace_id,
+        user_id=recipient_user_id,
+        type=notification_events.OWNERSHIP_TRANSFERRED,
+        payload_json={"actor_name": (actor or {}).get("name") or "The previous owner"},
+        target_route=f"/w/{slug}/settings" if slug else None,
     )
 
 

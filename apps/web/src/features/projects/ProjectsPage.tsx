@@ -19,7 +19,8 @@ import { DuplicateProjectDialog, ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
 import { ComingSoonPanel, type SoonType } from "./ComingSoonPanel";
 import { ProjectArtwork } from "./ProjectArtwork";
-import { PlusIcon, SearchIcon } from "../../components/icons";
+import { LockIcon, PlusIcon, SearchIcon } from "../../components/icons";
+import { projectCan, roleLabel } from "../../lib/project-roles";
 import { EmptyArt } from "../../components/illustrations";
 
 const TYPE_LABELS: Record<string, string> = { website: "Website", image: "Images", pdf: "PDF" };
@@ -134,7 +135,7 @@ export function ProjectsPage() {
         {!p.archived_at && view === "cards" && (
           <div className="bl-project-overlay">
             <div className="bl-project-overlay-actions">
-              <button type="button" aria-label={`Duplicate ${p.name}`} title="Duplicate project" onClick={() => setDuplicating(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+              {projectCan(p, "edit") && <button type="button" aria-label={`Duplicate ${p.name}`} title="Duplicate project" onClick={() => setDuplicating(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>}
               <button type="button" aria-label={`Share ${p.name}`} title="Share project" onClick={() => setShare(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="3.5"/><path d="M19 8v6M22 11h-6"/></svg></button>
             </div>
             <Link className="bl-project-overlay-open" to={destination}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>Open Project</Link>
@@ -148,6 +149,12 @@ export function ProjectsPage() {
       <div className="bl-project-body">
         <div className="bl-project-title">{p.archived_at ? <h2>{p.name}</h2> : <Link to={destination}><h2>{p.name}</h2></Link>}<span className={`bl-chip ${p.archived_at ? "" : (p.environment ?? "live")}`}>{!p.archived_at && (p.environment ?? "live") === "live" && <i className="bl-live-dot" aria-hidden="true" />}{p.archived_at ? "Archived" : p.environment ?? "live"}</span></div>
         <p className="bl-project-url">{displayUrl}</p>
+        {(p.access.visibility === "private" || (p.my_role && p.my_role !== "manager")) && (
+          <p className="bl-project-access">
+            {p.access.visibility === "private" && <span className="is-private"><LockIcon />Private</span>}
+            {p.my_role && p.my_role !== "manager" && <span className={`lens-${p.my_role}`} title={`Your role on this project: ${roleLabel(p.my_role)}`}>{roleLabel(p.my_role)}</span>}
+          </p>
+        )}
         {total > 0 && (
           <div className="bl-project-bar" role="img" aria-label={`${resolved} of ${total} comments resolved`}>
             {BAR_STATUSES.map((k) => (s?.status_counts?.[k] ?? 0) > 0 && <i key={k} style={{ flex: s?.status_counts?.[k] ?? 0, background: STATUS_COLORS[k] }} />)}
@@ -180,7 +187,7 @@ export function ProjectsPage() {
     return <tr key={p.id} className={p.archived_at ? "is-archived" : ""}>
       <td>{p.archived_at
         ? <span className="bl-table-name is-archived">{p.name}<span className="bl-arch-tag">Archived</span></span>
-        : <Link className="bl-table-name" to={destination}>{p.name}</Link>}</td>
+        : <Link className="bl-table-name" to={destination}>{p.access.visibility === "private" && <LockIcon className="bl-table-lock" aria-label="Private" role="img" />}{p.name}</Link>}</td>
       <td><span className="bl-table-source" title={displayUrl}>{displayUrl}</span></td>
       <td><span className={`bl-chip ${p.archived_at ? "" : (p.environment ?? "live")}`}>{!p.archived_at && (p.environment ?? "live") === "live" && <i className="bl-live-dot" aria-hidden="true" />}{p.archived_at ? "Archived" : p.environment ?? "live"}</span></td>
       <td className={`bl-col-num${(s?.open ?? 0) > 0 ? " has-value is-strong" : ""}`}>{(s?.open ?? 0) > 0 ? <Link to={`/w/${workspace.slug}/tickets?project_id=${p.id}`}>{s?.open ?? 0}</Link> : 0}</td>

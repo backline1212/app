@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request
 
 from app.core.config import get_settings
 from app.core.db import get_db
-from app.core.permissions import require_permission
+from app.core.permissions import require_project_permission
 from app.core.rate_limit import actor_rate_limit_key, check_rate_limit
 from app.core.redis_client import get_redis
 from app.core.session import Actor, Session, get_current_actor, require_workspace_context
@@ -15,7 +15,7 @@ router = APIRouter(tags=["pages"])
 @router.get("/projects/{project_id}/pages", response_model=list[PageOut])
 async def list_pages(
     project_id: str,
-    session: Session = Depends(require_permission("project:manage")),
+    session: Session = Depends(require_project_permission("project:view")),
 ) -> list[PageOut]:
     return await page_service.list_pages(
         get_db(), project_id=project_id, workspace_id=require_workspace_context(session)
@@ -26,7 +26,7 @@ async def list_pages(
 async def create_page(
     project_id: str,
     body: PageCreate,
-    session: Session = Depends(require_permission("project:manage")),
+    session: Session = Depends(require_project_permission("page:manage")),
 ) -> PageOut:
     return await page_service.create_page(
         get_db(),
@@ -42,7 +42,7 @@ async def create_page(
 async def reorder_pages(
     project_id: str,
     body: PageReorder,
-    session: Session = Depends(require_permission("project:manage")),
+    session: Session = Depends(require_project_permission("page:manage")),
 ) -> list[PageOut]:
     return await page_service.reorder_pages(
         get_db(),
@@ -78,7 +78,7 @@ async def update_page(
     # since guest page *registration* (idempotent, widget-driven) is intentionally
     # separate from staff page *management* here (13-Authentication.md §13.5's
     # permission matrix has no guest page-mutation row at all).
-    session: Session = Depends(require_permission("project:manage")),
+    session: Session = Depends(require_project_permission("page:manage")),
 ) -> PageOut:
     return await page_service.update_page(
         get_db(),
@@ -92,7 +92,7 @@ async def update_page(
 @router.delete("/pages/{page_id}", status_code=204)
 async def delete_page(
     page_id: str,
-    session: Session = Depends(require_permission("project:manage")),
+    session: Session = Depends(require_project_permission("page:manage")),
 ) -> None:
     await page_service.delete_page(
         get_db(),

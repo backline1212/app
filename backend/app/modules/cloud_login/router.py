@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.core.db import get_db
-from app.core.permissions import require_permission
+from app.core.permissions import require_project_permission
 from app.core.redis_client import get_redis
 from app.core.session import Session, require_workspace_context
 from app.modules.cloud_login import service as cloud_login_service
@@ -17,7 +17,7 @@ router = APIRouter(tags=["cloud-login"])
 )
 async def create_cloud_login_session(
     project_id: str,
-    session: Session = Depends(require_permission("project:manage")),
+    session: Session = Depends(require_project_permission("project:review_tools")),
 ) -> CloudLoginSessionOut:
     """Mints a ticket for the separate cloud-login-browser service to redeem when the
     member's browser opens the returned `ws_url` - this endpoint itself never touches

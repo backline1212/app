@@ -131,9 +131,10 @@ export function ProjectArtwork({ project, open = 0, total = 0 }: { project: api.
   const type = project.project_type ?? "website";
   const initial = project.name.trim()[0]?.toUpperCase() ?? "?";
   const [faviconFailed, setFaviconFailed] = useState(false);
-  let hostname: string | null = null;
-  try { hostname = new URL(project.target_origin).hostname; } catch { hostname = null; }
-  const faviconUrl = hostname ? `https://${hostname}/favicon.ico` : null;
+  // From the whole origin, not just its hostname: a site on http or a non-default port
+  // (a staging box on :8080) otherwise asked https on :443 for its icon.
+  let faviconUrl: string | null = null;
+  try { faviconUrl = new URL("/favicon.ico", project.target_origin).href; } catch { faviconUrl = null; }
   const style = {
     "--art-accent": palette.accent,
     "--art-soft-raw": palette.accentSoft,

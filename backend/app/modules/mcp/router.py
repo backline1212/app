@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.core.db import get_db
-from app.core.permissions import require_permission
+from app.core.permissions import require_permission, require_project_permission
 from app.core.session import Session, require_workspace_context, require_workspace_match
 from app.modules.mcp import service as mcp_service
 from app.modules.mcp.schemas import (
@@ -60,7 +60,7 @@ async def revoke_mcp_token(
 async def generate_prompt(
     comment_id: str,
     body: GeneratePromptRequest,
-    session: Session = Depends(require_permission("comment:view_team")),
+    session: Session = Depends(require_project_permission("comment:view_team")),
 ) -> GeneratePromptResult:
     """The dashboard's own "Generate implementation prompt" action (copy-paste flow) -
     session-authenticated, distinct from the PAT-authenticated MCP tool in

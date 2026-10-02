@@ -106,6 +106,10 @@ class Settings(BaseSettings):
     # concurrent Playwright launches to starve the single worker process (see
     # app/workers/main.py's note on why there's exactly one).
     browser_render_rate_limit_per_minute: int = 6
+    # Room-code lookups and joins (TDR-0056), per signed-in user and per IP. A code is
+    # 12 random characters, so this isn't what makes guessing impractical - it keeps a
+    # script from hammering the lookup or spamming a workspace's admins with requests.
+    room_code_rate_limit_per_minute: int = 10
 
     # Where a reviewer's browser can reach this API from - used to build the absolute
     # widget script src/apiBaseUrl injected server-side in proxy mode

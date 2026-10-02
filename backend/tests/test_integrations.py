@@ -711,8 +711,9 @@ async def test_jira_token_rotation_race_retries_with_refetched_config(
     either one uses it - so the loser's own refresh attempt fails, and it must retry
     once against whatever refresh_token the winner has since persisted, rather than
     fail the whole request."""
-    from app.core.encryption import encrypt_secret
+    from app.core.encryption import decrypt_secret, encrypt_secret
     from app.modules.integrations import jira as jira_module
+    from app.modules.integrations.base import IntegrationContext
 
     calls: list[str] = []
 
@@ -726,19 +727,21 @@ async def test_jira_token_rotation_race_retries_with_refetched_config(
 
     rotated: list[str] = []
 
-    async def on_rotate(new_refresh_token_encrypted: str) -> None:
-        rotated.append(new_refresh_token_encrypted)
+    async def persist(config: dict[str, Any]) -> None:
+        rotated.append(decrypt_secret(config["refresh_token_encrypted"]))
 
     async def refetch_config() -> dict[str, Any]:
         # Simulates the concurrent winner having already persisted its own rotated
         # token to the integration doc by the time the loser retries.
         return {"refresh_token_encrypted": encrypt_secret("current-token")}
 
-    config = {"refresh_token_encrypted": encrypt_secret("stale-token")}
-    access_token = await jira_module._get_fresh_access_token(
-        config, on_rotate=on_rotate, refetch_config=refetch_config
+    ctx = IntegrationContext(
+        config={"refresh_token_encrypted": encrypt_secret("stale-token")},
+        persist=persist,
+        refetch=refetch_config,
     )
+    access_token = await jira_module._get_fresh_access_token(ctx)
 
     assert access_token == "fresh-access-token"
     assert calls == ["stale-token", "current-token"]
-    assert len(rotated) == 1
+    assert rotated == ["rotated-token"]

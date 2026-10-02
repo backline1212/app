@@ -24,8 +24,7 @@ from app.core.config import get_settings
 from app.core.errors import BacklineError, NotFoundError, ValidationError
 from app.modules.cloud_login.schemas import CloudLoginSessionOut
 from app.modules.projects.repository import ProjectRepository
-from app.modules.proxy.preview_host import preview_origin_for_token
-from app.modules.share_links.repository import ShareLinkRepository
+from app.modules.proxy.preview_host import preview_domain
 
 _TICKET_PREFIX = "cloud_login_ticket:"
 # Just long enough for the member to see the modal open and the websocket connect - not
@@ -65,11 +64,8 @@ async def create_session_ticket(
     if project is None or project["workspace_id"] != workspace_id:
         raise NotFoundError("Project not found.")
 
-    links = await ShareLinkRepository(db).list_for_project(workspace_id, project_id)
-    link = next(
-        (link for link in links if link["mode"] == "proxy" and link["revoked_at"] is None), None
-    )
-    if link is None or preview_origin_for_token(link["token"]) is None:
+    # The captured session lands on the canvas link (TDR-0057) - see session_sync.
+    if not preview_domain():
         # Same requirement session_sync.create_ticket enforces (TDR-0041) - checked here
         # too, so a member sees this before opening a browser session, not after.
         raise ValidationError(

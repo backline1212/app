@@ -5,6 +5,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.email import send_email
+from app.core.project_access import effective_project_role
 from app.modules.auth.repository import UserRepository
 from app.modules.comments.repository import CommentRepository
 from app.modules.pages.repository import PageRepository
@@ -22,19 +23,17 @@ from app.modules.workspaces.repository import MembershipRepository, WorkspaceRep
 # through the same repository classes the rest of the app uses.
 
 
-async def _project_name_for_page(
-    db: AsyncIOMotorDatabase[dict[str, Any]], page_id: str, cache: dict[str, str]
-) -> str:
+async def _project_for_page(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    page_id: str,
+    cache: dict[str, dict[str, Any] | None],
+) -> dict[str, Any] | None:
     if page_id in cache:
         return cache[page_id]
     page = await PageRepository(db).find_by_id(page_id)
-    name = "Unknown project"
-    if page is not None:
-        project = await ProjectRepository(db).find_by_id(page["project_id"])
-        if project is not None:
-            name = str(project["name"])
-    cache[page_id] = name
-    return name
+    project = await ProjectRepository(db).find_by_id(page["project_id"]) if page else None
+    cache[page_id] = project
+    return project
 
 
 def _render_digest_html(grouped: dict[str, list[dict[str, Any]]]) -> str:
@@ -73,16 +72,11 @@ async def run_digest_for_workspace(
     if not comments:
         return 0
 
-    project_name_cache: dict[str, str] = {}
-    grouped: dict[str, list[dict[str, Any]]] = {}
-    for comment in comments:
-        project_name = await _project_name_for_page(db, comment["page_id"], project_name_cache)
-        grouped.setdefault(project_name, []).append(comment)
-
-    html = _render_digest_html(grouped)
-    subject = (
-        f"{len(comments)} new comment{'s' if len(comments) != 1 else ''} - {workspace_doc['name']}"
-    )
+    project_cache: dict[str, dict[str, Any] | None] = {}
+    with_projects: list[tuple[dict[str, Any], dict[str, Any] | None]] = [
+        (comment, await _project_for_page(db, comment["page_id"], project_cache))
+        for comment in comments
+    ]
 
     members = await MembershipRepository(db).list_for_workspace(workspace_id)
     users_by_id = await UserRepository(db).find_many_by_ids([m["user_id"] for m in members])
@@ -90,7 +84,23 @@ async def run_digest_for_workspace(
         user_doc = users_by_id.get(membership["user_id"])
         if user_doc is None or not user_doc.get("preferences", {}).get("daily_digest", True):
             continue
-        await send_email(to=user_doc["email"], subject=subject, html=html)
+        # Each person's digest holds only the projects they can open (TDR-0056).
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for comment, project in with_projects:
+            if project is not None and (
+                effective_project_role(
+                    project, user_id=membership["user_id"], workspace_role=membership["role"]
+                )
+                is None
+            ):
+                continue
+            name = str(project["name"]) if project is not None else "Unknown project"
+            grouped.setdefault(name, []).append(comment)
+        count = sum(len(items) for items in grouped.values())
+        if not count:
+            continue
+        subject = f"{count} new comment{'s' if count != 1 else ''} - {workspace_doc['name']}"
+        await send_email(to=user_doc["email"], subject=subject, html=_render_digest_html(grouped))
 
     return len(comments)
 

@@ -69,6 +69,7 @@ async def _broadcast_recovery_update(
     when the comment is client-visible."""
     payload = {
         "comment_id": comment_id,
+        "project_id": project_id,
         "recovery_status": recovery_status,
         "confidence": confidence,
     }

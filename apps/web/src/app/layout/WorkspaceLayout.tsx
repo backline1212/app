@@ -17,6 +17,7 @@ import { PlusIcon } from "../../components/icons";
 import { CloseIcon, MenuIcon } from "./sidebar-icons";
 import { ProjectForm } from "../../features/projects/ProjectForm";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { AccessSync } from "../AccessSync";
 
 
 // design/index.html #meBtn: a square initials (or photo) button that opens the Account
@@ -115,6 +116,7 @@ export function WorkspaceLayout() {
 
   return (
     <div className="bl-app">
+      <AccessSync workspaceId={workspace.id} />
       <a className="bl-skip-link" href="#workspace-content">Skip to content</a>
       <DashboardSidebar
         workspace={workspace}

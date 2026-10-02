@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, Request
 
 from app.core.config import get_settings
 from app.core.db import get_db
-from app.core.permissions import require_permission
+from app.core.permissions import require_project_permission
 from app.core.rate_limit import actor_rate_limit_key, check_rate_limit
 from app.core.redis_client import get_redis
 from app.core.session import Session, require_workspace_context
@@ -25,7 +25,7 @@ async def request_render(
     page_id: str,
     body: RenderRequest,
     request: Request,
-    session: Session = Depends(require_permission("project:manage")),
+    session: Session = Depends(require_project_permission("project:render")),
 ) -> RenderStatusOut:
     settings = get_settings()
     await check_rate_limit(
@@ -54,7 +54,7 @@ async def render_status(
     width: int = Query(ge=200, le=3840),
     height: int = Query(ge=200, le=3840),
     orientation: Orientation = "portrait",
-    session: Session = Depends(require_permission("project:manage")),
+    session: Session = Depends(require_project_permission("project:view")),
 ) -> RenderStatusOut:
     return await render_service.get_render_status(
         get_db(),

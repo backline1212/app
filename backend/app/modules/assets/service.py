@@ -167,7 +167,7 @@ async def create_comment(
     actor: Actor,
     body: AssetCommentCreate,
 ) -> CommentOut:
-    workspace_id = await resolve_actor_project_access(db, actor, project_id)
+    workspace_id = await resolve_actor_project_access(db, actor, project_id, "comment:create")
     asset = await AssetRepository(db).find(workspace_id, project_id, asset_id)
     if asset is None:
         raise NotFoundError("Asset not found.")

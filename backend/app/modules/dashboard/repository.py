@@ -19,8 +19,18 @@ def page_title_match(matcher: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def root_pipeline(workspace_id: str) -> list[dict[str, Any]]:
-    """Legacy comments derive project_id through their real page; standalone uses the same join."""
+def root_pipeline(
+    workspace_id: str, hidden_project_ids: list[str] | None = None
+) -> list[dict[str, Any]]:
+    """Legacy comments derive project_id through their real page; standalone uses the same join.
+
+    `hidden_project_ids` are projects the reader can't open (TDR-0056); their
+    comments never enter the pipeline, so no count or facet can include them."""
+    hidden_stage: list[dict[str, Any]] = (
+        [{"$match": {"_page.project_id": {"$nin": hidden_project_ids}}}]
+        if hidden_project_ids
+        else []
+    )
     return [
         {"$match": {"workspace_id": workspace_id, "deleted_at": None, "parent_id": None}},
         {
@@ -52,6 +62,7 @@ def root_pipeline(workspace_id: str) -> list[dict[str, Any]]:
         },
         {"$unwind": "$_page"},
         {"$match": {"_page.workspace_id": workspace_id}},
+        *hidden_stage,
         {
             "$set": {
                 "_project_oid": {
@@ -82,9 +93,13 @@ class DashboardRepository:
         self.db = db
 
     async def tickets(
-        self, workspace_id: str, user_id: str, filters: TicketFilters
+        self,
+        workspace_id: str,
+        user_id: str,
+        filters: TicketFilters,
+        hidden_project_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        pipeline = root_pipeline(workspace_id)
+        pipeline = root_pipeline(workspace_id, hidden_project_ids)
         match: dict[str, Any] = {"workspace_id": workspace_id}
         if filters.comment_id:
             match["_id"] = to_object_id(filters.comment_id)
@@ -222,8 +237,10 @@ class DashboardRepository:
         row: dict[str, Any] = result[0]
         return row
 
-    async def summary(self, workspace_id: str, user_id: str) -> dict[str, Any]:
-        pipeline = root_pipeline(workspace_id)
+    async def summary(
+        self, workspace_id: str, user_id: str, hidden_project_ids: list[str] | None = None
+    ) -> dict[str, Any]:
+        pipeline = root_pipeline(workspace_id, hidden_project_ids)
         open_expr = {"$not": [{"$in": ["$status", ["resolved", "wont_fix"]]}]}
         today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         pipeline.append(
@@ -315,18 +332,34 @@ class DashboardRepository:
             }
         )
         result = await self.db.comments.aggregate(pipeline).to_list(length=1)
+        hidden_oids = [oid for oid in map(to_object_id, hidden_project_ids or []) if oid]
         active = await self.db.projects.count_documents(
-            {"workspace_id": workspace_id, "archived_at": None}
+            {"workspace_id": workspace_id, "archived_at": None, "_id": {"$nin": hidden_oids}}
         )
         archived = await self.db.projects.count_documents(
-            {"workspace_id": workspace_id, "archived_at": {"$ne": None}}
+            {
+                "workspace_id": workspace_id,
+                "archived_at": {"$ne": None},
+                "_id": {"$nin": hidden_oids},
+            }
         )
         return {**result[0], "active_projects": active, "archived_projects": archived}
 
     async def activity(
-        self, workspace_id: str, user_id: str, offset: int, limit: int, event_type: str
+        self,
+        workspace_id: str,
+        user_id: str,
+        offset: int,
+        limit: int,
+        event_type: str,
+        hidden_project_ids: list[str] | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         query: dict[str, Any] = {"workspace_id": workspace_id}
+        if hidden_project_ids:
+            # Events about a project the reader can't open. Older comment events carry
+            # only a comment_id; dashboard/service.py's activity() drops those.
+            query["payload_json.project_id"] = {"$nin": hidden_project_ids}
+            query["payload_json.source_project_id"] = {"$nin": hidden_project_ids}
         if event_type == "mine":
             query["actor_id"] = user_id
         elif event_type == "clients":
@@ -370,11 +403,18 @@ class DashboardRepository:
     # the bounded-search contract itself, this only relocates who executes it.
 
     async def search_projects(
-        self, workspace_id: str, matcher: dict[str, Any], limit: int
+        self,
+        workspace_id: str,
+        matcher: dict[str, Any],
+        limit: int,
+        hidden_project_ids: list[str] | None = None,
     ) -> list[dict[str, Any]]:
+        query: dict[str, Any] = {"workspace_id": workspace_id, "archived_at": None, "name": matcher}
+        if hidden_project_ids:
+            query["_id"] = {"$nin": [oid for oid in map(to_object_id, hidden_project_ids) if oid]}
         cursor = (
             self.db.projects.find(
-                {"workspace_id": workspace_id, "archived_at": None, "name": matcher},
+                query,
                 {"name": 1, "project_type": 1},
             )
             .limit(limit)

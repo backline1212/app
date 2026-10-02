@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import secrets
 import time
+from typing import Any
 
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from jose import JWTError, jwt
@@ -59,6 +60,9 @@ class GuestTokenClaims(BaseModel):
     sub: str
     scope: str = "guest"
     share_link_id: str
+    # TDR-0057: set only on a dashboard canvas session, which acts for this member - every
+    # guest call made with it is checked against the member's own project role.
+    member_user_id: str | None = None
     iat: int
     exp: int
 
@@ -96,16 +100,20 @@ def decode_access_token(token: str) -> AccessTokenClaims:
         raise InvalidTokenError("Invalid access token claims.") from exc
 
 
-def create_guest_token(guest_session_id: str, share_link_id: str) -> str:
+def create_guest_token(
+    guest_session_id: str, share_link_id: str, *, member_user_id: str | None = None
+) -> str:
     settings = get_settings()
     now = int(time.time())
-    claims = {
+    claims: dict[str, Any] = {
         "sub": guest_session_id,
         "scope": "guest",
         "share_link_id": share_link_id,
         "iat": now,
         "exp": now + settings.guest_token_ttl_days * 24 * 60 * 60,
     }
+    if member_user_id is not None:
+        claims["member_user_id"] = member_user_id
     token: str = jwt.encode(claims, settings.jwt_signing_key, algorithm=ALGORITHM)
     return token
 

@@ -113,3 +113,30 @@ export function updateProjectSettings(projectId: string, settings: ProjectSettin
     body: JSON.stringify(settings),
   });
 }
+
+// ── Project access (TDR-0056) ──────────────────────────────────────────────────
+export type ProjectAccessDetailOut = Schemas["ProjectAccessDetailOut"];
+export type ProjectPersonOut = Schemas["ProjectPersonOut"];
+export type ProjectAccessUpdate = Schemas["ProjectAccessUpdate"];
+
+export function getProjectAccess(projectId: string): Promise<ProjectAccessDetailOut> {
+  return apiFetch<ProjectAccessDetailOut>(`/api/v1/projects/${projectId}/access`);
+}
+
+export function updateProjectAccess(projectId: string, changes: ProjectAccessUpdate) {
+  return apiFetch<ProjectAccessDetailOut>(`/api/v1/projects/${projectId}/access`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+export function setProjectMemberRole(projectId: string, userId: string, role: Schemas["ProjectMemberRoleUpdate"]["role"]) {
+  return apiFetch<ProjectAccessDetailOut>(`/api/v1/projects/${projectId}/access/members/${userId}`, {
+    method: "PUT",
+    body: JSON.stringify({ role }),
+  });
+}
+
+export function removeProjectMember(projectId: string, userId: string) {
+  return apiFetch<void>(`/api/v1/projects/${projectId}/access/members/${userId}`, { method: "DELETE" });
+}

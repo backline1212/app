@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, File, Request, UploadFile
 
 from app.core.config import get_settings
 from app.core.db import get_db
-from app.core.permissions import require_permission
+from app.core.permissions import require_project_permission
 from app.core.rate_limit import actor_rate_limit_key, check_rate_limit
 from app.core.redis_client import get_redis
 from app.core.session import Actor, Session, get_current_actor
@@ -23,7 +23,7 @@ async def upload_asset(
     project_id: str,
     request: Request,
     file: UploadFile = File(...),
-    session: Session = Depends(require_permission("project:manage")),
+    session: Session = Depends(require_project_permission("asset:upload")),
 ) -> AssetOut:
     await check_rate_limit(
         get_redis(),

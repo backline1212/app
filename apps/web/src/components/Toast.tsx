@@ -12,15 +12,22 @@ import { getTopOpenDialog, subscribeOpenDialogs } from "../lib/dialog-stack";
 
 type ToastVariant = "success" | "error" | "warning" | "progress";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastItem {
   id: string;
   message: string;
   variant: ToastVariant;
   addedAt: number;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  toast: (message: string, variant?: ToastVariant) => void;
+  /** `action` adds one button (e.g. "Undo") that runs and dismisses the toast. */
+  toast: (message: string, variant?: ToastVariant, options?: { action?: ToastAction }) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -50,7 +57,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toast = useCallback(
-    (message: string, variant: ToastVariant = "success") => {
+    (message: string, variant: ToastVariant = "success", options?: { action?: ToastAction }) => {
       const dedupKey = `${variant}:${message}`;
       const now = Date.now();
       const lastSeen = recentRef.current.get(dedupKey);
@@ -63,7 +70,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const id = genId();
       setItems((prev) => {
         // LIFO: new item at start; keep only MAX_TOASTS (oldest = last = auto-clear)
-        const next = [{ id, message, variant, addedAt: now }, ...prev];
+        const next = [{ id, message, variant, addedAt: now, action: options?.action }, ...prev];
         return next.slice(0, MAX_TOASTS);
       });
 
@@ -143,6 +150,18 @@ function ToastEntry({
         {ICONS[item.variant]}
       </span>
       <span className="bl-toast-msg">{item.message}</span>
+      {item.action && (
+        <button
+          type="button"
+          className="bl-toast-action"
+          onClick={() => {
+            item.action?.onClick();
+            onDismiss(item.id);
+          }}
+        >
+          {item.action.label}
+        </button>
+      )}
       <button
         type="button"
         className="bl-toast-close"

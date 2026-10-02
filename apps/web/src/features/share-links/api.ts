@@ -3,9 +3,19 @@ import type { Schemas } from "@backline/types";
 import { apiFetch } from "../../lib/api-client";
 
 export type ShareLinkOut = Schemas["ShareLinkOut"];
+export type CanvasSessionOut = Schemas["CanvasSessionOut"];
 
+/** The project's client review links. Commenters and up only (TDR-0057): a link lets
+ * whoever holds it comment as a guest, so a viewer is never handed one. */
 export function listShareLinks(projectId: string): Promise<ShareLinkOut[]> {
   return apiFetch<ShareLinkOut[]>(`/api/v1/projects/${projectId}/share-links`);
+}
+
+/** What the review canvas loads with: the project's own canvas link and the widget's
+ * session on it, bound to the signed-in member (TDR-0057). Safe to repeat - the
+ * server reuses the member's session. */
+export function createCanvasSession(projectId: string): Promise<CanvasSessionOut> {
+  return apiFetch<CanvasSessionOut>(`/api/v1/projects/${projectId}/canvas-session`, { method: "POST" });
 }
 
 export function createShareLink(

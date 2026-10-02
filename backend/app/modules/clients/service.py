@@ -7,6 +7,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import NotFoundError, ValidationError
 from app.core.events import append_event
+from app.core.project_access import session_hidden_project_ids
+from app.core.session import Session
 from app.modules.clients.repository import ClientRepository
 from app.modules.clients.schemas import ClientCreate, ClientOut, ClientUpdate
 
@@ -19,11 +21,17 @@ def client_out(doc: dict[str, Any]) -> ClientOut:
 
 
 async def list_clients(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, include_archived: bool = False
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    include_archived: bool = False,
+    viewer: Session | None = None,
 ) -> list[ClientOut]:
+    hidden = await session_hidden_project_ids(db, viewer) if viewer is not None else []
     return [
         client_out(doc)
-        for doc in await ClientRepository(db).list(workspace_id, include_archived=include_archived)
+        for doc in await ClientRepository(db).list(
+            workspace_id, include_archived=include_archived, hidden_project_ids=hidden
+        )
     ]
 
 
@@ -104,8 +112,9 @@ async def restore_client(
 async def export_clients(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     workspace_id: str,
+    viewer: Session | None = None,
 ) -> str:
-    clients = await list_clients(db, workspace_id)
+    clients = await list_clients(db, workspace_id, viewer=viewer)
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(

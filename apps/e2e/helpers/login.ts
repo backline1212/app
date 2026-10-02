@@ -42,17 +42,23 @@ async function waitForUrlMatch(page: Page, pattern: RegExp, timeout = 20_000): P
   throw new Error(`Timed out waiting for URL to match ${pattern}; last url = ${page.url()}`);
 }
 
-/** Logs in via the real OTP flow and lands on the workspace picker. */
+/**
+ * Logs in via the real OTP flow and lands on the workspace picker. Since TDR-0053 the
+ * login page leads with a password; the emailed code sits behind "Forgot password?",
+ * and a verified code offers to set a password, which is skipped here.
+ */
 export async function loginViaOtp(page: Page, email: string): Promise<void> {
   await page.context().setExtraHTTPHeaders({ "X-Forwarded-For": fakeIpFor(email) });
   await page.goto("/login");
+  await page.click('button:has-text("Forgot password?")');
   await page.fill('input[type="email"]', email);
-  await page.click('button:has-text("Sign in with Email")');
+  await page.click('button:has-text("Send the sign-in code")');
   await page.waitForSelector('input[inputmode="numeric"]', { timeout: 10_000 });
   await page.waitForTimeout(300); // let the backend finish logging the email
   const code = readOtpCodeFor(email);
   await page.fill('input[inputmode="numeric"]', code);
   await page.click('button:has-text("Verify and sign in")');
+  await page.click('button:has-text("Skip for now")');
   await waitForUrlMatch(page, /\/$|\/w\//);
 }
 

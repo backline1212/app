@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.db import get_db
-from app.core.permissions import require_permission
+from app.core.permissions import require_project_permission
 from app.core.session import Session, require_workspace_context
 from app.modules.ai import service
 from app.modules.ai.schemas import ProjectAnalysisResult, SuggestReplyResult, SummarizeResult
@@ -21,7 +21,7 @@ async def summarize_thread(
     project_id: str,
     comment_id: str,
     db: AsyncIOMotorDatabase[dict[str, Any]] = Depends(get_db),
-    session: Session = Depends(require_permission("comment:view_team")),
+    session: Session = Depends(require_project_permission("ai:assist")),
 ) -> SummarizeResult:
     # workspace_id is taken from the caller's own session, never the path param -
     # the path param is untrusted and must not be used to scope the lookup (it
@@ -40,7 +40,7 @@ async def suggest_reply(
     project_id: str,
     comment_id: str,
     db: AsyncIOMotorDatabase[dict[str, Any]] = Depends(get_db),
-    session: Session = Depends(require_permission("comment:view_team")),
+    session: Session = Depends(require_project_permission("ai:assist")),
 ) -> SuggestReplyResult:
     return await service.suggest_reply(
         db, require_workspace_context(session), comment_id, user_id=session.user_id
@@ -57,7 +57,7 @@ async def analyze_project(
     db: AsyncIOMotorDatabase[dict[str, Any]] = Depends(get_db),
     # Same bar as manually setting a comment's priority (comments/router.py's
     # update_comment) - this endpoint writes that same field.
-    session: Session = Depends(require_permission("comment:update_status")),
+    session: Session = Depends(require_project_permission("comment:update_status")),
 ) -> ProjectAnalysisResult:
     return await service.analyze_project(
         db, require_workspace_context(session), project_id, user_id=session.user_id

@@ -1,14 +1,20 @@
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
+from app.core.actor_access import resolve_actor_project_access
 from app.core.db import get_db
+from app.core.errors import NotFoundError, PermissionDeniedError
 from app.core.security import InvalidTokenError, decode_access_token, decode_guest_token
 from app.core.session import Actor, GuestSession, Session
 from app.modules.pages.repository import PageRepository
 from app.modules.realtime import presence
-from app.modules.realtime.manager import manager
+from app.modules.realtime.manager import MemberEventFilter, manager
 from app.modules.realtime.pubsub import publish
-from app.modules.share_links.repository import GuestSessionRepository, ShareLinkRepository
+from app.modules.share_links.repository import (
+    GuestSessionRepository,
+    ShareLinkRepository,
+    is_canvas_link,
+)
 
 router = APIRouter(tags=["realtime"])
 
@@ -23,7 +29,9 @@ def _resolve_actor(token: str) -> Actor:
     try:
         guest_claims = decode_guest_token(token)
         return GuestSession(
-            guest_session_id=guest_claims.sub, share_link_id=guest_claims.share_link_id
+            guest_session_id=guest_claims.sub,
+            share_link_id=guest_claims.share_link_id,
+            member_user_id=guest_claims.member_user_id,
         )
     except (InvalidTokenError, ValidationError):
         pass
@@ -52,6 +60,7 @@ async def websocket_endpoint(
     db = get_db()
 
     guest_project_id: str | None = None
+    event_filter: MemberEventFilter | None = None
     if isinstance(actor, Session):
         if actor.workspace_id is None:
             await websocket.close(code=4403)
@@ -59,6 +68,7 @@ async def websocket_endpoint(
         channel = f"workspace:{actor.workspace_id}:all"
         workspace_id = actor.workspace_id
         presence_display_name = actor.user_id
+        event_filter = MemberEventFilter(workspace_id=workspace_id, user_id=actor.user_id)
     else:
         link = await ShareLinkRepository(db).find_by_id(actor.share_link_id)
         if link is None or link["revoked_at"] is not None:
@@ -76,6 +86,14 @@ async def websocket_endpoint(
         ):
             await websocket.close(code=4403)
             return
+        # A dashboard canvas session follows its member's access (TDR-0057): someone
+        # taken off the project can't reconnect with the session they already hold.
+        if actor.member_user_id is not None or is_canvas_link(link):
+            try:
+                await resolve_actor_project_access(db, actor, link["project_id"])
+            except (NotFoundError, PermissionDeniedError):
+                await websocket.close(code=4403)
+                return
         await guest_repo.touch_last_seen(
             workspace_id=workspace_id, guest_session_id=actor.guest_session_id
         )
@@ -85,6 +103,7 @@ async def websocket_endpoint(
     # workspace/project before being used to key presence and broadcast on the
     # workspace's own channel - without this, a member or guest could spoof
     # presence for a foreign page_id into their own workspace's presence feed.
+    presence_project_id: str | None = None
     if page_id is not None:
         page = await PageRepository(db).find_by_id(page_id)
         page_valid = (
@@ -92,10 +111,12 @@ async def websocket_endpoint(
             and page["workspace_id"] == workspace_id
             and (guest_project_id is None or page["project_id"] == guest_project_id)
         )
-        if not page_valid:
+        if page is None or not page_valid:
             page_id = None
+        else:
+            presence_project_id = page["project_id"]
 
-    await manager.connect(channel, websocket)
+    await manager.connect(channel, websocket, event_filter)
 
     presence_key = f"{channel}:{id(websocket)}"
     if page_id is not None:
@@ -104,7 +125,12 @@ async def websocket_endpoint(
             f"workspace:{workspace_id}:all",
             event_type="presence.updated",
             workspace_id=workspace_id,
-            payload={"page_id": page_id, "active_sessions": await presence.list_present(page_id)},
+            payload={
+                "page_id": page_id,
+                # Lets each member connection's filter drop presence on private projects.
+                "project_id": presence_project_id,
+                "active_sessions": await presence.list_present(page_id),
+            },
         )
 
     try:
@@ -125,6 +151,7 @@ async def websocket_endpoint(
                 workspace_id=workspace_id,
                 payload={
                     "page_id": page_id,
+                    "project_id": presence_project_id,
                     "active_sessions": await presence.list_present(page_id),
                 },
             )

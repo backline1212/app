@@ -10,6 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.errors import NotFoundError
 from app.core.events import append_event
 from app.core.permissions import Role, role_allows
+from app.core.project_access import check_project_action
 from app.core.security import generate_opaque_token, hash_secret
 from app.core.session import Session
 from app.modules.comments.repository import CommentRepository
@@ -262,19 +263,32 @@ class TicketThread:
 
 
 async def load_thread(
-    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, ref: str
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    ref: str,
+    viewer: Session | None = None,
+    action: str = "comment:view_team",
 ) -> TicketThread:
+    """With a viewer, the ticket's project must allow them `action` (TDR-0056); a
+    ticket in a project they can't open reads exactly like one that doesn't exist."""
     doc = await resolve_ticket_doc(db, workspace_id=workspace_id, ref=ref)
+    page = await PageRepository(db).find_by_id(doc["page_id"])
+    project = await ProjectRepository(db).find_by_id(page["project_id"]) if page else None
+    if project is not None and project["workspace_id"] != workspace_id:
+        project = None
+    if viewer is not None:
+        if project is None:
+            raise NotFoundError(f"No ticket {ref!r} in this workspace.")
+        check_project_action(
+            project, viewer, action, not_found_message=f"No ticket {ref!r} in this workspace."
+        )
     reply_docs = sorted(
         await CommentRepository(db).list_replies(str(doc["_id"])),
         key=lambda reply: reply["created_at"],
     )
     comment = await _comment_out(db, doc)
     replies = list(await asyncio.gather(*(_comment_out(db, reply) for reply in reply_docs)))
-    page = await PageRepository(db).find_by_id(doc["page_id"])
-    project = await ProjectRepository(db).find_by_id(page["project_id"]) if page else None
-    if project is not None and project["workspace_id"] != workspace_id:
-        project = None
     return TicketThread(
         comment=comment,
         replies=replies,

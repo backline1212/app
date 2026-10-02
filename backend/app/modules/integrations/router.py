@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.core.db import get_db
-from app.core.permissions import require_permission
+from app.core.permissions import require_permission, require_project_permission
 from app.core.session import Session, require_workspace_context, require_workspace_match
 from app.modules.integrations import service as integration_service
 from app.modules.integrations.schemas import (
@@ -112,7 +112,7 @@ async def disconnect_integration(
 async def send_comment_to_tracker(
     comment_id: str,
     integration_id: str,
-    session: Session = Depends(require_permission("comment:create_integration_task")),
+    session: Session = Depends(require_project_permission("comment:create_integration_task")),
 ) -> ExternalLinkOut:
     """File the comment in any connected tracker. Idempotent per (comment, connection):
     a second send returns the ticket filed the first time."""
@@ -128,7 +128,7 @@ async def send_comment_to_tracker(
 @router.get("/comments/{comment_id}/integration-links", response_model=list[ExternalLinkOut])
 async def list_comment_integration_links(
     comment_id: str,
-    session: Session = Depends(require_permission("comment:view_team")),
+    session: Session = Depends(require_project_permission("comment:view_team")),
 ) -> list[ExternalLinkOut]:
     return await integration_service.list_comment_links(
         get_db(), comment_id=comment_id, workspace_id=require_workspace_context(session)
@@ -142,7 +142,7 @@ async def list_comment_integration_links(
 async def create_clickup_task(
     comment_id: str,
     integration_id: str,
-    session: Session = Depends(require_permission("comment:create_integration_task")),
+    session: Session = Depends(require_project_permission("comment:create_integration_task")),
 ) -> CreateClickUpTaskResult:
     return await integration_service.create_clickup_task(
         get_db(),
@@ -160,7 +160,7 @@ async def create_clickup_task(
 async def create_trello_card(
     comment_id: str,
     integration_id: str,
-    session: Session = Depends(require_permission("comment:create_integration_task")),
+    session: Session = Depends(require_project_permission("comment:create_integration_task")),
 ) -> CreateTrelloCardResult:
     return await integration_service.create_trello_card(
         get_db(),
@@ -178,7 +178,7 @@ async def create_trello_card(
 async def create_jira_issue(
     comment_id: str,
     integration_id: str,
-    session: Session = Depends(require_permission("comment:create_integration_task")),
+    session: Session = Depends(require_project_permission("comment:create_integration_task")),
 ) -> CreateJiraIssueResult:
     return await integration_service.create_jira_issue(
         get_db(),
@@ -196,7 +196,7 @@ async def create_jira_issue(
 async def create_asana_task(
     comment_id: str,
     integration_id: str,
-    session: Session = Depends(require_permission("comment:create_integration_task")),
+    session: Session = Depends(require_project_permission("comment:create_integration_task")),
 ) -> CreateAsanaTaskResult:
     return await integration_service.create_asana_task(
         get_db(),

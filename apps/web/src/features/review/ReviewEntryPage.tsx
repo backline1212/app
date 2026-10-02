@@ -194,6 +194,14 @@ export function ReviewEntryPage() {
     return null;
   }
 
+  // The dashboard canvas's own link (TDR-0057): sessions on it are only issued to a
+  // signed-in member from inside the dashboard, so there is no name to ask for here.
+  if (resolved.canvas_only) {
+    return (
+      <ErrorScreen message="This link only opens inside the Backline dashboard. Sign in to review this project, or ask the team for a client review link." />
+    );
+  }
+
   return (
     <div className="bl-gate-scrim" id="ggScrim">
       <div className="bl-gate-modal" role="dialog" aria-modal="true" aria-labelledby="ggTitle">

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../auth/AuthContext";
@@ -23,6 +23,8 @@ export function WorkspacePickerPage() {
     queryKey: qk.workspaces(),
     queryFn: workspacesApi.listWorkspaces,
   });
+  const myRequests = useQuery({ queryKey: qk.myJoinRequests(), queryFn: workspacesApi.listMyJoinRequests });
+  const waiting = (myRequests.data ?? []).filter((request) => request.status === "pending");
 
   async function enterWorkspace(workspaceId: string, slug: string) {
     setError(null);
@@ -101,9 +103,29 @@ export function WorkspacePickerPage() {
 
           {workspaces && workspaces.length === 0 && (
             <p className="wsp-empty">
-              You don't belong to any workspaces yet — create one below to get started.
+              You don't belong to any workspaces yet. Join your team's with a room code, or create one below.
             </p>
           )}
+
+          {waiting.length > 0 && (
+            <p className="wsp-waiting" role="status">
+              <span className="join-pulse" aria-hidden="true" />
+              <span>
+                Waiting for approval to join <strong>{waiting.map((request) => request.workspace_name).join(", ")}</strong>.
+              </span>
+            </p>
+          )}
+
+          <Link className="wsp-join" to="/join">
+            <span className="wsp-join-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="7" width="18" height="10" rx="2" /><path d="M7 12h.01M11 12h.01M15 12h.01" /></svg>
+            </span>
+            <span>
+              <strong>Have a room code?</strong>
+              <small>Join a teammate's workspace</small>
+            </span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          </Link>
 
           {/* Divider */}
           <div className="wsp-div" />
