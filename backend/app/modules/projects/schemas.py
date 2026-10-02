@@ -8,6 +8,7 @@ from app.core.ssrf_guard import is_public_hostname_literal
 from app.core.text import Trimmed
 
 ProjectType = Literal["website", "image", "pdf"]
+PreviewStatus = Literal["queued", "ready", "failed"]
 Environment = Literal["live", "staging"]
 # TDR-0056 project-level access. Order matters: each role includes the ones before it.
 ProjectRoleName = Literal["viewer", "commenter", "editor", "manager"]
@@ -203,6 +204,15 @@ class ProjectOut(BaseModel):
     # The caller's own role on this project. None only where a project is built
     # without a viewer (internal callers); every API response sets it.
     my_role: ProjectRoleName | None = None
+    # TDR-0058: a screenshot of the top of a website project's site for its card,
+    # captured by the worker. The URL is signed and short-lived, so it changes on every
+    # read; `preview_captured_at` is what tells a client the picture itself changed.
+    preview_url: str | None = None
+    preview_status: PreviewStatus | None = None
+    preview_captured_at: datetime | None = None
+    # When the capture now queued (or last attempted) was asked for, so a client can
+    # stop waiting on one that never ran.
+    preview_requested_at: datetime | None = None
 
 
 class ProjectDeletionCounts(BaseModel):

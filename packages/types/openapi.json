@@ -2112,6 +2112,54 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/preview": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Refresh Project Preview",
+        "description": "Retake the card's screenshot of the site now, e.g. after a redesign ships\n(TDR-0058). Returns the project with `preview_status` \"queued\"; one capture at a\ntime per project. Editors may, like managing the project's pages: it changes\nnothing but the picture on the card.",
+        "operationId": "refresh_project_preview_api_v1_projects__project_id__preview_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/duplicate": {
       "post": {
         "tags": [
@@ -12597,6 +12645,57 @@
               }
             ],
             "title": "My Role"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "preview_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "ready",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Status"
+          },
+          "preview_captured_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Captured At"
+          },
+          "preview_requested_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Requested At"
           }
         },
         "type": "object",

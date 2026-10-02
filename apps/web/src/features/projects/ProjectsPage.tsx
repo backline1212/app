@@ -27,6 +27,13 @@ const TYPE_LABELS: Record<string, string> = { website: "Website", image: "Images
 
 const BAR_STATUSES = ["todo", "in_progress", "in_review", "blocked", "wont_fix"] as const;
 
+// While a card's site screenshot is being taken (TDR-0058) the grid checks back until it
+// lands. A capture normally takes seconds; one asked for minutes ago is stuck (no worker
+// running), and the server retries those itself, so the grid stops waiting.
+function capturingNow(p: api.ProjectOut): boolean {
+  return p.preview_status === "queued" && !p.archived_at && Boolean(p.preview_requested_at) && Date.now() - Date.parse(p.preview_requested_at!) < 3 * 60_000;
+}
+
 interface PickerOption { id: string; label: string; sub: string }
 
 // "A", "A and B", "A, B and C".
@@ -96,7 +103,11 @@ export function ProjectsPage() {
   // Typing in the filter box replaces the history entry instead of adding one per
   // keystroke, so Back leaves the page rather than un-typing the query a letter at a time.
   function filter(key: string, value: string) { const next = new URLSearchParams(params); if (value) next.set(key, value); else next.delete(key); setParams(next, { replace: key === "search" }); }
-  const projects = useQuery({ queryKey: qk.projects(workspace.id), queryFn: () => api.listProjects(workspace.id, true) });
+  const projects = useQuery({
+    queryKey: qk.projects(workspace.id),
+    queryFn: () => api.listProjects(workspace.id, true),
+    refetchInterval: (query) => query.state.data?.some(capturingNow) ? 5_000 : false,
+  });
   const clients = useQuery({ queryKey: qk.clients(workspace.id), queryFn: () => listClients(workspace.id) });
   const members = useQuery({ queryKey: qk.members(workspace.id), queryFn: () => listMembers(workspace.id) });
   const summary = useQuery({ queryKey: qk.dashboard(workspace.id), queryFn: () => getDashboard(workspace.id) });

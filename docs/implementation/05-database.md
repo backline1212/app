@@ -7,6 +7,7 @@ MongoDB remains the system of record. Keep private files in object storage, not 
 | Collection | Changes | Existing document behavior |
 |---|---|---|
 | projects | `project_type` (website/image/pdf), `environment` (live/staging), nullable `client_id` | website/live/no client defaults |
+| projects | `preview` subdocument (TDR-0058): status, token, origin, requested_at, key, key_origin, captured_at, error; JPEG under `previews/{workspace}/{project}/` | absent until the first capture; the grid queues one on first listing, so no backfill |
 | clients | workspace_id, name, contact_name, email, created_by, created_at, updated_at, archived_at | new collection |
 | comments | in_review/blocked statuses, priority, tags, assignee_ids, waiting_on_ids, waiting_on_client, project_id, standalone marker | defaults; derive assignee_ids from legacy assignee_id; old pages remain valid |
 | events | keep append-only format | dashboard projects safe fields only |

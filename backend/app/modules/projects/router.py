@@ -94,6 +94,7 @@ async def get_project(
         project_id=project_id,
         workspace_id=require_workspace_context(session),
         viewer=session,
+        with_preview=True,
     )
 
 
@@ -155,6 +156,23 @@ async def update_project_settings(
         workspace_id=require_workspace_context(session),
         actor_user_id=session.user_id,
         settings=body,
+    )
+
+
+@router.post("/projects/{project_id}/preview", response_model=ProjectOut, status_code=202)
+async def refresh_project_preview(
+    project_id: str,
+    session: Session = Depends(require_project_permission("page:manage")),
+) -> ProjectOut:
+    """Retake the card's screenshot of the site now, e.g. after a redesign ships
+    (TDR-0058). Returns the project with `preview_status` "queued"; one capture at a
+    time per project. Editors may, like managing the project's pages: it changes
+    nothing but the picture on the card."""
+    return await project_service.refresh_project_preview(
+        get_db(),
+        project_id=project_id,
+        workspace_id=require_workspace_context(session),
+        viewer=session,
     )
 
 

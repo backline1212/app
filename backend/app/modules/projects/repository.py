@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 
 from app.core.mongo_utils import to_object_id
 
@@ -267,4 +268,74 @@ class ProjectRepository:
         await self.db.projects.update_one(
             {"_id": to_object_id(project_id)},
             {"$set": {"archived_at": datetime.now(UTC), "updated_at": datetime.now(UTC)}},
+        )
+
+    # Card previews (TDR-0058). These never touch `updated_at`: the projects grid sorts
+    # by it, and a background screenshot isn't activity on the project.
+
+    async def claim_preview(
+        self,
+        workspace_id: str,
+        project_id: str,
+        *,
+        previous_token: str | None,
+        token: str,
+        origin: str,
+        requested_at: datetime,
+    ) -> bool:
+        """Mark a capture queued, if no one else has since the caller read the project.
+        Compare-and-set on the last capture's token, so two listings at once queue one
+        job. A token of None also matches a project that has never had a preview."""
+        result = await self.db.projects.update_one(
+            {
+                "workspace_id": workspace_id,
+                "_id": to_object_id(project_id),
+                "preview.token": previous_token,
+            },
+            {
+                "$set": {
+                    "preview.status": "queued",
+                    "preview.token": token,
+                    "preview.origin": origin,
+                    "preview.requested_at": requested_at,
+                    "preview.error": None,
+                }
+            },
+        )
+        return result.modified_count == 1
+
+    async def finish_preview(
+        self,
+        workspace_id: str,
+        project_id: str,
+        *,
+        token: str,
+        key: str,
+        origin: str,
+        captured_at: datetime,
+    ) -> dict[str, Any] | None:
+        """Record a finished capture, unless a newer one was queued meanwhile. Returns
+        the project as it was before, so the caller can delete the screenshot it
+        replaces, or None when this capture was superseded."""
+        return await self.db.projects.find_one_and_update(
+            {"workspace_id": workspace_id, "_id": to_object_id(project_id), "preview.token": token},
+            {
+                "$set": {
+                    "preview.status": "ready",
+                    "preview.key": key,
+                    "preview.key_origin": origin,
+                    "preview.captured_at": captured_at,
+                    "preview.error": None,
+                }
+            },
+            return_document=ReturnDocument.BEFORE,
+        )
+
+    async def fail_preview(
+        self, workspace_id: str, project_id: str, *, token: str, error: str
+    ) -> None:
+        """Keeps any earlier screenshot: an old picture of the right site beats none."""
+        await self.db.projects.update_one(
+            {"workspace_id": workspace_id, "_id": to_object_id(project_id), "preview.token": token},
+            {"$set": {"preview.status": "failed", "preview.error": error[:500]}},
         )

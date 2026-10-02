@@ -24,6 +24,7 @@ from app.modules.billing.limits import require_within_plan_limit
 from app.modules.clients.repository import ClientRepository
 from app.modules.pages.repository import PageRepository
 from app.modules.projects import events as project_events
+from app.modules.projects import preview_service
 from app.modules.projects.repository import ProjectRepository, is_untouched_sample
 from app.modules.projects.schemas import (
     ProjectAccessDetailOut,
@@ -255,7 +256,7 @@ async def create_project(
     if visibility == VISIBILITY_PRIVATE:
         await _publish_access_changed(workspace_id, project_id)
 
-    return _project_out(doc, viewer)
+    return (await preview_service.with_previews(db, [doc], [_project_out(doc, viewer)]))[0]
 
 
 async def find_or_create_project_for_origin(
@@ -306,7 +307,9 @@ async def list_projects(
     docs = await ProjectRepository(db).list_for_workspace(
         workspace_id, include_archived=include_archived, exclude_ids=hidden
     )
-    return [_project_out(doc, viewer) for doc in docs]
+    return await preview_service.with_previews(
+        db, docs, [_project_out(doc, viewer) for doc in docs]
+    )
 
 
 async def get_project(
@@ -315,9 +318,12 @@ async def get_project(
     project_id: str,
     workspace_id: str,
     viewer: Session | None = None,
+    with_preview: bool = False,
 ) -> ProjectOut:
     """With a viewer, also checks they can see the project (a private project they
-    aren't on reads as not found) and fills in their role."""
+    aren't on reads as not found) and fills in their role. `with_preview` signs the
+    card screenshot's URL - only worth it for a response the dashboard renders, not
+    the many internal callers that check a project exists."""
     repo = ProjectRepository(db)
     doc = await repo.find_by_id(project_id)
     if doc is None or doc["workspace_id"] != workspace_id:
@@ -326,7 +332,29 @@ async def get_project(
         check_project_action(doc, viewer, "project:view")
     if doc.get("hard_delete_status") == "deleting":
         raise ConflictError("Permanent deletion is in progress for this project.")
+    if with_preview:
+        return (await preview_service.with_previews(db, [doc], [_project_out(doc, viewer)]))[0]
     return _project_out(doc, viewer)
+
+
+async def refresh_project_preview(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    project_id: str,
+    workspace_id: str,
+    viewer: Session | None = None,
+) -> ProjectOut:
+    doc = await ProjectRepository(db).find_by_id(project_id)
+    if doc is None or doc["workspace_id"] != workspace_id:
+        raise NotFoundError("Project not found.")
+    if doc.get("project_type", "website") != "website":
+        raise ValidationError("Only website projects have a site preview.")
+    if doc.get("archived_at") is not None:
+        raise ValidationError("Restore this project to refresh its preview.")
+    await preview_service.queue_capture(db, doc, force=True)
+    return await get_project(
+        db, project_id=project_id, workspace_id=workspace_id, viewer=viewer, with_preview=True
+    )
 
 
 async def update_project(
@@ -382,7 +410,8 @@ async def update_project(
 
     updated = await repo.find_by_id(project_id)
     assert updated is not None
-    return _project_out(updated, viewer)
+    # A changed review URL makes the card's screenshot due again (preview_service).
+    return (await preview_service.with_previews(db, [updated], [_project_out(updated, viewer)]))[0]
 
 
 async def archive_project(

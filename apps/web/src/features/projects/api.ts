@@ -41,6 +41,11 @@ export function duplicateProject(projectId: string) {
   return apiFetch<ProjectOut>(`/api/v1/projects/${projectId}/duplicate`, { method: "POST" });
 }
 
+/** Retake the card's screenshot of the site (TDR-0058); the worker captures it. */
+export function refreshProjectPreview(projectId: string) {
+  return apiFetch<ProjectOut>(`/api/v1/projects/${projectId}/preview`, { method: "POST" });
+}
+
 export type ProjectHardDeletePreviewOut = Schemas["ProjectHardDeletePreviewOut"];
 export type ProjectHardDeleteResult = Schemas["ProjectHardDeleteResult"];
 

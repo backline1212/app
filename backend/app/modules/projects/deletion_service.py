@@ -53,6 +53,8 @@ def _allowed_object_prefixes(workspace_id: str, project_id: str) -> list[str]:
         # to ProjectDeletionRepository.snapshot_graph/delete_graph), leaking both the
         # R2 objects and their rows forever.
         f"renders/{workspace_id}/{project_id}/",
+        # Card screenshots (projects/preview_service.py, TDR-0058).
+        f"previews/{workspace_id}/{project_id}/",
     ]
 
 

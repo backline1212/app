@@ -12,7 +12,7 @@ import { listShareLinks } from "../share-links/api";
 import type { ProjectOut } from "./api";
 import * as api from "./api";
 
-type MenuIconName = "archive" | "board" | "download" | "duplicate" | "link" | "page" | "rename" | "restore" | "settings" | "share" | "trash";
+type MenuIconName = "archive" | "board" | "camera" | "download" | "duplicate" | "link" | "page" | "rename" | "restore" | "settings" | "share" | "trash";
 
 function MenuIcon({ name }: { name: MenuIconName }) {
   return <svg className="bl-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -23,6 +23,7 @@ function MenuIcon({ name }: { name: MenuIconName }) {
     {name === "rename" && <><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></>}
     {name === "page" && <><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z" /><path d="M14 2v5h5" /></>}
     {name === "duplicate" && <><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>}
+    {name === "camera" && <><path d="M14.5 4h-5L7.5 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.5Z" /><circle cx="12" cy="13" r="3.5" /></>}
     {name === "download" && <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></>}
     {name === "archive" && <><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9M10 13h4" /></>}
     {name === "restore" && <><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6" /></>}
@@ -96,6 +97,11 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
   });
   const archive = useMutation({ mutationFn: () => api.archiveProject(project.id), onSuccess: async () => { await refreshWorkspace(); setConfirmArchive(false); toast("Project archived."); } });
   const restore = useMutation({ mutationFn: () => api.restoreProject(project.id), onSuccess: async () => { await refreshWorkspace(); setConfirmRestore(false); toast("Project restored."); } });
+  const refreshPreview = useMutation({
+    mutationFn: () => api.refreshProjectPreview(project.id),
+    onSuccess: async () => { await refreshWorkspace(); toast("Taking a new screenshot of the site. The card updates in a moment."); },
+    onError: () => toast("Could not refresh the preview.", "error"),
+  });
 
   function focusMenuEdge(edge: "first" | "last") {
     requestAnimationFrame(() => {
@@ -130,6 +136,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
         {item("Rename project", "rename", () => { setRenameValue(project.name); setRenaming(true); setOpen(false); }, { disabled: !canManage, note: !canManage ? managersNote : undefined })}
         {item("Ticket board", "board", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/board`); }, { disabled: Boolean(project.archived_at) })}
         {onManagePages && item("Manage pages", "page", () => { setOpen(false); onManagePages(); }, { disabled: Boolean(project.archived_at) || !canEdit, note: project.archived_at ? "Restore to edit" : !canEdit ? editorsNote : undefined })}
+        {(project.project_type ?? "website") === "website" && item(project.preview_status === "queued" ? "Capturing preview…" : "Refresh preview", "camera", () => { setOpen(false); refreshPreview.mutate(); }, { disabled: Boolean(project.archived_at) || !canEdit || refreshPreview.isPending || project.preview_status === "queued", note: project.archived_at ? "Restore to edit" : !canEdit ? editorsNote : "Retake the card's screenshot" })}
         {!onManagePages && project.project_type !== "website" && item("Manage files", "page", () => undefined, { disabled: true, note: "Coming soon" })}
         <div className="bl-dropdown-sep" role="separator" />
         {item("Duplicate project", "duplicate", () => { setConfirmDuplicate(true); setOpen(false); }, { disabled: !canEdit, note: !canEdit ? editorsNote : undefined })}

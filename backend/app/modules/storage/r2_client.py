@@ -97,6 +97,31 @@ async def generate_presigned_get(key: str, expires_in: int = 3600) -> str:
     return await asyncio.to_thread(_generate)
 
 
+async def generate_presigned_gets(keys: list[str], expires_in: int = 3600) -> dict[str, str]:
+    """generate_presigned_get for many keys on one client and one thread - a project
+    list signs a card preview per project, and a boto3 client per key is the slow part."""
+    if not keys:
+        return {}
+    settings = get_settings()
+
+    def _generate() -> dict[str, str]:
+        client = _make_client()
+        return {
+            key: client.generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": settings.r2_bucket_name,
+                    "Key": key,
+                    "ResponseCacheControl": "private, max-age=300",
+                },
+                ExpiresIn=expires_in,
+            )
+            for key in keys
+        }
+
+    return await asyncio.to_thread(_generate)
+
+
 async def upload_bytes(key: str, data: bytes, content_type: str) -> None:
     """Server-side upload, used for snapshot JSON (the backend compresses and writes it
     itself, unlike screenshots which the client PUTs directly via a presigned URL)."""

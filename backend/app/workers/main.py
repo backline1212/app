@@ -20,6 +20,7 @@ from app.workers.integrations import (
     dispatch_project_updated_event_job,
 )
 from app.workers.notifications import send_daily_digests_job, send_guest_resolved_email_job
+from app.workers.project_preview import capture_project_preview_job
 from app.workers.recovery import run_recovery_pipeline_job
 from app.workers.storage_gc import resume_project_hard_delete_job
 
@@ -33,6 +34,7 @@ class WorkerSettings:
         send_daily_digests_job,
         resume_project_hard_delete_job,
         render_browser_snapshot_job,
+        capture_project_preview_job,
     ]
     # Real headless-browser renders (Chromium/WebKit/Firefox via Playwright) are
     # meaningfully heavier than every other job here - cap how many run at once so a

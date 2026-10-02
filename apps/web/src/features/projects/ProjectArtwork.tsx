@@ -116,15 +116,33 @@ const PIN_SPOTS: Record<number, readonly Point[]> = {
   2: [[250, 76], [92, 94], [204, 142]],
 };
 
+// The API signs a fresh preview URL on every read, but the picture only changes when
+// preview_captured_at does. Holding on to the first URL per capture keeps each list
+// refetch from re-downloading every card's image. A failed load retries once with the
+// newest URL (the held one may have expired in a long-open tab), then gives up.
+function usePreviewSrc(url: string | null | undefined, version: string | null | undefined) {
+  const [held, setHeld] = useState<{ version: string; src: string } | null>(null);
+  const [broken, setBroken] = useState<string | null>(null);
+  const key = version ?? "";
+  if (url && held?.version !== key) setHeld({ version: key, src: url });
+  const src = url && held?.version === key && broken !== key ? held.src : null;
+  function onError() {
+    if (url && held && url !== held.src) setHeld({ version: key, src: url });
+    else setBroken(key);
+  }
+  return { src, onError };
+}
+
 /**
- * The picture on a project card. Nothing here is a screenshot (capturing one per card
- * would mean a headless-browser render for every project in the grid): a website gets a
- * schematic page with the site's own favicon in its header, an image or PDF project a
- * sketch of its kind. The pins are real, though - one per open comment, up to three,
- * or a check once everything on it is closed. Colors come from a per-project palette
- * that the stylesheet re-mixes for dark mode.
+ * The picture on a project card. A website project shows a screenshot of the top of its
+ * site, taken by the worker (TDR-0058), once there is one for its current URL. Until
+ * then, and for image and PDF projects, it is a schematic: a page with the site's own
+ * favicon in its header, or a sketch of its kind, with real pins - one per open
+ * comment, up to three, or a check once everything on it is closed. Colors come from a
+ * per-project palette that the stylesheet re-mixes for dark mode.
  */
 export function ProjectArtwork({ project, open = 0, total = 0 }: { project: api.ProjectOut; open?: number; total?: number }) {
+  const shot = usePreviewSrc(project.preview_url, project.preview_captured_at);
   const seed = hashOf(project.id || project.name);
   const palette = PREVIEW_PALETTES[seed % PREVIEW_PALETTES.length]!;
   const variant = (seed >>> 3) % 3;
@@ -150,8 +168,19 @@ export function ProjectArtwork({ project, open = 0, total = 0 }: { project: api.
     );
   }
 
+  if (type === "website" && shot.src) {
+    return (
+      <div className="bl-project-art bl-project-art-shot" aria-hidden="true">
+        <img src={shot.src} alt="" decoding="async" onError={shot.onError} />
+      </div>
+    );
+  }
+
   return (
     <div className={`bl-project-art bl-project-art-${type}`} style={style} aria-hidden="true">
+      {type === "website" && project.preview_status === "queued" && !project.archived_at && (
+        <span className="bl-preview-capturing">Capturing preview…</span>
+      )}
       <svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMin slice">
         <rect width="320" height="200" className="bl-art-paper" />
         {type === "website" && (

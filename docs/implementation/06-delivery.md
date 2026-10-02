@@ -1,5 +1,54 @@
 # Delivery and verification ledger
 
+## 2026-10-02: Project cards show a screenshot of the site (TDR-0058)
+
+The user asked for project cards to show each site's real hero section instead of the
+same sketch on every card, and for the change to be pushed to `main`. The reasoning is
+in TDR-0058.
+
+**Built:**
+- **Capture.**
+  - The worker screenshots the top of each website project's site at 1280×800 in
+    headless Chromium. It stores an 800 px JPEG privately under `previews/`.
+  - Captures are queued when a project is created, when its URL changes, the first
+    time the grid lists a project without one, weekly after that, and from the new
+    "Refresh preview" menu item.
+  - The SSRF guard checks the URL and every redirect hop.
+- **API.**
+  - `ProjectOut` gains `preview_url` (signed), `preview_status`,
+    `preview_captured_at` and `preview_requested_at`.
+  - New endpoint: `POST /projects/{id}/preview`.
+  - Hard delete also removes the `previews/` prefix.
+- **Cards.**
+  - Each card shows the screenshot under its browser bar, in cards, compact and list
+    layouts.
+  - "Capturing preview…" shows while a capture is queued, and the grid polls until it
+    lands.
+  - Image and PDF projects, unreachable sites, and projects whose URL just changed
+    keep the sketch.
+
+**Verified:**
+- `ruff check`, `ruff format --check` and `mypy app` are clean.
+- Web `eslint`, `tsc -b` and `vite build` are clean. `packages/types` was regenerated
+  from `openapi.json` and its typecheck is clean.
+- Backend suite: 274 passed against local real MongoDB and Redis after rebasing onto
+  `main` at 52f611b (PR #49).
+- **Browser pass.** It ran on the real API and Arq worker against local MongoDB,
+  Redis and moto S3, with 6 website projects and 1 PDF. All 10 checks passed:
+  - each card showed "Capturing preview…" while queued;
+  - five real screenshots arrived within 26 s, 4–16 s per capture, and each loaded
+    from its signed URL at 800 px wide;
+  - an unresolvable host failed at the guard and kept its sketch, and so did the PDF
+    project;
+  - "Refresh preview" returned 202 `queued` and kept the old picture until the new
+    one landed;
+  - there were no page errors in light or dark theme.
+- **API checks.**
+  - Changing Stripe's URL to linear.app hid the old picture at once. Linear's hero
+    then arrived.
+  - The replaced S3 objects were deleted: 5 objects for 5 ready projects.
+  - Refreshing a PDF project returns 422.
+  - `updated_at` was never changed by a capture.
 ## 2026-10-02: Member-bound canvas sessions (TDR-0057)
 
 This closes TDR-0056's known limit: a viewer could copy the review link out of the canvas

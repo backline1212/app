@@ -685,6 +685,29 @@ export interface paths {
         patch: operations["update_project_settings_api_v1_projects__project_id__settings_patch"];
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Project Preview
+         * @description Retake the card's screenshot of the site now, e.g. after a redesign ships
+         *     (TDR-0058). Returns the project with `preview_status` "queued"; one capture at a
+         *     time per project. Editors may, like managing the project's pages: it changes
+         *     nothing but the picture on the card.
+         */
+        post: operations["refresh_project_preview_api_v1_projects__project_id__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/duplicate": {
         parameters: {
             query?: never;
@@ -4062,6 +4085,14 @@ export interface components {
             access: components["schemas"]["ProjectAccessOut"];
             /** My Role */
             my_role?: ("viewer" | "commenter" | "editor" | "manager") | null;
+            /** Preview Url */
+            preview_url?: string | null;
+            /** Preview Status */
+            preview_status?: ("queued" | "ready" | "failed") | null;
+            /** Preview Captured At */
+            preview_captured_at?: string | null;
+            /** Preview Requested At */
+            preview_requested_at?: string | null;
         };
         /**
          * ProjectPersonOut
@@ -6473,6 +6504,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_project_preview_api_v1_projects__project_id__preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
                 };
             };
             /** @description Validation Error */
