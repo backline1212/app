@@ -18,7 +18,8 @@ import { BrowserMenu } from "./BrowserMenu";
 import type { BrowserOption } from "./browsers";
 import { VersionMenu } from "./VersionMenu";
 
-export type CanvasMode = "browse" | "comment" | "draw";
+// "view" is the canvas for someone whose project role can't comment (TDR-0056).
+export type CanvasMode = "browse" | "comment" | "draw" | "view";
 
 interface ProjectFooterProps {
   project: ProjectOut;

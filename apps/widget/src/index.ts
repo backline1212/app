@@ -21,7 +21,11 @@ import { composerHasDraft, nudgeComposer } from "./ui-composer";
 import { parseUserAgent } from "./user-agent";
 import { setupRegionDrawer } from "./region-drawer";
 
-type WidgetMode = "browse" | "comment" | "draw";
+// "view" is the dashboard canvas for a member whose project role can't comment
+// (TDR-0056): pins and their cards behave as in Comment mode, but nothing opens a
+// composer or the region drawer.
+type WidgetMode = "browse" | "comment" | "draw" | "view";
+const WIDGET_MODES: readonly string[] = ["browse", "comment", "draw", "view"];
 
 // Retries the few init requests commenting cannot start without, on failures that
 // are worth a second try (network, rate limit, server hiccup) - not on a 4xx that
@@ -74,7 +78,7 @@ async function init(config: BacklineConfig): Promise<void> {
   // absent case, same as before "draw" existed - flipping this to an allowlist
   // (`=== "comment"`) would silently turn commenting off for every real guest
   // reviewer, since their URL never says "comment" explicitly.
-  let currentMode: WidgetMode = blMode === "draw" ? "draw" : blMode === "browse" ? "browse" : "comment";
+  let currentMode: WidgetMode = blMode && WIDGET_MODES.includes(blMode) ? (blMode as WidgetMode) : "comment";
   // Replaced at the end of init with the real switcher, once there's something to
   // switch. init() is async (guest session, page registration, existing comments), and
   // the dashboard re-sends the mode on every iframe load, so a mode can genuinely
@@ -94,9 +98,9 @@ async function init(config: BacklineConfig): Promise<void> {
   window.addEventListener("message", (event) => {
     if (event.data?.type !== "backline:set-mode") return;
     const next: unknown = event.data.mode;
-    if (next !== "browse" && next !== "comment" && next !== "draw") return;
+    if (typeof next !== "string" || !WIDGET_MODES.includes(next)) return;
     if (next === currentMode) return;
-    applyMode(next);
+    applyMode(next as WidgetMode);
   });
 
   // Connected this early for the same reason as the mode listener above: its question

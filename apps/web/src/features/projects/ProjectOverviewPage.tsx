@@ -6,6 +6,7 @@ import { Link, useOutletContext, useParams, useSearchParams } from "react-router
 import { useWSEvent } from "../../app/WSProvider";
 import { API_BASE_URL, apiFetch } from "../../lib/api-client";
 import { removeProjectComment, upsertProjectComment } from "../../lib/comment-cache";
+import { projectCan } from "../../lib/project-roles";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { useSearchParamsUpdater } from "../../lib/use-search-params-updater";
@@ -162,7 +163,7 @@ export function ProjectOverviewPage() {
   // drag can produce (snapped back to filling the container).
   const [dragWidth, setDragWidth] = useState<number | null | undefined>(undefined);
   const queryClient = useQueryClient();
-  const { user, role } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleOpenShortcuts = () => setShowShortcuts(true);
@@ -172,7 +173,7 @@ export function ProjectOverviewPage() {
 
   const activePageIdParam = searchParams.get("page");
   const searchMode = searchParams.get("mode");
-  const mode: CanvasMode = searchMode === "browse" ? "browse" : searchMode === "draw" ? "draw" : "comment";
+  const requestedMode: CanvasMode = searchMode === "browse" ? "browse" : searchMode === "draw" ? "draw" : "comment";
   const orientation = searchParams.get("orientation") === "landscape" ? "landscape" : "portrait";
   const zoomScale = clampZoom(Number(searchParams.get("zoom") ?? 1));
   const viewport = useMemo<ViewportOption | null>(() => {
@@ -211,6 +212,12 @@ export function ProjectOverviewPage() {
     enabled: !!projectId,
   });
   const projectQuery = useProject(projectId);
+  // A viewer's canvas (TDR-0056) shows the pins and opens their cards but never a
+  // composer: "view" stands in for Comment and Draw. The widget always runs as a guest
+  // of the review link, so this is what keeps a viewer from posting from the canvas.
+  const canComment = projectCan(projectQuery.data, "comment");
+  const canTriage = projectCan(projectQuery.data, "edit");
+  const mode: CanvasMode = canComment ? requestedMode : requestedMode === "browse" ? "browse" : "view";
   const shareLinksQuery = useQuery({
     queryKey: qk.shareLinks(projectId ?? ""),
     queryFn: () => shareLinksApi.listShareLinks(projectId!),
@@ -461,9 +468,10 @@ export function ProjectOverviewPage() {
   // The canvas widget's comment card has a status menu in its header (widget
   // dashboard-bridge.ts), but the widget itself runs as a guest, and guests can't change
   // a status - so it asks this page, where the member is signed in, to make the change
-  // with the member's own session. Every workspace role holds comment:update_status
-  // (backend core/permissions.py); anything else gets the card's read-only status.
-  const canUpdateStatus = role === "owner" || role === "admin" || role === "member";
+  // with the member's own session. comment:update_status needs an editor on the project
+  // (backend core/permissions.py PROJECT_PERMISSIONS); anyone else gets the card's
+  // read-only status.
+  const canUpdateStatus = canTriage;
   const statusMutation = useMutation({
     mutationFn: ({ commentId, status }: { commentId: string; status: CommentStatus }) =>
       boardApi.updateComment(commentId, { status }),
@@ -604,7 +612,9 @@ export function ProjectOverviewPage() {
   }
 
   function setMode(nextMode: CanvasMode) {
-    updateViewParams({ mode: nextMode === "comment" ? null : nextMode });
+    // "view" is never stored in the URL: it is what Comment and Draw become for a viewer.
+    const stored = nextMode === "view" || (!canComment && nextMode === "draw") ? "comment" : nextMode;
+    updateViewParams({ mode: stored === "comment" ? null : stored });
   }
 
   function setViewport(nextViewport: ViewportOption | null) {
@@ -814,24 +824,39 @@ export function ProjectOverviewPage() {
         </div>
 
         <div className="bl-review-header-tools">
-          {user && <NativeReviewButton projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
+          {/* Browser review exists to leave comments, which the API refuses a viewer. */}
+          {user && canComment && <NativeReviewButton projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
           <div className="bl-review-mode" aria-label="Canvas mode">
             <button type="button" aria-pressed={mode === "browse"} onClick={() => setMode("browse")}>
               <PointerIcon width={13} height={13} />
               Browse
             </button>
-            <button type="button" aria-pressed={mode === "comment"} onClick={() => setMode("comment")}>
-              <CommentsIcon width={13} height={13} />
-              Comment
-            </button>
-            {/* Draw was reachable only from the dock (and D); with it missing here, drawing
-                left this switch showing no mode at all. */}
-            <button type="button" aria-pressed={mode === "draw"} onClick={() => setMode("draw")} title="Draw an area to comment on (D)">
-              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeDasharray="3 2.5" aria-hidden="true">
-                <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
-              </svg>
-              Draw
-            </button>
+            {canComment ? (
+              <>
+                <button type="button" aria-pressed={mode === "comment"} onClick={() => setMode("comment")}>
+                  <CommentsIcon width={13} height={13} />
+                  Comment
+                </button>
+                {/* Draw was reachable only from the dock (and D); with it missing here, drawing
+                    left this switch showing no mode at all. */}
+                <button type="button" aria-pressed={mode === "draw"} onClick={() => setMode("draw")} title="Draw an area to comment on (D)">
+                  <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeDasharray="3 2.5" aria-hidden="true">
+                    <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+                  </svg>
+                  Draw
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                aria-pressed={mode === "view"}
+                onClick={() => setMode("view")}
+                title="You can read comments on this project. Ask a project manager to make you a commenter to leave your own."
+              >
+                <CommentsIcon width={13} height={13} />
+                View comments
+              </button>
+            )}
           </div>
           <button type="button" className="bl-review-icon-button" aria-label="Reload preview" title="Reload preview" onClick={reloadPreview} disabled={!iframeSrc}>
             <ReloadIcon className={iframeStatus === "loading" && iframeSrc ? "bl-is-spinning" : ""} />
@@ -1037,7 +1062,7 @@ export function ProjectOverviewPage() {
                 )}
               </div>
               <div className="bl-live-frame-meta">
-                <span className={widgetError ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{widgetError ? "Commenting couldn't start on this page — reload the canvas to try again" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : "Browse mode — comments are hidden, use the site as normal")}</span>
+                <span className={widgetError ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{widgetError ? "Commenting couldn't start on this page — reload the canvas to try again" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : mode === "view" ? "View only — open a pin to read it. Your role on this project can't add comments" : "Browse mode — comments are hidden, use the site as normal")}</span>
                 <span>Source: proxy</span>
               </div>
               {!viewport && (
@@ -1064,6 +1089,7 @@ export function ProjectOverviewPage() {
         <QuickToolsDock
           environment={project.environment}
           mode={mode}
+          canComment={canComment}
           onModeChange={(m) => setMode(m)}
         />
 

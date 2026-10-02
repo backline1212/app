@@ -31,19 +31,54 @@ TDR-0056.
 - duplicate not copying the cross-browser render and Slack settings;
 - N+1 queries when listing members and workspaces.
 
+**Follow-up the same day:**
+- **Viewer canvas.** The widget gains a `view` mode. Pins and their cards work, but no
+  click or drag opens a composer.
+  - For a project viewer the dashboard swaps Comment and Draw for "View comments". The
+    dock's tools, the C and D shortcuts, `?mode=draw` and Browser review follow suit.
+  - The canvas status menu now needs an editor on the project, not just any member,
+    matching `comment:update_status`.
+- **E2E login helper.** `loginViaOtp` predated TDR-0053's password-first login page. It
+  now goes through "Forgot password?" and skips the set-password step, so every spec
+  that signs in works again.
+- **Stale backend tests.**
+  - The four proxy tests mock the upstream at the transport and stub the DNS-resolving
+    SSRF check.
+  - The Jira rotation test uses `IntegrationContext`.
+- **Project card favicons** are requested from the project's full origin. Before, a
+  site on http or on a non-default port asked `https://host/` instead.
+
 **Verification:**
-- **Backend.** 267 passed. The 11 failures are the known pub/sub, proxy and Jira ones.
-  Ruff, mypy (strict) and the scoping lint pass.
+- **Backend.**
+  - On a real Redis (5.0, local): 269 passed, and the six pub/sub tests that only failed
+    on fakeredis pass. The 5 remaining failures were the stale proxy and Jira tests;
+    after fixing them, `test_proxy.py` passes 8/8 and `test_integrations.py` 25/25.
+  - Ruff, mypy (strict) and the scoping lint pass.
 - **Scratch checks.** 5 RBAC scenarios pass: access end to end, room codes, org chart
   with transfer and leave, the realtime filter, and MCP plus the digest.
-- **`apps/web`.** Typecheck, lint and build pass. `workspace-join.spec.ts` was updated to
-  the new UI and lists; it was not run against a live stack.
-- **Browser pass.** Real API on local MongoDB, Vite and Playwright: 39 of 39 checks pass,
-  in light and dark.
+- **`apps/web` and `apps/widget`.** Typecheck, lint and build pass.
+- **E2E.** `workspace-join.spec.ts` passes against a live local stack: real API,
+  MongoDB replica set, Vite and Playwright.
+- **Migration.** `scripts/migrate_org_access.py` was run on seeded legacy rows:
+  - the dry run wrote nothing;
+  - `--apply` backfilled 2 events, normalized a room code and dropped
+    `assigned_member_ids`;
+  - it left a colliding pair of codes untouched and listed them;
+  - a second run found nothing new.
+- **Browser passes**, real API on local MongoDB and real Redis:
+  - Team pages: 39 of 39, in light and dark.
+  - Live access changes: a project appears and disappears on a member's open dashboard
+    within ~350ms. After removal, their socket gets nothing about it while a member
+    still on it does.
+  - Review canvas: 21 of 21. A viewer sees pins and cards, gets no composer, Draw, status
+    menu or Browser review, and can still browse. An editor comments and gets the status
+    menu.
 
 **Open:**
-- the canvas widget needs a read-only mode for viewers (see TDR-0056);
-- run `scripts/migrate_org_access.py` as a dry run on each environment.
+- Run `scripts/migrate_org_access.py` as a dry run, then `--apply`, on each environment.
+- The canvas widget runs as a guest of the review link. Anyone holding that link, a
+  viewer included, can open it outside the dashboard and comment as a guest, as any
+  client can. Closing that needs member-bound canvas sessions (see TDR-0056).
 
 
 ## 2026-10-01: Dashboard sidebar groups, AI page and API keys (TDR-0055)

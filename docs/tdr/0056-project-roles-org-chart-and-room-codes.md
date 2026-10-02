@@ -54,6 +54,15 @@ access change writes that implied block down, so the creator keeps manager.
 **Share links.** Viewers can list a project's links, because the review canvas loads the
 site through the active proxy link. Creating and revoking links stays with editors.
 
+**Viewer canvas.** The canvas widget always runs as a guest of the review link, so the API
+can't tell a viewer apart from a client there. Instead, the widget has a `view` mode: pins
+and their cards work, but nothing opens a composer or the region drawer.
+- For a viewer, the dashboard loads and keeps the canvas in that mode: "View comments"
+  replaces Comment and Draw, and the dock tools, shortcuts and `?mode=draw` follow.
+- Browser review is hidden, since its member session would be refused anyway.
+- The canvas status menu goes through the dashboard with the member's own session, so it
+  follows `comment:update_status` (editor).
+
 **Org chart.**
 - Memberships gain `title`, `team` and `manager_user_id`.
 - Members edit their own title and team; owners and admins edit anyone's and set
@@ -82,5 +91,7 @@ setting, and an access matrix endpoint.
 - `scripts/migrate_org_access.py` runs as a dry run by default. It backfills
   `project_id` on old comment events, normalizes branch-era room codes and drops
   `assigned_member_ids`.
-- Known limit: the canvas widget always posts as a guest through the share link. A
-  viewer is held to read-only by the dashboard UI, not by the API, on the canvas.
+- Known limit: a review link is a credential. A viewer who copies the link out of the
+  canvas can open it on its own and comment as a guest, as any client holding it can.
+  That comment is attributed as a guest's, not the member's. Closing this fully needs
+  canvas sessions bound to the member, which is a separate change.
