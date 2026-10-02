@@ -61,7 +61,10 @@ class CommentRepository:
         return await self.db.comments.find_one({"_id": oid})
 
     async def find_many_in_workspace(
-        self, workspace_id: str, comment_ids: list[str]
+        self,
+        workspace_id: str,
+        comment_ids: list[str],
+        fields: dict[str, int] | None = None,
     ) -> list[dict[str, Any]]:
         """Several comments at once, for labelling another listing (the activity feed).
         Deleted ones are included, since an event about one still happened; callers
@@ -71,7 +74,7 @@ class CommentRepository:
             return []
         cursor = self.db.comments.find(
             {"workspace_id": workspace_id, "_id": {"$in": oids}},
-            {"ticket_number": 1, "body": 1, "deleted_at": 1},
+            fields or {"ticket_number": 1, "body": 1, "deleted_at": 1},
         )
         return [doc async for doc in cursor]
 

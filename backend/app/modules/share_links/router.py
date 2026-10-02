@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Request
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.errors import ValidationError
-from app.core.permissions import require_permission
+from app.core.permissions import require_project_permission
 from app.core.rate_limit import check_rate_limit, get_client_ip
 from app.core.redis_client import get_redis
 from app.core.session import Session, require_workspace_context
@@ -24,7 +24,9 @@ router = APIRouter(tags=["share-links"])
 @router.get("/projects/{project_id}/share-links", response_model=list[ShareLinkOut])
 async def list_share_links(
     project_id: str,
-    session: Session = Depends(require_permission("share_link:manage")),
+    # Viewers too (TDR-0056): the review canvas loads the site through the active
+    # proxy link. Creating and revoking links stays with editors and managers.
+    session: Session = Depends(require_project_permission("project:view")),
 ) -> list[ShareLinkOut]:
     return await share_link_service.list_share_links(
         get_db(), project_id=project_id, workspace_id=require_workspace_context(session)
@@ -35,7 +37,7 @@ async def list_share_links(
 async def create_share_link(
     project_id: str,
     body: ShareLinkCreate,
-    session: Session = Depends(require_permission("share_link:manage")),
+    session: Session = Depends(require_project_permission("share_link:manage")),
 ) -> ShareLinkOut:
     return await share_link_service.create_share_link(
         get_db(),
@@ -54,7 +56,7 @@ async def create_share_link(
 @router.patch("/share-links/{share_link_id}/revoke", status_code=204)
 async def revoke_share_link(
     share_link_id: str,
-    session: Session = Depends(require_permission("share_link:manage")),
+    session: Session = Depends(require_project_permission("share_link:manage")),
 ) -> None:
     await share_link_service.revoke_share_link(
         get_db(),

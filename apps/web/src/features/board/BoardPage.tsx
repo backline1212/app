@@ -5,7 +5,7 @@ import { useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { EmptyArt } from "../../components/illustrations";
 import * as integrationsApi from "../integrations/api";
-import { useProject } from "../projects/use-project";
+import { useProject, useProjectRole } from "../projects/use-project";
 import type { WorkspaceOut } from "../workspaces/api";
 import * as workspacesApi from "../workspaces/api";
 import { useWSEvent } from "../../app/WSProvider";
@@ -98,6 +98,7 @@ export function BoardPage() {
   }
 
   const { data: project } = useProject(projectId);
+  const { canEdit, canComment } = useProjectRole(projectId);
   useDocumentTitle([project?.name, "Board"]);
 
   const { data: comments, isLoading } = useQuery({
@@ -336,6 +337,8 @@ export function BoardPage() {
           createTrelloCardMutation={createTrelloCardMutation}
           createJiraIssueMutation={createJiraIssueMutation}
           createAsanaTaskMutation={createAsanaTaskMutation}
+          canEdit={canEdit}
+          canComment={canComment}
         />
       ) : (
         <ListTable
@@ -347,6 +350,7 @@ export function BoardPage() {
           repliesByParent={repliesByParent}
           setOpenThreadId={setOpenThreadId}
           bulkUpdateMutation={bulkUpdateMutation}
+          canEdit={canEdit}
         />
       )}
 

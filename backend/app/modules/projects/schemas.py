@@ -9,6 +9,62 @@ from app.core.text import Trimmed
 
 ProjectType = Literal["website", "image", "pdf"]
 Environment = Literal["live", "staging"]
+# TDR-0056 project-level access. Order matters: each role includes the ones before it.
+ProjectRoleName = Literal["viewer", "commenter", "editor", "manager"]
+ProjectVisibility = Literal["workspace", "private"]
+
+
+class ProjectAccessMemberIn(BaseModel):
+    user_id: str = Field(min_length=1, max_length=64)
+    role: ProjectRoleName
+
+
+class ProjectAccessMemberOut(BaseModel):
+    user_id: str
+    role: ProjectRoleName
+
+
+class ProjectAccessOut(BaseModel):
+    visibility: ProjectVisibility
+    default_role: ProjectRoleName
+    members: list[ProjectAccessMemberOut]
+
+
+class ProjectAccessUpdate(BaseModel):
+    """Partial: only the fields sent change."""
+
+    visibility: ProjectVisibility | None = None
+    default_role: ProjectRoleName | None = None
+
+
+class ProjectMemberRoleUpdate(BaseModel):
+    role: ProjectRoleName
+
+
+ProjectRoleSource = Literal["workspace_admin", "explicit", "creator", "default", "none"]
+
+
+class ProjectPersonOut(BaseModel):
+    """One workspace member as this project sees them. `project_role` None means no
+    access; `source` says where the role comes from, so the UI can explain it."""
+
+    user_id: str
+    member_id: str
+    name: str
+    email: str
+    avatar_url: str | None = None
+    workspace_role: str
+    title: str | None = None
+    project_role: ProjectRoleName | None
+    source: ProjectRoleSource
+
+
+class ProjectAccessDetailOut(BaseModel):
+    project_id: str
+    visibility: ProjectVisibility
+    default_role: ProjectRoleName
+    my_role: ProjectRoleName
+    people: list[ProjectPersonOut]
 
 
 def normalize_origin(value: str) -> str:
@@ -35,7 +91,10 @@ class ProjectCreate(BaseModel):
     environment: Environment = "live"
     client_id: str | None = None
     hero_url: str | None = None
-    assigned_member_ids: list[str] = Field(default_factory=list)
+    # Who gets in (TDR-0056). The creator is always added as a manager.
+    visibility: ProjectVisibility = "workspace"
+    default_role: ProjectRoleName = "editor"
+    members: list[ProjectAccessMemberIn] = Field(default_factory=list, max_length=500)
 
     @field_validator("target_origin")
     @classmethod
@@ -83,7 +142,6 @@ class ProjectUpdate(BaseModel):
     environment: Environment | None = None
     client_id: str | None = None
     hero_url: str | None = None
-    assigned_member_ids: list[str] | None = None
 
     @field_validator("target_origin")
     @classmethod
@@ -141,7 +199,10 @@ class ProjectOut(BaseModel):
     client_id: str | None = None
     hero_url: str | None = None
     duplicated_from_project_id: str | None = None
-    assigned_member_ids: list[str] = Field(default_factory=list)
+    access: ProjectAccessOut
+    # The caller's own role on this project. None only where a project is built
+    # without a viewer (internal callers); every API response sets it.
+    my_role: ProjectRoleName | None = None
 
 
 class ProjectDeletionCounts(BaseModel):

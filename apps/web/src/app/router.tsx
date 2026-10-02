@@ -1,11 +1,12 @@
 import type { ComponentType } from "react";
-import { createBrowserRouter, Navigate, Outlet, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
 import { useAuth } from "../features/auth/AuthContext";
 import { ProjectLayout } from "./layout/ProjectLayout";
 import { WorkspaceLayout } from "./layout/WorkspaceLayout";
 
+import { rememberReturnPath } from "../lib/return-path";
 import { ScrollToTop } from "../lib/ScrollToTop";
 
 function RootLayout() {
@@ -19,11 +20,14 @@ function RootLayout() {
 
 function RequireAuth() {
   const { status } = useAuth();
+  const location = useLocation();
 
   if (status === "loading") {
     return <LoadingScreen />;
   }
   if (status === "unauthenticated") {
+    // A shared /join?code=… link should still be where they end up after signing in.
+    rememberReturnPath(`${location.pathname}${location.search}`);
     return <Navigate to="/login" replace />;
   }
   return <Outlet />;

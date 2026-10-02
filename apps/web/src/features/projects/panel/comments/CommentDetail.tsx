@@ -1,6 +1,8 @@
 import type { Schemas } from "@backline/types";
 import { Avatar, LayerBadge, RecoveryBadge } from "@backline/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { roleLabel } from "../../../../lib/project-roles";
+import { useProjectRole } from "../../use-project";
 import {
   useCallback,
   useEffect,
@@ -546,6 +548,8 @@ export function CommentDetail({
 
   const status = STATUS_META[comment.status];
   const closed = isClosed(comment.status);
+  // TDR-0056: viewers read, commenters also reply, editors and managers triage.
+  const { canComment, canEdit, role } = useProjectRole(projectId);
   const due = dueMeta(comment.due_at, closed);
   const assigneeIds = comment.assignee_ids?.length
     ? comment.assignee_ids
@@ -569,7 +573,7 @@ export function CommentDetail({
             type="button"
             className="bl-cd-layer-toggle"
             onClick={() => setConfirmLayer(true)}
-            disabled={changeLayer.isPending}
+            disabled={changeLayer.isPending || !canEdit}
             title={comment.layer === "team" ? "Team only — click to show it to the client" : "Client visible — click to make it team-only"}
             aria-label={comment.layer === "team" ? "Team only. Show this comment to the client" : "Client visible. Make this comment team-only"}
           >
@@ -584,6 +588,10 @@ export function CommentDetail({
           isn't squeezed into the few pixels the fields and reply box leave over. */}
       <div className="bl-cd-scroll" ref={scrollRef}>
       <div className="bl-cd-meta">
+        {!canEdit && role && (
+          <p className="bl-cd-readonly">You're a {roleLabel(role).toLowerCase()} here. Editors and managers change these.</p>
+        )}
+        <fieldset className="bl-cd-fields" disabled={!canEdit}>
         <div className="bl-cd-row">
           <span className="bl-cd-label">STATUS</span>
           <button
@@ -797,6 +805,7 @@ export function CommentDetail({
             ))}
           </span>
         </div>
+        </fieldset>
 
         <div className="bl-cd-row">
           <span className="bl-cd-label">PAGE</span>
@@ -859,6 +868,14 @@ export function CommentDetail({
       </div>
       </div>
 
+      {!canComment ? (
+        <div className="bl-cd-reply bl-cd-reply-locked">
+          <p>
+            You can read this thread but not reply - you're a {roleLabel(role).toLowerCase()} on this project. Ask a
+            project manager for commenter access.
+          </p>
+        </div>
+      ) : (
       <form
         className="bl-cd-reply"
         onSubmit={(event: FormEvent) => {
@@ -881,7 +898,7 @@ export function CommentDetail({
             <CodeIcon />
             Turn into a dev task
           </button>
-          {trackers.length > 0 && (
+          {canEdit && trackers.length > 0 && (
             <>
               <button
                 ref={sendRef}
@@ -990,14 +1007,16 @@ export function CommentDetail({
           <button type="submit" className="bl-button" disabled={reply.isPending || isUploading || !body.trim()}>
             {reply.isPending ? "Posting…" : "Post reply"}
           </button>
-          <button
-            type="button"
-            className="bl-quiet bl-cd-resolve"
-            disabled={update.isPending}
-            onClick={() => setStatus(closed ? "todo" : "resolved")}
-          >
-            {closed ? "Reopen" : "Resolve"}
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              className="bl-quiet bl-cd-resolve"
+              disabled={update.isPending}
+              onClick={() => setStatus(closed ? "todo" : "resolved")}
+            >
+              {closed ? "Reopen" : "Resolve"}
+            </button>
+          )}
           <select
             value={layer}
             onChange={(event) => setLayer(event.target.value as CommentLayer)}
@@ -1016,6 +1035,7 @@ export function CommentDetail({
           </p>
         )}
       </form>
+      )}
 
       {confirmLayer && (
         <ConfirmDialog

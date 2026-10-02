@@ -1,4 +1,3 @@
-import { Avatar } from "@backline/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -6,16 +5,12 @@ import { Link } from "react-router-dom";
 import { Dialog } from "../../../components/Dialog";
 import { GearIcon } from "../../../components/icons";
 import { qk } from "../../../lib/query-keys";
+import { projectCan, roleLabel } from "../../../lib/project-roles";
 import { useAuth } from "../../auth/AuthContext";
+import { ProjectAccessPanel } from "../access/ProjectAccessPanel";
 import * as shareLinksApi from "../../share-links/api";
 import * as workspacesApi from "../../workspaces/api";
 import type { ProjectOut } from "../api";
-
-const ROLE_LABELS: Record<string, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  member: "Member",
-};
 
 function reviewUrl(token: string): string {
   return `${window.location.origin}/review/${token}`;
@@ -29,16 +24,11 @@ interface CollaboratorsModalProps {
   onClose: () => void;
 }
 
-// Visually modeled on a reference design with per-link "View"/"Comment" viewer roles
-// and a settings checklist (page versions, device sizes, all pages) - this app has
-// neither concept (a project's share link is a single all-or-nothing "can this guest
-// see and comment on client-visible threads" toggle, and inviting someone always
-// grants full workspace membership, not a scoped viewer role), so those are mapped to
-// what's actually real here instead of faked: the invite role dropdown offers this
-// app's real Member/Admin workspace roles, and the settings gear links to the full
-// Share Links page (passcode/expiry/mode) rather than a fake checklist. Shares its
-// vocabulary with ShareProjectModal.tsx, which covers the same two capabilities in a
-// slightly wider "project sharing" context.
+// Visually modeled on a reference design with per-person roles and a link toggle.
+// Teammates' roles are the real project roles (TDR-0056, ProjectAccessPanel); inviting
+// someone new adds them to the workspace and is offered to owners and admins only;
+// the settings gear links to the full Share Links page (passcode/expiry/mode). Shares
+// its vocabulary with ShareProjectModal.tsx.
 export function CollaboratorsModal({
   project,
   workspaceId,
@@ -46,20 +36,18 @@ export function CollaboratorsModal({
   workspaceName,
   onClose,
 }: CollaboratorsModalProps) {
-  const { user } = useAuth();
+  const { role: workspaceRole } = useAuth();
   const queryClient = useQueryClient();
+  const canInvite = workspaceRole === "owner" || workspaceRole === "admin";
+  const canShareLink = projectCan(project, "edit");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"member" | "admin">("member");
   const [copied, setCopied] = useState(false);
 
-  const membersQuery = useQuery({
-    queryKey: qk.members(workspaceId),
-    queryFn: () => workspacesApi.listMembers(workspaceId),
-  });
-
   const shareLinksQuery = useQuery({
     queryKey: qk.shareLinks(project.id),
     queryFn: () => shareLinksApi.listShareLinks(project.id),
+    enabled: canShareLink,
   });
   const activeLink = (shareLinksQuery.data ?? []).find((link) => link.revoked_at === null);
 
@@ -67,7 +55,8 @@ export function CollaboratorsModal({
     mutationFn: () => workspacesApi.inviteMember(workspaceId, email.trim(), role),
     onSuccess: () => {
       setEmail("");
-      queryClient.invalidateQueries({ queryKey: qk.members(workspaceId) });
+      void queryClient.invalidateQueries({ queryKey: qk.members(workspaceId) });
+      void queryClient.invalidateQueries({ queryKey: qk.projectAccess(project.id) });
     },
   });
 
@@ -102,66 +91,35 @@ export function CollaboratorsModal({
     <Dialog title={`Share "${project.name}"`} onClose={onClose}>
       <div className="bl-share-body">
         <section className="bl-share-section">
-          <div className="bl-section-heading">
-            <div>
-              <h3>Invite a collaborator</h3>
-              <p>Workspace access · every project</p>
-            </div>
-            <span className="bl-scope-badge">Workspace</span>
-          </div>
-          <form className="bl-invite-row" onSubmit={handleInvite}>
-            <input
-              className="bl-input"
-              type="email"
-              required
-              placeholder={`someone@${workspaceName.toLowerCase().replace(/\s+/g, "")}.com`}
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              aria-label="Collaborator email"
-            />
-            <select
-              className="bl-input"
-              value={role}
-              onChange={(event) => setRole(event.target.value as "member" | "admin")}
-              aria-label="Role"
-            >
-              <option value="member">Member</option>
-              <option value="admin">Admin</option>
-            </select>
-            <button className="bl-button" disabled={inviteMutation.isPending || !email.trim()}>
-              {inviteMutation.isPending ? "Sending…" : "Invite"}
-            </button>
-          </form>
-          {inviteMutation.isError && <p className="bl-error">Could not send that invite.</p>}
-
-          {membersQuery.isLoading ? (
-            <div className="bl-member-skeleton" role="status" aria-label="Loading collaborators">
-              <i />
-              <i />
-            </div>
-          ) : membersQuery.isError ? (
-            <div className="bl-inline-error" role="alert">
-              <span>Collaborators could not load.</span>
-              <button type="button" onClick={() => membersQuery.refetch()}>
-                Try again
-              </button>
-            </div>
-          ) : (
-            <div className="bl-share-people">
-              {membersQuery.data?.map((member) => (
-                <div key={member.id} className="bl-share-person">
-                  <Avatar name={member.name} avatarUrl={member.avatar_url} size={32} />
-                  <span>
-                    <strong>
-                      {member.name}
-                      {member.user_id === user?.id ? " (You)" : ""}
-                    </strong>
-                    <small>{member.email}</small>
-                  </span>
-                  <em>{ROLE_LABELS[member.role] ?? member.role}</em>
-                </div>
-              ))}
-            </div>
+          <ProjectAccessPanel projectId={project.id} workspaceId={workspaceId} workspaceName={workspaceName} />
+          {canInvite && (
+            <details className="pa-invite">
+              <summary>Invite someone new to {workspaceName}</summary>
+              <form className="bl-invite-row" onSubmit={handleInvite}>
+                <input
+                  className="bl-input"
+                  type="email"
+                  required
+                  placeholder={`someone@${workspaceName.toLowerCase().replace(/\s+/g, "")}.com`}
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  aria-label="Collaborator email"
+                />
+                <select
+                  className="bl-input"
+                  value={role}
+                  onChange={(event) => setRole(event.target.value as "member" | "admin")}
+                  aria-label="Workspace role"
+                >
+                  <option value="member">Member</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button className="bl-button" disabled={inviteMutation.isPending || !email.trim()}>
+                  {inviteMutation.isPending ? "Sending…" : "Invite"}
+                </button>
+              </form>
+              {inviteMutation.isError && <p className="bl-error">{inviteMutation.error.message}</p>}
+            </details>
           )}
         </section>
 
@@ -178,7 +136,12 @@ export function CollaboratorsModal({
           </div>
           <p>Reviewers can open this project and leave comments without creating an account.</p>
 
-          {shareLinksQuery.isLoading ? (
+          {!canShareLink ? (
+            <p className="bl-inline-note">
+              Editors and managers of this project turn the review link on and copy it. Your role is{" "}
+              {roleLabel(project.my_role).toLowerCase()}.
+            </p>
+          ) : shareLinksQuery.isLoading ? (
             <div className="bl-link-skeleton" role="status">
               Loading review link…
             </div>

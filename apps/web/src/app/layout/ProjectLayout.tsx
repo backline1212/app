@@ -1,6 +1,7 @@
 import { Link, Navigate, Outlet } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { AccessSync } from "../AccessSync";
 import { useWorkspaceContext } from "./useWorkspaceContext";
 
 // Project routes intentionally leave the workspace sidebar behind. The website canvas
@@ -32,5 +33,10 @@ export function ProjectLayout() {
     return <LoadingScreen label={`Opening ${result.workspace.name}`} />;
   }
 
-  return <div className="bl-project-route"><Outlet context={{ workspace: result.workspace }} /></div>;
+  return (
+    <div className="bl-project-route">
+      <AccessSync workspaceId={result.workspace.id} />
+      <Outlet context={{ workspace: result.workspace }} />
+    </div>
+  );
 }

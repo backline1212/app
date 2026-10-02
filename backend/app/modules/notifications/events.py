@@ -12,3 +12,8 @@ COMMENT_STATUS_CHANGED = "comment_status_changed"
 SHARE_LINK_CREATED = "share_link_created"
 INTEGRATION_DISCONNECTED = "integration_disconnected"
 DEPLOY_RECOVERY_COMPLETED = "deploy_recovery_completed"
+# TDR-0056.
+JOIN_REQUESTED = "join_requested"
+MEMBER_JOINED = "member_joined"
+PROJECT_ACCESS_GRANTED = "project_access_granted"
+OWNERSHIP_TRANSFERRED = "ownership_transferred"

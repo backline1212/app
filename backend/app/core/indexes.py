@@ -1,7 +1,11 @@
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import OperationFailure
+
+logger = logging.getLogger("backline.indexes")
 
 
 @dataclass(frozen=True)
@@ -254,11 +258,71 @@ BILLING_INDEXES: tuple[AdditiveIndex, ...] = (
 )
 
 
+# TDR-0056 project access, room codes, join requests and the org chart.
+ORG_ACCESS_INDEXES: tuple[AdditiveIndex, ...] = (
+    # A member's hidden-project lookup (core/project_access.py's hidden_project_ids)
+    # and workspace listings filter on these.
+    AdditiveIndex(
+        "projects",
+        (("workspace_id", 1), ("access.visibility", 1), ("access.members.user_id", 1)),
+        "projects_workspace_access_members",
+    ),
+    # A code leads to exactly one workspace. Partial on strings, so every workspace
+    # with joining by code turned off (room_code None or absent) is left out.
+    AdditiveIndex(
+        "workspaces",
+        (("room_code", 1),),
+        "workspaces_room_code_unique",
+        {"unique": True, "partialFilterExpression": {"room_code": {"$type": "string"}}},
+    ),
+    AdditiveIndex(
+        "join_requests",
+        (("workspace_id", 1), ("status", 1), ("created_at", -1)),
+        "join_requests_workspace_status_created",
+    ),
+    # One waiting request per person per workspace, however fast they click.
+    AdditiveIndex(
+        "join_requests",
+        (("workspace_id", 1), ("user_id", 1)),
+        "join_requests_one_pending",
+        {"unique": True, "partialFilterExpression": {"status": "pending"}},
+    ),
+    AdditiveIndex(
+        "join_requests",
+        (("user_id", 1), ("created_at", -1)),
+        "join_requests_user_created",
+    ),
+    AdditiveIndex(
+        "memberships",
+        (("workspace_id", 1), ("manager_user_id", 1)),
+        "memberships_workspace_manager",
+    ),
+)
+
+
 async def ensure_additive_indexes(
-    db: AsyncIOMotorDatabase[dict[str, Any]], indexes: tuple[AdditiveIndex, ...]
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    indexes: tuple[AdditiveIndex, ...],
+    *,
+    tolerate_duplicates: bool = False,
 ) -> None:
+    """`tolerate_duplicates` logs, instead of raising, a unique index that existing
+    rows already violate - for constraints on fields an earlier build wrote without
+    one (ORG_ACCESS_INDEXES), so a stray duplicate can't stop the API from starting.
+    The service code still checks before writing; the migration script named in the
+    log reports and fixes the rows."""
     for spec in indexes:
-        await db[spec.collection].create_index(list(spec.keys), name=spec.name, **spec.options)
+        try:
+            await db[spec.collection].create_index(list(spec.keys), name=spec.name, **spec.options)
+        except OperationFailure as exc:
+            if not tolerate_duplicates or exc.code not in (11000, 11001):
+                raise
+            logger.error(
+                "Index %s not created: existing %s rows have duplicate values. "
+                "Run scripts/migrate_org_access.py (dry run first) to find them.",
+                spec.name,
+                spec.collection,
+            )
 
 
 async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
@@ -366,3 +430,4 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
     await ensure_additive_indexes(db, TICKET_NUMBER_INDEXES)
     await ensure_additive_indexes(db, INTEGRATION_LINK_INDEXES)
     await ensure_additive_indexes(db, BILLING_INDEXES)
+    await ensure_additive_indexes(db, ORG_ACCESS_INDEXES, tolerate_duplicates=True)

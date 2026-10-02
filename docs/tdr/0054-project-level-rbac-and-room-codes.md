@@ -1,5 +1,7 @@
 # TDR 0054: Project-Level RBAC and Room Code Invitations
 
+Status: Superseded in part by TDR-0056 (project roles replace `assigned_member_ids`).
+
 ## Context
 The user requested an organizational management feature that includes a visual "Org Chart", Role-Based Access Controls (RBAC) at the project level, and a "room code" invite system (similar to a game lobby) to easily onboard users. 
 

@@ -7,6 +7,11 @@ export const qk = {
   workspaces: () => ["workspaces"] as const,
   workspace: (id: string) => ["workspace", id] as const,
   members: (workspaceId: string | undefined) => ["workspace", workspaceId, "members"] as const,
+  // TDR-0056 - org chart, project access and joining by room code.
+  accessMatrix: (workspaceId: string) => ["workspace", workspaceId, "access-matrix"] as const,
+  joinRequests: (workspaceId: string) => ["workspace", workspaceId, "join-requests"] as const,
+  myJoinRequests: () => ["join-requests", "mine"] as const,
+  joinPreview: (code: string) => ["join-preview", code] as const,
   projects: (id: string) => ["workspace", id, "projects"] as const,
   clients: (id: string) => ["workspace", id, "clients"] as const,
   clientsList: (id: string, showArchived: boolean) => ["workspace", id, "clients", showArchived] as const,
@@ -30,6 +35,7 @@ export const qk = {
   projectComments: (projectId: string) => ["project", projectId, "comments"] as const,
   projectRevisions: (projectId: string) => ["project", projectId, "revisions"] as const,
   shareLinks: (projectId: string) => ["project", projectId, "share-links"] as const,
+  projectAccess: (projectId: string) => ["project", projectId, "access"] as const,
   hardDeletePreview: (projectId: string) => ["project", projectId, "hard-delete-preview"] as const,
   // Broad, deliberately over-inclusive prefix - invalidates every "workspace"-rooted
   // query (dashboard, members, projects, tickets, activity, ...) at once. Existing

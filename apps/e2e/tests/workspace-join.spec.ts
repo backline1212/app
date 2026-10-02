@@ -1,51 +1,42 @@
 import { expect, test } from "@playwright/test";
 import { createWorkspace, loginViaOtp } from "../helpers/login";
 
-test.describe("Workspace Room Code & Join Requests", () => {
+// TDR-0056: an owner turns the room code on, a newcomer asks to join with it, and the
+// owner approves them from the Team page's Requests tab.
+test.describe("Workspace room code & join requests", () => {
   test("user can request to join via room code and admin can approve", async ({ browser }) => {
-    // 1. Admin logs in and creates workspace
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
     const adminEmail = `admin-roomcode-${Date.now()}@example.com`;
     await loginViaOtp(adminPage, adminEmail);
-    
-    const wsName = `RoomCode WS ${Date.now()}`;
-    const workspaceSlug = await createWorkspace(adminPage, wsName);
+    const workspaceSlug = await createWorkspace(adminPage, `RoomCode WS ${Date.now()}`);
 
-    // Go to settings and set a room code
-    await adminPage.goto(`/w/${workspaceSlug}/settings`);
+    // Turn on joining by code with a custom code from Settings.
     const roomCode = `CODE${Date.now()}`;
-    await adminPage.getByLabel("Room Code").fill(roomCode);
-    await adminPage.getByRole("button", { name: "Save Changes" }).click();
-    await expect(adminPage.getByText("Workspace settings updated")).toBeVisible();
+    await adminPage.goto(`/w/${workspaceSlug}/settings`);
+    await adminPage.getByRole("button", { name: "Turn on room code" }).click();
+    await adminPage.getByRole("button", { name: "Choose a code" }).click();
+    await adminPage.getByLabel("Custom room code").fill(roomCode);
+    await adminPage.getByRole("button", { name: "Use this code" }).click();
+    await expect(adminPage.getByText("Room code saved.")).toBeVisible();
 
-    // 2. New user logs in
+    // A newcomer opens the join link, sees the workspace, and asks to join.
     const userContext = await browser.newContext();
     const userPage = await userContext.newPage();
     const userEmail = `user-roomcode-${Date.now()}@example.com`;
     await loginViaOtp(userPage, userEmail);
+    await userPage.goto(`/join?code=${roomCode.toLowerCase()}`);
+    await expect(userPage.locator(".join-preview")).toContainText("an admin approves new people");
+    await userPage.getByRole("button", { name: "Ask to join" }).click();
+    await expect(userPage.getByText("Request sent")).toBeVisible();
 
-    // User goes to /join
-    await userPage.goto('/join');
-    await userPage.getByPlaceholder("Room Code (e.g. ALPHA123)").fill(roomCode);
-    await userPage.getByRole("button", { name: "Join" }).click();
-    
-    // Expect success message
-    await expect(userPage.getByText("Your request to join has been sent. An admin must approve it.")).toBeVisible();
-
-    // 3. Admin goes to members page -> Pending requests
-    await adminPage.goto(`/w/${workspaceSlug}/members`);
-    await adminPage.getByRole("button", { name: "Pending Requests" }).click();
-    
-    // Admin should see the user request and approve
+    // The owner approves from the Requests tab.
+    await adminPage.goto(`/w/${workspaceSlug}/members?view=requests`);
     await expect(adminPage.getByText(userEmail)).toBeVisible();
     await adminPage.getByRole("button", { name: "Approve" }).click();
-
-    // Verify user is approved (moves to members tab or disappears from pending)
     await expect(adminPage.getByText(userEmail)).not.toBeVisible();
-    
-    // Admin goes to members list and sees user
-    await adminPage.getByRole("button", { name: "List View" }).click();
+
+    await adminPage.goto(`/w/${workspaceSlug}/members`);
     await expect(adminPage.getByText(userEmail)).toBeVisible();
 
     await adminContext.close();

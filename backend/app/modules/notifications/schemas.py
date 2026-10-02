@@ -11,6 +11,10 @@ NotificationType = Literal[
     "share_link_created",
     "integration_disconnected",
     "deploy_recovery_completed",
+    "join_requested",
+    "member_joined",
+    "project_access_granted",
+    "ownership_transferred",
 ]
 
 

@@ -1,5 +1,51 @@
 # Delivery and verification ledger
 
+## 2026-10-02: Project roles, org chart and room codes (TDR-0056)
+
+Branch `feature/room-code-org-chart`, with `main` (TDR-0055) merged in. Reasoning is in
+TDR-0056.
+
+**Built:**
+- **Project roles** (viewer, commenter, editor, manager) and private projects, enforced in:
+  - every project, page, comment and share-link route;
+  - tickets, search, activity, dashboard counts and client stats;
+  - MCP, the email digest, notifications and realtime.
+- **Team page** with four tabs:
+  - People: filters and CSV export;
+  - Org chart: pan and zoom, search and fly-to, project lens, drag to set reporting
+    lines with Undo, collapse, minimap, full screen, keyboard navigation, dark mode;
+  - Access: an editable role matrix;
+  - Requests.
+- Person drawer, profile dialog, leave workspace, transfer ownership.
+- **Room codes:** generated or custom codes, a Join page with preview and `/join?code=`
+  links, approval with a role, notes, withdraw, cooldown and seat limits.
+- **Share dialogs** show who has access and let managers edit it. The create-project
+  form gets an access step. Controls are gated by project role across the project menu,
+  comment drawer, board and cards.
+
+**Fixed from the branch:**
+- membership ids being compared against user ids;
+- members locked out of legacy projects;
+- instant join bypassing the seat limit;
+- members shown an invite form the API refuses;
+- duplicate not copying the cross-browser render and Slack settings;
+- N+1 queries when listing members and workspaces.
+
+**Verification:**
+- **Backend.** 267 passed. The 11 failures are the known pub/sub, proxy and Jira ones.
+  Ruff, mypy (strict) and the scoping lint pass.
+- **Scratch checks.** 5 RBAC scenarios pass: access end to end, room codes, org chart
+  with transfer and leave, the realtime filter, and MCP plus the digest.
+- **`apps/web`.** Typecheck, lint and build pass. `workspace-join.spec.ts` was updated to
+  the new UI and lists; it was not run against a live stack.
+- **Browser pass.** Real API on local MongoDB, Vite and Playwright: 39 of 39 checks pass,
+  in light and dark.
+
+**Open:**
+- the canvas widget needs a read-only mode for viewers (see TDR-0056);
+- run `scripts/migrate_org_access.py` as a dry run on each environment.
+
+
 ## 2026-10-01: Dashboard sidebar groups, AI page and API keys (TDR-0055)
 
 The user asked for `feature/dashboard-sidebar-updates` to be reviewed, fixed and

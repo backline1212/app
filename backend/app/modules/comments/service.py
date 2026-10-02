@@ -9,6 +9,7 @@ from app.core.actor_access import resolve_actor_project_access
 from app.core.arq_pool import get_arq_pool
 from app.core.errors import NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
+from app.core.project_access import can_view_project
 from app.core.session import Actor, GuestSession, Session, actor_identity
 from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
@@ -100,6 +101,12 @@ async def _broadcast_comment_deleted(
             workspace_id=workspace_id,
             payload=payload,
         )
+
+
+def _project_ref(page: dict[str, Any] | None) -> dict[str, str]:
+    """The project_id an event about a comment on `page` carries, so the activity
+    feed can leave out projects a reader can't see (TDR-0056)."""
+    return {"project_id": page["project_id"]} if page is not None else {}
 
 
 def _require_own_comment(existing: dict[str, Any], actor: Actor) -> None:
@@ -265,13 +272,32 @@ async def get_comment_out_for_workspace(
 
 
 async def _resolve_page_and_access(
-    db: AsyncIOMotorDatabase[dict[str, Any]], actor: Actor, page_id: str
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    actor: Actor,
+    page_id: str,
+    action: str = "project:view",
 ) -> dict[str, Any]:
     page = await PageRepository(db).find_by_id(page_id)
     if page is None:
         raise NotFoundError("Page not found.")
-    await resolve_actor_project_access(db, actor, page["project_id"])
+    await resolve_actor_project_access(db, actor, page["project_id"], action)
     return page
+
+
+async def _require_member_can_comment(
+    db: AsyncIOMotorDatabase[dict[str, Any]], existing: dict[str, Any], actor: Actor
+) -> None:
+    """A member editing or deleting their own comment still needs to be able to
+    comment on its project (TDR-0056) - dropping to viewer, or off a private project,
+    ends that. Guests are bound to their share link instead."""
+    if not isinstance(actor, Session):
+        return
+    if actor.workspace_id != existing["workspace_id"]:
+        raise NotFoundError("Comment not found.")
+    page = await PageRepository(db).find_by_id(existing["page_id"])
+    if page is None:
+        raise NotFoundError("Comment not found.")
+    await resolve_actor_project_access(db, actor, page["project_id"], "comment:create")
 
 
 def _redact_context(context: ContextIn, *, capture_device_details: bool) -> dict[str, Any]:
@@ -303,7 +329,7 @@ async def create_comment(
     tags: list[Tag] | None = None,
     client_request_id: str | None = None,
 ) -> CommentOut:
-    page = await _resolve_page_and_access(db, actor, page_id)
+    page = await _resolve_page_and_access(db, actor, page_id, "comment:create")
 
     # M-08 idempotency: a retried POST with the same caller-generated key replays the
     # original comment instead of creating a duplicate - same check-before-create shape
@@ -361,7 +387,12 @@ async def create_comment(
         type=comment_events.COMMENT_CREATED,
         actor_type=actor_type,
         actor_id=actor_id,
-        payload={"comment_id": str(created["_id"]), "page_id": page_id, "layer": effective_layer},
+        payload={
+            "comment_id": str(created["_id"]),
+            "page_id": page_id,
+            "project_id": page["project_id"],
+            "layer": effective_layer,
+        },
     )
     comment_out = await _comment_out(db, created)
     await _broadcast_comment_event(
@@ -398,7 +429,7 @@ async def create_reply(
     parent_page = await PageRepository(db).find_by_id(parent["page_id"])
     if parent_page is None:
         raise NotFoundError("Page not found.")
-    await resolve_actor_project_access(db, actor, parent_page["project_id"])
+    await resolve_actor_project_access(db, actor, parent_page["project_id"], "comment:reply")
 
     is_guest = isinstance(actor, GuestSession)
     if is_guest and parent["layer"] != "client":
@@ -460,6 +491,7 @@ async def create_reply(
         payload={
             "comment_id": str(created["_id"]),
             "parent_id": parent_id,
+            "project_id": parent_page["project_id"],
             "layer": effective_layer,
         },
     )
@@ -539,8 +571,10 @@ async def delete_comment(
     if existing is None or existing.get("deleted_at") is not None:
         raise NotFoundError("Comment not found.")
     _require_own_comment(existing, actor)
+    await _require_member_can_comment(db, existing, actor)
 
     await repo.soft_delete(comment_id)
+    page = await _page_for_broadcast(db, existing["page_id"])
     actor_type, actor_id = actor_identity(actor)
     await append_event(
         db,
@@ -548,10 +582,9 @@ async def delete_comment(
         type=comment_events.COMMENT_DELETED,
         actor_type=actor_type,
         actor_id=actor_id,
-        payload={"comment_id": comment_id},
+        payload={"comment_id": comment_id, **_project_ref(page)},
     )
 
-    page = await _page_for_broadcast(db, existing["page_id"])
     if page is not None:
         await _broadcast_comment_deleted(
             workspace_id=existing["workspace_id"],
@@ -576,9 +609,11 @@ async def edit_comment(
     if existing is None or existing.get("deleted_at") is not None:
         raise NotFoundError("Comment not found.")
     _require_own_comment(existing, actor)
+    await _require_member_can_comment(db, existing, actor)
 
     await repo.update(comment_id, {"body": body, "edited_at": datetime.now(UTC)})
 
+    page = await _page_for_broadcast(db, existing["page_id"])
     actor_type, actor_id = actor_identity(actor)
     await append_event(
         db,
@@ -586,13 +621,12 @@ async def edit_comment(
         type=comment_events.COMMENT_UPDATED,
         actor_type=actor_type,
         actor_id=actor_id,
-        payload={"comment_id": comment_id, "body": body},
+        payload={"comment_id": comment_id, "body": body, **_project_ref(page)},
     )
 
     updated = await repo.find_by_id(comment_id)
     assert updated is not None
     comment_out = await _comment_out(db, updated)
-    page = await _page_for_broadcast(db, updated["page_id"])
     if page is not None:
         await _broadcast_comment_event(
             event_type="comment.updated",
@@ -617,10 +651,12 @@ async def delete_thread(
     if existing.get("parent_id") is not None:
         raise ValidationError("Only a top-level comment can be deleted as a thread.")
     _require_own_comment(existing, actor)
+    await _require_member_can_comment(db, existing, actor)
 
     replies = await repo.list_replies(comment_id)
     await repo.soft_delete_many([comment_id, *(str(r["_id"]) for r in replies)])
 
+    page = await _page_for_broadcast(db, existing["page_id"])
     actor_type, actor_id = actor_identity(actor)
     await append_event(
         db,
@@ -628,10 +664,9 @@ async def delete_thread(
         type=comment_events.COMMENT_DELETED,
         actor_type=actor_type,
         actor_id=actor_id,
-        payload={"comment_id": comment_id, "reply_count": len(replies)},
+        payload={"comment_id": comment_id, "reply_count": len(replies), **_project_ref(page)},
     )
 
-    page = await _page_for_broadcast(db, existing["page_id"])
     if page is not None:
         await _broadcast_comment_deleted(
             workspace_id=existing["workspace_id"],
@@ -672,15 +707,15 @@ async def delete_comment_moderated(
         raise NotFoundError("Comment not found.")
 
     await repo.soft_delete(comment_id)
+    page = await _page_for_broadcast(db, existing["page_id"])
     await append_event(
         db,
         workspace_id=workspace_id,
         type=comment_events.COMMENT_DELETED,
         actor_type="member",
         actor_id=actor_user_id,
-        payload={"comment_id": comment_id},
+        payload={"comment_id": comment_id, **_project_ref(page)},
     )
-    page = await _page_for_broadcast(db, existing["page_id"])
     if page is not None:
         await _broadcast_comment_deleted(
             workspace_id=workspace_id,
@@ -713,16 +748,16 @@ async def delete_thread_moderated(
 
     replies = await repo.list_replies(comment_id)
     await repo.soft_delete_many([comment_id, *(str(r["_id"]) for r in replies)])
+    page = await _page_for_broadcast(db, existing["page_id"])
     await append_event(
         db,
         workspace_id=workspace_id,
         type=comment_events.COMMENT_DELETED,
         actor_type="member",
         actor_id=actor_user_id,
-        payload={"comment_id": comment_id, "reply_count": len(replies)},
+        payload={"comment_id": comment_id, "reply_count": len(replies), **_project_ref(page)},
     )
 
-    page = await _page_for_broadcast(db, existing["page_id"])
     if page is not None:
         await _broadcast_comment_deleted(
             workspace_id=workspace_id,
@@ -875,9 +910,27 @@ async def update_comment(
         recipients.update(patch["assignee_ids"])
     if "waiting_on_ids" in patch:
         recipients.update(patch["waiting_on_ids"])
+    legacy_assignee = [existing["assignee_id"]] if existing.get("assignee_id") else []
+    already_involved = set(existing.get("assignee_ids", legacy_assignee)) | set(
+        existing.get("waiting_on_ids", [])
+    )
     for user_id in recipients:
-        if not await MembershipRepository(db).find(workspace_id=workspace_id, user_id=user_id):
+        membership = await MembershipRepository(db).find(workspace_id=workspace_id, user_id=user_id)
+        if membership is None:
             raise ValidationError("Assignees and waiting-on people must belong to this workspace.")
+        # Someone newly assigned or waited on must be able to open the ticket
+        # (TDR-0056); people already on it keep their place if their access changes.
+        if user_id not in already_involved and not await can_view_project(
+            db,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            user_id=user_id,
+            workspace_role=membership["role"],
+        ):
+            raise ValidationError(
+                "Everyone you assign or wait on needs access to this project. "
+                "Add them to it first."
+            )
     if patch.get("status", existing["status"]) in ("resolved", "wont_fix"):
         patch.update(waiting_on_ids=[], waiting_on_client=False)
 
@@ -888,7 +941,11 @@ async def update_comment(
         type=comment_events.COMMENT_UPDATED,
         actor_type="member",
         actor_id=actor_user_id,
-        payload={"comment_id": comment_id, **{k: v for k, v in patch.items() if k != "edited_at"}},
+        payload={
+            "comment_id": comment_id,
+            "project_id": project_id,
+            **{k: v for k, v in patch.items() if k != "edited_at"},
+        },
     )
 
     status_changed = status is not None and status != existing["status"]
@@ -1015,7 +1072,12 @@ async def resolve_own_comment(
         type=comment_events.COMMENT_UPDATED,
         actor_type="guest",
         actor_id=actor.guest_session_id,
-        payload={"comment_id": comment_id, "status": "resolved", "resolved_by": "reviewer"},
+        payload={
+            "comment_id": comment_id,
+            "project_id": page["project_id"],
+            "status": "resolved",
+            "resolved_by": "reviewer",
+        },
     )
 
     updated = await repo.find_by_id(comment_id)
@@ -1130,19 +1192,19 @@ async def toggle_layer(
         raise NotFoundError("Comment not found.")
 
     await repo.update(comment_id, {"layer": layer})
+    page = await _page_for_broadcast(db, existing["page_id"])
     await append_event(
         db,
         workspace_id=workspace_id,
         type=comment_events.COMMENT_LAYER_CHANGED,
         actor_type="member",
         actor_id=actor_user_id,
-        payload={"comment_id": comment_id, "new_layer": layer},
+        payload={"comment_id": comment_id, "new_layer": layer, **_project_ref(page)},
     )
 
     updated = await repo.find_by_id(comment_id)
     assert updated is not None
     comment_out = await _comment_out(db, updated)
-    page = await _page_for_broadcast(db, updated["page_id"])
     if page is not None:
         # Members get the new layer; a team->client move also reaches the guest
         # channel through this, where the widget adds the thread it didn't have.
@@ -1196,19 +1258,19 @@ async def reanchor(
             "consecutive_orphaned_revisions": 0,
         },
     )
+    page = await _page_for_broadcast(db, existing["page_id"])
     await append_event(
         db,
         workspace_id=workspace_id,
         type=comment_events.COMMENT_REANCHORED,
         actor_type="member",
         actor_id=actor_user_id,
-        payload={"comment_id": comment_id},
+        payload={"comment_id": comment_id, **_project_ref(page)},
     )
 
     updated = await repo.find_by_id(comment_id)
     assert updated is not None
     comment_out = await _comment_out(db, updated)
-    page = await _page_for_broadcast(db, updated["page_id"])
     if page is not None:
         await _broadcast_comment_event(
             event_type="comment.updated",

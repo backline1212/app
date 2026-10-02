@@ -732,6 +732,169 @@
         ]
       }
     },
+    "/api/v1/workspaces/join/preview": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Preview Join",
+        "description": "Which workspace a room code belongs to, before joining it (TDR-0056).",
+        "operationId": "preview_join_api_v1_workspaces_join_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinPreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/workspaces/join": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Submit Join Request",
+        "operationId": "submit_join_request_api_v1_workspaces_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinRequestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinRequestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/join-requests/mine": {
+      "get": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "List My Join Requests",
+        "operationId": "list_my_join_requests_api_v1_join_requests_mine_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MyJoinRequestOut"
+                  },
+                  "type": "array",
+                  "title": "Response List My Join Requests Api V1 Join Requests Mine Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/join-requests/{request_id}": {
+      "delete": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Cancel My Join Request",
+        "operationId": "cancel_my_join_request_api_v1_join_requests__request_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_id}": {
       "get": {
         "tags": [
@@ -834,6 +997,109 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_id}/room-code": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Set Room Code",
+        "description": "Turns on joining by code - with `code`, or a freshly generated one - replacing\nany previous code.",
+        "operationId": "set_room_code_api_v1_workspaces__workspace_id__room_code_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomCodeSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Disable Room Code",
+        "operationId": "disable_room_code_api_v1_workspaces__workspace_id__room_code_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/members": {
       "get": {
         "tags": [
@@ -868,6 +1134,54 @@
                     "$ref": "#/components/schemas/MemberOut"
                   },
                   "title": "Response List Members Api V1 Workspaces  Workspace Id  Members Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/access-matrix": {
+      "get": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Access Matrix",
+        "description": "Each member's role on every project the caller can see (TDR-0056).",
+        "operationId": "access_matrix_api_v1_workspaces__workspace_id__access_matrix_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessMatrixOut"
                 }
               }
             }
@@ -1048,22 +1362,48 @@
         }
       }
     },
-    "/api/v1/workspaces/join": {
-      "post": {
+    "/api/v1/workspaces/{workspace_id}/members/{member_id}/profile": {
+      "patch": {
         "tags": [
           "workspaces"
         ],
-        "summary": "Submit Join Request",
-        "operationId": "submit_join_request_api_v1_workspaces_join_post",
+        "summary": "Update Member Profile",
+        "description": "Title, team and reporting line for the org chart (TDR-0056).",
+        "operationId": "update_member_profile_api_v1_workspaces__workspace_id__members__member_id__profile_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Member Id"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JoinRequestCreate"
+                "$ref": "#/components/schemas/MemberProfileUpdate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -1071,7 +1411,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JoinRequestResponse"
+                  "$ref": "#/components/schemas/MemberOut"
                 }
               }
             }
@@ -1086,12 +1426,97 @@
               }
             }
           }
-        },
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/leave": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Leave Workspace",
+        "operationId": "leave_workspace_api_v1_workspaces__workspace_id__leave_post",
         "security": [
           {
             "HTTPBearer": []
           }
-        ]
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/transfer-ownership": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Transfer Ownership",
+        "operationId": "transfer_ownership_api_v1_workspaces__workspace_id__transfer_ownership_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferOwnershipRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/workspaces/{workspace_id}/join-requests": {
@@ -1177,6 +1602,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/JoinRequestApprove"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1256,6 +1698,7 @@
           "projects"
         ],
         "summary": "List Projects",
+        "description": "Only the projects the caller can open (TDR-0056): a member never sees a private\nproject they aren't on.",
         "operationId": "list_projects_api_v1_workspaces__workspace_id__projects_get",
         "security": [
           {
@@ -1702,6 +2145,222 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/access": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project Access",
+        "description": "Who can open this project and with what role (TDR-0056).",
+        "operationId": "get_project_access_api_v1_projects__project_id__access_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAccessDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update Project Access",
+        "operationId": "update_project_access_api_v1_projects__project_id__access_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectAccessUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAccessDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/access/members/{user_id}": {
+      "put": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Set Project Member Role",
+        "operationId": "set_project_member_role_api_v1_projects__project_id__access_members__user_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectMemberRoleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAccessDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Remove Project Member",
+        "operationId": "remove_project_member_api_v1_projects__project_id__access_members__user_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -6964,6 +7623,100 @@
   },
   "components": {
     "schemas": {
+      "AccessMatrixOut": {
+        "properties": {
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/AccessMatrixProjectOut"
+            },
+            "type": "array",
+            "title": "Projects"
+          }
+        },
+        "type": "object",
+        "required": [
+          "projects"
+        ],
+        "title": "AccessMatrixOut",
+        "description": "Every project the caller can see, and every member's role on each - the\nMembers page's Access tab and the org chart's project lens."
+      },
+      "AccessMatrixProjectOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "project_type": {
+            "type": "string",
+            "title": "Project Type"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "workspace",
+              "private"
+            ],
+            "title": "Visibility"
+          },
+          "default_role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "commenter",
+              "editor",
+              "manager"
+            ],
+            "title": "Default Role"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "roles": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "viewer",
+                "commenter",
+                "editor",
+                "manager"
+              ]
+            },
+            "type": "object",
+            "title": "Roles"
+          },
+          "sources": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "workspace_admin",
+                "explicit",
+                "creator",
+                "default",
+                "none"
+              ]
+            },
+            "type": "object",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "project_type",
+          "visibility",
+          "default_role",
+          "archived",
+          "roles",
+          "sources"
+        ],
+        "title": "AccessMatrixProjectOut"
+      },
       "AccessTokenOut": {
         "properties": {
           "access_token": {
@@ -9900,11 +10653,104 @@
         "title": "JiraIntegrationCreate",
         "description": "Either an OAuth `code` (needs the operator's Atlassian OAuth app) or the site\nURL + account email + API token (id.atlassian.com -> Security -> API tokens)."
       },
+      "JoinPreviewOut": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "workspace_name": {
+            "type": "string",
+            "title": "Workspace Name"
+          },
+          "member_count": {
+            "type": "integer",
+            "title": "Member Count"
+          },
+          "requires_approval": {
+            "type": "boolean",
+            "title": "Requires Approval"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "can_join",
+              "pending",
+              "already_member"
+            ],
+            "title": "Status"
+          },
+          "workspace_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Slug"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "workspace_name",
+          "member_count",
+          "requires_approval",
+          "status"
+        ],
+        "title": "JoinPreviewOut"
+      },
+      "JoinPreviewRequest": {
+        "properties": {
+          "room_code": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Room Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "room_code"
+        ],
+        "title": "JoinPreviewRequest"
+      },
+      "JoinRequestApprove": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member"
+            ],
+            "title": "Role",
+            "default": "member"
+          }
+        },
+        "type": "object",
+        "title": "JoinRequestApprove"
+      },
       "JoinRequestCreate": {
         "properties": {
           "room_code": {
             "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
             "title": "Room Code"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 280
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
           }
         },
         "type": "object",
@@ -9935,12 +10781,35 @@
             "type": "string",
             "title": "User Name"
           },
+          "user_avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Avatar Url"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
           "status": {
             "type": "string",
             "enum": [
               "pending",
               "approved",
-              "rejected"
+              "rejected",
+              "cancelled"
             ],
             "title": "Status"
           },
@@ -9968,19 +10837,36 @@
             "type": "string",
             "enum": [
               "joined",
-              "pending"
+              "pending",
+              "already_member"
             ],
             "title": "Status"
           },
           "workspace_id": {
             "type": "string",
             "title": "Workspace Id"
+          },
+          "workspace_name": {
+            "type": "string",
+            "title": "Workspace Name"
+          },
+          "workspace_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Slug"
           }
         },
         "type": "object",
         "required": [
           "status",
-          "workspace_id"
+          "workspace_id",
+          "workspace_name"
         ],
         "title": "JoinRequestResponse"
       },
@@ -10289,6 +11175,61 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "manager_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manager User Id"
+          },
+          "invite_pending": {
+            "type": "boolean",
+            "title": "Invite Pending",
+            "default": false
+          },
+          "joined_via": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "created",
+                  "invite",
+                  "room_code",
+                  "join_request"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Joined Via"
           }
         },
         "type": "object",
@@ -10301,6 +11242,49 @@
           "created_at"
         ],
         "title": "MemberOut"
+      },
+      "MemberProfileUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "manager_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manager User Id"
+          }
+        },
+        "type": "object",
+        "title": "MemberProfileUpdate",
+        "description": "Partial. Send `manager_user_id: null` to clear a reporting line; leave a field\nout to keep it."
       },
       "MemberRoleUpdateRequest": {
         "properties": {
@@ -10319,6 +11303,56 @@
         ],
         "title": "MemberRoleUpdateRequest"
       },
+      "MyJoinRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "workspace_name": {
+            "type": "string",
+            "title": "Workspace Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace_id",
+          "workspace_name",
+          "status",
+          "created_at"
+        ],
+        "title": "MyJoinRequestOut"
+      },
       "NotificationOut": {
         "properties": {
           "id": {
@@ -10334,7 +11368,11 @@
               "comment_status_changed",
               "share_link_created",
               "integration_disconnected",
-              "deploy_recovery_completed"
+              "deploy_recovery_completed",
+              "join_requested",
+              "member_joined",
+              "project_access_granted",
+              "ownership_transferred"
             ],
             "title": "Type"
           },
@@ -10852,6 +11890,183 @@
         ],
         "title": "PortalResponse"
       },
+      "ProjectAccessDetailOut": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "workspace",
+              "private"
+            ],
+            "title": "Visibility"
+          },
+          "default_role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "commenter",
+              "editor",
+              "manager"
+            ],
+            "title": "Default Role"
+          },
+          "my_role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "commenter",
+              "editor",
+              "manager"
+            ],
+            "title": "My Role"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectPersonOut"
+            },
+            "type": "array",
+            "title": "People"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "visibility",
+          "default_role",
+          "my_role",
+          "people"
+        ],
+        "title": "ProjectAccessDetailOut"
+      },
+      "ProjectAccessMemberIn": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "User Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "commenter",
+              "editor",
+              "manager"
+            ],
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "role"
+        ],
+        "title": "ProjectAccessMemberIn"
+      },
+      "ProjectAccessMemberOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "commenter",
+              "editor",
+              "manager"
+            ],
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "role"
+        ],
+        "title": "ProjectAccessMemberOut"
+      },
+      "ProjectAccessOut": {
+        "properties": {
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "workspace",
+              "private"
+            ],
+            "title": "Visibility"
+          },
+          "default_role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "commenter",
+              "editor",
+              "manager"
+            ],
+            "title": "Default Role"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectAccessMemberOut"
+            },
+            "type": "array",
+            "title": "Members"
+          }
+        },
+        "type": "object",
+        "required": [
+          "visibility",
+          "default_role",
+          "members"
+        ],
+        "title": "ProjectAccessOut"
+      },
+      "ProjectAccessUpdate": {
+        "properties": {
+          "visibility": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "workspace",
+                  "private"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visibility"
+          },
+          "default_role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "viewer",
+                  "commenter",
+                  "editor",
+                  "manager"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Role"
+          }
+        },
+        "type": "object",
+        "title": "ProjectAccessUpdate",
+        "description": "Partial: only the fields sent change."
+      },
       "ProjectAnalysisResult": {
         "properties": {
           "summary": {
@@ -10939,12 +12154,33 @@
             ],
             "title": "Hero Url"
           },
-          "assigned_member_ids": {
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "workspace",
+              "private"
+            ],
+            "title": "Visibility",
+            "default": "workspace"
+          },
+          "default_role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "commenter",
+              "editor",
+              "manager"
+            ],
+            "title": "Default Role",
+            "default": "editor"
+          },
+          "members": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ProjectAccessMemberIn"
             },
             "type": "array",
-            "title": "Assigned Member Ids"
+            "maxItems": 500,
+            "title": "Members"
           }
         },
         "type": "object",
@@ -11129,6 +12365,25 @@
         ],
         "title": "ProjectHardDeleteResult"
       },
+      "ProjectMemberRoleUpdate": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "commenter",
+              "editor",
+              "manager"
+            ],
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "ProjectMemberRoleUpdate"
+      },
       "ProjectOut": {
         "properties": {
           "id": {
@@ -11235,12 +12490,25 @@
             ],
             "title": "Duplicated From Project Id"
           },
-          "assigned_member_ids": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Assigned Member Ids"
+          "access": {
+            "$ref": "#/components/schemas/ProjectAccessOut"
+          },
+          "my_role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "viewer",
+                  "commenter",
+                  "editor",
+                  "manager"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Role"
           }
         },
         "type": "object",
@@ -11253,9 +12521,96 @@
           "settings",
           "archived_at",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "access"
         ],
         "title": "ProjectOut"
+      },
+      "ProjectPersonOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "member_id": {
+            "type": "string",
+            "title": "Member Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "workspace_role": {
+            "type": "string",
+            "title": "Workspace Role"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "project_role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "viewer",
+                  "commenter",
+                  "editor",
+                  "manager"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Role"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "workspace_admin",
+              "explicit",
+              "creator",
+              "default",
+              "none"
+            ],
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "member_id",
+          "name",
+          "email",
+          "workspace_role",
+          "project_role",
+          "source"
+        ],
+        "title": "ProjectPersonOut",
+        "description": "One workspace member as this project sees them. `project_role` None means no\naccess; `source` says where the role comes from, so the UI can explain it."
       },
       "ProjectResolve": {
         "properties": {
@@ -11534,20 +12889,6 @@
               }
             ],
             "title": "Hero Url"
-          },
-          "assigned_member_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assigned Member Ids"
           }
         },
         "type": "object",
@@ -12023,6 +13364,25 @@
         },
         "type": "object",
         "title": "RevisionRecoverySummary"
+      },
+      "RoomCodeSet": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "title": "RoomCodeSet",
+        "description": "No code generates a random one."
       },
       "SearchResultOut": {
         "properties": {
@@ -13142,6 +14502,21 @@
         "title": "TokenPairOut",
         "description": "The refresh token itself never appears in a JSON body - it's set as an\nhttpOnly cookie by the router (13-Authentication.md \u00a713.6)."
       },
+      "TransferOwnershipRequest": {
+        "properties": {
+          "member_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Member Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "member_id"
+        ],
+        "title": "TransferOwnershipRequest"
+      },
       "TrelloIntegrationCreate": {
         "properties": {
           "type": {
@@ -13617,9 +14992,19 @@
             ],
             "title": "Room Code"
           },
+          "room_code_enabled": {
+            "type": "boolean",
+            "title": "Room Code Enabled",
+            "default": false
+          },
           "join_requires_approval": {
             "type": "boolean",
             "title": "Join Requires Approval",
+            "default": true
+          },
+          "members_can_create_projects": {
+            "type": "boolean",
+            "title": "Members Can Create Projects",
             "default": true
           }
         },
@@ -13648,19 +15033,6 @@
             ],
             "title": "Name"
           },
-          "room_code": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 50,
-                "minLength": 3
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Room Code"
-          },
           "join_requires_approval": {
             "anyOf": [
               {
@@ -13671,6 +15043,17 @@
               }
             ],
             "title": "Join Requires Approval"
+          },
+          "members_can_create_projects": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Members Can Create Projects"
           }
         },
         "type": "object",

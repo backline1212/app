@@ -3,13 +3,16 @@ import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Dialog } from "../../components/Dialog";
+import { type ProjectRole, type ProjectVisibility, roleLabel } from "../../lib/project-roles";
 import { invalidateProjectMutation, qk } from "../../lib/query-keys";
+import { useAuth } from "../auth/AuthContext";
 import { uploadAsset } from "../assets/api";
 import { planLimitUpgrade } from "../billing/api";
 import { createClient, listClients } from "../clients/api";
 import { listShareLinks } from "../share-links/api";
 import { listMembers } from "../workspaces/api";
 import type { WorkspaceOut } from "../workspaces/api";
+import { ProjectAccessFields } from "./access/ProjectAccessFields";
 import * as api from "./api";
 
 type ProjectType = "website" | "image" | "pdf";
@@ -115,7 +118,13 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
-  const [assignedMemberIds, setAssignedMemberIds] = useState<string[]>(project?.assigned_member_ids ?? []);
+  // Access (TDR-0056): only chosen when creating - an existing project's access is
+  // managed from its Share dialog, where everyone with access is listed.
+  const [visibility, setVisibility] = useState<ProjectVisibility>("workspace");
+  const [defaultRole, setDefaultRole] = useState<ProjectRole>("editor");
+  const [grants, setGrants] = useState<Record<string, ProjectRole>>({});
+  const [peopleQuery, setPeopleQuery] = useState("");
+  const { role: myRole, user } = useAuth();
 
 
   const selectedClient = useMemo(() => clients.data?.find((item) => item.id === client), [client, clients.data]);
@@ -156,9 +165,10 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           show_board_to_client: showBoardToClient,
           enable_cross_browser_render: enableCrossBrowserRender,
         });
-        return api.updateProject(project.id, { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId || null, assigned_member_ids: assignedMemberIds });
+        return api.updateProject(project.id, { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId || null });
       }
-      const current = created ?? await api.createProject(workspace.id, name.trim(), type === "website" ? url.trim() : "", { project_type: type, environment, client_id: clientId || null, assigned_member_ids: assignedMemberIds });
+      const members = Object.entries(grants).map(([user_id, role]) => ({ user_id, role }));
+      const current = created ?? await api.createProject(workspace.id, name.trim(), type === "website" ? url.trim() : "", { project_type: type, environment, client_id: clientId || null, visibility, default_role: defaultRole, members });
       setCreated(current);
       for (const file of files) {
         const key = `${file.name}:${file.size}:${file.lastModified}`;
@@ -197,6 +207,18 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           <p className="bl-policy-note">Reviewers are asked for a name before their first comment on the default link.</p>
           <footer className="bl-dialog-actions"><button type="button" className="bl-quiet" onClick={onClose}>Done</button><Link className="bl-button mint" to={`/w/${workspace.slug}/p/${created.id}`}>Open project</Link></footer>
         </div>
+      </Dialog>
+    );
+  }
+
+  if (!project && !workspace.members_can_create_projects && myRole === "member") {
+    return (
+      <Dialog title="New project" onClose={close}>
+        <div className="bl-state-panel">
+          <h3>Only owners and admins can create projects here</h3>
+          <p>{workspace.name} keeps project creation to its owners and admins. Ask one of them to set the project up and add you to it.</p>
+        </div>
+        <footer className="bl-dialog-actions bl-dialog-actions-bordered"><button type="button" className="bl-button" onClick={onClose}>Got it</button></footer>
       </Dialog>
     );
   }
@@ -248,23 +270,33 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
 
         <div className="bl-form-section"><label htmlFor="project-name">Project name</label><input id="project-name" className="bl-input" required maxLength={200} value={name} onChange={(event) => setName(event.target.value)} placeholder={type === "website" ? "Sarvam AI redesign" : "Launch creative"} disabled={Boolean(created) || save.isPending} /></div>
 
-        <div className="bl-form-section">
-          <label>Assigned Members</label>
-          {membersQuery.isLoading ? <div className="bl-input bl-input-loading" role="status">Loading members…</div> : membersQuery.isError ? <div className="bl-inline-error" role="alert"><span>Members could not load.</span><button type="button" onClick={() => membersQuery.refetch()}>Try again</button></div> : (
-            <div className="bl-checkbox-list" style={{ border: "1px solid var(--bl-line)", borderRadius: "8px", maxHeight: "150px", overflowY: "auto", padding: "8px" }}>
-               {membersQuery.data?.map(m => (
-                 <label key={m.id} style={{ display: "flex", gap: "8px", alignItems: "center", padding: "4px", margin: 0, fontWeight: "normal", fontSize: "14px" }}>
-                   <input type="checkbox" checked={assignedMemberIds.includes(m.id)} onChange={e => {
-                     if (e.target.checked) setAssignedMemberIds([...assignedMemberIds, m.id]);
-                     else setAssignedMemberIds(assignedMemberIds.filter(id => id !== m.id));
-                   }} />
-                   {m.name} ({m.email})
-                 </label>
-               ))}
-            </div>
-          )}
-          <small>Select the team members who should have access to this project.</small>
-        </div>
+        {project ? (
+          <div className="bl-form-section">
+            <span className="pf-label">Access</span>
+            <p className="pf-access-summary">
+              {project.access.visibility === "private" ? "Private" : `Open to ${workspace.name}`} · your role: {roleLabel(project.my_role)}.
+              {" "}Change who can open it from <strong>Share</strong> in the project menu.
+            </p>
+          </div>
+        ) : (
+          <ProjectAccessFields
+            workspaceName={workspace.name}
+            members={membersQuery.data}
+            membersLoading={membersQuery.isLoading}
+            membersError={membersQuery.isError}
+            onRetry={() => void membersQuery.refetch()}
+            myUserId={user?.id}
+            visibility={visibility}
+            onVisibility={setVisibility}
+            defaultRole={defaultRole}
+            onDefaultRole={setDefaultRole}
+            grants={grants}
+            onGrants={setGrants}
+            query={peopleQuery}
+            onQuery={setPeopleQuery}
+            disabled={Boolean(created) || save.isPending}
+          />
+        )}
 
         {type === "website" ? <>
           <div className="bl-form-section"><label htmlFor="project-url">Review URL <span className="bl-required">Required</span></label><input id="project-url" className="bl-input" required type="text" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); if (!environmentEdited) setEnvironment(detectEnvironment(event.target.value)); }} placeholder="staging.yoursite.com" disabled={Boolean(created) || save.isPending} /><small>Backline loads this page each time a reviewer opens the project. HTTP and HTTPS addresses are supported.</small></div>

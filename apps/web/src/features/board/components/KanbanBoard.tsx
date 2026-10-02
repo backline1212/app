@@ -14,6 +14,9 @@ import type { CommentOut, CommentStatus } from "../api";
 import { commentContext } from "./types";
 
 interface KanbanBoardProps {
+  /** TDR-0056: below editor the status select and tracker buttons are off. */
+  canEdit?: boolean;
+  canComment?: boolean;
   filtered: CommentOut[];
   memberName: (userId: string | null) => string | null;
   repliesByParent: Map<string, CommentOut[]>;
@@ -49,6 +52,8 @@ export function KanbanBoard({
   createTrelloCardMutation,
   createJiraIssueMutation,
   createAsanaTaskMutation,
+  canEdit = true,
+  canComment = true,
 }: KanbanBoardProps) {
   return (
     <div className="bl-kanban-grid">
@@ -91,7 +96,9 @@ export function KanbanBoard({
                   >
                     {(repliesByParent.get(comment.id)?.length ?? 0) > 0
                       ? `View thread (${repliesByParent.get(comment.id)?.length})`
-                      : "Reply"}
+                      : canComment
+                        ? "Reply"
+                        : "View thread"}
                   </button>
                   <select
                     value={comment.status}
@@ -103,6 +110,8 @@ export function KanbanBoard({
                     }
                     aria-label="Change comment status"
                     className="bl-select bl-kanban-status"
+                    disabled={!canEdit}
+                    title={canEdit ? undefined : "Editors and managers change status"}
                   >
                     {STATUSES.map((s) => (
                       <option key={s} value={s}>
@@ -119,7 +128,7 @@ export function KanbanBoard({
                     >
                       View linked task
                     </a>
-                  ) : (
+                  ) : canEdit && (
                     <div className="bl-kanban-integrations">
                       {clickupIntegration && (
                         <button

@@ -143,13 +143,13 @@ async def submit_snapshot(
         type=snapshot_events.REVISION_CREATED,
         actor_type=actor_type,
         actor_id=actor_id,
-        payload={"page_id": page_id, "revision_id": revision_id},
+        payload={"page_id": page_id, "project_id": page["project_id"], "revision_id": revision_id},
     )
     await publish_realtime_event(
         f"workspace:{page['workspace_id']}:all",
         event_type="revision.created",
         workspace_id=page["workspace_id"],
-        payload={"page_id": page_id, "revision_id": revision_id},
+        payload={"page_id": page_id, "project_id": page["project_id"], "revision_id": revision_id},
     )
 
     if current is not None:

@@ -9,6 +9,7 @@ import { BellIcon } from "../../components/icons";
 import { useOnClickOutside } from "../../lib/use-click-outside";
 import { qk } from "../../lib/query-keys";
 import { useAuth } from "../auth/AuthContext";
+import { roleLabel } from "../../lib/project-roles";
 import { timeAgo } from "../../lib/time";
 import * as notificationsApi from "./api";
 import type { NotificationOut } from "./api";
@@ -45,6 +46,14 @@ function describe(notification: NotificationOut): string {
       return `Your ${payload.integration_type ?? ""} integration was disconnected after repeated delivery failures`;
     case "deploy_recovery_completed":
       return "Comment anchors were re-mapped after a deploy";
+    case "join_requested":
+      return `${payload.actor_name || "Someone"} asked to join with the room code`;
+    case "member_joined":
+      return `${payload.actor_name || "Someone"} joined with the room code`;
+    case "project_access_granted":
+      return `${payload.actor_name || "Someone"} added you to ${payload.project_name || "a project"} as ${roleLabel(payload.role).toLowerCase()}`;
+    case "ownership_transferred":
+      return `${payload.actor_name || "Someone"} made you the owner of this workspace`;
     default:
       return "New notification";
   }

@@ -52,8 +52,10 @@ def _require(actor: McpActor, action: str, what: str) -> None:
 
 
 async def list_projects(db: AsyncIOMotorDatabase[dict[str, Any]], actor: McpActor) -> str:
-    projects = await projects_service.list_projects(db, actor.workspace_id)
-    summary = await dashboard_service.summary(db, actor.workspace_id, actor.user_id)
+    projects = await projects_service.list_projects(db, actor.workspace_id, viewer=actor.session)
+    summary = await dashboard_service.summary(
+        db, actor.workspace_id, actor.user_id, viewer=actor.session
+    )
     stats = {row.project_id: row for row in summary.project_stats}
     workspace = await WorkspaceRepository(db).find_by_id(actor.workspace_id)
     name = workspace["name"] if workspace else "this workspace"
@@ -94,7 +96,9 @@ async def list_tickets(
         limit=max(1, min(limit, 50)),
         offset=max(0, offset),
     )
-    result = await dashboard_service.list_tickets(db, actor.workspace_id, actor.user_id, filters)
+    result = await dashboard_service.list_tickets(
+        db, actor.workspace_id, actor.user_id, filters, viewer=actor.session
+    )
     if not result.items:
         return "No tickets match those filters."
     end = filters.offset + len(result.items)
@@ -128,7 +132,9 @@ def _message(comment: CommentOut) -> str:
 
 
 async def get_ticket(db: AsyncIOMotorDatabase[dict[str, Any]], actor: McpActor, ticket: str) -> str:
-    thread = await load_thread(db, workspace_id=actor.workspace_id, ref=ticket)
+    thread = await load_thread(
+        db, workspace_id=actor.workspace_id, ref=ticket, viewer=actor.session
+    )
     comment = thread.comment
     context = comment.context or {}
     names = await _member_names(db, comment.assignee_ids)
@@ -178,7 +184,9 @@ async def get_ticket(db: AsyncIOMotorDatabase[dict[str, Any]], actor: McpActor, 
 async def implementation_prompt(
     db: AsyncIOMotorDatabase[dict[str, Any]], actor: McpActor, ticket: str
 ) -> str:
-    thread = await load_thread(db, workspace_id=actor.workspace_id, ref=ticket)
+    thread = await load_thread(
+        db, workspace_id=actor.workspace_id, ref=ticket, viewer=actor.session
+    )
     backlink = await integration_service.comment_backlink(
         db, workspace_id=actor.workspace_id, comment_id=thread.comment.id
     )
@@ -208,7 +216,13 @@ async def reply_to_ticket(
         limit=settings.comment_create_rate_limit_per_minute,
         window_seconds=60,
     )
-    thread = await load_thread(db, workspace_id=actor.workspace_id, ref=ticket)
+    thread = await load_thread(
+        db,
+        workspace_id=actor.workspace_id,
+        ref=ticket,
+        viewer=actor.session,
+        action="comment:reply",
+    )
     reply = await comment_service.create_reply(
         db,
         parent_id=thread.comment.id,
@@ -231,7 +245,13 @@ async def update_ticket(
     _require(actor, "comment:update_status", "change ticket status or priority")
     if status is None and priority is None:
         raise ValidationError("Pass a status, a priority, or both.")
-    thread = await load_thread(db, workspace_id=actor.workspace_id, ref=ticket)
+    thread = await load_thread(
+        db,
+        workspace_id=actor.workspace_id,
+        ref=ticket,
+        viewer=actor.session,
+        action="comment:update_status",
+    )
     # Only the fields given: update_comment applies exactly the set fields.
     changes = CommentUpdate.model_validate(
         {key: value for key, value in (("status", status), ("priority", priority)) if value}
@@ -270,7 +290,13 @@ async def send_ticket_to_tracker(
     if len(matches) > 1:
         options = ", ".join(f"{i.id} ({i.destination_label or 'no destination'})" for i in matches)
         raise ValidationError(f"Several {wanted} connections - pass one of these ids: {options}.")
-    thread = await load_thread(db, workspace_id=actor.workspace_id, ref=ticket)
+    thread = await load_thread(
+        db,
+        workspace_id=actor.workspace_id,
+        ref=ticket,
+        viewer=actor.session,
+        action="comment:create_integration_task",
+    )
     link = await integration_service.send_to_tracker(
         db,
         comment_id=thread.comment.id,

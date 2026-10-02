@@ -4,24 +4,30 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import PermissionDeniedError
+from app.core.project_access import load_project_for
 from app.core.session import Actor, GuestSession, Session
 from app.modules.projects import service as project_service
 from app.modules.share_links.repository import GuestSessionRepository, ShareLinkRepository
 
 
 async def resolve_actor_project_access(
-    db: AsyncIOMotorDatabase[dict[str, Any]], actor: Actor, project_id: str
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    actor: Actor,
+    project_id: str,
+    action: str = "project:view",
 ) -> str:
     """Shared by storage/pages/snapshot_engine, all of which accept "member or guest"
     (12-API-WebSocket.md §12.3). Returns the workspace_id the actor is authorized to act
     within for this project; raises otherwise. Members are checked against their
     workspace-scoped token (raises NotFoundError via project_service if the project
-    belongs to another workspace); guests are checked against their share link's project -
+    belongs to another workspace) and against their project role for `action`
+    (TDR-0056); guests are checked against their share link's project -
     the guest-side equivalent of the cross-tenant guarantee (03-System-Architecture.md §3.5)."""
     if isinstance(actor, Session):
         workspace_id = actor.workspace_id
         if workspace_id is None:
             raise PermissionDeniedError("No active workspace context.")
+        await load_project_for(db, actor, project_id, action)
         project = await project_service.get_project(
             db, project_id=project_id, workspace_id=workspace_id
         )

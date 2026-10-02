@@ -7,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import ValidationError
 from app.core.events import append_event
+from app.core.project_access import can_view_project, session_hidden_project_ids
 from app.core.session import Session
 from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
@@ -44,8 +45,16 @@ def _page_path(url_normalized: str | None) -> str | None:
         return None
 
 
+async def _hidden(db: AsyncIOMotorDatabase[dict[str, Any]], viewer: Session | None) -> list[str]:
+    return await session_hidden_project_ids(db, viewer) if viewer is not None else []
+
+
 async def search(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, query: str, limit: int
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    query: str,
+    limit: int,
+    viewer: Session | None = None,
 ) -> SearchResultsOut:
     """Search only documents already constrained to the caller's active workspace.
 
@@ -60,8 +69,9 @@ async def search(
     each_limit = min(limit, 20)
     items: list[SearchResultOut] = []
     repo = DashboardRepository(db)
+    hidden = await _hidden(db, viewer)
 
-    projects = await repo.search_projects(workspace_id, matcher, each_limit)
+    projects = await repo.search_projects(workspace_id, matcher, each_limit, hidden)
     items.extend(
         SearchResultOut(
             kind="project",
@@ -73,7 +83,7 @@ async def search(
         for project in projects
     )
 
-    pipeline = root_pipeline(workspace_id)
+    pipeline = root_pipeline(workspace_id, hidden)
     pipeline.extend(
         [
             {
@@ -131,8 +141,11 @@ async def list_tickets(
     workspace_id: str,
     user_id: str,
     filters: TicketFilters,
+    viewer: Session | None = None,
 ) -> TicketListOut:
-    result = await DashboardRepository(db).tickets(workspace_id, user_id, filters)
+    result = await DashboardRepository(db).tickets(
+        workspace_id, user_id, filters, await _hidden(db, viewer)
+    )
 
     # Batch-resolve author names instead of one UserRepository lookup per ticket
     # (_comment_out's default behavior) - a ticket page can be up to `filters.limit`
@@ -173,9 +186,12 @@ async def list_tickets(
 
 
 async def summary(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, user_id: str
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    user_id: str,
+    viewer: Session | None = None,
 ) -> DashboardOut:
-    result = await DashboardRepository(db).summary(workspace_id, user_id)
+    result = await DashboardRepository(db).summary(workspace_id, user_id, await _hidden(db, viewer))
     statuses = {row["_id"]: row["count"] for row in result["statuses"]}
     personal = result["personal"][0] if result["personal"] else {}
     project_statuses: dict[str, dict[str, int]] = {}
@@ -217,6 +233,47 @@ def _comment_label(comment: dict[str, Any] | None) -> dict[str, Any]:
     return {"ticket_number": comment.get("ticket_number"), "comment_excerpt": excerpt or None}
 
 
+async def _drop_hidden_legacy_events(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    docs: list[dict[str, Any]],
+    hidden: list[str],
+) -> list[dict[str, Any]]:
+    """Events written before TDR-0056 name only a comment or page. Resolve those to
+    their project and drop the ones in a project the reader can't open."""
+    hidden_set = set(hidden)
+    unresolved = [doc for doc in docs if not doc["payload_json"].get("project_id")]
+    if not unresolved:
+        return docs
+    page_ids = {
+        doc["payload_json"]["page_id"]
+        for doc in unresolved
+        if isinstance(doc["payload_json"].get("page_id"), str)
+    }
+    comment_ids = [
+        doc["payload_json"]["comment_id"]
+        for doc in unresolved
+        if isinstance(doc["payload_json"].get("comment_id"), str)
+    ]
+    comment_pages = {
+        str(comment["_id"]): comment["page_id"]
+        for comment in await CommentRepository(db).find_many_in_workspace(
+            workspace_id, comment_ids, fields={"page_id": 1}
+        )
+    }
+    page_ids.update(comment_pages.values())
+    page_projects = await PageRepository(db).project_ids_for(workspace_id, list(page_ids))
+
+    def project_of(doc: dict[str, Any]) -> str | None:
+        payload = doc["payload_json"]
+        if payload.get("project_id"):
+            return str(payload["project_id"])
+        page_id = payload.get("page_id") or comment_pages.get(str(payload.get("comment_id")))
+        return page_projects.get(page_id) if isinstance(page_id, str) else None
+
+    return [doc for doc in docs if project_of(doc) not in hidden_set]
+
+
 async def activity(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     workspace_id: str,
@@ -224,10 +281,14 @@ async def activity(
     offset: int,
     limit: int,
     event_type: str,
+    viewer: Session | None = None,
 ) -> ActivityListOut:
+    hidden = await _hidden(db, viewer)
     docs, total = await DashboardRepository(db).activity(
-        workspace_id, user_id, offset, limit, event_type
+        workspace_id, user_id, offset, limit, event_type, hidden
     )
+    if hidden:
+        docs = await _drop_hidden_legacy_events(db, workspace_id, docs, hidden)
     comment_ids = [doc["payload_json"].get("comment_id") for doc in docs]
     comments = {
         str(comment["_id"]): comment
@@ -268,8 +329,19 @@ async def create_ticket(
         raise ValidationError("Ticket text is required.")
     assignees = list(dict.fromkeys(body.assignee_ids))
     for user_id in assignees:
-        if not await MembershipRepository(db).find(workspace_id=workspace_id, user_id=user_id):
+        membership = await MembershipRepository(db).find(workspace_id=workspace_id, user_id=user_id)
+        if membership is None:
             raise ValidationError("Assignees must belong to this workspace.")
+        if not await can_view_project(
+            db,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            user_id=user_id,
+            workspace_role=membership["role"],
+        ):
+            raise ValidationError(
+                "Everyone you assign needs access to this project. Add them to it first."
+            )
     if body.page_id:
         page = await PageRepository(db).find_by_id(body.page_id)
         if page is None or page["workspace_id"] != workspace_id or page["project_id"] != project_id:

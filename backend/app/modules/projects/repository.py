@@ -36,7 +36,7 @@ class ProjectRepository:
         environment: str = "live",
         client_id: str | None = None,
         hero_url: str | None = None,
-        assigned_member_ids: list[str] | None = None,
+        access: dict[str, Any] | None = None,
         is_sample: bool = False,
     ) -> dict[str, Any]:
         now = datetime.now(UTC)
@@ -49,7 +49,21 @@ class ProjectRepository:
             "target_origin": target_origin,
             "created_by": created_by,
             "hero_url": hero_url,
-            "assigned_member_ids": assigned_member_ids or [],
+            # TDR-0056: who can open this project and with what role. Absent on
+            # projects saved before then, which core/project_access.py reads as open.
+            "access": access
+            or {
+                "visibility": "workspace",
+                "default_role": "editor",
+                "members": [
+                    {
+                        "user_id": created_by,
+                        "role": "manager",
+                        "added_by": created_by,
+                        "added_at": now,
+                    }
+                ],
+            },
             "settings_json": {"proxy_mode": False, "snippet_installed": False},
             "archived_at": None,
             "created_at": now,
@@ -75,15 +89,125 @@ class ProjectRepository:
         workspace_id: str,
         *,
         include_archived: bool = False,
-        member_id_filter: str | None = None,
+        exclude_ids: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         query: dict[str, Any] = {"workspace_id": workspace_id}
         if not include_archived:
             query["archived_at"] = None
-        if member_id_filter:
-            query["assigned_member_ids"] = member_id_filter
+        if exclude_ids:
+            query["_id"] = {"$nin": [oid for oid in map(to_object_id, exclude_ids) if oid]}
         cursor = self.db.projects.find(query).sort("created_at", -1)
         return [doc async for doc in cursor]
+
+    async def list_private_ids_hidden_from(self, workspace_id: str, user_id: str) -> list[str]:
+        """Private projects (TDR-0056) this user isn't listed on. Workspace projects,
+        including every legacy project with no `access` block, are never hidden."""
+        cursor = self.db.projects.find(
+            {
+                "workspace_id": workspace_id,
+                "access.visibility": "private",
+                "access.members.user_id": {"$ne": user_id},
+            },
+            {"_id": 1},
+        )
+        return [str(doc["_id"]) async for doc in cursor]
+
+    async def list_access_for_workspace(self, workspace_id: str) -> list[dict[str, Any]]:
+        """Every project's name, state and access block - the Members page's access
+        matrix and org chart read these, not whole project documents."""
+        cursor = self.db.projects.find(
+            {"workspace_id": workspace_id},
+            {
+                "name": 1,
+                "project_type": 1,
+                "archived_at": 1,
+                "access": 1,
+                "created_by": 1,
+                "created_at": 1,
+                "hard_delete_status": 1,
+            },
+        ).sort("created_at", -1)
+        return [doc async for doc in cursor]
+
+    async def set_access(
+        self,
+        workspace_id: str,
+        project_id: str,
+        access: dict[str, Any],
+        *,
+        only_if_missing: bool = False,
+    ) -> bool:
+        """Replaces the whole access block. `only_if_missing` writes it only when the
+        project has none yet (turning a legacy project's implied access into stored
+        access), so two concurrent first edits can't overwrite each other."""
+        query: dict[str, Any] = {"workspace_id": workspace_id, "_id": to_object_id(project_id)}
+        if only_if_missing:
+            query["access"] = {"$exists": False}
+        result = await self.db.projects.update_one(
+            query, {"$set": {"access": access, "updated_at": datetime.now(UTC)}}
+        )
+        return result.matched_count == 1
+
+    async def update_access_settings(
+        self, workspace_id: str, project_id: str, patch: dict[str, Any]
+    ) -> None:
+        set_ops = {f"access.{key}": value for key, value in patch.items()}
+        await self.db.projects.update_one(
+            {"workspace_id": workspace_id, "_id": to_object_id(project_id)},
+            {"$set": {**set_ops, "updated_at": datetime.now(UTC)}},
+        )
+
+    async def upsert_access_member(
+        self, workspace_id: str, project_id: str, entry: dict[str, Any]
+    ) -> None:
+        """Sets one person's role, adding them if they aren't listed. The first update
+        changes an existing entry in place; the second appends only when no entry for
+        them exists, so a concurrent add can't leave the same person listed twice."""
+        oid = to_object_id(project_id)
+        for _ in range(3):
+            changed = await self.db.projects.update_one(
+                {
+                    "workspace_id": workspace_id,
+                    "_id": oid,
+                    "access.members.user_id": entry["user_id"],
+                },
+                {
+                    "$set": {
+                        "access.members.$.role": entry["role"],
+                        "updated_at": datetime.now(UTC),
+                    }
+                },
+            )
+            if changed.matched_count:
+                return
+            added = await self.db.projects.update_one(
+                {
+                    "workspace_id": workspace_id,
+                    "_id": oid,
+                    "access.members.user_id": {"$ne": entry["user_id"]},
+                },
+                {"$push": {"access.members": entry}, "$set": {"updated_at": datetime.now(UTC)}},
+            )
+            if added.matched_count:
+                return
+
+    async def remove_access_member(self, workspace_id: str, project_id: str, user_id: str) -> bool:
+        result = await self.db.projects.update_one(
+            {"workspace_id": workspace_id, "_id": to_object_id(project_id)},
+            {
+                "$pull": {"access.members": {"user_id": user_id}},
+                "$set": {"updated_at": datetime.now(UTC)},
+            },
+        )
+        return result.modified_count == 1
+
+    async def remove_member_from_all_projects(self, workspace_id: str, user_id: str) -> None:
+        """When someone leaves the workspace, their project entries go too - otherwise
+        rejoining later would silently restore access a manager may have meant to end."""
+        await self.db.projects.update_many(
+            {"workspace_id": workspace_id, "access.members.user_id": user_id},
+            {"$pull": {"access.members": {"user_id": user_id}}},
+        )
 
     async def find_by_origin(self, workspace_id: str, target_origin: str) -> dict[str, Any] | None:
         """Used by the extension's "auto-detect current site" flow (find-or-create by
@@ -125,7 +249,6 @@ class ProjectRepository:
         name: str | None,
         target_origin: str | None,
         hero_url: str | None = None,
-        assigned_member_ids: list[str] | None = None,
     ) -> None:
         patch: dict[str, Any] = {"updated_at": datetime.now(UTC)}
         if name is not None:
@@ -134,8 +257,6 @@ class ProjectRepository:
             patch["target_origin"] = target_origin
         if hero_url is not None:
             patch["hero_url"] = hero_url
-        if assigned_member_ids is not None:
-            patch["assigned_member_ids"] = assigned_member_ids
         # workspace-scope-exempt: update_project (projects/service.py) already verified
         # doc["workspace_id"] == workspace_id via find_by_id before calling this.
         await self.db.projects.update_one({"_id": to_object_id(project_id)}, {"$set": patch})

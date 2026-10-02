@@ -37,7 +37,7 @@ async def create_upload_url(
     content_type: str,
     content_length: int,
 ) -> UploadOut:
-    workspace_id = await resolve_actor_project_access(db, actor, project_id)
+    workspace_id = await resolve_actor_project_access(db, actor, project_id, "comment:create")
 
     # Keyed by a fresh uuid4, not a comment_id - the upload happens before the comment
     # exists (docs/tdr/0002-snippet-mode-shares-the-share-link-model.md). "uploads/", not
@@ -66,7 +66,7 @@ async def store_upload(
         )
     except PydanticValidationError as exc:
         raise ValidationError("Unsupported upload type or size.") from exc
-    workspace_id = await resolve_actor_project_access(db, actor, project_id)
+    workspace_id = await resolve_actor_project_access(db, actor, project_id, "comment:create")
     key = _upload_key(workspace_id, project_id, validated.content_type)
     await upload_bytes(key, data, validated.content_type)
     return StoredUploadOut(key=key)

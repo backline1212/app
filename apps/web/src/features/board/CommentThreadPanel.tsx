@@ -1,4 +1,6 @@
 import { LayerBadge, RecoveryBadge } from "@backline/ui";
+import { roleLabel } from "../../lib/project-roles";
+import { useProjectRole } from "../projects/use-project";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
@@ -67,6 +69,8 @@ interface CommentThreadPanelProps {
 // edited from the workspace ticket board and one edited from here never drift into two
 // different sets of fields or two different visual languages.
 export function CommentThreadPanel({ comment, replies, projectId, onClose }: CommentThreadPanelProps) {
+  // TDR-0056: commenters reply, editors and managers also triage.
+  const { canComment, canEdit, role } = useProjectRole(projectId);
   const { workspaceSlug } = useParams();
   const [body, setBody] = useState("");
   const [layer, setLayer] = useState<CommentLayer>("client");
@@ -200,6 +204,10 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
           {orphaned && <RecoveryBadge status={comment.recovery_status} />}
         </div>
 
+        {!canEdit && role && (
+          <p className="bl-cd-readonly">You're a {roleLabel(role).toLowerCase()} on this project. Editors and managers change these.</p>
+        )}
+        <fieldset className="bl-thread-fields" disabled={!canEdit}>
         <div className="bl-fields">
           <label>
             Status
@@ -296,6 +304,8 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
           </>
         )}
 
+        </fieldset>
+
         {updateMutation.isError && (
           <p role="alert" className="bl-error">
             Could not save that change.
@@ -304,9 +314,11 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 className="bl-group-title">Conversation</h2>
-          <button type="button" className="bl-quiet" onClick={handleSummarize} disabled={isSummarizing}>
-            {isSummarizing ? "Summarizing..." : "✨ Summarize"}
-          </button>
+          {canComment && (
+            <button type="button" className="bl-quiet" onClick={handleSummarize} disabled={isSummarizing}>
+              {isSummarizing ? "Summarizing..." : "✨ Summarize"}
+            </button>
+          )}
         </div>
 
         {summary && (
@@ -321,6 +333,9 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
           <ThreadMessage key={reply.id} comment={reply} />
         ))}
 
+        {!canComment ? (
+          <p className="bl-inline-note">You can read this thread but not reply. Ask a project manager for commenter access.</p>
+        ) : (
         <form onSubmit={handleSubmit} className="bl-form bl-flush">
           <label>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -408,6 +423,7 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
             </p>
           )}
         </form>
+        )}
       </div>
     </Dialog>
   );

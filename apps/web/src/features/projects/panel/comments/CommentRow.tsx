@@ -1,5 +1,6 @@
 import { Avatar, LayerBadge, RecoveryBadge } from "@backline/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useProjectRole } from "../../use-project";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -54,6 +55,8 @@ export function CommentRow({
   const popoverRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  // Moving and deleting threads is triage: editors and managers only (TDR-0056).
+  const { canEdit } = useProjectRole(projectId);
 
   // Portaled to <body> (see the render below) so it can escape the review drawer's
   // own overflow-y:auto - a plain absolutely-positioned child gets clipped for any
@@ -166,10 +169,10 @@ export function CommentRow({
               event.stopPropagation();
               statusMutation.mutate(resolved ? "todo" : "resolved");
             }}
-            disabled={statusMutation.isPending}
+            disabled={statusMutation.isPending || !canEdit}
             aria-pressed={resolved}
-            aria-label={resolved ? "Reopen this comment" : "Mark as resolved"}
-            title={resolved ? "Resolved — click to reopen" : "Mark as resolved"}
+            aria-label={!canEdit ? (resolved ? "Resolved" : "Not resolved") : resolved ? "Reopen this comment" : "Mark as resolved"}
+            title={!canEdit ? (resolved ? "Resolved" : "Editors and managers resolve comments") : resolved ? "Resolved — click to reopen" : "Mark as resolved"}
             className={`bl-comment-resolve ${resolved ? "is-resolved" : ""}`}
           >
             <svg viewBox="0 0 16 16" width="10" height="10" fill="none" aria-hidden="true">
@@ -182,7 +185,7 @@ export function CommentRow({
               />
             </svg>
           </button>
-          <div className="bl-comment-popover-anchor" ref={menuRef} onClick={(event) => event.stopPropagation()}>
+          {canEdit && <div className="bl-comment-popover-anchor" ref={menuRef} onClick={(event) => event.stopPropagation()}>
             <button
               ref={triggerRef}
               type="button"
@@ -248,7 +251,7 @@ export function CommentRow({
               </div>,
               document.body
             )}
-          </div>
+          </div>}
         </div>
       </div>
 

@@ -56,6 +56,17 @@ class PageRepository:
         doc["_id"] = result.inserted_id
         return doc
 
+    async def project_ids_for(self, workspace_id: str, page_ids: list[str]) -> dict[str, str]:
+        """page_id -> project_id for several pages at once (the activity feed's
+        visibility filter, dashboard/service.py)."""
+        oids = [oid for oid in map(to_object_id, page_ids) if oid is not None]
+        if not oids:
+            return {}
+        cursor = self.db.pages.find(
+            {"workspace_id": workspace_id, "_id": {"$in": oids}}, {"project_id": 1}
+        )
+        return {str(doc["_id"]): doc["project_id"] async for doc in cursor}
+
     async def list_for_project(self, workspace_id: str, project_id: str) -> list[dict[str, Any]]:
         cursor = self.db.pages.find({"workspace_id": workspace_id, "project_id": project_id}).sort(
             "first_seen_at", -1

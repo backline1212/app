@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { takeReturnPath } from "../../lib/return-path";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { useAuth } from "./AuthContext";
 
@@ -24,7 +25,7 @@ export function AuthCallbackPage() {
     }
 
     loginWithGoogleCode(code)
-      .then(() => navigate("/", { replace: true }))
+      .then(() => navigate(takeReturnPath(), { replace: true }))
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "Google sign-in failed.");
       });
