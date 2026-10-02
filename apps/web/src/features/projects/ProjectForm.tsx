@@ -60,19 +60,17 @@ function SettingRow({ checked, description, label, onChange }: {
   );
 }
 
-function SettingStatusRow({ description, label, status }: {
-  description: string;
-  label: string;
-  status: string;
-}) {
-  return (
-    <div className="bl-setting-row bl-setting-row-static">
-      <span className="bl-setting-copy">
-        <strong>{label}<span className="bl-saved-only">{status}</span></strong>
-        <span>{description}</span>
-      </span>
-    </div>
-  );
+// "staging.acme-studio.com" -> "Acme Studio": a starting name from the review URL, so a
+// website project needs one field filled in, not two (TDR-0058).
+function nameFromUrl(value: string): string {
+  try {
+    const host = new URL(value.includes("://") ? value.trim() : `https://${value.trim()}`).hostname;
+    const parts = host.replace(/^www\./, "").split(".");
+    const label = parts.length > 2 && /^(staging|stage|dev|preview|test|beta|app)$/i.test(parts[0]) ? parts[1] : parts[0];
+    return label.split(/[-_]+/).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
+  } catch {
+    return "";
+  }
 }
 
 function detectEnvironment(value: string): "live" | "staging" {
@@ -101,6 +99,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [client, setClient] = useState(project?.client_id ?? initialClientId ?? "");
   const [environment, setEnvironment] = useState<"live" | "staging">(project?.environment ?? "live");
   const [environmentEdited, setEnvironmentEdited] = useState(Boolean(project));
+  const [nameEdited, setNameEdited] = useState(Boolean(project));
   const [captureDeviceDetails, setCaptureDeviceDetails] = useState(project?.settings.capture_device_details ?? false);
   const [reviewerCanResolve, setReviewerCanResolve] = useState(project?.settings.reviewer_can_resolve ?? false);
   const [showBoardToClient, setShowBoardToClient] = useState(project?.settings.show_board_to_client ?? false);
@@ -226,7 +225,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   if (!project && phase === "type") {
     return (
       <Dialog title="New project" onClose={close}>
-        <div className="bl-dialog-progress" aria-label="Step 1 of 3"><i className="is-on" /><i /><i /></div>
+        <div className="bl-dialog-progress" aria-label="Step 1 of 2"><i className="is-on" /><i /></div>
         <div className="bl-dialog-intro"><p>What are you collecting feedback on?</p></div>
         <div className="bl-project-type-body">
           <div className="bl-project-type-grid primary" role="radiogroup" aria-label="Project type">
@@ -254,10 +253,28 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
 
   return (
     <Dialog title={project ? "Project settings" : type === "website" ? "Add the page to review" : "Upload your files"} onClose={close}>
-      {!project && <div className="bl-dialog-progress" aria-label="Step 2 of 3"><i className="is-on" /><i className="is-on" /><i /></div>}
+      {!project && <div className="bl-dialog-progress" aria-label="Step 2 of 2"><i className="is-on" /><i className="is-on" /></div>}
       <div className="bl-dialog-intro"><p>{project ? project.name : `${typeLabel} project`}</p></div>
       <form className="bl-project-form" onSubmit={(event) => { event.preventDefault(); if (canSubmit && !submitting.current) save.mutate(); }}>
         <fieldset disabled={phase === "saving"} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        {/* TDR-0058: what's being reviewed comes first - the URL (which also suggests a
+            name) or the files - then the name, then who it's for and who can open it. */}
+        {type === "website" ? <>
+          <div className="bl-form-section"><label htmlFor="project-url">Review URL <span className="bl-required">Required</span></label><input id="project-url" className="bl-input" required type="text" inputMode="url" autoFocus={!project} value={url} onChange={(event) => { setUrl(event.target.value); if (!environmentEdited) setEnvironment(detectEnvironment(event.target.value)); if (!nameEdited) setName(nameFromUrl(event.target.value)); }} placeholder="staging.yoursite.com" disabled={Boolean(created) || save.isPending} /><small>Backline loads this page each time a reviewer opens the project. HTTP and HTTPS addresses are supported.</small></div>
+          <fieldset className="bl-environment-field" disabled={Boolean(created) || save.isPending}><legend>Environment</legend><div className="bl-segment"><button type="button" aria-pressed={environment === "staging"} onClick={() => { setEnvironment("staging"); setEnvironmentEdited(true); }}>Staging</button><button type="button" aria-pressed={environment === "live"} onClick={() => { setEnvironment("live"); setEnvironmentEdited(true); }}>Live</button></div><small>{environmentEdited ? "Manually selected." : "Detected from the domain — override it here if needed."}</small></fieldset>
+        </> : !project ? <div className="bl-form-section">
+          <label>Files <span className="bl-required">Required</span></label>
+          <button type="button" className={`bl-upload-drop${files.length ? " has-files" : ""}${dragging ? " is-dragging" : ""}`} onClick={() => fileInputRef.current?.click()} onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); selectFiles(Array.from(event.dataTransfer.files)); }} disabled={save.isPending}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 9l5-5 5 5M12 4v12" /></svg>
+            {files.length ? <><span className="bl-file-list">{files.slice(0, 6).map((file) => <span key={`${file.name}-${file.lastModified}`}>{file.name}</span>)}{files.length > 6 && <span>+{files.length - 6} more</span>}</span><strong>{files.length} file{files.length === 1 ? "" : "s"} ready</strong><small>Click or drop again to replace the selection.</small></> : <><strong>Drop {type === "pdf" ? "a PDF" : "images"} here, or click to choose</strong><small>{type === "pdf" ? "One document · up to 200 pages · 20 MB" : "PNG, JPG, WebP or GIF · up to 50 files · 20 MB each"}</small></>}
+          </button>
+          <input ref={fileInputRef} type="file" hidden multiple={type === "image"} accept={type === "pdf" ? "application/pdf" : "image/png,image/jpeg,image/webp,image/gif"} onChange={(event) => selectFiles(Array.from(event.target.files ?? []))} />
+          {files.filter((file) => !uploaded.includes(`${file.name}:${file.size}:${file.lastModified}`)).map((file) => <button type="button" className="bl-quiet" key={`${file.name}:${file.lastModified}`} disabled={save.isPending} onClick={() => { setFiles((old) => old.filter((item) => item !== file)); setFileError(""); }}>Remove {file.name}</button>)}
+          {fileError && <p role="alert" className="bl-error">{fileError}</p>}{uploaded.length > 0 && <p className="bl-mono">{uploaded.length} of {files.length} uploaded</p>}
+        </div> : null}
+
+        <div className="bl-form-section"><label htmlFor="project-name">Project name</label><input id="project-name" className="bl-input" required maxLength={200} value={name} onChange={(event) => { setName(event.target.value); setNameEdited(true); }} placeholder={type === "website" ? "Sarvam AI redesign" : "Launch creative"} disabled={Boolean(created) || save.isPending} /></div>
+
         <div className="bl-form-section">
           <label htmlFor="project-client">Client</label>
           {clients.isLoading ? <div className="bl-input bl-input-loading" role="status">Loading clients…</div> : clients.isError ? <div className="bl-inline-error" role="alert"><span>Clients could not load.</span><button type="button" onClick={() => clients.refetch()}>Try again</button></div> : (
@@ -267,8 +284,6 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         </div>
 
         {client === "new" && <div className="bl-new-client-fields"><label>Client name<input className="bl-input" required maxLength={200} placeholder="Sarvam AI" value={newClientName} onChange={(event) => setNewClientName(event.target.value)} disabled={Boolean(created) || save.isPending} /></label><div className="bl-two-fields"><label>Main contact<input className="bl-input" maxLength={200} placeholder="Ravi Kulkarni" value={newClientContact} onChange={(event) => setNewClientContact(event.target.value)} disabled={Boolean(created) || save.isPending} /></label><label>Their email<input className="bl-input" type="email" placeholder="ravi@client.com" value={newClientEmail} onChange={(event) => setNewClientEmail(event.target.value)} disabled={Boolean(created) || save.isPending} /></label></div></div>}
-
-        <div className="bl-form-section"><label htmlFor="project-name">Project name</label><input id="project-name" className="bl-input" required maxLength={200} value={name} onChange={(event) => setName(event.target.value)} placeholder={type === "website" ? "Sarvam AI redesign" : "Launch creative"} disabled={Boolean(created) || save.isPending} /></div>
 
         {project ? (
           <div className="bl-form-section">
@@ -298,21 +313,11 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           />
         )}
 
-        {type === "website" ? <>
-          <div className="bl-form-section"><label htmlFor="project-url">Review URL <span className="bl-required">Required</span></label><input id="project-url" className="bl-input" required type="text" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); if (!environmentEdited) setEnvironment(detectEnvironment(event.target.value)); }} placeholder="staging.yoursite.com" disabled={Boolean(created) || save.isPending} /><small>Backline loads this page each time a reviewer opens the project. HTTP and HTTPS addresses are supported.</small></div>
-          <fieldset className="bl-environment-field" disabled={Boolean(created) || save.isPending}><legend>Environment</legend><div className="bl-segment"><button type="button" aria-pressed={environment === "staging"} onClick={() => { setEnvironment("staging"); setEnvironmentEdited(true); }}>Staging</button><button type="button" aria-pressed={environment === "live"} onClick={() => { setEnvironment("live"); setEnvironmentEdited(true); }}>Live</button></div><small>{environmentEdited ? "Manually selected." : "Detected from the domain — override it here if needed."}</small></fieldset>
-        </> : !project ? <div className="bl-form-section">
-          <label>Files <span className="bl-required">Required</span></label>
-          <button type="button" className={`bl-upload-drop${files.length ? " has-files" : ""}${dragging ? " is-dragging" : ""}`} onClick={() => fileInputRef.current?.click()} onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); selectFiles(Array.from(event.dataTransfer.files)); }} disabled={save.isPending}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 9l5-5 5 5M12 4v12" /></svg>
-            {files.length ? <><span className="bl-file-list">{files.slice(0, 6).map((file) => <span key={`${file.name}-${file.lastModified}`}>{file.name}</span>)}{files.length > 6 && <span>+{files.length - 6} more</span>}</span><strong>{files.length} file{files.length === 1 ? "" : "s"} ready</strong><small>Click or drop again to replace the selection.</small></> : <><strong>Drop {type === "pdf" ? "a PDF" : "images"} here, or click to choose</strong><small>{type === "pdf" ? "One document · up to 200 pages · 20 MB" : "PNG, JPG, WebP or GIF · up to 50 files · 20 MB each"}</small></>}
-          </button>
-          <input ref={fileInputRef} type="file" hidden multiple={type === "image"} accept={type === "pdf" ? "application/pdf" : "image/png,image/jpeg,image/webp,image/gif"} onChange={(event) => selectFiles(Array.from(event.target.files ?? []))} />
-          {files.filter((file) => !uploaded.includes(`${file.name}:${file.size}:${file.lastModified}`)).map((file) => <button type="button" className="bl-quiet" key={`${file.name}:${file.lastModified}`} disabled={save.isPending} onClick={() => { setFiles((old) => old.filter((item) => item !== file)); setFileError(""); }}>Remove {file.name}</button>)}
-          {fileError && <p role="alert" className="bl-error">{fileError}</p>}{uploaded.length > 0 && <p className="bl-mono">{uploaded.length} of {files.length} uploaded</p>}
-        </div> : null}
-
-        {project && <fieldset className="bl-review-settings"><legend>Review settings</legend><SettingRow checked={captureDeviceDetails} onChange={setCaptureDeviceDetails} label="Capture browser and device details" description="Attaches OS, viewport and the element selector to every new comment." /><SettingStatusRow label="Automatic anchor recovery" description="Recovery runs for every new revision. The legacy per-project toggle is retained for compatibility but is not an active control." status="Always on" /><SettingRow checked={reviewerCanResolve} onChange={setReviewerCanResolve} label="Let reviewers resolve their own comments" description="Off means only your team can move a guest comment to Resolved." /><SettingRow checked={showBoardToClient} onChange={setShowBoardToClient} label="Show the ticket board to this client" description="Off hides due dates, assignees and the board from guest reviewers." /><SettingRow checked={enableCrossBrowserRender} onChange={setEnableCrossBrowserRender} label="Render real cross-browser screenshots" description="Lets the footer's Capture As dropdown request a real Chromium/WebKit/Firefox screenshot instead of just tagging the browser name. Each render costs worker time, so it's off by default." /><SettingStatusRow label="Client email digest" description="Client digest delivery has no approved recipient, privacy, or scheduling contract and cannot be enabled." status="Not available" /></fieldset>}
+        {/* Only real switches here (TDR-0058). "Automatic anchor recovery - Always on" and
+            "Client email digest - Not available" were read-only rows that took up the
+            dialog to describe things nobody can change; anchor recovery is mentioned
+            once, as a caption. */}
+        {project && <fieldset className="bl-review-settings"><legend>Review settings</legend><SettingRow checked={captureDeviceDetails} onChange={setCaptureDeviceDetails} label="Capture browser and device details" description="Attaches OS, viewport and the element selector to every new comment." /><SettingRow checked={reviewerCanResolve} onChange={setReviewerCanResolve} label="Let reviewers resolve their own comments" description="Off means only your team can move a guest comment to Resolved." /><SettingRow checked={showBoardToClient} onChange={setShowBoardToClient} label="Show the ticket board to this client" description="Off hides due dates, assignees and the board from guest reviewers." /><SettingRow checked={enableCrossBrowserRender} onChange={setEnableCrossBrowserRender} label="Render real cross-browser screenshots" description="Capture comments in real Chromium, WebKit and Firefox instead of only noting the browser. Off by default, since each render uses extra processing time." /><small className="bl-settings-note">Pins re-attach to the right element automatically after every deploy.</small></fieldset>}
 
         </fieldset>
         {phase === "saving" && <p role="status">{files.length ? `${uploaded.length} of ${files.length} files uploaded. Processing remaining files…` : "Saving project…"}</p>}

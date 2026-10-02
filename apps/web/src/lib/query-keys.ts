@@ -38,6 +38,8 @@ export const qk = {
   canvasSession: (projectId: string) => ["project", projectId, "canvas-session"] as const,
   projectAccess: (projectId: string) => ["project", projectId, "access"] as const,
   hardDeletePreview: (projectId: string) => ["project", projectId, "hard-delete-preview"] as const,
+  // TDR-0058 - one dry-run per selected project, for the bulk permanent-delete dialog.
+  bulkHardDeletePreview: (projectIds: string[]) => ["projects", "bulk-hard-delete-preview", projectIds.join(",")] as const,
   // Broad, deliberately over-inclusive prefix - invalidates every "workspace"-rooted
   // query (dashboard, members, projects, tickets, activity, ...) at once. Existing
   // behavior preserved as-is when centralizing ad-hoc keys; not a new invalidation.

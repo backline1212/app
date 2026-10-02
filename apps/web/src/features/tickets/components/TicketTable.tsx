@@ -5,7 +5,8 @@ import { dueMeta } from "../../projects/panel/comments/types";
 import type { MemberOut } from "../../workspaces/api";
 import * as api from "../api";
 import { DatePicker } from "./DatePicker";
-import { TrashIcon } from "./DeleteTicket";
+import { SelectAllBox, SelectBox } from "../../../components/BulkBar";
+import type { Selection } from "../../../lib/use-selection";
 import { PrioritySelect, StatusSelect } from "./StatusSelect";
 import type { TicketUpdateMutation } from "./types";
 
@@ -45,7 +46,7 @@ export function TicketTable({
   onOpen,
   onFilterProject,
   onFilterTag,
-  onDelete,
+  selection,
 }: {
   tickets: api.Ticket[];
   members: MemberOut[];
@@ -55,7 +56,7 @@ export function TicketTable({
   onOpen: (id: string) => void;
   onFilterProject: (projectId: string) => void;
   onFilterTag: (tag: string) => void;
-  onDelete: (ticket: api.Ticket) => void;
+  selection: Selection;
 }) {
   // No bare "table" class on the wrapper: that is Tailwind's display:table utility,
   // which made it a table box - one that ignores overflow-x, so on a phone the whole
@@ -65,6 +66,7 @@ export function TicketTable({
       <table className="bl-table">
         <thead>
           <tr>
+            <th className="bl-col-select"><SelectAllBox selection={selection} noun="tickets" /></th>
             <th className="bl-col-num">ID</th>
             <th>Ticket</th>
             <SortableHeader label="Project" sortKey="project" sort={sort} onSort={onSort} />
@@ -73,7 +75,6 @@ export function TicketTable({
             <th>Tags</th>
             <th>Assignee</th>
             <SortableHeader label="Due" sortKey="due" sort={sort} onSort={onSort} />
-            <th className="bl-col-actions"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody>
@@ -81,7 +82,10 @@ export function TicketTable({
             const due = dueMeta(t.due_at, isClosed(t.status));
             const assignees = t.assignee_ids ?? [];
             return (
-              <tr key={t.id} className={isClosed(t.status) ? "is-closed" : undefined} onClick={() => onOpen(t.id)}>
+              <tr key={t.id} className={[isClosed(t.status) && "is-closed", selection.isSelected(t.id) && "is-selected"].filter(Boolean).join(" ") || undefined} onClick={() => onOpen(t.id)}>
+                <td className="bl-col-select">
+                  <SelectBox checked={selection.isSelected(t.id)} label={`Select ticket ${ticketRef(t)}`} onToggle={(range) => selection.toggle(t.id, range)} />
+                </td>
                 <td className="bl-col-num">{ticketRef(t)}</td>
                 <td className="bl-col-ticket">
                   <button type="button" className="bl-ticket-title" onClick={(e) => { e.stopPropagation(); onOpen(t.id); }}>
@@ -129,11 +133,6 @@ export function TicketTable({
                   <DatePicker value={t.due_at} onChange={(value) => update.mutate({ id: t.id, patch: { due_at: value } })} triggerClassName={`bl-due bl-due-trigger ${due?.tone ?? ""}`}>
                     {due ? due.text : "Set date"}
                   </DatePicker>
-                </td>
-                <td className="bl-col-actions">
-                  <button type="button" className="bl-row-delete" aria-label={`Delete ticket ${ticketRef(t)}`} title="Delete ticket" onClick={(e) => { e.stopPropagation(); onDelete(t); }}>
-                    <TrashIcon />
-                  </button>
                 </td>
               </tr>
             );

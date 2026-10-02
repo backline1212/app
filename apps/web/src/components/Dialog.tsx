@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useFocusTrap } from "../lib/use-focus-trap";
 import { popOpenDialog, pushOpenDialog } from "../lib/dialog-stack";
 
-export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Dialog({ title, onClose, children, size }: { title: string; onClose: () => void; children: ReactNode; size?: "wide" }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -21,7 +21,7 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
   // one other modals rely on (ShareProjectModal, VersionMenu) instead of silently
   // depending on browser-native behavior alone.
   useFocusTrap(ref, true);
-  return <dialog ref={ref} className="bl-dialog" aria-label={title} onCancel={onClose}>
+  return <dialog ref={ref} className={`bl-dialog${size ? ` is-${size}` : ""}`} aria-label={title} onCancel={onClose}>
     <header className="bl-dialog-head"><h2>{title}</h2><button type="button" className="bl-icon" aria-label="Close dialog" onClick={onClose}>×</button></header>
     {children}
   </dialog>;

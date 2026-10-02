@@ -83,7 +83,7 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
   const onPage = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
 
   const primaryLinks: RailItem[] = [
-    { to: base, label: t('sidebar.projects' as TranslationKeys), icon: ProjectsIcon, count: data?.projects, active: pathname === base && query.get("archived") !== "true" },
+    { to: base, label: t('sidebar.projects' as TranslationKeys), icon: ProjectsIcon, count: data?.projects, active: pathname === base },
     { to: `${base}/tickets?view=mine`, label: "Assigned to me", icon: AssignedToMeIcon, count: data?.assigned_to_me, hot: true, active: onTickets && query.get("view") === "mine" },
     { to: `${base}/tickets`, label: "All tickets", icon: TicketsIcon, count: data?.tickets, active: onTickets && query.get("view") !== "mine" && !query.get("status") },
     { to: `${base}/activity`, label: t('sidebar.activity' as TranslationKeys), icon: ActivityClockIcon, active: onPage(`${base}/activity`) },
@@ -161,7 +161,8 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
     <nav aria-label="Workspace navigation" className="bl-nav">
       {primaryLinks.map(iconLink)}
 
-      <RailGroup id="statuses" label="Comments by status" open={sections.open.statuses} onToggle={() => sections.toggle("statuses")}>
+      {/* "Tickets", not "Comments": every link here opens the Tickets list (TDR-0058). */}
+      <RailGroup id="statuses" label="Tickets by status" open={sections.open.statuses} onToggle={() => sections.toggle("statuses")}>
         {WORKFLOW_STATUSES.filter((s) => s !== "wont_fix").map((s) => (
           <RailLink
             key={s}
@@ -175,18 +176,8 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
         ))}
       </RailGroup>
 
-      <p className="bl-nav-label">PROJECTS</p>
-      <div className="bl-views">
-        <RailLink
-          to={`${base}?archived=true`}
-          active={pathname === base && query.get("archived") === "true"}
-          onNavigate={onNavigate}
-          lead={<i className="bl-dot is-grey" />}
-          label="Archived"
-          trail={<b className="bl-ct">{data?.archived_projects ?? 0}</b>}
-        />
-      </div>
-
+      {/* Archived projects are the Active / Archived switch on the Projects page now
+          (TDR-0058), instead of a one-link "PROJECTS" group here. */}
       <RailGroup id="tools" label="Tools" open={sections.open.tools} onToggle={() => sections.toggle("tools")}>
         {toolLinks.map(iconLink)}
       </RailGroup>

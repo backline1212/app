@@ -1,19 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "../../lib/use-document-title";
+import { useSelection } from "../../lib/use-selection";
 import { STATUS_COLORS, STATUS_LABELS } from "../../lib/workflow";
+import { SelectAllBox } from "../../components/BulkBar";
 import { PlusIcon } from "../../components/icons";
 import { EmptyArt } from "../../components/illustrations";
+import { SearchField } from "../../components/SearchField";
 import type { WorkspaceOut } from "../workspaces/api";
-import type * as api from "./api";
 import { TicketBoard } from "./components/TicketBoard";
+import { TicketBulkActions } from "./components/TicketBulkActions";
 import { TicketCalendar } from "./components/TicketCalendar";
 import { TicketRow } from "./components/TicketRow";
 import { TicketTable } from "./components/TicketTable";
 import { TicketToolbar } from "./components/TicketToolbar";
 import { NewTicket } from "./components/NewTicket";
 import { TicketDetail } from "./components/TicketDetail";
-import { DeleteTicketDialog } from "./components/DeleteTicket";
 import { useTickets } from "./use-tickets";
 
 const VIEW_LAYOUTS = [
@@ -23,8 +25,8 @@ const VIEW_LAYOUTS = [
   { id: "calendar", label: "Calendar", icon: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></> },
 ];
 
-const VIEW_TABS: { key: string; label: string }[] = [
-  { key: "all", label: "Everyone" },
+const VIEW_TABS: { key: string; label: string; title?: string }[] = [
+  { key: "all", label: "Everyone", title: "All tickets" },
   { key: "mine", label: "Assigned to me" },
   { key: "reply", label: "Needs your reply" },
   { key: "client", label: "Waiting on client" },
@@ -33,7 +35,6 @@ const VIEW_TABS: { key: string; label: string }[] = [
 
 export function TicketsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  const [deleting, setDeleting] = useState<api.Ticket | null>(null);
   useDocumentTitle([workspace.name, "Tickets"]);
   const [params, setParams] = useSearchParams();
   const [showCreate, setShowCreate] = useState(false);
@@ -50,10 +51,34 @@ export function TicketsPage() {
     tickets,
     groups,
     set,
+    setMany,
     display,
     assignees,
     offset,
   } = useTickets(workspace.id, params, setParams);
+
+  // Selection (TDR-0058) works in the List and Table layouts, over the rows on this
+  // page. Anything that changes which rows are listed - a filter, the page, the layout -
+  // starts it over; opening a ticket's detail doesn't.
+  const selectable = display === "list" || display === "table";
+  const visibleIds = useMemo(() => (selectable ? [...new Set(groups.flatMap(([, rows]) => rows.map((t) => t.id)))] : []), [groups, selectable]);
+  const scopeKey = useMemo(() => {
+    const scope = new URLSearchParams(params);
+    scope.delete("comment");
+    scope.delete("ticket");
+    scope.sort();
+    return scope.toString();
+  }, [params]);
+  const selection = useSelection(visibleIds, scopeKey);
+  const search = params.get("search") ?? "";
+  function setSearch(value: string) {
+    const next = new URLSearchParams(params);
+    if (value) next.set("search", value);
+    else next.delete("search");
+    next.delete("offset");
+    // Replaces the history entry, so Back leaves the page instead of un-typing a query.
+    setParams(next, { replace: true });
+  }
 
   const tabCounts: Record<string, number | undefined> = {
     all: dashboard.data?.tickets,
@@ -64,6 +89,7 @@ export function TicketsPage() {
   };
 
   const activeFilters: { label: string; dot?: string; onClear: () => void }[] = [
+    ...(search ? [{ label: `“${search}”`, onClear: () => setSearch("") }] : []),
     // An unknown status (a typo'd or outdated link) still gets a named, clearable chip
     // instead of a blank one with no React key.
     ...(params.get("status") ? [{ label: STATUS_LABELS[params.get("status") as keyof typeof STATUS_LABELS] ?? params.get("status")!, dot: STATUS_COLORS[params.get("status") as keyof typeof STATUS_COLORS], onClear: () => set("status", "") }] : []),
@@ -81,7 +107,7 @@ export function TicketsPage() {
   const view = VIEW_TABS.some((tab) => tab.key === params.get("view")) ? params.get("view")! : "all";
   // Why the list is empty decides what to say and offer: filters to clear, a tab with
   // nothing in it (Overdue, Needs your reply…), or a workspace with no tickets at all.
-  const narrowed = activeFilters.length > 0 || Boolean(params.get("search"));
+  const narrowed = activeFilters.length > 0;
   const emptyTab: Record<string, string> = {
     mine: "Nothing is assigned to you right now.",
     reply: "Nobody is waiting on a reply from you.",
@@ -118,8 +144,8 @@ export function TicketsPage() {
     <main className="bl-wrap">
       <header className="bl-head">
         <div>
-          <h1>{view === "mine" ? "Assigned to me" : "All tickets"}</h1>
-          <p>Every comment, plus the work your team raises directly.</p>
+          <h1>{VIEW_TABS.find((tab) => tab.key === view)?.title ?? VIEW_TABS.find((tab) => tab.key === view)?.label}</h1>
+          <p>Every review comment, plus the work your team raises directly.</p>
         </div>
         <div className="bl-chip-row">
           <button className="bl-quiet" disabled={exporting} onClick={() => void exportAll()}>
@@ -154,10 +180,20 @@ export function TicketsPage() {
       </div>
 
 
-      <div className="bl-toolbar">
+      <div className="bl-toolbar bl-ticket-tools">
+        {display === "list" && visibleIds.length > 0 && <SelectAllBox selection={selection} noun="tickets" />}
         <span className="bl-mono">{query.data?.total ?? "—"} TICKETS</span>
+        <SearchField value={search} onChange={setSearch} label="Search tickets" placeholder="Search tickets…" />
         <div className="bl-tool-right">
           <TicketToolbar
+            filters={{
+              project_id: params.get("project_id") ?? "",
+              status: params.get("status") ?? "",
+              priority: params.get("priority") ?? "",
+              tag: params.get("tag") ?? "",
+            }}
+            onFilter={(changes) => setMany(changes as Record<string, string>)}
+            projects={(projects.data ?? []).filter((p) => !p.archived_at)}
             sort={sort}
             onSort={(v) => set("sort", v)}
             group={group}
@@ -209,12 +245,21 @@ export function TicketsPage() {
                 onOpen={(id) => set("comment", id)}
                 onFilterProject={(id) => set("project_id", id)}
                 onFilterTag={(tag) => set("tag", tag)}
-                onDelete={setDeleting}
+                selection={selection}
               />
             ) : (
               <div className="bl-table-wrap">
                 {rows.map((t) => (
-                  <TicketRow key={t.id} ticket={t} members={members.data ?? []} update={update} onOpen={(id) => set("comment", id)} onFilterTag={(tag) => set("tag", tag)} onDelete={setDeleting} />
+                  <TicketRow
+                    key={t.id}
+                    ticket={t}
+                    members={members.data ?? []}
+                    update={update}
+                    onOpen={(id) => set("comment", id)}
+                    onFilterTag={(tag) => set("tag", tag)}
+                    selected={selection.isSelected(t.id)}
+                    onSelect={(range) => selection.toggle(t.id, range)}
+                  />
                 ))}
               </div>
             )}
@@ -270,7 +315,7 @@ export function TicketsPage() {
       )}
 
       {showCreate && <NewTicket workspace={workspace} members={members.data ?? []} onClose={() => setShowCreate(false)} />}
-      {deleting && <DeleteTicketDialog ticket={deleting} workspaceId={workspace.id} onCancel={() => setDeleting(null)} onDeleted={() => setDeleting(null)} />}
+      <TicketBulkActions selection={selection} tickets={tickets} members={members.data ?? []} workspaceId={workspace.id} />
       {selected && <TicketDetail id={selected} workspace={workspace} members={members.data ?? []} onClose={closeDetail} />}
     </main>
   );

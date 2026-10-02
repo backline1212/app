@@ -15,12 +15,15 @@ import { ShareProjectModal } from "../workspaces/ShareProjectModal";
 import type { WorkspaceOut } from "../workspaces/api";
 import * as api from "./api";
 import { ProjectForm } from "./ProjectForm";
-import { DuplicateProjectDialog, ProjectMenu } from "./ProjectMenu";
+import { ProjectBulkActions } from "./ProjectBulkActions";
+import { ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
 import { ComingSoonPanel, type SoonType } from "./ComingSoonPanel";
 import { ProjectArtwork } from "./ProjectArtwork";
 import { LockIcon, PlusIcon, SearchIcon } from "../../components/icons";
-import { projectCan, roleLabel } from "../../lib/project-roles";
+import { SelectAllBox, SelectBox } from "../../components/BulkBar";
+import { roleLabel } from "../../lib/project-roles";
+import { useSelection } from "../../lib/use-selection";
 import { EmptyArt } from "../../components/illustrations";
 
 const TYPE_LABELS: Record<string, string> = { website: "Website", image: "Images", pdf: "PDF" };
@@ -80,7 +83,6 @@ export function ProjectsPage() {
   useDocumentTitle([workspace.name, archived ? "Archived Projects" : "Projects"]);
   const [createType, setCreateType] = useState<"website" | "image" | "pdf" | null>(null);
   const [share, setShare] = useState<api.ProjectOut | null>(null);
-  const [duplicating, setDuplicating] = useState<api.ProjectOut | null>(null);
   const [edit, setEdit] = useState<api.ProjectOut | null>(null);
   const [managePages, setManagePages] = useState<api.ProjectOut | null>(null);
   const [showNewTicket, setShowNewTicket] = useState(false);
@@ -102,11 +104,18 @@ export function ProjectsPage() {
   const summary = useQuery({ queryKey: qk.dashboard(workspace.id), queryFn: () => getDashboard(workspace.id) });
   const attention = useQuery({ queryKey: qk.ticketsAttention(workspace.id), queryFn: () => listTickets(workspace.id, new URLSearchParams({ view: "reply", limit: "3" })) });
   const stats = useMemo(() => new Map(summary.data?.project_stats.map((s) => [s.project_id, s]) ?? []), [summary.data]);
+  const archivedCount = (projects.data ?? []).filter((p) => p.archived_at).length;
+  const activeCount = (projects.data ?? []).length - archivedCount;
   const visible = useMemo(() => (projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (type === "all" || (p.project_type ?? "website") === type) && (!params.get("client") || p.client_id === params.get("client")) && `${p.name} ${p.target_origin}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "open" ? (stats.get(b.id)?.open ?? 0) - (stats.get(a.id)?.open ?? 0) : sort === "added" ? b.created_at.localeCompare(a.created_at) : (stats.get(b.id)?.last_activity_at ?? b.updated_at).localeCompare(stats.get(a.id)?.last_activity_at ?? a.updated_at)), [projects.data, archived, type, params, search, sort, stats]);
 
   // The landing state only (no search/type/archived filter active) gets the live
   // greeting; once someone is filtering or searching, a plain, functional heading
   // ("Results for …", "Archived projects") is more useful than "Good morning" again.
+  // Selection (TDR-0058) covers the projects on screen and starts over whenever the
+  // filters, sort or Active/Archived switch change.
+  const visibleIds = useMemo(() => visible.map((p) => p.id), [visible]);
+  const selection = useSelection(visibleIds, params.toString());
+
   const firstName = user?.name.trim().split(/\s+/)[0];
   const hour = now.getHours();
   const timeGreeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -125,7 +134,12 @@ export function ProjectsPage() {
     // the actions column at the end of the row.
     const cornerMenu = view === "cards" || view === "compact";
     const menu = <ProjectMenu project={p} workspaceSlug={workspace.slug} onShare={() => setShare(p)} onSettings={() => setEdit(p)} onManagePages={isWebsite ? () => setManagePages(p) : undefined} />;
-    return <article key={p.id} className={`bl-project ${p.archived_at ? "archived" : ""}`}>
+    // TDR-0058: the hover overlay used to carry Duplicate, Share and "Who has access"
+    // buttons (the last two opened the same dialog, and all three are in the ⋯ menu)
+    // plus the URL a third time. It now holds the one thing a hover is for: opening it.
+    const selected = selection.isSelected(p.id);
+    return <article key={p.id} className={`bl-project ${p.archived_at ? "archived" : ""}${selected ? " is-selected" : ""}`}>
+      <SelectBox className="bl-project-select" checked={selected} label={`Select ${p.name}`} onToggle={(range) => selection.toggle(p.id, range)} />
       {cornerMenu && <div className="bl-project-card-menu">{menu}</div>}
       <div className="bl-project-preview">
         <ProjectArtwork project={p} open={open} total={total} />
@@ -133,16 +147,8 @@ export function ProjectsPage() {
         <span className="bl-preview-type">{TYPE_LABELS[p.project_type ?? "website"] ?? "Website"}</span>
         {!p.archived_at && <Link className="bl-project-preview-link" to={destination} aria-label={`Open ${p.name}`} />}
         {!p.archived_at && view === "cards" && (
-          <div className="bl-project-overlay">
-            <div className="bl-project-overlay-actions">
-              {projectCan(p, "edit") && <button type="button" aria-label={`Duplicate ${p.name}`} title="Duplicate project" onClick={() => setDuplicating(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>}
-              <button type="button" aria-label={`Share ${p.name}`} title="Share project" onClick={() => setShare(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="3.5"/><path d="M19 8v6M22 11h-6"/></svg></button>
-            </div>
-            <Link className="bl-project-overlay-open" to={destination}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>Open Project</Link>
-            <div className="bl-project-overlay-foot">
-              <span className="bl-project-overlay-url">{displayUrl}</span>
-              <button type="button" className="bl-project-overlay-badge" aria-label={`Who has access to ${p.name}`} title="Who has access" onClick={() => setShare(p)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="3.5"/><path d="m17 11 2 2 4-4"/></svg></button>
-            </div>
+          <div className="bl-project-overlay" aria-hidden="true">
+            <span className="bl-project-overlay-open"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>Open project</span>
           </div>
         )}
       </div>
@@ -184,7 +190,8 @@ export function ProjectsPage() {
     const destination = `/w/${workspace.slug}/p/${p.id}`;
     const displayUrl = isWebsite ? p.target_origin.replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
     const count = (value: number) => <td className={`bl-col-num${value > 0 ? " has-value" : ""}`}>{value}</td>;
-    return <tr key={p.id} className={p.archived_at ? "is-archived" : ""}>
+    return <tr key={p.id} className={[p.archived_at && "is-archived", selection.isSelected(p.id) && "is-selected"].filter(Boolean).join(" ")}>
+      <td className="bl-col-select"><SelectBox checked={selection.isSelected(p.id)} label={`Select ${p.name}`} onToggle={(range) => selection.toggle(p.id, range)} /></td>
       <td>{p.archived_at
         ? <span className="bl-table-name is-archived">{p.name}<span className="bl-arch-tag">Archived</span></span>
         : <Link className="bl-table-name" to={destination}>{p.access.visibility === "private" && <LockIcon className="bl-table-lock" aria-label="Private" role="img" />}{p.name}</Link>}</td>
@@ -204,9 +211,6 @@ export function ProjectsPage() {
     <main className="bl-wrap">
       <header className="bl-head">
         <div><h1>{headline}</h1><p>{archived ? "Finished for now. Restore a project to review it again." : search ? `${visible.length} result${visible.length === 1 ? "" : "s"} for "${search}".` : type !== "all" && !soonType ? `Every ${(TYPE_LABELS[type] ?? "project").toLowerCase()} review, all in one place.` : <>{needsReply > 0 ? <><b>{needsReply} comment{needsReply === 1 ? "" : "s"}</b> {needsReply === 1 ? "is" : "are"} waiting on a reply from you</> : <><b>Nothing</b> is waiting on a reply from you</>}{fullyResolved.length > 0 ? `, and ${joinNames(fullyResolved)} ${fullyResolved.length === 1 ? "has" : "have"} been fully resolved.` : "."}</>}</p></div>
-        <div className="bl-head-actions">
-          <time className="bl-mono bl-head-clock">{now.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}<br />{now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
-        </div>
       </header>
 
       {/* Same footprint whether it's holding real threads or the empty state, so
@@ -230,7 +234,10 @@ export function ProjectsPage() {
         </section>
       )}
 
-      <div className="bl-tabs" aria-label="Project types">{[['all', 'All projects'], ['website', 'Website'], ['image', 'Images'], ['pdf', 'PDF']].map(([key, label]) => <button key={key} aria-pressed={type === key} onClick={() => filter("type", key)}>{label}<span className="bl-count">{(projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (key === "all" || (p.project_type ?? "website") === key)).length}</span></button>)}<button type="button" aria-pressed={type === "webapp"} onClick={() => filter("type", "webapp")}>Web App <small>Soon</small></button><button type="button" aria-pressed={type === "mobile"} onClick={() => filter("type", "mobile")}>Mobile App <small>Soon</small></button></div>
+      <div className="bl-tabs" aria-label="Project types">{[['all', 'All projects'], ['website', 'Website'], ['image', 'Images'], ['pdf', 'PDF']].map(([key, label]) => <button key={key} aria-pressed={type === key} onClick={() => filter("type", key)}>{label}<span className="bl-count">{(projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (key === "all" || (p.project_type ?? "website") === key)).length}</span></button>)}</div>
+      {/* TDR-0058: the "Web App · Soon" and "Mobile App · Soon" tabs filtered to nothing;
+          they're on the roadmap in the New project dialog instead. Old ?type= links
+          still land on the coming-soon panel below. */}
 
       {soonType ? <ComingSoonPanel type={soonType} /> : <>
 
@@ -238,6 +245,13 @@ export function ProjectsPage() {
           visible grid" input; the omnisearch in the persistent topbar (⌘K) is the
           different, more powerful "find anything in this workspace" one. */}
       <div className="bl-toolbar wrap">
+        {visible.length > 0 && <SelectAllBox selection={selection} noun="projects" />}
+        {/* Active / Archived lives with the list it switches, rather than as a lone
+            "PROJECTS › Archived" group in the sidebar. */}
+        <div className="bl-segment" role="group" aria-label="Show projects">
+          <button type="button" aria-pressed={!archived} onClick={() => filter("archived", "")}>Active <span className="bl-count">{activeCount}</span></button>
+          <button type="button" aria-pressed={archived} onClick={() => filter("archived", "true")}>Archived <span className="bl-count">{archivedCount}</span></button>
+        </div>
         <span className="bl-mono">{visible.length} PROJECTS</span>{(search || type !== "all" || params.get("client")) && <button className="bl-quiet" onClick={() => { const next = new URLSearchParams(params); ["search", "type", "client"].forEach((key) => next.delete(key)); setParams(next); }}>Clear filters</button>}
         <label className="bl-search"><span className="bl-search-icon" aria-hidden="true"><SearchIcon /></span><input aria-label="Filter projects" placeholder="Filter by name or URL…" value={search} onChange={(e) => filter("search", e.target.value)} /></label>
         <select aria-label="Filter by client" className="bl-select" value={params.get("client") ?? ""} onChange={(e) => filter("client", e.target.value)}><option value="">All clients</option>{clients.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
@@ -277,6 +291,7 @@ export function ProjectsPage() {
             <div className="bl-table-wrap bl-projects-table">
               <table className="bl-table">
                 <thead><tr>
+                  <th scope="col" className="bl-col-select"><SelectAllBox selection={selection} noun="projects" /></th>
                   <th scope="col">Project</th>
                   <th scope="col">Source</th>
                   <th scope="col">State</th>
@@ -294,7 +309,7 @@ export function ProjectsPage() {
             {newProjectTile("bl-new-card bl-new-row")}
           </div>
         ) : (
-          <div className={`bl-projects ${view}`} key={`${type}-${archived}-${sort}-${search}-${params.get("client") ?? ""}`}>
+          <div className={`bl-projects ${view}${selection.count ? " has-selection" : ""}`} key={`${type}-${archived}-${sort}-${search}-${params.get("client") ?? ""}`}>
             {visible.map(projectCard)}
             {newProjectTile()}
           </div>
@@ -304,7 +319,7 @@ export function ProjectsPage() {
       </>}
     </main>
     {createType && <ProjectForm workspace={workspace} initialType={createType} onClose={() => setCreateType(null)} />}{edit && <ProjectForm workspace={workspace} project={edit} onClose={() => setEdit(null)} />}
-    {duplicating && <DuplicateProjectDialog project={duplicating} workspaceSlug={workspace.slug} onClose={() => setDuplicating(null)} />}
+    <ProjectBulkActions selection={selection} projects={visible} workspaceId={workspace.id} archivedView={archived} />
     {share && <ShareProjectModal project={share} workspaceId={workspace.id} workspaceSlug={workspace.slug} workspaceName={workspace.name} onClose={() => setShare(null)} />}
     {managePages && <ProjectPagesModal project={managePages} activePageId={null} onOpenPage={(pageId) => navigate(`/w/${workspace.slug}/p/${managePages.id}${pageId ? `?page=${encodeURIComponent(pageId)}` : ""}`)} onClose={() => setManagePages(null)} />}
     {showNewTicket && <NewTicket workspace={workspace} members={members.data ?? []} onClose={() => setShowNewTicket(false)} />}

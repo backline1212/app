@@ -1,5 +1,6 @@
 @import "./styles/backline.css";
 @import "./styles/team.css";
+@import "./styles/ux.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

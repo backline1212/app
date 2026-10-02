@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from "rea
 import { createPortal } from "react-dom";
 import { useFloatingPosition } from "../../../lib/use-floating-position";
 import { useOnClickOutside } from "../../../lib/use-click-outside";
+import { STATUS_LABELS, TAGS, WORKFLOW_STATUSES } from "../../../lib/workflow";
 import type { MemberOut } from "../../workspaces/api";
 
 // design/index.html's tickets toolbar: SORT BY (tsortPop), GROUP BY (tgrpPop) and the
@@ -58,10 +59,10 @@ function Checkbox() {
   );
 }
 
-function Popover({ anchor, popRef, className, children }: { anchor: RefObject<HTMLButtonElement>; popRef: RefObject<HTMLDivElement>; className?: string; children: ReactNode }) {
+function Popover({ anchor, popRef, className, role = "menu", children }: { anchor: RefObject<HTMLButtonElement>; popRef: RefObject<HTMLDivElement>; className?: string; role?: "menu" | "dialog"; children: ReactNode }) {
   const pos = useFloatingPosition(anchor, popRef, true);
   return createPortal(
-    <div ref={popRef} className={`bl-pop ${className ?? ""}`} role="menu" style={{ position: "fixed", top: pos?.top ?? -9999, left: pos?.left ?? -9999, visibility: pos ? "visible" : "hidden" }}>
+    <div ref={popRef} className={`bl-pop ${className ?? ""}`} role={role} aria-label={role === "dialog" ? "Filter tickets" : undefined} style={{ position: "fixed", top: pos?.top ?? -9999, left: pos?.left ?? -9999, visibility: pos ? "visible" : "hidden" }}>
       {children}
     </div>,
     document.body,
@@ -81,14 +82,38 @@ export interface TicketToolbarProps {
   counts: Record<string, number>;
   /** Tickets under the current filters for anyone at all. */
   totalAny: number;
+  /** The single-value URL filters (project_id, status, priority, tag) and their setter. */
+  filters: Record<FilterKey, string>;
+  onFilter: (changes: Partial<Record<FilterKey, string>>) => void;
+  projects: { id: string; name: string }[];
 }
 
-export function TicketToolbar({ sort, onSort, group, onGroup, showGroup, members, assignees, onAssignees, counts, totalAny }: TicketToolbarProps) {
-  const [open, setOpen] = useState<"sort" | "group" | "who" | null>(null);
+export type FilterKey = "project_id" | "status" | "priority" | "tag";
+
+// TDR-0058: until now the only ways to narrow the list by project, status, priority or
+// tag were clicking a value in a row or a status in the sidebar. This is the one
+// place to set them directly; the chips above the list still show and clear each one.
+const FILTER_FIELDS: { key: FilterKey; label: string; any: string }[] = [
+  { key: "project_id", label: "Project", any: "Any project" },
+  { key: "status", label: "Status", any: "Any status" },
+  { key: "priority", label: "Priority", any: "Any priority" },
+  { key: "tag", label: "Tag", any: "Any tag" },
+];
+
+export function TicketToolbar({ sort, onSort, group, onGroup, showGroup, members, assignees, onAssignees, counts, totalAny, filters, onFilter, projects }: TicketToolbarProps) {
+  const [open, setOpen] = useState<"sort" | "group" | "who" | "filter" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const sortRef = useRef<HTMLButtonElement>(null);
   const groupRef = useRef<HTMLButtonElement>(null);
   const whoRef = useRef<HTMLButtonElement>(null);
+  const filterRef = useRef<HTMLButtonElement>(null);
+  const activeFilters = FILTER_FIELDS.filter((f) => filters[f.key]).length;
+  const filterOptions: Record<FilterKey, { id: string; label: string }[]> = {
+    project_id: projects.map((p) => ({ id: p.id, label: p.name })),
+    status: WORKFLOW_STATUSES.map((s) => ({ id: s, label: STATUS_LABELS[s] })),
+    priority: [{ id: "high", label: "High" }, { id: "medium", label: "Medium" }, { id: "low", label: "Low" }],
+    tag: TAGS.map((t) => ({ id: t, label: t })),
+  };
   const popRef = useRef<HTMLDivElement>(null);
   useOnClickOutside([ref, popRef], () => setOpen(null));
 
@@ -101,7 +126,7 @@ export function TicketToolbar({ sort, onSort, group, onGroup, showGroup, members
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  function toggle(which: "sort" | "group" | "who") {
+  function toggle(which: "sort" | "group" | "who" | "filter") {
     setOpen((prev) => (prev === which ? null : which));
   }
   function togglePerson(id: string) {
@@ -117,6 +142,40 @@ export function TicketToolbar({ sort, onSort, group, onGroup, showGroup, members
 
   return (
     <div ref={ref} className="bl-ticket-toolbar">
+      <button ref={filterRef} type="button" className={`bl-ghost-btn${activeFilters ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={open === "filter"} onClick={() => toggle("filter")}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 5h18l-7 8.5V19l-4 2v-7.5Z" />
+        </svg>
+        Filter
+        {activeFilters > 0 && <span className="bl-ghost-count">{activeFilters}</span>}
+      </button>
+      {open === "filter" && (
+        <Popover anchor={filterRef} popRef={popRef} className="bl-filter-pop" role="dialog">
+          <div className="bl-pop-label">FILTER TICKETS</div>
+          {FILTER_FIELDS.map((f) => (
+            <label key={f.key} className="bl-filter-field">
+              <span>{f.label}</span>
+              <select className="bl-select" value={filters[f.key]} onChange={(e) => onFilter({ [f.key]: e.target.value })}>
+                <option value="">{f.any}</option>
+                {filterOptions[f.key].map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          <div className="bl-who-foot">
+            <button type="button" className="bl-who-clear" disabled={!activeFilters} onClick={() => onFilter(Object.fromEntries(FILTER_FIELDS.map((f) => [f.key, ""])))}>
+              Clear
+            </button>
+            <button type="button" className="bl-who-done" onClick={() => setOpen(null)}>
+              Done
+            </button>
+          </div>
+        </Popover>
+      )}
+
       <button ref={sortRef} type="button" className="bl-ghost-btn" aria-haspopup="true" aria-expanded={open === "sort"} onClick={() => toggle("sort")}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <path d="M3 6h18M7 12h10M11 18h2" />

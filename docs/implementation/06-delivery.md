@@ -1,5 +1,44 @@
 # Delivery and verification ledger
 
+## 2026-10-02: UX pass: bulk actions, ticket filters (TDR-0058)
+
+Branch `feature/ux-polish-bulk-actions`, on `main` at 52f611b (PR #49, which includes
+TDR-0056 and TDR-0057). Reasoning is in TDR-0058.
+
+**Built:**
+- **Multi-select and a floating bulk bar.**
+  - Tickets (List and Table): Status, Priority, Assign, Delete.
+  - Projects (all layouts): Archive with Undo, Restore, and permanent delete for
+    owners/admins.
+  - Shift-click selects a range; Escape clears. Selection resets when the listed rows
+    change.
+- **Ticket search and a Filter popover** (project, status, priority, tag) on the
+  Tickets toolbar, a search chip, and a heading that follows the active tab.
+- **Ticket detail** rebuilt as a two-column dialog: context first, properties at the
+  side, Save only when something changed, reply timestamps.
+- **Decluttering:** per-row trash icons, the duplicate card overlay buttons, the header
+  clock, the "Soon" tabs and the sidebar's one-link Projects group removed. Active /
+  Archived switch added to the Projects toolbar. "Comments by status" → "Tickets by
+  status".
+- **New project form:** URL first with a suggested name; step indicator fixed. Project
+  settings keep only real switches.
+
+**Not changed:** backend, API contracts, database, `packages/types`.
+
+**Verification (apps/web):**
+- `tsc -b --noEmit`: pass.
+- `eslint . --max-warnings=0`: pass.
+- `vite build`: pass.
+- No browser pass. Running the local API stack for one was blocked in this session; the
+  flows above have not yet been clicked through in a browser.
+- No new test suites (Claude Code instruction in `AGENTS.md`). No existing spec
+  referenced the removed or renamed elements.
+
+**Open:**
+- A browser pass of: bulk ticket status/assign/delete with a refused item, bulk
+  archive → Undo, bulk permanent delete with one non-archived project, ticket filters
+  and search chips, and the ticket detail on a phone width.
+
 ## 2026-10-02: Member-bound canvas sessions (TDR-0057)
 
 This closes TDR-0056's known limit: a viewer could copy the review link out of the canvas

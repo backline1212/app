@@ -100,6 +100,18 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     setParams(next);
   }
 
+  // Several filters in one history entry - "Clear" in the Filter popover would
+  // otherwise only clear the last one, as each set() starts from the same params.
+  function setMany(changes: Record<string, string>) {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    next.delete("offset");
+    setParams(next);
+  }
+
   const tickets = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const groups = useMemo(() => {
     const result = new Map<string, api.Ticket[]>();
@@ -172,6 +184,7 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     tickets,
     groups,
     set,
+    setMany,
     display,
     group,
     sort,

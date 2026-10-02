@@ -4,7 +4,7 @@ import { ticketRef } from "../../../lib/ticket-ref";
 import { PRIORITY_META, dueMeta } from "../../projects/panel/comments/types";
 import type { MemberOut } from "../../workspaces/api";
 import * as api from "../api";
-import { TrashIcon } from "./DeleteTicket";
+import { SelectBox } from "../../../components/BulkBar";
 import { StatusSelect } from "./StatusSelect";
 import type { TicketUpdateMutation } from "./types";
 
@@ -23,14 +23,16 @@ export function TicketRow({
   update,
   onOpen,
   onFilterTag,
-  onDelete,
+  selected,
+  onSelect,
 }: {
   ticket: api.Ticket;
   members: MemberOut[];
   update: TicketUpdateMutation;
   onOpen: (id: string) => void;
   onFilterTag: (tag: string) => void;
-  onDelete: (ticket: api.Ticket) => void;
+  selected: boolean;
+  onSelect: (range: boolean) => void;
 }) {
   const priority = PRIORITY_META[ticket.priority ?? "medium"];
   const due = dueMeta(ticket.due_at, isClosed(ticket.status));
@@ -38,7 +40,7 @@ export function TicketRow({
 
   return (
     <div 
-      className={`bl-tk${isClosed(ticket.status) ? " is-closed" : ""}`}
+      className={`bl-tk${isClosed(ticket.status) ? " is-closed" : ""}${selected ? " is-selected" : ""}`}
       role="button" 
       tabIndex={0} 
       onClick={() => onOpen(ticket.id)}
@@ -52,6 +54,7 @@ export function TicketRow({
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(ticket.id); }
       }}
     >
+      <SelectBox checked={selected} label={`Select ticket ${ticketRef(ticket)}`} onToggle={onSelect} />
       <span className="bl-tk-prio" style={{ background: priority.color }} title={`${priority.label} priority`} />
       <span className="bl-tid">{ticketRef(ticket)}</span>
       <div className="bl-tk-main">
@@ -81,9 +84,6 @@ export function TicketRow({
         )}
       </span>
       <span className={`bl-due ${due?.tone ?? ""}`}>{due ? due.text : "No date"}</span>
-      <button type="button" className="bl-row-delete" aria-label={`Delete ticket ${ticketRef(ticket)}`} title="Delete ticket" onClick={(e) => { e.stopPropagation(); onDelete(ticket); }}>
-        <TrashIcon />
-      </button>
     </div>
   );
 }
