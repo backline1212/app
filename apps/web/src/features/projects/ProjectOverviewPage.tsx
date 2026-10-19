@@ -841,7 +841,9 @@ export function ProjectOverviewPage() {
     }
   })();
   const pageIds = sortedPages.map((page) => page.id);
-  const effectiveFrameStatus = iframeSrc ? widgetReady.current ? iframeStatus : "loading" : "unavailable";
+  const effectiveFrameStatus = !iframeSrc ? "unavailable"
+    : iframeStatus === "error" || widgetError || proxyUnconfirmed ? "error"
+    : widgetReady.current ? iframeStatus : "loading";
 
   return (
     <main className="bl-review-workspace">

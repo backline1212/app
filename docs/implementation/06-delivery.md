@@ -57,6 +57,18 @@ unpacked extensions to 0.4.0 and reload Backline to use the new toolbar return f
 The verification sign-in tab is retained for user continuation. No production
 review content or account fixture was created or modified for these checks.
 
+Signed-in follow-up: the user completed login. Verified workspace selection,
+existing Q/A Tool project, explicit proxy failure recovery, missing-extension
+guided setup with current download, focus returning to the launcher on close,
+and active sharing settings (no expiry/passcode/domain filter, guest export
+unavailable). The browser pass found a footer still reporting Connecting proxy
+after failure; the readiness fallback masked error state. Corrected precedence
+to report Preview unavailable for frame/widget error or missing acknowledgement.
+Affected web lint, typecheck and production build pass. This follow-up does not
+require a backend change. Browser installation approval was obtained, but the
+browser URL policy refuses `chrome://` settings; the user was asked to complete
+the unpacked 0.4.0 installation manually. Further live results follow separately.
+
 ## 2026-10-19: Proxy recovery, extension connection and evidence persistence
 
 User examples: Backline itself, YouTube and Notion, followed by an explicit request

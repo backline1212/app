@@ -74,6 +74,9 @@ tab awaits user sign-in. Actual Chrome/Edge installation, login/SSO, two-tab gue
 return, expired-link replacement and concurrent/end-session behavior remain open.
 The deployed invalid-link recovery page and its loading/retry cycle were verified
 in Chrome. Deployment artifacts/guards and exact revisions are in the ledger.
+After the user signed in, the real project/share panel and missing-extension setup
+were inspected. Proxy failure now takes precedence over missing readiness in the
+footer, so a failed preview reports unavailable rather than Connecting proxy.
 Do not infer universal reliability from static or HTTP artifact checks.
 
 Still pending: CR-02/03 connection and short-lived launch exchange, URL-bearer
