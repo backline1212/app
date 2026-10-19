@@ -1,6 +1,6 @@
 # TDR-0069: Explicit proxy recovery and extension connection
 
-Date: 2026-10-19. Status: static checks passed; deployment verification pending.
+Date: 2026-10-19. Status: deployed in f568294; interactive browser acceptance open.
 
 ## Decision and evidence
 
@@ -51,3 +51,9 @@ extension manifest/API URL and route guards. Unpacked extensions require users t
 download 0.3.0, replace/reload the extension and reload Backline once. Browser control
 is disabled in Work settings: Chrome/Edge extension launch and signed-in target-site
 acceptance remain manual. Never infer 99% reliability from headers/static checks.
+
+Vercel and all three Railway services report success on f568294. Live dashboard
+chunks contain the fallback, the extension ZIP/manifest report 0.3.0 and bundle the
+correct API/protocol/readiness handler without the obsolete host. Health and route
+guards pass; existing SDK bytes match the built source. Full signed-in site behavior
+is still unverified for the reason above. See the delivery ledger for exact IDs.

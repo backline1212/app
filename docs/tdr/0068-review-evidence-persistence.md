@@ -1,6 +1,6 @@
 # TDR-0068: Issued uploads and durable snapshot delivery
 
-Date: 2026-10-19. Status: static checks passed; deployment verification pending.
+Date: 2026-10-19. Status: deployed in f568294; failure/concurrency acceptance open.
 
 ## Decision
 
@@ -43,6 +43,10 @@ represent new current revisions.
 The explicit additive apply subsequently created both indexes with no review-data
 changes. Backend lint/format (218 files), mypy (201 files), workspace scoping and
 full frontend lint/typecheck/build (12 tasks) passed.
+API/worker/cloud-login deployed the exact source commit successfully; live OpenAPI
+matches generated contracts and worker startup registers delivery/sweep jobs. A
+read-only post-apply inspection finds both indexes present with no conflicts.
+These checks do not establish storage-failure or concurrent-write acceptance.
 
 This doesn't add byte reservations, file-magic validation or write-once objects
 during a presigned PUT lifetime. Failed transactions/concurrent deduplication can

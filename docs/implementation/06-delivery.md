@@ -50,6 +50,31 @@ all have explicit `SERVER_BROWSER_ENABLED=false`. Watch paths persisted only aft
 using the introspected service update API; script now verifies the resulting state.
 Final follow-up deployment evidence will be appended after push.
 
+**Follow-up rollout verified:** product commit `f5682946f86e24d9f0e8c5d18faf9378ef16988c`
+pushed to main. Vercel reported success at
+`https://vercel.com/devbackline-7169/app-web/8bf2KLMUK5qgrTiVrKoB8b6AXwn2`.
+Railway API `d12c2b2c-3982-4c0f-9ee3-85b8123f84b1`, worker
+`5b5bf012-c67c-472c-abcb-65342f520770` and cloud-login
+`874368a0-91ee-47b9-bbb0-d9565da0c03c` all report SUCCESS for this exact commit.
+Worker startup registers both snapshot delivery and sweep jobs. Read-only index
+inspection now finds both indexes present, no conflicts or missing indexes.
+
+Live HTTP checks: API and cloud-login health 200, Mongo/Redis ok, exact OpenAPI
+equality with generated source, SDK exact equality, dashboard login 200 and served
+project chunk contains recovery notice/Retry proxy. The extension ZIP returns 200,
+contains version 0.3.0, the actual API URL, protocol v2/readiness, and no obsolete
+API hostname. Missing guest/member/upload/project/refresh authentication returns
+401; malformed signup 422; untrusted account origin 403. A valid-shape unsolicited
+Google callback returns application `VALIDATION_ERROR` 422 before provider exchange.
+These are deployed artifact/route checks, not browser/site login acceptance.
+
+Remaining gates: actual email receipt and signup/login, Chrome/Edge extension
+update/handshake, signed-in Backline/YouTube/Notion including Notion's new host,
+capture/attachment persistence and induced storage/queue/concurrency failures on an
+isolated stack. Browser use is disabled in Work settings. No promise that proxy or
+extension supports every site; new connected installation/launch and full panel
+parity remain pending. Final ledger update is a documentation-only follow-up commit.
+
 ## 2026-10-19: Production rollout preflight and email reliability (TDR-0067)
 
 Fixed F11's false-success/logged-OTP fallback: only explicit local mode without a
