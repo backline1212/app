@@ -1,5 +1,30 @@
 # Delivery and verification ledger
 
+## 2026-10-19: Installed 0.4.3 short-window layout acceptance
+
+The user confirmed the updated extension was installed and connected. The original
+portal tab still held an invalidated extension context; a normal portal reload
+restored connection and the real website toolbar acknowledged launch. No settings
+access or installation bypass was attempted.
+
+The corrected native composer now places Post at 485.55–519.675 CSS pixels, above
+the toolbar's 544.4-pixel top. The previous overlapping Post bottom was 613.875.
+A real pointer click on Post with an empty body shows "Write a comment before
+posting" locally, without submitting. A 60-line draft stays bounded at
+12.4–532.8 pixels (height 520.4); switching to Draw preserves it and shows the
+finish/cancel guidance. Pointer Cancel removes the composer. Return to Backline
+retains the existing page/thread URL; the comment count remains three. Closing
+tools removes the toolbar; closed only the new verification website tab.
+
+Visual evidence: `.tools/verification/2026-10-19-extension-0.4.3-layout.png`.
+This verifies the observed short-window overlap repair on the updated extension,
+including long-draft cancellation. No additional comment, reply, attachment or
+workflow mutation was submitted. Induced capture/upload rejection, wrapped/narrow
+windows, guest native lifecycle and broad password/SSO coverage remain open.
+Product source is unchanged from deployed 679c1c1; this continuation updates
+verification evidence only. No test suite written/run; prior source lint,
+typecheck/build results remain applicable.
+
 ## 2026-10-19: Native draft/return acceptance and composer recovery (TDR-0072)
 
 Browser use is available again. With the user's installed 0.4.1 extension, the

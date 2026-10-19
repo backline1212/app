@@ -1,6 +1,6 @@
 # TDR-0073: Keep comment controls clear of the native toolbar
 
-Date: 2026-10-19. Status: deployed and statically verified; updated-extension visual acceptance pending.
+Date: 2026-10-19. Status: deployed; updated-extension short-window acceptance passed, broader visual/failure checks open.
 
 ## Context
 
@@ -48,3 +48,11 @@ all five deployed ZIP entries match local normalized text and report version
 0.4.3. The user was asked to update/reload the unpacked installation because the
 browser tool cannot open Chrome extension settings. The delivery ledger records
 exact deployment IDs and preserves the remaining browser checks.
+
+After the user's 0.4.3 update, real Chrome verification places Post's bottom at
+519.675 CSS pixels, above the toolbar top at 544.4. Pointer Post reaches the local
+empty-body validation without submission. A 60-line draft stays bounded above
+the toolbar; mode-change protection retains it and pointer Cancel removes it.
+Return preserves the original page/thread; count remains three. No additional
+comment/reply/attachment/workflow mutation was submitted. The ledger records the
+local screenshot. Wrapped/narrow windows and induced rejection remain open.

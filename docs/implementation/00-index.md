@@ -44,6 +44,8 @@ updated-extension failure-path and broader capture/evidence acceptance remain op
 One explicitly approved native comment and its screenshot now survive portal
 reload. [TDR-0073](../tdr/0073-native-toolbar-card-layout.md) addresses a measured
 toolbar/composer overlap; updated-extension visual/failure-path checks remain open.
+The user-updated 0.4.3 short-window layout and long-draft cancellation now pass;
+wrapped/narrow-window and induced failure acceptance remain open in the ledger.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

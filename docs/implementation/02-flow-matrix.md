@@ -16,6 +16,9 @@ the delivery ledger; these observations do not close complete acceptance rows.
 An explicitly approved native QA comment and its screenshot now persist through
 portal reload. TDR-0073 fixes the toolbar overlap found during that check, with
 updated-extension visual/failure-path acceptance still pending.
+The user's 0.4.3 update now passes the observed short-window layout, empty-body
+pointer validation, 60-line draft cancellation, original-ticket return and toolbar
+cleanup checks. Wrapped/narrow windows and induced failure remain open.
 
 2026-10-19: FD-08 recovery now offers explicit extension launch when proxy tools
 don't acknowledge within 15 seconds. TDR-0069 fixes the old extension API default
