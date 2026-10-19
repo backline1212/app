@@ -22,12 +22,18 @@ from app.workers.integrations import (
 from app.workers.notifications import send_daily_digests_job, send_guest_resolved_email_job
 from app.workers.project_preview import capture_project_preview_job
 from app.workers.recovery import run_recovery_pipeline_job
+from app.workers.snapshot_delivery import (
+    deliver_snapshot_revision_job,
+    sweep_snapshot_deliveries_job,
+)
 from app.workers.storage_gc import resume_project_hard_delete_job
 
 
 class WorkerSettings:
     functions = [
         run_recovery_pipeline_job,
+        deliver_snapshot_revision_job,
+        sweep_snapshot_deliveries_job,
         dispatch_integration_event_job,
         dispatch_project_updated_event_job,
         send_guest_resolved_email_job,
@@ -44,5 +50,8 @@ class WorkerSettings:
     # 17.6: daily digest, once a day at 09:00 server time. Also runnable directly via
     # modules/notifications/digest.py's run_daily_digests(db) for tests/manual triggers
     # without waiting for the schedule.
-    cron_jobs = [cron(send_daily_digests_job, hour=9, minute=0)]
+    cron_jobs = [
+        cron(send_daily_digests_job, hour=9, minute=0),
+        cron(sweep_snapshot_deliveries_job, second=15),
+    ]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)

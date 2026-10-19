@@ -17,7 +17,7 @@ fs.mkdirSync(distDir, { recursive: true });
 // these two environment variables when running this script directly.
 const define = {
   __API_BASE_URL__: JSON.stringify(
-    process.env.BACKLINE_API_BASE_URL ?? "https://app-production-f121.up.railway.app",
+    process.env.BACKLINE_API_BASE_URL ?? "https://backlinewidget-production.up.railway.app",
   ),
   __DASHBOARD_BASE_URL__: JSON.stringify(
     process.env.BACKLINE_DASHBOARD_BASE_URL ?? "https://backline-qa.vercel.app",

@@ -1,5 +1,55 @@
 # Delivery and verification ledger
 
+## 2026-10-19: Proxy recovery, extension connection and evidence persistence
+
+User examples: Backline itself, YouTube and Notion, followed by an explicit request
+to offer extension review when the proxy fails. Added visible loading/sign-in help,
+15-second missing-widget-acknowledgement recovery, Open with extension and Retry
+proxy. Matching frame source/origin is required for readiness. Existing proxy
+projects remain available. See [TDR-0069](../tdr/0069-proxy-fallback-and-extension-connection.md).
+
+Read-only HTTP inspection found SAMEORIGIN/frame-ancestor restrictions on the
+example sites, Notion's cross-domain redirect and an independent concrete defect:
+the extension used obsolete `app-production-f121.up.railway.app` (health 404).
+Version 0.3.0 now points at the actual API. Protocol v2 exposes API/version; stale
+builds get update instructions before a token is issued. Launch waits for the real
+tab's toolbar and current access acknowledgement. Member launch tokens are limited
+to their project, original authentication/session family and eight hours. Manual
+extension tokens expire after 30 days; account/admin routes reject extension
+credentials. Native snapshot submission uses the existing page-scoped relay.
+
+F03/F22 follow-up in [TDR-0068](../tdr/0068-review-evidence-persistence.md): issued
+upload registry, actor/project checks, actual S3 metadata checks on new attachment
+references; legacy persisted evidence remains readable. Snapshot JSON is written
+before a transaction commits the revision/page pointer/durable delivery marker.
+Minute sweeps and leased retries survive queue/process failures. Original records
+and indexes are retained; no destructive fixture/content migration ran. Index
+dry-run found two missing nonunique indexes and no conflicts. Failure/concurrency
+acceptance remains open.
+Explicit additive apply then created `revisions_delivery_due` and
+`uploads_workspace_project`; no review data modified. Verified all three service
+watch-path diffs are empty and server-browser settings are explicitly false.
+
+Verification passed: Pydantic OpenAPI/types regenerated, full frontend
+`pnpm turbo run lint typecheck build` 12/12 (one cached), backend Ruff lint/format
+(218 files), strict mypy (201 files), workspace scoping (20 repositories) and
+`git diff --check`. No test suites written/run. Browser control remains disabled
+in Work settings; extension launch, website password/SSO and actual code receipt
+are not claimed verified. Unpacked extension users must replace/reload 0.3.0 and
+reload Backline. New connected installation/launch (CR-02/03) remains pending.
+
+First release `4fcd618` already reached Vercel and all three Railway services:
+API `a77e47ee-f51a-46df-acb4-1aa5bad881b9`, worker
+`3622bf66-fe9f-4737-ad0e-552cfd7d0955`, cloud-login
+`b4c9f647-6d49-409e-9dcb-961162a54a48`. Mongo/Redis health and 122-route
+OpenAPI equality passed; SDK matched local output. Missing guest/refresh credentials
+returned 401, untrusted auth origin 403, Google start 200 with no-store and secure
+HttpOnly state cookie. The initial callback probe was schema-invalid (422), so it
+does not establish valid-shape OAuth state rejection. API/worker/cloud-login now
+all have explicit `SERVER_BROWSER_ENABLED=false`. Watch paths persisted only after
+using the introspected service update API; script now verifies the resulting state.
+Final follow-up deployment evidence will be appended after push.
+
 ## 2026-10-19: Production rollout preflight and email reliability (TDR-0067)
 
 Fixed F11's false-success/logged-OTP fallback: only explicit local mode without a

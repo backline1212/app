@@ -85,12 +85,22 @@ class PageRepository:
         return {str(row["_id"]): int(row["count"]) for row in rows}
 
     async def update_latest_revision(
-        self, workspace_id: str, page_id: str, revision_id: str
+        self,
+        workspace_id: str,
+        page_id: str,
+        revision_id: str,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
     ) -> None:
-        await self.db.pages.update_one(
+        result = await self.db.pages.update_one(
             {"_id": to_object_id(page_id), "workspace_id": workspace_id},
             {"$set": {"latest_revision_id": revision_id}},
+            session=session,
         )
+        if result.matched_count == 0:
+            from app.core.errors import NotFoundError
+
+            raise NotFoundError("Page no longer exists.")
 
     async def update(self, workspace_id: str, page_id: str, patch: dict[str, Any]) -> None:
         if not patch:

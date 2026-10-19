@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from bson import ObjectId
@@ -5,7 +6,11 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import NotFoundError
 from app.core.events import append_event
+from app.core.extension_access import token_expiry
+from app.core.project_access import load_project_for
 from app.core.security import generate_opaque_token, hash_secret
+from app.core.session import Session
+from app.core.verified_identity import require_verified_identity
 from app.modules.billing.plans import effective_plan_id
 from app.modules.extension_tokens.repository import ExtensionTokenRepository
 from app.modules.extension_tokens.schemas import (
@@ -25,6 +30,8 @@ def _token_out(doc: dict[str, Any]) -> ExtensionTokenOut:
         created_at=doc["created_at"],
         last_used_at=doc["last_used_at"],
         revoked_at=doc["revoked_at"],
+        expires_at=token_expiry(doc),
+        project_id=doc.get("project_id"),
     )
 
 
@@ -35,7 +42,16 @@ async def issue_token(
     workspace_id: str,
     role: str,
     name: str,
+    authenticated_at: datetime,
+    project_id: str | None = None,
+    session_id: str | None = None,
 ) -> ExtensionTokenIssued:
+    await require_verified_identity(db, user_id, issued_at=authenticated_at)
+    if project_id:
+        await load_project_for(
+            db, Session(user_id, workspace_id, role), project_id, "comment:create"
+        )
+    expires_at = datetime.now(UTC) + (timedelta(hours=8) if project_id else timedelta(days=30))
     raw_token = generate_opaque_token()
     doc = await ExtensionTokenRepository(db).create(
         user_id=ObjectId(user_id),
@@ -43,6 +59,10 @@ async def issue_token(
         name=name,
         token_hash=hash_secret(raw_token),
         role=role,
+        expires_at=expires_at,
+        authenticated_at=authenticated_at,
+        project_id=project_id,
+        session_id=session_id if project_id else None,
     )
     await append_event(
         db,
@@ -53,7 +73,12 @@ async def issue_token(
         payload={"extension_token_id": str(doc["_id"]), "name": name},
     )
     return ExtensionTokenIssued(
-        id=str(doc["_id"]), token=raw_token, name=name, created_at=doc["created_at"]
+        id=str(doc["_id"]),
+        token=raw_token,
+        name=name,
+        created_at=doc["created_at"],
+        expires_at=expires_at,
+        project_id=project_id,
     )
 
 

@@ -16,6 +16,20 @@ class AdditiveIndex:
     options: dict[str, Any] = field(default_factory=dict)
 
 
+REVIEW_PERSISTENCE_INDEXES: tuple[AdditiveIndex, ...] = (
+    AdditiveIndex(
+        "revisions",
+        (("delivery_state", 1), ("delivery_after", 1)),
+        "revisions_delivery_due",
+    ),
+    AdditiveIndex(
+        "uploads",
+        (("workspace_id", 1), ("project_id", 1)),
+        "uploads_workspace_project",
+    ),
+)
+
+
 # Audit batch 02 / M-07. These definitions are intentionally separate from the
 # historical startup indexes below so the dry-run migration can report exactly what
 # this additive change will create. Existing indexes are never dropped or renamed.
@@ -446,3 +460,4 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
     await ensure_additive_indexes(db, INTEGRATION_LINK_INDEXES)
     await ensure_additive_indexes(db, BILLING_INDEXES)
     await ensure_additive_indexes(db, ORG_ACCESS_INDEXES, tolerate_duplicates=True)
+    await ensure_additive_indexes(db, REVIEW_PERSISTENCE_INDEXES)

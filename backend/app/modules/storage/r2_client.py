@@ -136,6 +136,22 @@ async def upload_bytes(key: str, data: bytes, content_type: str) -> None:
     await asyncio.to_thread(_upload)
 
 
+async def head_upload(key: str) -> tuple[str, int] | None:
+    """Read metadata only; a signed PUT being issued is not proof of an upload."""
+    settings = get_settings()
+
+    def _head() -> tuple[str, int] | None:
+        try:
+            result = _make_client().head_object(Bucket=settings.r2_bucket_name, Key=key)
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound"):
+                return None
+            raise
+        return result.get("ContentType", ""), result["ContentLength"]
+
+    return await asyncio.to_thread(_head)
+
+
 async def download_bytes(key: str) -> bytes:
     """Server-side read-back, used by the recovery pipeline (10-Revision-Recovery.md) to
     load a previous revision's snapshot payload for diffing/matching - the only other

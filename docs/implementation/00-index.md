@@ -28,6 +28,9 @@ exchange is still pending.
 Deployment follow-up: [TDR-0067](../tdr/0067-email-delivery-and-deployment-consistency.md)
 closes the fake email-success path in source and records production deployment
 watch-path drift, the explicit fix, and live verification limits.
+Further source work: [evidence persistence](../tdr/0068-review-evidence-persistence.md)
+and [proxy fallback/extension connection](../tdr/0069-proxy-fallback-and-extension-connection.md).
+The existing proxy remains available; connected installation/launch is still pending.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

@@ -1,6 +1,6 @@
 import type { NativeReviewAuth, NativeReviewInfo, NativeReviewLaunch, Schemas } from "@backline/types";
 import { API_BASE_URL, DASHBOARD_BASE_URL } from "./lib/config";
-import { getConnection, setConnection } from "./lib/storage";
+import { getConnection } from "./lib/storage";
 
 interface ReviewSession extends NativeReviewInfo {
   auth: NativeReviewAuth;
@@ -12,6 +12,19 @@ const key = (tabId: number) => `review:${tabId}`;
 const dashboardOrigin = new URL(DASHBOARD_BASE_URL).origin;
 const origin = (url: string) => new URL(url).origin;
 let activationGeneration = 0;
+const readyWaiters = new Map<string, () => void>();
+
+function waitForReady(launchId: string): { ready: Promise<void>; cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout>;
+  const ready = new Promise<void>((resolve, reject) => {
+    readyWaiters.set(launchId, () => { clearTimeout(timer); readyWaiters.delete(launchId); resolve(); });
+    timer = setTimeout(() => {
+      readyWaiters.delete(launchId);
+      reject(new Error("The website opened but its review tools did not connect. Finish signing in, then reopen with the extension. If the site redirects to another domain, use that address in the project URL."));
+    }, 15000);
+  });
+  return { ready, cancel: () => { clearTimeout(timer); readyWaiters.delete(launchId); } };
+}
 
 async function read(tabId: number): Promise<ReviewSession | null> {
   return (await chrome.storage.session.get(key(tabId)))[key(tabId)] ?? null;
@@ -53,16 +66,15 @@ async function launch(input: NativeReviewLaunch): Promise<void> {
   }
   let project: NativeReviewInfo["project"];
   let authorName: string;
-  let validatedConnection: Awaited<ReturnType<typeof getConnection>> = null;
   if (auth.kind === "member") {
     const who = await request<Schemas["ExtensionWhoAmIOut"]>(auth, "/api/v1/extension-tokens/whoami");
     project = await request<Schemas["ProjectOut"]>(auth, `/api/v1/projects/${input.projectId}`);
     authorName = who.user_email;
-    validatedConnection = { token: auth.token, userId: who.user_id, userEmail: who.user_email,
-      workspaceId: who.workspace.id, workspaceName: who.workspace.name, workspaceSlug: who.workspace.slug };
   } else {
     const resolved = await request<Schemas["ReviewResolveOut"]>(auth, `/api/v1/review/${encodeURIComponent(auth.shareToken)}`);
     if (resolved.project_id !== input.projectId) throw new Error("This review belongs to another project.");
+    const current = await request<Schemas["GuestSessionStatusOut"]>(auth, "/api/v1/guest-sessions/current");
+    if (current.project_id !== input.projectId || current.share_link_id !== resolved.share_link_id) throw new Error("Rejoin this review in Backline first.");
     project = { id: resolved.project_id, name: resolved.project_name, target_origin: resolved.target_origin };
     authorName = auth.displayName;
   }
@@ -76,8 +88,12 @@ async function launch(input: NativeReviewLaunch): Promise<void> {
   const tab = existing ?? await chrome.tabs.create({ url: "about:blank", active: true });
   if (tab.id === undefined) throw new Error("Could not open the review tab.");
   const previous = await read(tab.id);
+  const launchId = crypto.randomUUID();
+  const waiter = waitForReady(launchId);
+  // Mark handled immediately; navigation and injection can fail before the await.
+  void waiter.ready.catch(() => undefined);
   await save(tab.id, { project, authorName, auth, member: auth.kind === "member", returnUrl: input.returnUrl,
-    pageIds: [], commentIds: [] });
+    pageIds: [], commentIds: [], launchId });
   try {
     if (existing) {
       await chrome.tabs.update(tab.id, { active: true });
@@ -89,12 +105,17 @@ async function launch(input: NativeReviewLaunch): Promise<void> {
     } else {
       await chrome.tabs.update(tab.id, { url: destination.href });
     }
-    if (validatedConnection) await setConnection(validatedConnection);
+    await waiter.ready;
   } catch (error) {
-    if (previous) await save(tab.id, previous);
-    else await chrome.storage.session.remove(key(tab.id));
-    if (!existing) await chrome.tabs.remove(tab.id).catch(() => undefined);
+    const latest = await read(tab.id);
+    if (latest?.launchId === launchId) {
+      if (previous) await save(tab.id, previous);
+      else await chrome.storage.session.remove(key(tab.id));
+      await chrome.tabs.sendMessage(tab.id, { type: "native-review-stop" }).catch(() => undefined);
+    }
     throw error;
+  } finally {
+    waiter.cancel();
   }
 }
 
@@ -111,15 +132,27 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     if (sender.frameId !== 0 || !sender.url || origin(sender.url) !== dashboardOrigin) throw new Error("Open Backline to start a review.");
     if (message.type === "native-review-launch") return launch(message.input as NativeReviewLaunch);
     const connection = await getConnection();
-    return { version: 1, workspaceId: connection?.workspaceId ?? null, userId: connection?.userId ?? null };
+    return { version: 2, apiBaseUrl: API_BASE_URL, extensionVersion: chrome.runtime.getManifest().version,
+      workspaceId: connection?.workspaceId ?? null, userId: connection?.userId ?? null };
   }
   if (message.type === "native-review-info") {
     try {
-      const { session: { project, authorName, member, returnUrl } } = await sessionFor(sender);
-      return { project, authorName, member, returnUrl } satisfies NativeReviewInfo;
+      const { session: { project, authorName, member, returnUrl, launchId } } = await sessionFor(sender);
+      return { project, authorName, member, returnUrl, launchId } satisfies NativeReviewInfo;
     } catch { return null; }
   }
   const { session, tabId } = await sessionFor(sender);
+  if (message.type === "native-review-ready") {
+    if (message.launchId !== session.launchId) throw new Error("This review was replaced. Open it again from Backline.");
+    if (session.auth.kind === "member") {
+      await request(session.auth, `/api/v1/projects/${session.project.id}`);
+    } else {
+      const current = await request<Schemas["GuestSessionStatusOut"]>(session.auth, "/api/v1/guest-sessions/current");
+      if (current.project_id !== session.project.id) throw new Error("Rejoin the project in Backline.");
+    }
+    readyWaiters.get(session.launchId)?.();
+    return;
+  }
   if (message.type === "native-review-end") {
     await chrome.storage.session.remove(key(tabId));
     return;
@@ -147,12 +180,14 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     const method = String(message.method ?? "GET");
     const body = message.body ? JSON.parse(String(message.body)) : null;
     const pageMatch = /^\/api\/v1\/pages\/([a-f0-9]{24})\/comments$/.exec(path);
+    const snapshotMatch = /^\/api\/v1\/pages\/([a-f0-9]{24})\/snapshots$/.exec(path);
     const commentMatch = /^\/api\/v1\/comments\/([a-f0-9]{24})$/.exec(path);
     const register = path === "/api/v1/pages" && method === "POST" && body?.project_id === session.project.id
       && typeof body.url === "string" && origin(body.url) === origin(session.project.target_origin);
     const comments = pageMatch && session.pageIds.includes(pageMatch[1]) && ["GET", "POST"].includes(method);
     const update = commentMatch && session.member && session.commentIds.includes(commentMatch[1]) && method === "PATCH";
-    if (!register && !comments && !update) throw new Error("Request is outside this review.");
+    const snapshot = snapshotMatch && session.pageIds.includes(snapshotMatch[1]) && method === "POST";
+    if (!register && !comments && !update && !snapshot) throw new Error("Request is outside this review.");
     const result = await request<Record<string, unknown> | Record<string, unknown>[]>(session.auth, path, {
       method, ...(body ? { body: JSON.stringify(body) } : {}),
     });

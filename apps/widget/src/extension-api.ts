@@ -20,7 +20,7 @@ export { captureScreenshot } from "./screenshot";
 
 export { parseUserAgent } from "./user-agent";
 
-export { registerCurrentPage } from "./page-registration";
+export { registerCurrentPage, submitPageSnapshot } from "./page-registration";
 
 export { createThreadManager } from "./thread-manager";
 export type { ThreadManager, ThreadManagerOptions } from "./thread-manager";

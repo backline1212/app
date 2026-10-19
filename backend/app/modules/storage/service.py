@@ -6,8 +6,9 @@ from pydantic import ValidationError as PydanticValidationError
 
 from app.core.actor_access import resolve_actor_project_access
 from app.core.errors import ValidationError
-from app.core.session import Actor
-from app.modules.storage.r2_client import generate_presigned_put, upload_bytes
+from app.core.session import Actor, actor_identity
+from app.modules.storage.r2_client import generate_presigned_put, head_upload, upload_bytes
+from app.modules.storage.repository import UploadRepository
 from app.modules.storage.schemas import StoredUploadOut, UploadOut, UploadRequest
 
 _EXTENSION_BY_CONTENT_TYPE = {
@@ -45,6 +46,54 @@ def require_project_upload(key: str, workspace_id: str, project_id: str) -> None
         raise ValidationError("Upload does not belong to this project.")
 
 
+async def validate_upload_reference(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    actor: Actor,
+    workspace_id: str,
+    project_id: str,
+    key: str,
+    content_type: str | None = None,
+    screenshot: bool = False,
+) -> None:
+    """New references must be issued to this actor and actually exist as declared."""
+    require_project_upload(key, workspace_id, project_id)
+    record = await UploadRepository(db).find(workspace_id, project_id, key)
+    actor_type, actor_id = actor_identity(actor)
+    if record is None or (record["actor_type"], record["actor_id"]) != (actor_type, actor_id):
+        raise ValidationError("Attach a file uploaded in your current review session.")
+    expected_type = record["content_type"]
+    if (content_type is not None and content_type != expected_type) or (
+        screenshot and not expected_type.startswith("image/")
+    ):
+        raise ValidationError("The attachment type does not match its upload.")
+    metadata = await head_upload(key)
+    if metadata != (expected_type, record["content_length"]):
+        raise ValidationError("The file upload is incomplete or changed. Upload it again.")
+
+
+async def _record_upload(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    actor: Actor,
+    key: str,
+    workspace_id: str,
+    project_id: str,
+    content_type: str,
+    content_length: int,
+) -> None:
+    actor_type, actor_id = actor_identity(actor)
+    await UploadRepository(db).create(
+        key=key,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        actor_type=actor_type,
+        actor_id=actor_id,
+        content_type=content_type,
+        content_length=content_length,
+    )
+
+
 def _upload_key(workspace_id: str, project_id: str, content_type: str) -> str:
     extension = _EXTENSION_BY_CONTENT_TYPE[content_type]
     return f"uploads/{workspace_id}/{project_id}/{uuid.uuid4()}.{extension}"
@@ -67,6 +116,15 @@ async def create_upload_url(
     key = _upload_key(workspace_id, project_id, content_type)
 
     upload_url = await generate_presigned_put(key, content_type, content_length)
+    await _record_upload(
+        db,
+        actor=actor,
+        key=key,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        content_type=content_type,
+        content_length=content_length,
+    )
     return UploadOut(upload_url=upload_url, key=key)
 
 
@@ -90,4 +148,13 @@ async def store_upload(
     workspace_id = await resolve_actor_project_access(db, actor, project_id, "comment:create")
     key = _upload_key(workspace_id, project_id, validated.content_type)
     await upload_bytes(key, data, validated.content_type)
+    await _record_upload(
+        db,
+        actor=actor,
+        key=key,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        content_type=validated.content_type,
+        content_length=len(data),
+    )
     return StoredUploadOut(key=key)

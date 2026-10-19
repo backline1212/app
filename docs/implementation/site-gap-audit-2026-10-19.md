@@ -25,6 +25,12 @@ still outstanding; the legacy URL handoff remains a separate CR-03/F20 issue.
 F11 now fails closed on production email-provider failure and avoids logging live
 message bodies; see [TDR-0067](../tdr/0067-email-delivery-and-deployment-consistency.md).
 Actual delivery/receipt and login acceptance are still open.
+F03 upload registry/existence checks and F22 transactional snapshots/durable delivery
+are repaired in source in [TDR-0068](../tdr/0068-review-evidence-persistence.md), pending
+storage/concurrency acceptance. The extension's obsolete API default is fixed with
+protocol/version checks and explicit proxy fallback in
+[TDR-0069](../tdr/0069-proxy-fallback-and-extension-connection.md). F14 has partial
+project binding/expiry/route constraints; remaining scope is explicit.
 
 ## Result and evidence boundary
 

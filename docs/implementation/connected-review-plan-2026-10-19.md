@@ -23,6 +23,10 @@ an isolated worker deployment before optional server captures can be enabled.
 Guest session recovery and installed-widget teardown are implemented in source in
 [TDR-0066](../tdr/0066-guest-session-recovery.md), awaiting live acceptance. The legacy
 URL bearer handoff is still scheduled for replacement in CR-03.
+Further increments: [issued uploads/durable snapshots](../tdr/0068-review-evidence-persistence.md)
+and [explicit proxy fallback/extension repairs](../tdr/0069-proxy-fallback-and-extension-connection.md).
+These preserve existing launch modes. CR-02/03 installed-site setup/exchange and
+signed-in browser acceptance remain pending.
 
 ## 1. Release boundary and product contract
 

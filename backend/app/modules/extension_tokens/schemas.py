@@ -8,6 +8,7 @@ from app.modules.workspaces.schemas import WorkspaceOut
 
 class ExtensionTokenCreate(BaseModel):
     name: Trimmed = Field(min_length=1, max_length=200)
+    project_id: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{24}$")
 
 
 class ExtensionTokenIssued(BaseModel):
@@ -19,6 +20,8 @@ class ExtensionTokenIssued(BaseModel):
     token: str
     name: str
     created_at: datetime
+    expires_at: datetime
+    project_id: str | None = None
 
 
 class ExtensionTokenOut(BaseModel):
@@ -28,6 +31,8 @@ class ExtensionTokenOut(BaseModel):
     created_at: datetime
     last_used_at: datetime | None
     revoked_at: datetime | None
+    expires_at: datetime
+    project_id: str | None = None
 
 
 class ExtensionWhoAmIOut(BaseModel):

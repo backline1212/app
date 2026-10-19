@@ -1,5 +1,5 @@
 import type { NativeReviewAuth, NativeReviewLaunch, NativeReviewStatus } from "@backline/types";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { API_BASE_URL } from "../../lib/api-client";
 import { createExtensionToken, revokeExtensionToken } from "../extension-tokens/api";
 
@@ -32,18 +32,22 @@ interface Props {
 }
 
 export function NativeReviewButton({ projectId, url, member, guest }: Props) {
+  const titleId = useId();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opened, setOpened] = useState(false);
-  async function start(forceConnect = false) {
+  async function start() {
     setBusy(true);
     setError(null);
     let issuedId: string | null = null;
     try {
       const status = await extensionRequest<NativeReviewStatus>("status");
+      if (status.version !== 2 || status.apiBaseUrl.replace(/\/$/, "") !== API_BASE_URL.replace(/\/$/, "")) {
+        throw new Error("Update the Backline extension from the download below, reload its extension card, then reload this page.");
+      }
       let auth: NativeReviewAuth | undefined = guest;
-      if (!guest && member && (forceConnect || status.workspaceId !== member.workspaceId || status.userId !== member.userId)) {
-        const issued = await createExtensionToken(member.workspaceId, "Browser review");
+      if (!guest && member) {
+        const issued = await createExtensionToken(member.workspaceId, "Browser review", projectId);
         issuedId = issued.id;
         auth = { kind: "member", token: issued.token };
       }
@@ -58,22 +62,22 @@ export function NativeReviewButton({ projectId, url, member, guest }: Props) {
   }
   return <>
     <button type="button" className="bl-review-control bl-button" disabled={busy} onClick={() => void start()} title="Review the real website with your existing browser login">
-      {busy ? "Opening…" : opened ? "Return to browser review" : "Browser review"}
+      {busy ? "Opening…" : opened ? "Return to browser review" : "Open with extension"}
     </button>
     {error && <div className="bl-gate-scrim" role="presentation" onClick={() => setError(null)}>
-      <div className="bl-gate-modal" role="dialog" aria-modal="true" aria-labelledby="nativeReviewTitle" onClick={event => event.stopPropagation()}>
-        <div className="bl-gate-head"><h3 id="nativeReviewTitle">Review a signed-in website</h3>
+      <div className="bl-gate-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={event => event.stopPropagation()}>
+        <div className="bl-gate-head"><h3 id={titleId}>Review a signed-in website</h3>
           <p>Sign in on the real site, then use Backline&apos;s Comment or Draw controls in that tab. Google, SSO and password screens use your normal browser.</p></div>
         <div className="bl-gate-body">
           <p className="bl-error" role="alert">{error}</p>
-          <p>One-time setup in desktop Chrome or Edge:</p>
+          <p>One-time setup in desktop Chrome or Edge. This download includes the current API connection:</p>
           <ol><li>Download and unzip the extension.</li><li>Open chrome://extensions (or edge://extensions), enable Developer mode, and choose Load unpacked.</li><li>Select the unzipped folder, then reload this Backline page.</li></ol>
           <p>If already installed, replace its files with this download and click Reload on its extension card.</p>
           <a className="bl-quiet" href={`${API_BASE_URL}/extension/backline-extension.zip`}>Download Backline extension</a>
         </div>
         <div className="bl-gate-foot">
           <button className="bl-quiet" onClick={() => setError(null)}>Close</button>
-          <button className="bl-button" disabled={busy} onClick={() => void start(true)}>Try again</button>
+          <button className="bl-button" disabled={busy} onClick={() => void start()}>Try again</button>
         </div>
       </div>
     </div>}

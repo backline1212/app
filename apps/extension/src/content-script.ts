@@ -11,6 +11,7 @@ import {
   openComposer,
   parseUserAgent,
   registerCurrentPage,
+  submitPageSnapshot,
   renderPin,
   setupRegionDrawer,
   showTooltip,
@@ -78,6 +79,7 @@ async function buildFreshContext(): Promise<AnnotationContext | null> {
   const pageId = await registerCurrentPage(api, project.id, pageUrl);
   const existingComments = await api.request<CommentRecord[]>(`/api/v1/pages/${pageId}/comments`);
   if (generation !== contextGeneration || location.href !== pageUrl) throw new Error("The page changed. Choose Comment again when it finishes loading.");
+  void submitPageSnapshot(api, pageId).catch(() => undefined);
   const shadow = createShadowRoot();
 
   // Connected with a member token, so unlike the guest widget this can change a
@@ -288,6 +290,15 @@ async function startNativeReview(): Promise<void> {
     nativeInfo = null;
     toolbar = null;
   });
+  try {
+    await nativeMessage("native-review-ready", { launchId: info.launchId });
+  } catch (error) {
+    clearContext();
+    toolbar?.remove();
+    toolbar = null;
+    nativeInfo = null;
+    throw error;
+  }
 }
 
 const isolatedWindow = window as Window & { __backlineExtensionLoaded?: boolean };

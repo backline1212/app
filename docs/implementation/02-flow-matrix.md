@@ -1,5 +1,10 @@
 # Flow inventory and acceptance criteria
 
+2026-10-19: FD-08 recovery now offers explicit extension launch when proxy tools
+don't acknowledge within 15 seconds. TDR-0069 fixes the old extension API default
+and adds readiness, origin and project credential checks. TDR-0068 hardens upload
+references and snapshot delivery. Static checks do not close live acceptance rows.
+
 Source line references point to the checked-in unmodified HTML. Every row is a requirement, not a completion claim. Delivery evidence lives in [06-delivery](06-delivery.md).
 
 The [2026-10-19 source audit](site-gap-audit-2026-10-19.md) maps current findings to

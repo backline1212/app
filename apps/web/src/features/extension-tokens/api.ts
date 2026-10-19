@@ -12,10 +12,11 @@ export function listExtensionTokens(workspaceId: string): Promise<ExtensionToken
 export function createExtensionToken(
   workspaceId: string,
   name: string,
+  projectId?: string,
 ): Promise<ExtensionTokenIssued> {
   return apiFetch<ExtensionTokenIssued>(`/api/v1/workspaces/${workspaceId}/extension-tokens`, {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, project_id: projectId }),
   });
 }
 

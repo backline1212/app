@@ -32,7 +32,11 @@ from app.modules.pages.repository import PageRepository
 from app.modules.projects.repository import ProjectRepository
 from app.modules.realtime.pubsub import publish as publish_realtime_event
 from app.modules.storage.r2_client import generate_presigned_get
-from app.modules.storage.service import is_project_upload, require_project_upload
+from app.modules.storage.service import (
+    is_project_upload,
+    require_project_upload,
+    validate_upload_reference,
+)
 
 logger = logging.getLogger("backline.comments")
 
@@ -420,6 +424,24 @@ async def create_comment(
         if existing is not None:
             require_matching_replay(existing, doc)
             return await _comment_out(db, existing)
+    for attachment in attachments or []:
+        await validate_upload_reference(
+            db,
+            actor=actor,
+            workspace_id=page["workspace_id"],
+            project_id=page["project_id"],
+            key=attachment.key,
+            content_type=attachment.content_type,
+        )
+    if screenshot_key:
+        await validate_upload_reference(
+            db,
+            actor=actor,
+            workspace_id=page["workspace_id"],
+            project_id=page["project_id"],
+            key=screenshot_key,
+            screenshot=True,
+        )
     doc["ticket_number"] = await CommentRepository(db).next_ticket_number(page["workspace_id"])
     created = await CommentRepository(db).create(doc)
     if created is not doc:
@@ -539,6 +561,15 @@ async def create_reply(
         if existing_reply is not None:
             require_matching_replay(existing_reply, doc)
             return await _comment_out(db, existing_reply)
+    for attachment in attachments or []:
+        await validate_upload_reference(
+            db,
+            actor=actor,
+            workspace_id=parent["workspace_id"],
+            project_id=parent_page["project_id"],
+            key=attachment.key,
+            content_type=attachment.content_type,
+        )
     created = await repo.create(doc)
     if created is not doc:
         return await _comment_out(db, created)

@@ -2,7 +2,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import cast
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.errors import (
@@ -34,6 +34,7 @@ class Session:
     role: str | None
     sid: str | None = None
     authenticated_at: datetime | None = None
+    project_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class GuestSession:
 
 
 async def get_current_session(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> Session:
     if credentials is None:
@@ -63,7 +65,7 @@ async def get_current_session(
         # header (there's no separate header to route on, unlike X-Guest-Session).
         # This keeps every existing member-only endpoint (comments, pages, projects)
         # working unchanged for a "Connect Extension" token with zero per-route edits.
-        return await _resolve_extension_session(credentials.credentials)
+        return await _resolve_extension_session(credentials.credentials, request)
 
     session = Session(
         user_id=claims.sub, workspace_id=claims.workspace_id, role=claims.role, sid=claims.sid
@@ -71,7 +73,7 @@ async def get_current_session(
     return replace(session, authenticated_at=await validate_member_session(session))
 
 
-async def _resolve_extension_session(token: str) -> Session:
+async def _resolve_extension_session(token: str, request: Request) -> Session:
     from app.core.db import get_db
     from app.modules.extension_tokens.repository import ExtensionTokenRepository
     from app.modules.workspaces.repository import MembershipRepository
@@ -80,10 +82,19 @@ async def _resolve_extension_session(token: str) -> Session:
     if doc is None or doc["revoked_at"] is not None:
         raise AuthenticationError("Invalid or expired token.")
 
+    from datetime import UTC
+
+    from app.core.extension_access import require_extension_route, token_expiry
+
+    if token_expiry(doc) <= datetime.now(UTC):
+        raise AuthenticationError("Browser review expired. Reopen it from Backline.")
+    require_extension_route(request.method, request.url.path, project_id=doc.get("project_id"))
+
     user_id = str(doc["user_id"])
     from app.core.verified_identity import require_verified_identity
 
-    await require_verified_identity(get_db(), user_id, issued_at=doc.get("created_at", False))
+    authenticated_at = doc.get("authenticated_at", doc.get("created_at", False))
+    await require_verified_identity(get_db(), user_id, issued_at=authenticated_at)
     # Same role-drift guard validate_member_session applies to JWTs (below): a token
     # minted while the member was, say, an admin must stop authorizing the instant
     # they're demoted or removed, not just once the token itself expires.
@@ -93,13 +104,24 @@ async def _resolve_extension_session(token: str) -> Session:
     if member is None or member["role"] != doc["role"]:
         raise PermissionDeniedError("Workspace access changed. Reconnect the extension.")
 
+    if doc.get("project_id"):
+        await validate_member_session(
+            Session(
+                user_id=user_id,
+                workspace_id=doc["workspace_id"],
+                role=doc["role"],
+                sid=doc.get("session_id"),
+            )
+        )
+
     await ExtensionTokenRepository(get_db()).touch_last_used(doc["_id"])
     return Session(
         user_id=user_id,
         workspace_id=doc["workspace_id"],
         role=doc["role"],
         sid=None,
-        authenticated_at=doc["created_at"],
+        authenticated_at=authenticated_at,
+        project_id=doc.get("project_id"),
     )
 
 
@@ -129,6 +151,7 @@ view of exactly the fields that variant actually has."""
 
 
 async def get_current_actor(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     x_guest_session: str | None = Header(default=None),
 ) -> Actor:
@@ -136,7 +159,7 @@ async def get_current_actor(
     §12.3/§12.4 - pages, snapshots, uploads, comments). Endpoints that are member-only keep
     using get_current_session directly, so a guest token can never reach them by accident."""
     if credentials is not None:
-        return await get_current_session(credentials)
+        return await get_current_session(request, credentials)
     if x_guest_session is not None:
         return await get_guest_session(x_guest_session)
     raise AuthenticationError("Authentication required.")

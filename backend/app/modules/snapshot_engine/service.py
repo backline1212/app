@@ -1,21 +1,19 @@
 import gzip
 import json
+import logging
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from pymongo.errors import DuplicateKeyError
+from bson import ObjectId
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
 from app.core.actor_access import resolve_actor_project_access
 from app.core.arq_pool import get_arq_pool
-from app.core.errors import ConflictError, NotFoundError
-from app.core.events import append_event
+from app.core.errors import NotFoundError
 from app.core.session import Actor, actor_identity
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.repository import ProjectRepository
-from app.modules.realtime.pubsub import publish as publish_realtime_event
 from app.modules.recovery_engine.repository import RecoveryLogRepository
 from app.modules.revision_engine.repository import RevisionDiffRepository
-from app.modules.snapshot_engine import events as snapshot_events
 from app.modules.snapshot_engine.repository import RevisionRepository
 from app.modules.snapshot_engine.schemas import (
     RevisionChangeSummary,
@@ -24,6 +22,8 @@ from app.modules.snapshot_engine.schemas import (
     RevisionRecoverySummary,
 )
 from app.modules.storage.r2_client import upload_bytes
+
+logger = logging.getLogger("backline.snapshots")
 
 
 def _revision_out(doc: dict[str, Any], *, created_new: bool) -> RevisionOut:
@@ -65,7 +65,11 @@ async def list_project_revisions(
             page_url=page_map[revision["page_id"]]["url_normalized"],
             full_page_hash=revision["full_page_hash"],
             captured_at=revision["captured_at"],
-            is_current=revision["is_current"],
+            is_current=(
+                page_map[revision["page_id"]].get("latest_revision_id") == str(revision["_id"])
+                if page_map[revision["page_id"]].get("latest_revision_id")
+                else revision["is_current"]
+            ),
             changes=RevisionChangeSummary(**diff_summaries.get(str(revision["_id"]), {})),
             recovery=RevisionRecoverySummary(**recovery_summaries.get(str(revision["_id"]), {})),
         )
@@ -92,35 +96,8 @@ async def submit_snapshot(
     await resolve_actor_project_access(db, actor, page["project_id"])
 
     revision_repo = RevisionRepository(db)
-    current = await revision_repo.find_current(page["workspace_id"], page_id)
-
-    if current is not None and current["full_page_hash"] == full_page_hash:
-        # 10-Revision-Recovery.md §10.2: identical hash -> discarded, no new revision.
-        return _revision_out(current, created_new=False)
-
-    # Mark the previous current revision not-current BEFORE inserting the new one, and
-    # retry on a DuplicateKeyError from revisions_page_current_unique (a partial unique
-    # index on {page_id, is_current: true}) - without this ordering + guard, two
-    # concurrent submissions for the same page could both read the same `current`, both
-    # insert a new is_current:true revision, and each mark a different old doc
-    # not-current, leaving two revisions "current" at once.
-    new_revision: dict[str, Any] | None = None
-    for _ in range(3):
-        if current is not None:
-            await revision_repo.mark_not_current(page["workspace_id"], str(current["_id"]))
-        try:
-            new_revision = await revision_repo.create(
-                page_id=page_id, workspace_id=page["workspace_id"], full_page_hash=full_page_hash
-            )
-            break
-        except DuplicateKeyError:
-            current = await revision_repo.find_current(page["workspace_id"], page_id)
-            if current is not None and current["full_page_hash"] == full_page_hash:
-                return _revision_out(current, created_new=False)
-    if new_revision is None:
-        raise ConflictError("Could not save this snapshot right now - try again.")
-    revision_id = str(new_revision["_id"])
-
+    revision_oid = ObjectId()
+    revision_id = str(revision_oid)
     snapshot_payload = {
         "revision_id": revision_id,
         "page_id": page_id,
@@ -131,35 +108,63 @@ async def submit_snapshot(
     }
     compressed = gzip.compress(json.dumps(snapshot_payload).encode("utf-8"))
     snapshot_key = f"snapshots/{page['project_id']}/{revision_id}/snapshot.json.gz"
-    await upload_bytes(snapshot_key, compressed, "application/gzip")
-    await revision_repo.set_snapshot_key(page["workspace_id"], revision_id, snapshot_key)
-
-    await page_repo.update_latest_revision(page["workspace_id"], page_id, revision_id)
-
+    # Storage succeeds before any current pointer changes. Identical completed
+    # snapshots need no new object, but are still repaired/deduplicated transactionally.
+    observed = await revision_repo.find_current(page["workspace_id"], page_id)
+    if not (
+        observed and observed["full_page_hash"] == full_page_hash and observed.get("snapshot_key")
+    ):
+        await upload_bytes(snapshot_key, compressed, "application/gzip")
     actor_type, actor_id = actor_identity(actor)
-    await append_event(
-        db,
-        workspace_id=page["workspace_id"],
-        type=snapshot_events.REVISION_CREATED,
-        actor_type=actor_type,
-        actor_id=actor_id,
-        payload={"page_id": page_id, "project_id": page["project_id"], "revision_id": revision_id},
-    )
-    await publish_realtime_event(
-        f"workspace:{page['workspace_id']}:all",
-        event_type="revision.created",
-        workspace_id=page["workspace_id"],
-        payload={"page_id": page_id, "project_id": page["project_id"], "revision_id": revision_id},
-    )
 
-    if current is not None:
-        # Only worth running if there's a previous revision to recover against - the
-        # recovery pipeline itself would no-op on a page's very first snapshot anyway
-        # (10-Revision-Recovery.md §10.4), but there's no reason to queue that no-op.
+    async def commit(session: AsyncIOMotorClientSession) -> tuple[dict[str, Any], bool]:
+        current = await revision_repo.find_current(page["workspace_id"], page_id, session=session)
+        # A concurrent different snapshot may have committed after the observed
+        # deduplication read. Never create a revision pointing at an unwritten object.
+        if (
+            observed
+            and observed["full_page_hash"] == full_page_hash
+            and observed.get("snapshot_key")
+        ):
+            if (
+                current is None
+                or current["full_page_hash"] != full_page_hash
+                or not current.get("snapshot_key")
+            ):
+                from app.core.errors import ConflictError
+
+                raise ConflictError("The page changed while saving. Capture it again.")
+        saved, created = await revision_repo.commit_ready(
+            session=session,
+            workspace_id=page["workspace_id"],
+            page_id=page_id,
+            revision_id=revision_oid,
+            snapshot_key=snapshot_key,
+            full_page_hash=full_page_hash,
+            actor_type=actor_type,
+            actor_id=actor_id,
+        )
+        await page_repo.update_latest_revision(
+            page["workspace_id"],
+            page_id,
+            str(saved["_id"]),
+            session=session,
+        )
+        return saved, created
+
+    async with await db.client.start_session() as session:
+        committed: tuple[dict[str, Any], bool] = await session.with_transaction(commit)
+    saved, created = committed
+
+    # Queueing is a latency optimization. The durable row and minute sweep survive
+    # Redis outages, lost HTTP responses, API restarts and exhausted Arq retries.
+    try:
         pool = await get_arq_pool()
         await pool.enqueue_job(
-            "run_recovery_pipeline_job", page_id=page_id, revision_id=revision_id
+            "deliver_snapshot_revision_job",
+            workspace_id=page["workspace_id"],
+            revision_id=str(saved["_id"]),
         )
-
-    new_revision["snapshot_key"] = snapshot_key
-    return _revision_out(new_revision, created_new=True)
+    except Exception as exc:
+        logger.warning("Snapshot delivery deferred to sweep (%s)", type(exc).__name__)
+    return _revision_out(saved, created_new=created)

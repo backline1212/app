@@ -145,6 +145,8 @@ export function ProjectOverviewPage() {
   // Set when the in-page widget reports it could not start (widget index.ts safeInit),
   // so the status bar stops inviting clicks that nothing will pick up.
   const [widgetError, setWidgetError] = useState<string | null>(null);
+  const widgetReady = useRef(false);
+  const [proxyUnconfirmed, setProxyUnconfirmed] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const canvasRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -384,12 +386,14 @@ export function ProjectOverviewPage() {
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       const canvasWindow = canvasRef.current?.contentWindow;
-      if (!canvasWindow || event.source !== canvasWindow) return;
+      if (!canvasWindow || event.source !== canvasWindow || event.origin !== canvasOrigin(canvasRef.current)) return;
       if (event.data?.type === "backline:widget-error") {
         setWidgetError(typeof event.data.message === "string" ? event.data.message : "Unknown error");
         return;
       }
       if (event.data?.type !== "backline:page-registered") return;
+      widgetReady.current = true;
+      setProxyUnconfirmed(false);
       setWidgetError(null);
       const pageId = event.data.pageId as string;
       frameDrivenPageRef.current = pageId;
@@ -574,9 +578,13 @@ export function ProjectOverviewPage() {
     // here would have no load event coming to clear it and would time out as an error.
     if (activePageIdParam !== null && activePageIdParam === frameDrivenPageRef.current) return;
     setIframeStatus("loading");
+    widgetReady.current = false;
+    setWidgetError(null);
+    setProxyUnconfirmed(false);
     const timer = window.setTimeout(() => {
       setIframeStatus((current) => current === "loading" ? "error" : current);
-    }, 30000);
+      if (!widgetReady.current) setProxyUnconfirmed(true);
+    }, 15000);
     return () => window.clearTimeout(timer);
   }, [activePageIdParam, hasProxyCandidate, projectId, retryCount]);
 
@@ -831,7 +839,7 @@ export function ProjectOverviewPage() {
     }
   })();
   const pageIds = sortedPages.map((page) => page.id);
-  const effectiveFrameStatus = iframeSrc ? iframeStatus : "unavailable";
+  const effectiveFrameStatus = iframeSrc ? widgetReady.current ? iframeStatus : "loading" : "unavailable";
 
   return (
     <main className="bl-review-workspace">
@@ -919,6 +927,18 @@ export function ProjectOverviewPage() {
           />
         </div>
       </header>
+
+      <div className="bl-review-browser-help" role={proxyUnconfirmed || widgetError ? "alert" : "status"}>
+        <div>
+          <strong>{proxyUnconfirmed || widgetError || iframeStatus === "error"
+            ? "This page hasn't connected to Backline's proxy review tools."
+            : "Trouble loading this site or signing in?"}</strong>
+          <p>Open with the extension to use the real website and your normal login. Comments and evidence stay in this project. YouTube, Notion and other sites may block embedded sign-in.</p>
+          {widgetError && <p>{widgetError}</p>}
+        </div>
+        {user && canComment && <NativeReviewButton projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
+        {(proxyUnconfirmed || widgetError) && <button type="button" className="bl-quiet" onClick={reloadPreview}>Retry proxy</button>}
+      </div>
 
       <div className="bl-review-pagebar">
         <div className="bl-review-page-tabs" ref={pageTabsRef} role={sortedPages.length > 0 ? "tablist" : undefined} aria-label={sortedPages.length > 0 ? "Project pages" : undefined}>
@@ -1084,8 +1104,8 @@ export function ProjectOverviewPage() {
                 {iframeStatus === "error" && (
                   <div className="bl-iframe-state is-error" role="alert">
                     <span className="bl-review-state-icon is-warning"><GlobeIcon /></span>
-                    <strong>Couldn’t load this page</strong>
-                    <p>The address may be unavailable, behind a login, or blocking the review proxy.</p>
+                    <strong>This page couldn’t connect through the proxy</strong>
+                    <p>It may require its normal browser login or block embedded review. Use Open with extension above to review the real site.</p>
                     <div>
                       <button type="button" className="bl-button" onClick={reloadPreview}>Try again</button>
                       <a className="bl-quiet" href={displayUrl} target="_blank" rel="noreferrer">Open live page</a>
@@ -1095,7 +1115,7 @@ export function ProjectOverviewPage() {
                 )}
               </div>
               <div className="bl-live-frame-meta">
-                <span className={widgetError ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{widgetError ? "Commenting couldn't start on this page — reload the canvas to try again" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : mode === "view" ? "View only — open a pin to read it. Your role on this project can't add comments" : "Browse mode — comments are hidden, use the site as normal")}</span>
+                <span className={widgetError || proxyUnconfirmed ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{widgetError || proxyUnconfirmed ? "Review tools haven't connected — open with the extension or retry the proxy" : !widgetReady.current ? "Waiting for review tools to connect" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : mode === "view" ? "View only — open a pin to read it. Your role on this project can't add comments" : "Browse mode — comments are hidden, use the site as normal")}</span>
                 <span>Source: proxy</span>
               </div>
               {!viewport && (

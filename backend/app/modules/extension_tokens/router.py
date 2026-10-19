@@ -55,12 +55,16 @@ async def create_extension_token(
 ) -> ExtensionTokenIssued:
     require_workspace_match(session, workspace_id)
     assert session.role is not None  # guaranteed by require_permission
+    assert session.authenticated_at is not None
     return await extension_token_service.issue_token(
         get_db(),
         user_id=session.user_id,
         workspace_id=workspace_id,
         role=session.role,
         name=body.name,
+        authenticated_at=session.authenticated_at,
+        project_id=body.project_id,
+        session_id=session.sid,
     )
 
 

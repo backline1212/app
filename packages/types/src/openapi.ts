@@ -3026,6 +3026,8 @@ export interface components {
         ExtensionTokenCreate: {
             /** Name */
             name: string;
+            /** Project Id */
+            project_id?: string | null;
         };
         /**
          * ExtensionTokenIssued
@@ -3045,6 +3047,13 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Project Id */
+            project_id?: string | null;
         };
         /** ExtensionTokenOut */
         ExtensionTokenOut: {
@@ -3063,6 +3072,13 @@ export interface components {
             last_used_at: string | null;
             /** Revoked At */
             revoked_at: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Project Id */
+            project_id?: string | null;
         };
         /**
          * ExtensionWhoAmIOut
@@ -3983,6 +3999,11 @@ export interface components {
         };
         /** ProjectDeletionCounts */
         ProjectDeletionCounts: {
+            /**
+             * Uploads
+             * @default 0
+             */
+            uploads: number;
             /**
              * Pages
              * @default 0

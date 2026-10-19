@@ -216,6 +216,7 @@ class ProjectOut(BaseModel):
 
 
 class ProjectDeletionCounts(BaseModel):
+    uploads: int = 0
     pages: int = 0
     project_assets: int = 0
     comments: int = 0

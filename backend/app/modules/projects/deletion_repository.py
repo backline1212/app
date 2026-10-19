@@ -84,6 +84,9 @@ class ProjectDeletionRepository:
             {"workspace_id": workspace_id, "project_id": project_id},
             {"_id": 1, "key": 1},
         ).to_list(length=None)
+        uploads = await self.db.uploads.find(
+            {"workspace_id": workspace_id, "project_id": project_id}, {"_id": 1}
+        ).to_list(length=None)
         notifications = await self.db.notifications.find(
             {
                 "workspace_id": workspace_id,
@@ -120,6 +123,7 @@ class ProjectDeletionRepository:
             {"workspace_id": workspace_id, "payload_json.project_id": project_id}
         )
         ids = {
+            "uploads": sorted(str(doc["_id"]) for doc in uploads),
             "pages": sorted(page_ids),
             "project_assets": sorted(str(doc["_id"]) for doc in assets),
             "comments": sorted(comment_ids),
@@ -240,6 +244,9 @@ class ProjectDeletionRepository:
         """Dependency order is deliberate; every operation is retry-safe."""
         graph = await self.snapshot_graph(workspace_id, project_id)
         ids = graph.ids
+        # Upload registry IDs are object-key strings, not Mongo ObjectIds. Objects
+        # themselves already belong to the project's enumerated upload prefixes.
+        await self.db.uploads.delete_many({"workspace_id": workspace_id, "project_id": project_id})
 
         async def delete_ids(collection: str) -> None:
             object_ids = [to_object_id(value) for value in ids[collection]]

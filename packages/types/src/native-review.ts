@@ -16,10 +16,13 @@ export interface NativeReviewInfo {
   authorName: string;
   member: boolean;
   returnUrl: string;
+  launchId: string;
 }
 
 export interface NativeReviewStatus {
-  version: 1;
+  version: 2;
+  apiBaseUrl: string;
+  extensionVersion: string;
   workspaceId: string | null;
   userId: string | null;
 }

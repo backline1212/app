@@ -7,6 +7,46 @@ from pymongo import ReturnDocument
 from app.core.config import get_settings
 
 
+class UploadRepository:
+    """Issued upload references. Object keys are unique, workspace-scoped IDs."""
+
+    def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
+        self.db = db
+
+    async def create(
+        self,
+        *,
+        key: str,
+        workspace_id: str,
+        project_id: str,
+        actor_type: str,
+        actor_id: str,
+        content_type: str,
+        content_length: int,
+    ) -> None:
+        await self.db.uploads.insert_one(
+            {
+                "_id": key,
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "actor_type": actor_type,
+                "actor_id": actor_id,
+                "content_type": content_type,
+                "content_length": content_length,
+                "created_at": datetime.now(UTC),
+            }
+        )
+
+    async def find(self, workspace_id: str, project_id: str, key: str) -> dict[str, Any] | None:
+        return await self.db.uploads.find_one(
+            {
+                "_id": key,
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+            }
+        )
+
+
 class ObjectGcRepository:
     """Durable, retry-safe object deletion tombstones."""
 

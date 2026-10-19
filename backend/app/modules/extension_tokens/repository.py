@@ -25,6 +25,10 @@ class ExtensionTokenRepository:
         name: str,
         token_hash: str,
         role: str,
+        expires_at: datetime,
+        authenticated_at: datetime,
+        project_id: str | None = None,
+        session_id: str | None = None,
     ) -> dict[str, Any]:
         doc = {
             "user_id": user_id,
@@ -35,6 +39,10 @@ class ExtensionTokenRepository:
             "created_at": datetime.now(UTC),
             "last_used_at": None,
             "revoked_at": None,
+            "expires_at": expires_at,
+            "authenticated_at": authenticated_at,
+            "project_id": project_id,
+            "session_id": session_id,
         }
         result = await self.db.extension_tokens.insert_one(doc)
         doc["_id"] = result.inserted_id

@@ -348,9 +348,17 @@ async def create_ticket(
             raise ValidationError("Choose a page from this project.")
     else:
         page = await DashboardRepository(db).standalone_page(workspace_id, project_id)
-    upload_prefix = f"uploads/{workspace_id}/{project_id}/"
-    if any(not a.key.startswith(upload_prefix) for a in body.attachments):
-        raise ValidationError("Screenshots must be uploaded to this project.")
+    from app.modules.storage.service import validate_upload_reference
+
+    for attachment in body.attachments:
+        await validate_upload_reference(
+            db,
+            actor=actor,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            key=attachment.key,
+            content_type=attachment.content_type,
+        )
     doc = await CommentRepository(db).create(
         {
             "workspace_id": workspace_id,

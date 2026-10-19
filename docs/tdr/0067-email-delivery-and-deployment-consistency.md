@@ -1,6 +1,6 @@
 # TDR-0067: Email delivery and deployment consistency
 
-Date: 2026-10-19. Status: implementation and rollout in progress.
+Date: 2026-10-19. Status: first rollout verified; browser/email acceptance open.
 
 ## Context
 
@@ -45,3 +45,10 @@ full guest/review journeys require a subsequent interactive acceptance pass.
 This decision does not implement CR-02/03 connected installation/launch, worker
 network isolation or other open findings. Record final checks/deployment IDs and
 any blockers in `docs/implementation/06-delivery.md`.
+
+First rollout `4fcd618`: Vercel and API/worker/cloud-login reported success.
+Health, OpenAPI/SDK equality, guest/refresh rejection and Google state-cookie/origin
+checks passed. Environment-edit CLI returned a no-op despite success; replaced it
+with the introspected `serviceInstanceUpdate` API and verified persisted watch paths
+for all three services. That script fix is included in the follow-up release.
+Extension inspection revealed its obsolete API endpoint, addressed in TDR-0069.

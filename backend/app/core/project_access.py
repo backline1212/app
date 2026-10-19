@@ -108,6 +108,8 @@ def check_project_action(
     """Raises NotFoundError when the caller has no access at all, so a private project
     is indistinguishable from a missing one. Raises PermissionDeniedError when they
     can see the project but their role is too low for `action`."""
+    if session.project_id and str(project["_id"]) != session.project_id:
+        raise NotFoundError(not_found_message)
     role = session_project_role(project, session)
     if role is None:
         raise NotFoundError(not_found_message)

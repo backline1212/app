@@ -1,6 +1,7 @@
 {
   "projectId": "a1fd7a3f-4a09-4b91-9199-d0b3fb8fc607",
   "environment": "production",
+  "environmentId": "bdbd2019-e0fe-4cbe-ba93-50683d6e08ff",
   "services": {
     "app": {
       "id": "ebe25c9a-ffb4-4967-a903-6b8e2695e76b",

@@ -10005,6 +10005,18 @@
             "maxLength": 200,
             "minLength": 1,
             "title": "Name"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{24}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
           }
         },
         "type": "object",
@@ -10031,6 +10043,22 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
           }
         },
         "type": "object",
@@ -10038,7 +10066,8 @@
           "id",
           "token",
           "name",
-          "created_at"
+          "created_at",
+          "expires_at"
         ],
         "title": "ExtensionTokenIssued",
         "description": "Returned exactly once, at creation time - the raw token is never retrievable\nagain afterward (ExtensionTokenOut never includes it, matching how a refresh\ntoken's own opaque value is only ever returned in its issuing response)."
@@ -10085,6 +10114,22 @@
               }
             ],
             "title": "Revoked At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
           }
         },
         "type": "object",
@@ -10094,7 +10139,8 @@
           "workspace_id",
           "created_at",
           "last_used_at",
-          "revoked_at"
+          "revoked_at",
+          "expires_at"
         ],
         "title": "ExtensionTokenOut"
       },
@@ -12494,6 +12540,11 @@
       },
       "ProjectDeletionCounts": {
         "properties": {
+          "uploads": {
+            "type": "integer",
+            "title": "Uploads",
+            "default": 0
+          },
           "pages": {
             "type": "integer",
             "title": "Pages",
