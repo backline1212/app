@@ -24,6 +24,27 @@ _EXTENSION_BY_CONTENT_TYPE = {
 }
 
 
+def is_project_upload(key: str, workspace_id: str, project_id: str) -> bool:
+    """Only object namespaces issued for review uploads, including legacy screenshots."""
+    prefixes = (
+        f"uploads/{workspace_id}/{project_id}/",
+        f"screenshots/{workspace_id}/{project_id}/",
+    )
+    return any(
+        key.startswith(prefix)
+        and bool(key[len(prefix) :])
+        and "/" not in key[len(prefix) :]
+        and "\\" not in key[len(prefix) :]
+        and key[len(prefix) :] not in (".", "..")
+        for prefix in prefixes
+    )
+
+
+def require_project_upload(key: str, workspace_id: str, project_id: str) -> None:
+    if not is_project_upload(key, workspace_id, project_id):
+        raise ValidationError("Upload does not belong to this project.")
+
+
 def _upload_key(workspace_id: str, project_id: str, content_type: str) -> str:
     extension = _EXTENSION_BY_CONTENT_TYPE[content_type]
     return f"uploads/{workspace_id}/{project_id}/{uuid.uuid4()}.{extension}"

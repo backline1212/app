@@ -5,6 +5,27 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/auth/google/start": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Google Start",
+        "operationId": "google_start_api_v1_auth_google_start_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleAuthorizationOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/google/callback": {
       "post": {
         "tags": [
@@ -10223,16 +10244,39 @@
         ],
         "title": "GitLabIntegrationCreate"
       },
-      "GoogleCallbackRequest": {
+      "GoogleAuthorizationOut": {
         "properties": {
-          "code": {
+          "authorization_url": {
             "type": "string",
-            "title": "Code"
+            "title": "Authorization Url"
           }
         },
         "type": "object",
         "required": [
-          "code"
+          "authorization_url"
+        ],
+        "title": "GoogleAuthorizationOut"
+      },
+      "GoogleCallbackRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 32,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "state"
         ],
         "title": "GoogleCallbackRequest"
       },

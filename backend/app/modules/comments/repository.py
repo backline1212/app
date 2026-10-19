@@ -6,6 +6,7 @@ from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from app.core.mongo_utils import to_object_id
+from app.modules.comments.idempotency import require_matching_replay
 
 
 class CommentRepository:
@@ -30,6 +31,7 @@ class CommentRepository:
             existing = await self.find_by_client_request_id(doc["workspace_id"], client_request_id)
             if existing is None:
                 raise
+            require_matching_replay(existing, doc)
             return existing
         doc["_id"] = result.inserted_id
         return doc

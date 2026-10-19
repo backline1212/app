@@ -2,6 +2,11 @@
 
 Source line references point to the checked-in unmodified HTML. Every row is a requirement, not a completion claim. Delivery evidence lives in [06-delivery](06-delivery.md).
 
+The [2026-10-19 source audit](site-gap-audit-2026-10-19.md) maps current findings to
+these acceptance rows. Its findings remain open. FD-22/23 below retain their historical
+amendment wording; later TDRs implement real Groq AI and billing, so those rows require
+reconciliation (F35) and must not be read as a current capability inventory.
+
 | ID | Source | User flow | Backend/data dependencies | Acceptance |
 |---|---|---|---|---|
 | FD-01 | L2097–2246 | Navigate workspace, search, status links | membership, project/ticket summary | Correct workspace; URL filters; real counts; responsive dashboard below 1024px |
@@ -32,5 +37,29 @@ Source line references point to the checked-in unmodified HTML. Every row is a r
 | FD-26 | L3034–3052 | Undo/redo | inverse validated mutations | Does not overwrite others' changes; no local-only illusion of persistence |
 
 ## Negative journeys
+
+### Connected website review amendment (2026-10-19, planned)
+
+[TDR-0060](../tdr/0060-connected-website-review.md) and the
+[connected review plan](connected-review-plan-2026-10-19.md) define the next website
+review flow. CR-A01 through CR-A09 in that plan are additional acceptance requirements,
+not passed checks. They extend FD-04/08/09/16/19/20/21/25 with installation readiness,
+independent website authentication, safe launch handoff, widget/extension continuity,
+portal evidence, live reproduction and fix verification. FD-05 image/PDF behavior
+remains required. Exact viewport/browser/device capabilities must be labeled honestly;
+no iframe loading event or browser label establishes successful review readiness.
+
+Implementation evidence: partial CR-01 now addresses access/session/retry prerequisites
+for CR-A05/06 and FD-18/19/21/25. See TDR-0061 and the delivery ledger. These acceptance
+rows remain unverified until their live journeys are demonstrated; CR-A01..04/07..09
+are not implemented by this foundation slice.
+Google state and refresh/OTP concurrency repairs (TDR-0062/0063) now pass their static
+checks; the corresponding FD-25 and CR-A02/05/06 live acceptance remains pending.
+
+The normal connected flow is project/ticket/evidence in Backline -> Open on site ->
+actual website with its installed review panel -> return to the same ticket. Existing
+legacy flows require explicit migration and must not silently change destinations.
+
+### Existing negative journeys
 
 Wrong workspace IDs, guest access to staff routes, assignment to a foreign user, client/project from another tenant, invalid/duplicate tags, null required values, date clearing, archived project writes, expired links, reply-as-root counts, empty searches, CSV formula payloads, upload failures, missing provider configuration, and stale query responses must all have explicit behavior.

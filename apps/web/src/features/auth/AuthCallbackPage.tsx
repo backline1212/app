@@ -19,12 +19,19 @@ export function AuthCallbackPage() {
     attempted.current = true;
 
     const code = searchParams.get("code");
-    if (!code) {
-      setError("Missing authorization code.");
+    const state = searchParams.get("state");
+    // Remove provider credentials from the address bar/history while exchanging.
+    window.history.replaceState(window.history.state, "", window.location.pathname);
+    if (searchParams.has("error")) {
+      setError("Google sign-in was cancelled or denied. You can try again.");
+      return;
+    }
+    if (!code || !state) {
+      setError("Missing sign-in details. Start Google sign-in again.");
       return;
     }
 
-    loginWithGoogleCode(code)
+    loginWithGoogleCode(code, state)
       .then(() => navigate(takeReturnPath(), { replace: true }))
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "Google sign-in failed.");

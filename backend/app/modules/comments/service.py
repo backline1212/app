@@ -13,6 +13,7 @@ from app.core.project_access import can_view_project
 from app.core.session import Actor, GuestSession, Session, actor_identity
 from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
+from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.schemas import (
     AnchorIn,
@@ -31,6 +32,7 @@ from app.modules.pages.repository import PageRepository
 from app.modules.projects.repository import ProjectRepository
 from app.modules.realtime.pubsub import publish as publish_realtime_event
 from app.modules.storage.r2_client import generate_presigned_get
+from app.modules.storage.service import is_project_upload, require_project_upload
 
 logger = logging.getLogger("backline.comments")
 
@@ -165,7 +167,7 @@ async def _resolve_author_name(
     return guest["display_name"] if guest else "Guest"
 
 
-async def _resolve_attachments(doc: dict[str, Any]) -> list[AttachmentOut]:
+async def _resolve_attachments(doc: dict[str, Any], project_id: str | None) -> list[AttachmentOut]:
     # Signed GET per attachment, same as screenshot_url below - attachments are never
     # served from a public bucket either (18-Storage-Deployment.md §18.2's reasoning
     # applies just as much to a comment's own uploaded file as to its screenshot).
@@ -176,6 +178,7 @@ async def _resolve_attachments(doc: dict[str, Any]) -> list[AttachmentOut]:
             url=await generate_presigned_get(attachment["key"]),
         )
         for attachment in doc.get("attachments", [])
+        if project_id and is_project_upload(attachment["key"], doc["workspace_id"], project_id)
     ]
 
 
@@ -185,10 +188,18 @@ async def _comment_out(
     *,
     member_name_cache: dict[str, str] | None = None,
 ) -> CommentOut:
+    page = await PageRepository(db).find_by_id(doc["page_id"]) if doc.get("page_id") else None
+    project_id = doc.get("project_id")
+    if page is not None and page["workspace_id"] == doc["workspace_id"]:
+        project_id = page["project_id"]
     screenshot_url = None
-    if doc.get("screenshot_key"):
+    if (
+        doc.get("screenshot_key")
+        and project_id
+        and is_project_upload(doc["screenshot_key"], doc["workspace_id"], project_id)
+    ):
         screenshot_url = await generate_presigned_get(doc["screenshot_key"])
-    attachments = await _resolve_attachments(doc)
+    attachments = await _resolve_attachments(doc, project_id)
     author_name = await _resolve_author_name(db, doc, member_name_cache=member_name_cache)
 
     # DB-02: a reply created after the anchor/context_json de-duplication (see
@@ -201,7 +212,11 @@ async def _comment_out(
     recovery_status = doc.get("recovery_status")
     if doc.get("parent_id") and (anchor is None or context_json is None or recovery_status is None):
         parent = await CommentRepository(db).find_by_id(doc["parent_id"])
-        if parent is not None:
+        if (
+            parent is not None
+            and parent["workspace_id"] == doc["workspace_id"]
+            and parent["page_id"] == doc["page_id"]
+        ):
             anchor = anchor if anchor is not None else parent.get("anchor")
             context_json = context_json if context_json is not None else parent.get("context_json")
             recovery_status = (
@@ -238,7 +253,9 @@ async def _comment_out(
         recovery_status=final_recovery_status,
         context=context_json,
         screenshot_url=screenshot_url,
-        capture_status=doc["capture_status"],
+        capture_status="failed"
+        if doc.get("screenshot_key") and screenshot_url is None
+        else doc["capture_status"],
         attachments=attachments,
         created_at=doc["created_at"],
         edited_at=doc.get("edited_at"),
@@ -291,20 +308,25 @@ async def _require_member_can_comment(
     comment on its project (TDR-0056) - dropping to viewer, or off a private project,
     ends that. Guests are bound to their share link instead, except a dashboard canvas
     session, which answers to its member's role the same way (TDR-0057)."""
-    if isinstance(actor, GuestSession):
-        if actor.member_user_id is None:
-            return
-        page = await PageRepository(db).find_by_id(existing["page_id"])
-        if page is None:
-            raise NotFoundError("Comment not found.")
-        await resolve_actor_project_access(db, actor, page["project_id"], "comment:create")
-        return
-    if actor.workspace_id != existing["workspace_id"]:
+    if isinstance(actor, Session) and actor.workspace_id != existing["workspace_id"]:
         raise NotFoundError("Comment not found.")
     page = await PageRepository(db).find_by_id(existing["page_id"])
-    if page is None:
+    if page is None or page["workspace_id"] != existing["workspace_id"]:
         raise NotFoundError("Comment not found.")
     await resolve_actor_project_access(db, actor, page["project_id"], "comment:create")
+    if isinstance(actor, GuestSession):
+        if existing["layer"] != "client":
+            raise NotFoundError("Comment not found.")
+        if existing.get("parent_id"):
+            parent = await CommentRepository(db).find_by_id(existing["parent_id"])
+            if (
+                parent is None
+                or parent.get("deleted_at") is not None
+                or parent["workspace_id"] != existing["workspace_id"]
+                or parent["page_id"] != existing["page_id"]
+                or parent["layer"] != "client"
+            ):
+                raise NotFoundError("Comment not found.")
 
 
 def _redact_context(context: ContextIn, *, capture_device_details: bool) -> dict[str, Any]:
@@ -338,15 +360,10 @@ async def create_comment(
 ) -> CommentOut:
     page = await _resolve_page_and_access(db, actor, page_id, "comment:create")
 
-    # M-08 idempotency: a retried POST with the same caller-generated key replays the
-    # original comment instead of creating a duplicate - same check-before-create shape
-    # as pages/service.py's register_page idempotency-by-normalized-url.
-    if client_request_id is not None:
-        existing = await CommentRepository(db).find_by_client_request_id(
-            page["workspace_id"], client_request_id
-        )
-        if existing is not None:
-            return await _comment_out(db, existing)
+    for attachment in attachments or []:
+        require_project_upload(attachment.key, page["workspace_id"], page["project_id"])
+    if screenshot_key:
+        require_project_upload(screenshot_key, page["workspace_id"], page["project_id"])
 
     project = await ProjectRepository(db).find_by_id(page["project_id"])
     capture_device_details = bool(
@@ -379,13 +396,36 @@ async def create_comment(
         "screenshot_key": screenshot_key,
         "capture_status": capture_status,
         "client_request_id": client_request_id,
+        "request_fingerprint": request_fingerprint(
+            {
+                "body": body,
+                "layer": effective_layer,
+                "anchor": anchor.model_dump(mode="json"),
+                "context": context.model_dump(mode="json"),
+                "screenshot_key": screenshot_key,
+                "capture_status": capture_status,
+                "attachments": [a.model_dump() for a in attachments or []],
+                "tags": list(dict.fromkeys(tags or [])),
+            }
+        ),
         "created_at": datetime.now(UTC),
         "edited_at": None,
         # Top-level comments are tickets on the board, so each one gets the workspace's
         # next number here (replies, created in create_reply, deliberately do not).
-        "ticket_number": await CommentRepository(db).next_ticket_number(page["workspace_id"]),
     }
+    if client_request_id is not None:
+        existing = await CommentRepository(db).find_by_client_request_id(
+            page["workspace_id"], client_request_id
+        )
+        if existing is not None:
+            require_matching_replay(existing, doc)
+            return await _comment_out(db, existing)
+    doc["ticket_number"] = await CommentRepository(db).next_ticket_number(page["workspace_id"])
     created = await CommentRepository(db).create(doc)
+    if created is not doc:
+        # The repository authorized a duplicate-key replay; do not emit create
+        # notifications or integration events twice for the same persisted ticket.
+        return await _comment_out(db, created)
 
     actor_type, actor_id = actor_identity(actor)
     await append_event(
@@ -434,7 +474,7 @@ async def create_reply(
         raise NotFoundError("Comment not found.")
 
     parent_page = await PageRepository(db).find_by_id(parent["page_id"])
-    if parent_page is None:
+    if parent_page is None or parent_page["workspace_id"] != parent["workspace_id"]:
         raise NotFoundError("Page not found.")
     await resolve_actor_project_access(db, actor, parent_page["project_id"], "comment:reply")
 
@@ -445,12 +485,10 @@ async def create_reply(
         # confirm that a team-only comment exists on a page a guest can see.
         raise NotFoundError("Comment not found.")
 
-    if client_request_id is not None:
-        existing_reply = await repo.find_by_client_request_id(
-            parent["workspace_id"], client_request_id
-        )
-        if existing_reply is not None:
-            return await _comment_out(db, existing_reply)
+    if parent.get("parent_id") is not None:
+        raise ValidationError("Reply to the top-level thread.")
+    for attachment in attachments or []:
+        require_project_upload(attachment.key, parent["workspace_id"], parent_page["project_id"])
 
     # A reply on a team-only thread is team-only too, whatever the composer sent: the
     # thread itself is hidden from guests, so a "client-visible" reply on it would be
@@ -483,10 +521,27 @@ async def create_reply(
         "screenshot_key": None,
         "capture_status": "ok",
         "client_request_id": client_request_id,
+        "request_fingerprint": request_fingerprint(
+            {
+                "body": body,
+                "layer": effective_layer,
+                "attachments": [a.model_dump() for a in attachments or []],
+                "mentioned_user_ids": sorted(set(mentioned_user_ids or [])),
+            }
+        ),
         "created_at": datetime.now(UTC),
         "edited_at": None,
     }
+    if client_request_id is not None:
+        existing_reply = await repo.find_by_client_request_id(
+            parent["workspace_id"], client_request_id
+        )
+        if existing_reply is not None:
+            require_matching_replay(existing_reply, doc)
+            return await _comment_out(db, existing_reply)
     created = await repo.create(doc)
+    if created is not doc:
+        return await _comment_out(db, created)
 
     actor_type, actor_id = actor_identity(actor)
     await append_event(

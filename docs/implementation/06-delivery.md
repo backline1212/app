@@ -1,5 +1,149 @@
 # Delivery and verification ledger
 
+## 2026-10-19: Validation recovered; refresh and OTP concurrency (TDR-0063)
+
+Local command execution recovered. Re-exported OpenAPI from the backend and
+regenerated `packages/types/src/openapi.ts` with `generate:local`; generated files
+were not hand-edited. The prior contract-generation hold is resolved.
+
+Added origin-scoped Web Locks around refresh/workspace restoration where supported,
+retaining per-tab token memory and the existing single-flight promise. A queued
+operation checks its local session revision; each holder has a 20-second deadline.
+Startup session restoration cannot overwrite a newer completed login/logout.
+Browsers without Web Locks retain only the single-tab guard. No cross-origin or
+all-browser concurrency guarantee is made.
+
+OTP sign-in and email-change confirmation now reserve attempts and consume codes
+with conditional MongoDB updates. Only a successful consumption proceeds to account
+mutation/session issuance. The newest retained code is selected before checking its
+state, preventing fallback to older retained codes after use/exhaustion. See
+[TDR-0063](../tdr/0063-auth-concurrency.md) for the behavior and manual acceptance.
+
+**Passed:** backend Ruff lint and format check (`app/ scripts/`, 211 files), strict
+mypy (`196 source files`), workspace-scoping lint (`20 repository files`);
+`pnpm turbo run lint typecheck build` (`12/12`, five cached). These checks include
+the generated Google contracts, OAuth flow, atomic OTP and Web Locks changes.
+A subsequent web-only lint/typecheck/build passed all three tasks for the startup
+restore correction. Final web-only verification of the added refresh timeout also
+passed all three tasks with no cache hits. `git diff --check` passed; the generated
+TypeScript file only emits the repository's existing LF/CRLF conversion notice.
+
+**Still open:** live Google/cookie acceptance, concurrent browser/database journeys,
+all CR-A release acceptance groups, remaining CR-01 defects (including F01 verified
+signup/linking, F03 upload registry, F09 browser isolation, F14/F15 credential/origin
+lifecycle, F22 snapshot durability and F34 guest teardown/rejoin), and CR-02..06.
+F02/F12/F13 have source repairs, not production closure. No test suites were written
+or run per the Codex-specific repository instruction. No data migration, deployment,
+purchase, commit or push was performed. Website launch modes are not switched.
+
+## 2026-10-19: Google sign-in state protection — CR-01 follow-up (TDR-0062)
+
+Implemented the F02 repair in source: a rate-limited backend start endpoint creates
+the provider URL, random state, scoped HttpOnly browser cookie and ten-minute Redis
+attempt. The callback requires state, verifies the cookie and atomically consumes
+the attempt before provider exchange. Both login/signup buttons use this endpoint;
+the callback handles denial and removes code/state from the visible URL. See
+[TDR-0062](../tdr/0062-google-sign-in-state.md) for restart, concurrent-attempt and
+cookie-policy behavior. Existing in-flight callbacks must restart after rollout.
+
+**Verification:** the original command-runner interruption delayed export and
+validation. That interruption is resolved: see the subsequent validation entry
+above for regenerated Pydantic-owned contracts and passing static checks. No live
+Google/provider/browser journey, migration or deployment has been run. F02 stays
+open for live acceptance. CR-02..06 remain outstanding.
+
+## 2026-10-19: Connected review implementation started — partial CR-01 (TDR-0061)
+
+The user authorized implementation after reviewing the plan. This first slice
+strengthens the existing shared review backend and member session handling; it
+does not yet change how a website project launches. Scope and compatibility
+decisions are in [TDR-0061](../tdr/0061-connected-review-access-foundation.md).
+
+**Implemented, live acceptance pending:**
+- F04: bind comment/reply request-ID replay to actor, page/parent, layer and payload,
+  including duplicate insert races. Reject unsafe legacy/colliding IDs with 409;
+  avoid repeating create side effects on successful duplicate recovery.
+- F05: apply active link, expiry, archive, stored guest identity and member-binding
+  checks to guest own-comment mutations. Reject hidden/deleted parents and nested replies.
+- F06/F07: preserve/check member session family, authorize presence project, validate
+  every outgoing socket delivery and recheck idle connections every 15 seconds.
+- F08: server-side recipient/project filtering for realtime notifications; filter
+  historical notification lists and unread counts by current project access.
+- F10: restore workspace context before retrying after refresh; reject late refresh
+  results after local session changes; reset the workspace-switch attempt on recovery.
+- Partial F03: validate upload namespace on create/reply and before signing evidence,
+  retaining legitimate legacy project screenshot keys. Suppressed screenshot URLs
+  report failed capture. Upload-record/type/existence validation remains open.
+- Partial F33: clear cached queries on token identity/role/workspace loss/change;
+  reset cached data on live access changes and authorization-related socket closure.
+  Member reconnect renews expired credentials and ignores obsolete socket callbacks.
+
+**Verification:** the initial backend Ruff lint/format check passed (210 files).
+The subsequent validation entry above records completed full backend/frontend
+static checks, including the auth follow-ups.
+No test suites were written or run, following the Codex-specific AGENTS.md instruction.
+No browser/provider/database acceptance, migration, deployment, purchase or commit
+has been performed. Pydantic/public API schemas are unchanged, so no generated
+contract edit is required. Existing user audit/planning edits are preserved.
+
+**Unfinished / next:** CR-01 remains open: F01/F02 identity verification/OAuth state,
+F03 upload registry, F09 browser network isolation, F12-F15 identity lifecycle and
+origin ownership, F22 snapshot durability and F34 guest expiry/rejoin. Durable event
+delivery after a post-insert crash and guest whole-thread deletion policy remain
+unresolved. Cache/access/refresh behavior needs live acceptance. Then implement
+CR-02 installation/configuration and CR-03 safe launch/login-return exchange before
+CR-04 panel parity, CR-05 reproduction and CR-06 MCP rollout. CR-A01..09 remain
+unverified; no audit finding is declared production-closed by static checks.
+
+## 2026-10-19: Connected website review product direction and plan (TDR-0060)
+
+Saved the [product brief and conversation decisions](review-product-brief-2026-10-19.md)
+and [implementation plan](connected-review-plan-2026-10-19.md). The accepted direction
+prioritizes customer-controlled sites with an installed widget, no mandatory reviewer
+extension, one consistent launch flow, shared widget/extension tickets, and Backline
+as the central evidence and workflow portal. Live reproduction uses each person's
+own website session; saved screenshots are not a live authenticated page.
+
+The plan covers installation and readiness, scoped launch/authorization exchange,
+login return, capture quality, draft/error recovery, thread parity, snapshots and
+reanchoring, portal evidence, preview verification, MCP integration, additive
+migration, rollout/rollback and capability boundaries. It records six implementation
+slices (CR-01..06) and nine unverified acceptance groups (CR-A01..09). A browser/device
+lab remains a later decision, not an approved provider purchase or existing feature.
+
+**Open:** every implementation slice and live acceptance group. The 35 source-audit
+findings remain open. Collect actual failing URLs/login methods and deployed settings
+before claiming compatibility. No 99% success rate is established.
+
+**Verification:** documentation-only changes; local Markdown link targets and
+`git diff --check` checked in this turn. Application code, generated contracts,
+dependencies and deployment state were not changed. Lint/typecheck/build were not
+rerun for these documentation edits; the earlier audit's results remain historical.
+No test suites, migrations, purchases, commits or deployments performed.
+
+## 2026-10-19: Site compatibility and implementation gap audit (TDR-0059)
+
+The user requested an audit before fixes, starting with reviewed-site login/signup
+failures. The source-backed [audit report](site-gap-audit-2026-10-19.md) records
+35 findings (11 P1, 22 P2, 2 P3) and 8 explicit capability limits against `main`
+at `2daf5a7`. All findings remain open; no application behavior was changed.
+
+Priority issues include unverified signup identities, missing Google OAuth state,
+unchecked attachment object ownership, overbroad idempotency replays, guest mutations
+after link revocation, WebSocket authorization lifetime, private notification
+fanout, browser subresource SSRF, workspace context after refresh, and incomplete
+snapshot persistence. Native review exists but does not establish universal login
+compatibility; desktop extension configuration and mode parity remain limitations.
+
+**Verification:** backend Ruff lint/format (209 formatted files), strict mypy
+(194 source files), and workspace-scoping lint (20 repository files) passed.
+`pnpm turbo run lint typecheck build` passed all 12 tasks without cache hits;
+`git diff --check` passed. Locked local dependencies were installed without changing
+manifests/lockfiles. No test suites, browser/provider/database integration checks,
+migrations or deployments were run. Source-confirmed findings are not represented
+as reproduced production exploits. See TDR-0059 for audit scope and the report's
+acceptance mapping and repair order for unfinished work.
+
 ## 2026-10-02: Project cards show a screenshot of the site (TDR-0058)
 
 The user asked for project cards to show each site's real hero section instead of the

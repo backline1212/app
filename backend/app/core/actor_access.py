@@ -76,6 +76,14 @@ async def resolve_actor_project_access(
         raise PermissionDeniedError("Guest session is not scoped to this project.")
     if link.get("expires_at") and link["expires_at"] <= datetime.now(UTC):
         raise PermissionDeniedError("This review link has expired.")
+    guest_doc = await GuestSessionRepository(db).find_by_id(guest.guest_session_id)
+    if (
+        guest_doc is None
+        or guest_doc["workspace_id"] != link["workspace_id"]
+        or guest_doc["share_link_id"] != guest.share_link_id
+        or guest_doc.get("member_user_id") != guest.member_user_id
+    ):
+        raise PermissionDeniedError("This review session is no longer active.")
     if guest.member_user_id is not None or is_canvas_link(link):
         await _check_canvas_member(db, guest, link, project_id, action)
     project = await project_service.get_project(

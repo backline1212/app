@@ -1,5 +1,6 @@
-import { getAccessToken, setAccessToken } from "./auth-token";
+import { getAccessToken, getAccessTokenRevision, setAccessToken } from "./auth-token";
 import { decodeAccessToken } from "./jwt";
+import type { AccessTokenPayload } from "./jwt";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const REFRESH_PATH = "/api/v1/auth/refresh";
@@ -42,30 +43,82 @@ async function rawRequest(path: string, init?: RequestInit): Promise<Response> {
 type RefreshResult = { ok: true; body: { access_token: string } } | { ok: false; error: ApiError };
 let refreshInFlight: Promise<RefreshResult> | null = null;
 
-// Every /auth/refresh goes through this one request at a time. Refresh tokens rotate,
-// and two concurrent refreshes with the same cookie trip the server's reuse detection,
-// which revokes the whole session: the start-up restore (refreshSession below) and a
-// 401 retry from a page that fires a request on mount used to race exactly like that.
-function refreshOnce(): Promise<RefreshResult> {
-  refreshInFlight ??= (async (): Promise<RefreshResult> => {
-    try {
-      const response = await rawRequest(REFRESH_PATH, { method: "POST" });
-      if (!response.ok) {
-        setAccessToken(null);
-        return { ok: false, error: await toApiError(response) };
-      }
-      const body = (await response.json()) as { access_token: string };
-      setAccessToken(body.access_token);
-      return { ok: true, body };
-    } catch (error) {
-      return {
-        ok: false,
-        error: error instanceof ApiError ? error : new ApiError(0, "NETWORK_ERROR", "Can't reach Backline."),
-      };
-    } finally {
-      refreshInFlight = null;
+async function performRefresh(revision: number, previous: AccessTokenPayload | null): Promise<RefreshResult> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 20_000);
+  const requireCurrentSession = () => {
+    if (revision !== getAccessTokenRevision()) {
+      throw new ApiError(409, "SESSION_CHANGED", "Your session changed. Try again.");
     }
-  })();
+  };
+  try {
+    // A tab may have waited behind another tab's rotating-cookie request.
+    requireCurrentSession();
+    const response = await rawRequest(REFRESH_PATH, { method: "POST", signal: controller.signal });
+    requireCurrentSession();
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) setAccessToken(null);
+      return { ok: false, error: await toApiError(response) };
+    }
+    const body = (await response.json()) as { access_token: string };
+    requireCurrentSession();
+    const renewed = decodeAccessToken(body.access_token);
+    if (previous && renewed?.sub !== previous.sub) {
+      setAccessToken(null);
+      return { ok: false, error: new ApiError(401, "SESSION_CHANGED", "Sign in again to continue.") };
+    }
+    // Refresh tokens deliberately have no workspace. Restore the old context
+    // before releasing waiting requests, so they cannot retry unscoped.
+    if (previous?.workspace_id) {
+      const scoped = await rawRequest(SWITCH_PATH, {
+        method: "POST",
+        signal: controller.signal,
+        headers: { Authorization: `Bearer ${body.access_token}` },
+        body: JSON.stringify({ workspace_id: previous.workspace_id }),
+      });
+      requireCurrentSession();
+      if (!scoped.ok) {
+        if (scoped.status === 403 || scoped.status === 404) {
+          setAccessToken(body.access_token);
+          window.dispatchEvent(new Event(WORKSPACE_ACCESS_LOST_EVENT));
+        }
+        return { ok: false, error: await toApiError(scoped) };
+      }
+      const restored = (await scoped.json()) as { access_token: string };
+      requireCurrentSession();
+      body.access_token = restored.access_token;
+    }
+    setAccessToken(body.access_token);
+    return { ok: true, body };
+  } catch (error) {
+    return {
+      ok: false,
+      error: controller.signal.aborted
+        ? new ApiError(0, "SESSION_REFRESH_TIMEOUT", "Session refresh timed out. Try again.")
+        : error instanceof ApiError ? error : new ApiError(0, "NETWORK_ERROR", "Can't reach Backline."),
+    };
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+// Share one promise in this tab and serialize rotating-cookie requests across tabs
+// on this origin. Access tokens remain private to each tab's memory. Browsers without
+// Web Locks retain the single-tab guard; they need separate compatibility evidence.
+function refreshOnce(): Promise<RefreshResult> {
+  if (refreshInFlight) return refreshInFlight;
+  const revision = getAccessTokenRevision();
+  const previous = decodeAccessToken(getAccessToken() ?? "");
+  const execute = () => performRefresh(revision, previous);
+  const pending = navigator.locks
+    ? navigator.locks.request("backline:auth-refresh", execute)
+    : execute();
+  refreshInFlight = pending
+    .catch((error: unknown): RefreshResult => ({
+      ok: false,
+      error: error instanceof ApiError ? error : new ApiError(0, "SESSION_REFRESH_FAILED", "Session refresh couldn't finish. Try again."),
+    }))
+    .finally(() => { refreshInFlight = null; });
   return refreshInFlight;
 }
 

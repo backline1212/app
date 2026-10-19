@@ -116,7 +116,7 @@ export function WorkspaceLayout() {
 
   return (
     <div className="bl-app">
-      <AccessSync workspaceId={workspace.id} />
+      <AccessSync />
       <a className="bl-skip-link" href="#workspace-content">Skip to content</a>
       <DashboardSidebar
         workspace={workspace}

@@ -35,7 +35,7 @@ export function ProjectLayout() {
 
   return (
     <div className="bl-project-route">
-      <AccessSync workspaceId={result.workspace.id} />
+      <AccessSync />
       <Outlet context={{ workspace: result.workspace }} />
     </div>
   );

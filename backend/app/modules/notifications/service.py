@@ -3,11 +3,13 @@ from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.project_access import can_view_project
+from app.core.errors import PermissionDeniedError
+from app.core.project_access import can_view_project, effective_project_role
 from app.modules.auth.repository import UserRepository
 from app.modules.notifications import events as notification_events
 from app.modules.notifications.repository import NotificationRepository
 from app.modules.notifications.schemas import NotificationOut
+from app.modules.projects.repository import ProjectRepository
 from app.modules.realtime.pubsub import publish as publish_realtime_event
 from app.modules.workspaces.repository import MembershipRepository, WorkspaceRepository
 
@@ -96,15 +98,17 @@ async def _create_and_broadcast(
         target_route=target_route,
     )
     notification = _notification_out(doc)
-    # There's no per-member WS channel (12-API-WebSocket.md §12.6 only defines
-    # workspace:{id}:all and project:{id}:client) - broadcast workspace-wide with the
-    # recipient's user_id in the payload, same pattern as comment.recovery_updated
-    # (docs/tdr/0009); the dashboard only surfaces it if it matches the current user.
+    # The workspace channel is internal fan-out. Its server-side socket filter must
+    # authorize the recipient and current project access before delivery.
     await publish_realtime_event(
         f"workspace:{workspace_id}:all",
         event_type="notification.new",
         workspace_id=workspace_id,
-        payload={**notification.model_dump(mode="json"), "recipient_user_id": user_id},
+        payload={
+            **notification.model_dump(mode="json"),
+            "recipient_user_id": user_id,
+            "project_id": project_id,
+        },
     )
     return notification
 
@@ -345,6 +349,21 @@ async def notify_ownership_transferred(
     )
 
 
+async def _visible_project_ids(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, user_id: str
+) -> list[str]:
+    membership = await MembershipRepository(db).find(workspace_id=workspace_id, user_id=user_id)
+    if membership is None:
+        raise PermissionDeniedError("You're no longer a member of this workspace.")
+    projects = await ProjectRepository(db).list_access_for_workspace(workspace_id)
+    return [
+        str(project["_id"])
+        for project in projects
+        if effective_project_role(project, user_id=user_id, workspace_role=membership["role"])
+        is not None
+    ]
+
+
 async def list_notifications(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
@@ -354,7 +373,13 @@ async def list_notifications(
     before: datetime | None,
 ) -> list[NotificationOut]:
     docs = await NotificationRepository(db).list_for_user(
-        workspace_id=workspace_id, user_id=user_id, limit=limit, before=before
+        workspace_id=workspace_id,
+        user_id=user_id,
+        limit=limit,
+        before=before,
+        visible_project_ids=await _visible_project_ids(
+            db, workspace_id=workspace_id, user_id=user_id
+        ),
     )
     return [_notification_out(doc) for doc in docs]
 
@@ -362,7 +387,13 @@ async def list_notifications(
 async def count_unread(
     db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, user_id: str
 ) -> int:
-    return await NotificationRepository(db).count_unread(workspace_id=workspace_id, user_id=user_id)
+    return await NotificationRepository(db).count_unread(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        visible_project_ids=await _visible_project_ids(
+            db, workspace_id=workspace_id, user_id=user_id
+        ),
+    )
 
 
 async def mark_read(

@@ -33,6 +33,11 @@ export function useWorkspaceContext(): WorkspaceContextResult {
   const needsSwitch = targetWorkspace && targetWorkspace.id !== activeWorkspaceId;
 
   useEffect(() => {
+    if (!needsSwitch) {
+      attempted.current = null;
+      setSwitchError(null);
+      return;
+    }
     if (!targetWorkspace || !needsSwitch || attempted.current === targetWorkspace.id) return;
     attempted.current = targetWorkspace.id;
     setSwitchError(null);

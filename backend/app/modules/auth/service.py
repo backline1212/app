@@ -258,6 +258,26 @@ async def request_otp(db: AsyncIOMotorDatabase[dict[str, Any]], email: str) -> N
     )
 
 
+async def _verify_and_consume_otp(
+    db: AsyncIOMotorDatabase[dict[str, Any]], email: str, code: str, *, purpose: str | None = None
+) -> None:
+    otp_repo = OtpRepository(db)
+    otp_doc = await otp_repo.find_latest(email, purpose=purpose)
+    if otp_doc is None:
+        raise ValidationError("No active code for this email. Request a new one.")
+    # Select the newest code before claiming, so an exhausted newest code cannot
+    # silently fall back to an older code with a fresh attempt budget.
+    claimed = await otp_repo.claim_attempt(
+        otp_doc["_id"], max_attempts=get_settings().otp_max_attempts
+    )
+    if claimed is None:
+        raise ValidationError("This code expired or has no attempts left. Request a new one.")
+    if not secrets_match(claimed["code_hash"], hash_secret(code)):
+        raise ValidationError("Incorrect code.")
+    if not await otp_repo.consume(claimed["_id"], code_hash=claimed["code_hash"]):
+        raise ValidationError("This code expired or was already used. Request a new one.")
+
+
 async def verify_otp(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     email: str,
@@ -265,20 +285,7 @@ async def verify_otp(
     ua: str | None = None,
     ip: str | None = None,
 ) -> IssuedTokens:
-    otp_repo = OtpRepository(db)
-    settings = get_settings()
-    otp_doc = await otp_repo.find_latest_active(email)
-    if otp_doc is None:
-        raise ValidationError("No active code for this email. Request a new one.")
-
-    if otp_doc["attempts"] >= settings.otp_max_attempts:
-        raise ValidationError("Too many attempts. Request a new code.")
-
-    if not secrets_match(otp_doc["code_hash"], hash_secret(code)):
-        await otp_repo.increment_attempts(otp_doc["_id"])
-        raise ValidationError("Incorrect code.")
-
-    await otp_repo.mark_consumed(otp_doc["_id"])
+    await _verify_and_consume_otp(db, email, code)
 
     user_repo = UserRepository(db)
     existing = await user_repo.get_or_create(
@@ -587,19 +594,7 @@ async def request_email_change(
 async def confirm_email_change(
     db: AsyncIOMotorDatabase[dict[str, Any]], session_user_id: str, *, email: str, code: str
 ) -> UserOut:
-    otp_repo = OtpRepository(db)
-    settings = get_settings()
-    otp_doc = await otp_repo.find_latest_active(
-        email, purpose=_email_change_purpose(session_user_id)
-    )
-    if otp_doc is None:
-        raise ValidationError("No active code for this email. Request a new one.")
-    if otp_doc["attempts"] >= settings.otp_max_attempts:
-        raise ValidationError("Too many attempts. Request a new code.")
-    if not secrets_match(otp_doc["code_hash"], hash_secret(code)):
-        await otp_repo.increment_attempts(otp_doc["_id"])
-        raise ValidationError("Incorrect code.")
-    await otp_repo.mark_consumed(otp_doc["_id"])
+    await _verify_and_consume_otp(db, email, code, purpose=_email_change_purpose(session_user_id))
 
     user_repo = UserRepository(db)
     user_doc = await user_repo.find_by_id(session_user_id)

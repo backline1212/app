@@ -316,24 +316,39 @@ class OtpRepository:
             }
         )
 
-    async def find_latest_active(
-        self, email: str, purpose: str | None = None
-    ) -> dict[str, Any] | None:
+    async def find_latest(self, email: str, purpose: str | None = None) -> dict[str, Any] | None:
+        # Do not filter out exhausted/consumed/expired codes here: doing so could
+        # select an older code after the newest one was used. Claiming enforces
+        # expiry/consumption/attempts on this exact latest record.
         # {"purpose": None} also matches legacy codes stored before the field existed.
         return await self.db.otp_codes.find_one(
             {
                 "email": email,
                 "purpose": purpose,
+            },
+            sort=[("created_at", -1), ("_id", -1)],
+        )
+
+    async def claim_attempt(self, otp_id: ObjectId, *, max_attempts: int) -> dict[str, Any] | None:
+        """Reserve one evaluation, even when several requests read the code at once."""
+        return await self.db.otp_codes.find_one_and_update(
+            {
+                "_id": otp_id,
+                "consumed_at": None,
+                "expires_at": {"$gt": datetime.now(UTC)},
+                "attempts": {"$lt": max_attempts},
+            },
+            {"$inc": {"attempts": 1}},
+        )
+
+    async def consume(self, otp_id: ObjectId, *, code_hash: str) -> bool:
+        result = await self.db.otp_codes.update_one(
+            {
+                "_id": otp_id,
+                "code_hash": code_hash,
                 "consumed_at": None,
                 "expires_at": {"$gt": datetime.now(UTC)},
             },
-            sort=[("created_at", -1)],
+            {"$set": {"consumed_at": datetime.now(UTC)}},
         )
-
-    async def increment_attempts(self, otp_id: ObjectId) -> None:
-        await self.db.otp_codes.update_one({"_id": otp_id}, {"$inc": {"attempts": 1}})
-
-    async def mark_consumed(self, otp_id: ObjectId) -> None:
-        await self.db.otp_codes.update_one(
-            {"_id": otp_id}, {"$set": {"consumed_at": datetime.now(UTC)}}
-        )
+        return result.modified_count == 1

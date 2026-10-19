@@ -1,4 +1,6 @@
+import { refreshSession } from "./api-client";
 import { getAccessToken } from "./auth-token";
+import { decodeAccessToken } from "./jwt";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
@@ -27,28 +29,34 @@ export class WsClient {
   private attempt = 0;
   private closedByCaller = true;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private generation = 0;
+  private refreshBeforeReconnect = false;
   status: ConnectionStatus = "disconnected";
 
   // Public and mutable rather than constructor-injected: the dashboard's WSProvider
   // creates one WsClient for the app's lifetime but only learns the active workspace_id
   // (and therefore the connect URL) after the auth/workspace context resolves.
   urlFactory: () => string | null;
+  onAuthorizationLost: () => void = () => undefined;
 
   constructor(urlFactory: () => string | null = () => null) {
     this.urlFactory = urlFactory;
   }
 
   connect(): void {
+    this.disconnect();
     this.closedByCaller = false;
     this.attempt = 0;
-    this.open();
+    void this.open();
   }
 
   disconnect(): void {
     this.closedByCaller = true;
+    this.generation += 1;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.socket?.close();
     this.socket = null;
+    this.setStatus("disconnected");
   }
 
   on(type: string, handler: EventHandler): () => void {
@@ -62,7 +70,27 @@ export class WsClient {
     return () => this.statusListeners.delete(listener);
   }
 
-  private open(): void {
+  private scheduleReconnect(): void {
+    if (this.closedByCaller) return;
+    const delay = Math.min(1000 * 2 ** this.attempt, 30_000);
+    this.attempt += 1;
+    this.reconnectTimer = setTimeout(() => void this.open(), delay);
+  }
+
+  private async open(): Promise<void> {
+    const generation = this.generation;
+    const token = getAccessToken();
+    const claims = decodeAccessToken(token ?? "");
+    if (token && (this.refreshBeforeReconnect || (claims && claims.exp * 1000 <= Date.now()))) {
+      try {
+        await refreshSession();
+        this.refreshBeforeReconnect = false;
+      } catch {
+        if (generation === this.generation) this.scheduleReconnect();
+        return;
+      }
+    }
+    if (this.closedByCaller || generation !== this.generation) return;
     const url = this.urlFactory();
     if (!url) {
       this.setStatus("disconnected");
@@ -74,11 +102,13 @@ export class WsClient {
     this.socket = socket;
 
     socket.onopen = () => {
+      if (this.socket !== socket) return;
       this.attempt = 0;
       this.setStatus("connected");
     };
 
     socket.onmessage = (event: MessageEvent<string>) => {
+      if (this.socket !== socket) return;
       let envelope: EventEnvelope;
       try {
         envelope = JSON.parse(event.data);
@@ -88,12 +118,15 @@ export class WsClient {
       this.handlers.get(envelope.type)?.forEach((handler) => handler(envelope.payload, envelope));
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
+      if (this.socket !== socket) return;
       this.setStatus("disconnected");
       if (this.closedByCaller) return;
-      const delay = Math.min(1000 * 2 ** this.attempt, 30_000);
-      this.attempt += 1;
-      this.reconnectTimer = setTimeout(() => this.open(), delay);
+      if (event.code === 4401 || event.code === 4403) {
+        this.refreshBeforeReconnect = true;
+        this.onAuthorizationLost();
+      }
+      this.scheduleReconnect();
     };
 
     socket.onerror = () => socket.close();

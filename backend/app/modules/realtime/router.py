@@ -1,11 +1,14 @@
+import asyncio
+
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
+from starlette.websockets import WebSocketState
 
 from app.core.actor_access import resolve_actor_project_access
 from app.core.db import get_db
-from app.core.errors import NotFoundError, PermissionDeniedError
+from app.core.errors import BacklineError
 from app.core.security import InvalidTokenError, decode_access_token, decode_guest_token
-from app.core.session import Actor, GuestSession, Session
+from app.core.session import Actor, GuestSession, Session, validate_member_session
 from app.modules.pages.repository import PageRepository
 from app.modules.realtime import presence
 from app.modules.realtime.manager import MemberEventFilter, manager
@@ -13,7 +16,6 @@ from app.modules.realtime.pubsub import publish
 from app.modules.share_links.repository import (
     GuestSessionRepository,
     ShareLinkRepository,
-    is_canvas_link,
 )
 
 router = APIRouter(tags=["realtime"])
@@ -41,7 +43,10 @@ def _resolve_actor(token: str) -> Actor:
     except (InvalidTokenError, ValidationError) as exc:
         raise InvalidTokenError("Invalid token.") from exc
     return Session(
-        user_id=member_claims.sub, workspace_id=member_claims.workspace_id, role=member_claims.role
+        user_id=member_claims.sub,
+        workspace_id=member_claims.workspace_id,
+        role=member_claims.role,
+        sid=member_claims.sid,
     )
 
 
@@ -86,18 +91,22 @@ async def websocket_endpoint(
         ):
             await websocket.close(code=4403)
             return
-        # A dashboard canvas session follows its member's access (TDR-0057): someone
-        # taken off the project can't reconnect with the session they already hold.
-        if actor.member_user_id is not None or is_canvas_link(link):
-            try:
-                await resolve_actor_project_access(db, actor, link["project_id"])
-            except (NotFoundError, PermissionDeniedError):
-                await websocket.close(code=4403)
-                return
-        await guest_repo.touch_last_seen(
-            workspace_id=workspace_id, guest_session_id=actor.guest_session_id
-        )
         presence_display_name = guest_doc["display_name"]
+
+    async def access_is_current() -> bool:
+        # Validate expiry as well as live policy on delivery and while idle. Keeping
+        # a socket open must never extend a JWT or a revoked refresh-token family.
+        try:
+            current_actor = _resolve_actor(token)
+            if isinstance(current_actor, Session):
+                await validate_member_session(current_actor)
+                if presence_project_id is not None:
+                    await resolve_actor_project_access(db, current_actor, presence_project_id)
+            elif guest_project_id is not None:
+                await resolve_actor_project_access(db, current_actor, guest_project_id)
+            return True
+        except (InvalidTokenError, BacklineError):
+            return False
 
     # A caller-supplied page_id isn't otherwise validated as belonging to this actor's
     # workspace/project before being used to key presence and broadcast on the
@@ -116,7 +125,11 @@ async def websocket_endpoint(
         else:
             presence_project_id = page["project_id"]
 
-    await manager.connect(channel, websocket, event_filter)
+    if not await access_is_current():
+        await websocket.close(code=4403)
+        return
+
+    await manager.connect(channel, websocket, event_filter, access_check=access_is_current)
 
     presence_key = f"{channel}:{id(websocket)}"
     if page_id is not None:
@@ -135,12 +148,20 @@ async def websocket_endpoint(
 
     try:
         while True:
-            # Dashboard/widget clients don't send anything over this connection today -
-            # receiving is just how the endpoint notices a disconnect (WebSocketDisconnect)
-            # without a busy-poll loop.
-            await websocket.receive_text()
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=15)
+            except TimeoutError:
+                pass
+            if not await access_is_current():
+                if websocket.application_state == WebSocketState.CONNECTED:
+                    await websocket.close(code=4403)
+                break
     except WebSocketDisconnect:
         pass
+    except RuntimeError:
+        # The broadcast path can close this socket while the receive loop waits.
+        if websocket.application_state != WebSocketState.DISCONNECTED:
+            raise
     finally:
         manager.disconnect(channel, websocket)
         if page_id is not None:

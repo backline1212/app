@@ -41,10 +41,14 @@ export function setPassword(password: string): Promise<void> {
   });
 }
 
-export function exchangeGoogleCode(code: string): Promise<TokenPairOut> {
+export function startGoogleSignIn(): Promise<Schemas["GoogleAuthorizationOut"]> {
+  return apiFetch<Schemas["GoogleAuthorizationOut"]>("/api/v1/auth/google/start", { method: "POST" });
+}
+
+export function exchangeGoogleCode(code: string, state: string): Promise<TokenPairOut> {
   return apiFetch<TokenPairOut>("/api/v1/auth/google/callback", {
     method: "POST",
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, state }),
   });
 }
 

@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/auth/google/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Google Start */
+        post: operations["google_start_api_v1_auth_google_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/google/callback": {
         parameters: {
             query?: never;
@@ -3118,10 +3135,17 @@ export interface components {
             /** Project Id */
             project_id?: string | null;
         };
+        /** GoogleAuthorizationOut */
+        GoogleAuthorizationOut: {
+            /** Authorization Url */
+            authorization_url: string;
+        };
         /** GoogleCallbackRequest */
         GoogleCallbackRequest: {
             /** Code */
             code: string;
+            /** State */
+            state: string;
         };
         /**
          * GuestBoardItemOut
@@ -5122,6 +5146,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    google_start_api_v1_auth_google_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleAuthorizationOut"];
+                };
+            };
+        };
+    };
     google_callback_api_v1_auth_google_callback_post: {
         parameters: {
             query?: never;

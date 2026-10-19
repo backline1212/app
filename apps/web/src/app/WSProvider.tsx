@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
@@ -15,6 +16,7 @@ const WSContext = createContext<WSContextValue | null>(null);
 // §5.4). Lives inside AuthProvider (needs workspaceId) but outside individual routes, so
 // the connection survives navigation between board/pages within the same workspace.
 export function WSProvider({ children }: { children: ReactNode }) {
+  const cache = useQueryClient();
   const { workspaceId } = useAuth();
   const setStatus = useConnectionStore((state) => state.setStatus);
   const clientRef = useRef<WsClient>();
@@ -24,6 +26,10 @@ export function WSProvider({ children }: { children: ReactNode }) {
   const client = clientRef.current;
 
   useEffect(() => client.onStatusChange(setStatus), [client, setStatus]);
+  useEffect(() => {
+    client.onAuthorizationLost = () => { void cache.resetQueries(); };
+    return () => { client.onAuthorizationLost = () => undefined; };
+  }, [client, cache]);
 
   useEffect(() => {
     if (!workspaceId) {

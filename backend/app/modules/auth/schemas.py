@@ -7,7 +7,12 @@ from app.core.security import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
 
 
 class GoogleCallbackRequest(BaseModel):
-    code: str
+    code: str = Field(min_length=1, max_length=4096)
+    state: str = Field(min_length=32, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class GoogleAuthorizationOut(BaseModel):
+    authorization_url: str
 
 
 class SignupRequest(BaseModel):

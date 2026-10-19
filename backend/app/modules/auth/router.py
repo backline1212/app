@@ -8,10 +8,16 @@ from app.core.rate_limit import check_rate_limit, get_client_ip
 from app.core.redis_client import get_redis
 from app.core.session import Session, get_current_session
 from app.modules.auth import service as auth_service
+from app.modules.auth.oauth_state import (
+    STATE_TTL_SECONDS,
+    consume_google_state,
+    start_google_sign_in,
+)
 from app.modules.auth.schemas import (
     AccessTokenOut,
     EmailChangeConfirm,
     EmailChangeRequest,
+    GoogleAuthorizationOut,
     GoogleCallbackRequest,
     OtpRequestRequest,
     OtpVerifyRequest,
@@ -30,6 +36,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 REFRESH_COOKIE_NAME = "refresh_token"
 REFRESH_COOKIE_PATH = "/api/v1/auth"
+GOOGLE_STATE_COOKIE_NAME = "backline_google_state"
+GOOGLE_STATE_COOKIE_PATH = "/api/v1/auth/google"
 
 
 def _set_refresh_cookie(response: Response, raw_refresh_token: str) -> None:
@@ -45,10 +53,43 @@ def _set_refresh_cookie(response: Response, raw_refresh_token: str) -> None:
     )
 
 
+@router.post("/google/start", response_model=GoogleAuthorizationOut)
+async def google_start(request: Request, response: Response) -> GoogleAuthorizationOut:
+    settings = get_settings()
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:google-start:ip:{get_client_ip(request)}",
+        limit=settings.password_login_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    url, state = await start_google_sign_in()
+    response.set_cookie(
+        key=GOOGLE_STATE_COOKIE_NAME,
+        value=state,
+        max_age=STATE_TTL_SECONDS,
+        httponly=True,
+        secure=settings.environment != "local",
+        samesite="lax" if settings.environment == "local" else "none",
+        path=GOOGLE_STATE_COOKIE_PATH,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return GoogleAuthorizationOut(authorization_url=url)
+
+
 @router.post("/google/callback", response_model=TokenPairOut)
 async def google_callback(
     body: GoogleCallbackRequest, request: Request, response: Response
 ) -> TokenPairOut:
+    await consume_google_state(body.state, request.cookies.get(GOOGLE_STATE_COOKIE_NAME))
+    settings = get_settings()
+    response.delete_cookie(
+        GOOGLE_STATE_COOKIE_NAME,
+        path=GOOGLE_STATE_COOKIE_PATH,
+        httponly=True,
+        secure=settings.environment != "local",
+        samesite="lax" if settings.environment == "local" else "none",
+    )
+    response.headers["Cache-Control"] = "no-store"
     ua = request.headers.get("user-agent")
     ip = get_client_ip(request)
     issued = await auth_service.login_with_google(get_db(), body.code, ua=ua, ip=ip)

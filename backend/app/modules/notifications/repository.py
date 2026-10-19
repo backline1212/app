@@ -37,17 +37,34 @@ class NotificationRepository:
         return doc
 
     async def list_for_user(
-        self, *, workspace_id: str, user_id: str, limit: int, before: datetime | None
+        self,
+        *,
+        workspace_id: str,
+        user_id: str,
+        limit: int,
+        before: datetime | None,
+        visible_project_ids: list[str],
     ) -> list[dict[str, Any]]:
-        query: dict[str, Any] = {"workspace_id": workspace_id, "user_id": user_id}
+        query: dict[str, Any] = {
+            "workspace_id": workspace_id,
+            "user_id": user_id,
+            "payload_json.project_id": {"$in": [None, *visible_project_ids]},
+        }
         if before is not None:
             query["created_at"] = {"$lt": before}
         cursor = self.db.notifications.find(query).sort("created_at", -1).limit(limit)
         return [doc async for doc in cursor]
 
-    async def count_unread(self, *, workspace_id: str, user_id: str) -> int:
+    async def count_unread(
+        self, *, workspace_id: str, user_id: str, visible_project_ids: list[str]
+    ) -> int:
         return await self.db.notifications.count_documents(
-            {"workspace_id": workspace_id, "user_id": user_id, "read_at": None}
+            {
+                "workspace_id": workspace_id,
+                "user_id": user_id,
+                "read_at": None,
+                "payload_json.project_id": {"$in": [None, *visible_project_ids]},
+            }
         )
 
     async def mark_read(self, notification_id: str, *, workspace_id: str, user_id: str) -> None:

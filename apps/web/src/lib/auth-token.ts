@@ -3,6 +3,7 @@
 // wraps this with React state for reactivity; api-client reads it directly so every
 // request always sees the latest value without threading it through call sites.
 let currentAccessToken: string | null = null;
+let tokenRevision = 0;
 
 type Listener = (token: string | null) => void;
 const listeners = new Set<Listener>();
@@ -11,7 +12,12 @@ export function getAccessToken(): string | null {
   return currentAccessToken;
 }
 
+export function getAccessTokenRevision(): number {
+  return tokenRevision;
+}
+
 export function setAccessToken(token: string | null): void {
+  tokenRevision += 1;
   currentAccessToken = token;
   listeners.forEach((listener) => listener(token));
 }

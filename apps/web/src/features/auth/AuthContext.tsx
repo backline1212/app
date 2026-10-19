@@ -22,7 +22,7 @@ interface AuthContextValue {
   requestOtp: (email: string) => Promise<void>;
   verifyOtp: (email: string, code: string) => Promise<void>;
   setPassword: (password: string) => Promise<void>;
-  loginWithGoogleCode: (code: string) => Promise<void>;
+  loginWithGoogleCode: (code: string, state: string) => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: UserOut) => void;
@@ -39,7 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // payload is cheap enough that it doesn't need useMemo, so there's no dependency
   // array to keep in sync with it.
   const [, forceUpdate] = useState(0);
-  useEffect(() => onAccessTokenChange(() => forceUpdate((v) => v + 1)), []);
+  useEffect(() => {
+    let previous = decodeAccessToken(getAccessToken() ?? "");
+    return onAccessTokenChange((token) => {
+      const next = decodeAccessToken(token ?? "");
+      const contextChanged = !next || previous?.sub !== next.sub || previous?.workspace_id !== next.workspace_id;
+      if (contextChanged || previous?.role !== next?.role) {
+        // Cancel in-flight queries and discard data from a prior identity/context.
+        // This also covers expiry and access loss, not only an explicit logout.
+        queryClient.clear();
+        if (contextChanged) setFeatureFlags({});
+      }
+      previous = next;
+      forceUpdate((v) => v + 1);
+    });
+  }, [queryClient]);
   // Removed from the open workspace: reloading the workspace list drops it, and the
   // workspace layout then routes to the picker instead of failing every request.
   useEffect(() => {
@@ -65,13 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authApi
       .refreshSession()
       .then((result) => {
-        if (cancelled) return;
-        setAccessToken(result.access_token);
+        // The API client already installed this token. A login or logout may have
+        // completed while startup restoration waited; do not overwrite that state.
+        if (cancelled || getAccessToken() !== result.access_token) return;
         setUser(result.user);
         setStatus("authenticated");
       })
       .catch(() => {
-        if (cancelled) return;
+        if (cancelled || getAccessToken()) return;
         setStatus("unauthenticated");
       });
     return () => {
@@ -109,8 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async setPassword(password) {
       await authApi.setPassword(password);
     },
-    async loginWithGoogleCode(code) {
-      const result = await authApi.exchangeGoogleCode(code);
+    async loginWithGoogleCode(code, state) {
+      const result = await authApi.exchangeGoogleCode(code, state);
       setAccessToken(result.access_token);
       setUser(result.user);
       setStatus("authenticated");

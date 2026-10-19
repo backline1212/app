@@ -6,6 +6,18 @@ The user's request authorizes planning and implementation across frontend, backe
 
 ## Reading order
 
+Latest review-product direction (2026-10-19): read the
+[product brief and conversation decisions](review-product-brief-2026-10-19.md),
+[connected review implementation plan](connected-review-plan-2026-10-19.md), and
+[TDR-0060](../tdr/0060-connected-website-review.md). These describe planned behavior,
+not a shipped replacement for the current review modes. Implementation has started
+with the partial CR-01 foundation in [TDR-0061](../tdr/0061-connected-review-access-foundation.md);
+use the delivery ledger for completed static checks and remaining gates. The
+[source audit](site-gap-audit-2026-10-19.md) remains the open defect inventory.
+Auth follow-ups: [Google state protection](../tdr/0062-google-sign-in-state.md) and
+[refresh/OTP concurrency](../tdr/0063-auth-concurrency.md). API contracts are regenerated
+from Pydantic; these changes do not yet switch the website launch flow.
+
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)
 3. [Frontend plan](03-frontend.md)
