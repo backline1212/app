@@ -41,6 +41,10 @@ and hides the main extension recovery action outside the failure card.
 - Give guests an explicit next-step prompt before choosing website sign-in needs.
   The read-only board returns to review through one truthful action and explains
   how to populate its empty state. Native guidance explains how to see saved pins.
+- Clarify that Website projects already support native signed-in review. The Web
+  App roadmap no longer implies website login is unavailable or promises a shared
+  authenticated session. It describes planned state/diagnostic capabilities and
+  offers a return to the supported Website project list.
 
 This is a web-only increment. Extension 0.4.3, backend/tenant permissions, API
 contracts, persisted guest/legacy records and existing review adapters remain

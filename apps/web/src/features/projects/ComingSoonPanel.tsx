@@ -8,12 +8,12 @@ export type SoonType = "webapp" | "mobile";
 // notification signup behind them and no announced date (see TDR-0020 / M-22).
 const SOON: Record<SoonType, { title: string; lead: string; points: string[]; art: string }> = {
   webapp: {
-    title: "Review inside logged-in web apps",
-    lead: "Website review works on any public or staging URL. Web App review adds what those pages cannot do on their own: staying signed in, and holding a comment to a screen that only exists after four clicks.",
+    title: "Application state and diagnostics",
+    lead: "To review a website that needs sign-in today, create a Website project and choose Open with extension. Sign in using your own website account. Additional application testing features are planned.",
     points: [
-      "Reviewers stay authenticated through a shared session, so no one has to hand out a test password.",
-      "Comments attach to a route and a UI state, not just a URL, so a modal or a filled-in table can be commented on.",
-      "Console errors and failed network calls captured alongside the comment.",
+      "Planned: richer reproduction steps for complex application workflows.",
+      "Planned: explicit UI-state context alongside a ticket.",
+      "Planned: optional console and network diagnostics with capture controls.",
     ],
     art: webappArt,
   },
@@ -29,7 +29,7 @@ const SOON: Record<SoonType, { title: string; lead: string; points: string[]; ar
   },
 };
 
-export function ComingSoonPanel({ type }: { type: SoonType }) {
+export function ComingSoonPanel({ type, onReviewWebsite }: { type: SoonType; onReviewWebsite?: () => void }) {
   const d = SOON[type];
   return (
     <section className="bl-soon-panel" aria-labelledby={`soon-${type}`}>
@@ -47,6 +47,7 @@ export function ComingSoonPanel({ type }: { type: SoonType }) {
             </li>
           ))}
         </ul>
+        {type === "webapp" && onReviewWebsite && <button type="button" className="bl-button" onClick={onReviewWebsite}>Review a website now</button>}
       </div>
       <div className="bl-soon-art">
         <img src={d.art} alt="" />

@@ -41,6 +41,15 @@ content; a follow-up stacks its instructions and sizes the project action normal
 and increases install-list legibility. Final web lint/typecheck/build again pass
 3/3. The corrected layout's rollout/browser evidence will follow.
 
+The new-project walkthrough also found contradictory roadmap copy: Web App Coming
+soon implied signed-in website review was not available and promised a shared
+login session. Clarified that Website already supports native signed-in review
+using each reviewer's own account. The roadmap describes planned state/diagnostic
+work and offers Review a website now back to the URL-owned Website filter. No
+project was created or existing project changed during this walkthrough.
+The actual type/details/back/close path is usable without saving. The final copy
+follow-up again passes web lint/typecheck/build (3/3), retaining the same advisory.
+
 ## 2026-10-19: Installed 0.4.3 short-window layout acceptance
 
 The user confirmed the updated extension was installed and connected. The original

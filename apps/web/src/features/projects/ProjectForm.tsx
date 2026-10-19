@@ -24,10 +24,10 @@ const PROJECT_TYPES: Array<{
   description: string;
   available: boolean;
 }> = [
-  { id: "website", label: "Website", description: "Any public or staging URL. Reviewers comment straight on the live page.", available: true },
+  { id: "website", label: "Website", description: "Public or staging websites, including sign-in pages. Use browser review when needed.", available: true },
   { id: "image", label: "Images", description: "PNG, JPG, WebP or GIF. Comments pin to the artwork itself.", available: true },
   { id: "pdf", label: "PDF", description: "Comments attach to the page and survive a re-export.", available: true },
-  { id: "webapp", label: "Web App", description: "Review behind a login, with state captured.", available: false },
+  { id: "webapp", label: "Web App", description: "Application state and diagnostics. Use Website for signed-in review today.", available: false },
   { id: "mobile", label: "Mobile App", description: "Comment on a TestFlight or APK build from a real device.", available: false },
 ];
 
