@@ -30,6 +30,11 @@ signed-in browser acceptance remain pending.
 The [guided UX increment](../tdr/0070-guided-review-and-sharing.md) improves existing
 review modes, portal return and guest recovery/sharing; it does not implement
 CR-02/03. F30 project edits now use one document write; creation/outbox gaps remain.
+User-assisted Chrome verification covers real signed-in 0.4.1 extension launch,
+toolbar acknowledgement and Comment mode after the atomic refresh successor repair
+in [TDR-0071](../tdr/0071-atomic-refresh-successor.md). Guest join/recovery/exit and
+sharing were also exercised. Full draft/post/evidence/return and broad site/auth
+acceptance remain open; browser control was disabled again at the next continuation.
 
 ## 1. Release boundary and product contract
 

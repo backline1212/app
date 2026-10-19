@@ -20,6 +20,30 @@ database failure/replay/logout concurrency acceptance remains open. Rollout and
 new-tab retest evidence will follow. The installed 0.4.1 extension needs no further
 update for this server-side repair.
 
+**Rollout and live retest:** `960c32a248de79a46dc6baca10c5de71b693107c` is successful
+on Vercel `https://vercel.com/devbackline-7169/app-web/ELGJJcWZ8CBPh58ejDWdRAe35ysy`
+and Railway API `05138d26-9338-4758-b2ef-1c51a2464176`, worker
+`cadd2b4a-f6f8-4aef-a469-03c101fd0f7f`, cloud-login
+`429eabb3-0c74-4baf-a653-e6c66f853994`. API/cloud health 200, Mongo/Redis ok,
+all 123 OpenAPI paths/schemas equal generated source, extension ZIP version 0.4.1,
+and missing-cookie refresh rejects with 401. No new API schema was introduced.
+
+The actual Chrome retest passes extension minimum-version/protocol checks,
+opens a new real target-site tab instead of an unrelated portal, preserves the
+website login through its same-origin redirect to the workspace picker, and
+acknowledges its visible toolbar. Project checks at 12:07:04/06 UTC both return
+200; cookie refresh at 12:07:07 returns 200. Comment mode activates and displays
+"Click an element to leave a comment." Page registration/snapshot may occur as
+part of that normal activation; no comment body, attachment or workflow update
+was submitted. Footer Access also verified to use the unified Share dialog.
+
+At continuation, the browser tool reported local browser use disabled in Work
+settings. Requested re-enable asynchronously; no alternative control mechanism
+was used. Current-version draft/cancel, native return after query change, posting
+and evidence persistence, guest native lifecycle and broad site password/SSO
+acceptance remain open. The prior 0.4.0 return/close result does not substitute
+for the complete 0.4.1 pass. This release is deployed, not universally verified.
+
 ## 2026-10-19: Guided reviewer flow and sharing safeguards (TDR-0070)
 
 Implemented a website sign-in question, guided desktop extension setup/retry,

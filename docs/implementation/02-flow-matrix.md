@@ -5,6 +5,11 @@ extension setup/connection/return, recover/rejoin and real guest exit, expiry-aw
 sharing and one-write metadata/settings edits (FD-04/07/08/16/17/19). New links
 cannot enable unavailable domain verification or guest export. Legacy policies
 remain readable and explicitly labelled; browser acceptance remains open.
+User-assisted Chrome checks now cover project/share access, guest join/recover/exit,
+missing/stale extension guidance, real signed-in 0.4.1 tab launch and Comment mode.
+TDR-0071 closes the refresh successor read gap observed during launch. Remaining
+draft/post/evidence, current-version return and broad-site acceptance are explicit
+in the delivery ledger; these observations do not close complete acceptance rows.
 
 2026-10-19: FD-08 recovery now offers explicit extension launch when proxy tools
 don't acknowledge within 15 seconds. TDR-0069 fixes the old extension API default

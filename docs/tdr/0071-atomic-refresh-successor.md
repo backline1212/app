@@ -1,6 +1,6 @@
 # TDR-0071: Commit refresh rotation with its successor
 
-Date: 2026-10-19. Status: implemented; live rollout verification pending.
+Date: 2026-10-19. Status: deployed; native launch retest passed, broader concurrency acceptance open.
 
 ## Context
 
@@ -44,3 +44,10 @@ suite is written/run under this Codex task's instructions. Deploy the coordinate
 backend services, then repeat actual signed-in reload/new-tab launch and return.
 Record exact commits, deployments and observed outcomes in the delivery ledger;
 header/static checks cannot establish website sign-in or capture acceptance.
+
+The deployed 960c32a retest opens the real signed-in website, acknowledges its
+visible 0.4.1 toolbar and activates Comment mode. Project checks and the concurrent
+cookie refresh return 200. No comment was submitted. Browser control subsequently
+became disabled in Work settings, leaving draft/cancel, current-version return
+and capture persistence unverified. The ledger records exact deployment IDs and
+the request to re-enable browser use.
