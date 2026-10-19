@@ -136,7 +136,7 @@ export function ExtensionSettingsPage() {
 
       <section className="bl-attention bl-settings-section">
         <header><h2>2. Open a project and start review</h2></header>
-        <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "12px" }}>
+        <div className="bl-extension-project-start" style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "12px" }}>
           <p>Choose <strong>Open with extension</strong> in your project. Backline connects the review automatically; you don't need to generate or paste a token.</p>
           <p>Sign in to the website using your own account if needed. Leave feedback with the Backline toolbar, then choose <strong>Return to Backline</strong> to see the saved ticket.</p>
           <Link className="bl-button" to={`/w/${workspace.slug}`}>Choose a project</Link>
@@ -219,7 +219,7 @@ export function ExtensionSettingsPage() {
           <header>
             <h2>Active review access</h2>
           </header>
-          <div style={{ flex: 1, padding: "20px" }}>
+          <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
             <p>These tokens authorize review access. This list does not indicate whether a website tab is connected. Revoking access keeps the saved feedback.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {activeTokens.map((token) => (

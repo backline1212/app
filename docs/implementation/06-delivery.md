@@ -50,6 +50,23 @@ project was created or existing project changed during this walkthrough.
 The actual type/details/back/close path is usable without saving. The final copy
 follow-up again passes web lint/typecheck/build (3/3), retaining the same advisory.
 
+The f02786a roadmap follow-up succeeds on Vercel
+`https://vercel.com/devbackline-7169/app-web/2HcuC7fyhVVGC7VYrQ6AdBoSH3SK`.
+Live Chrome confirms the new Web App wording and Review a website now changes the
+URL to `?type=website`. The new-project Website description explicitly covers
+sign-in pages. No project/client/account setting was saved. Native recovery also
+returns to the original portal with its newly selected QA thread intact; the
+failed-preview D shortcut leaves that URL unchanged. Tools close cleanly. YouTube
+also reaches the honest failure state with disabled Comment and existing feedback
+access. No additional comment/reply/attachment/workflow update was submitted.
+
+Final visual polish scopes inherited settings styles so emphasized instruction
+text stays inline and the access list stacks below its explanation. Final web
+lint/typecheck/build passes 3/3 again; no suites written/run. Healthy embedded
+readiness re-enable, induced invalidation/old/wrong-server/offline checks and guest
+board/provider journeys remain unverified in this pass. Successful native recovery
+is recorded separately from the failed preview; no universal compatibility claim.
+
 ## 2026-10-19: Installed 0.4.3 short-window layout acceptance
 
 The user confirmed the updated extension was installed and connected. The original
