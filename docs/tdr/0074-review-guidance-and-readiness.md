@@ -1,6 +1,6 @@
 # TDR-0074: Make review setup and recovery predictable
 
-Date: 2026-10-19. Status: implemented and statically verified; rollout/browser verification pending.
+Date: 2026-10-19. Status: deployed; observed setup/recovery/return journeys verified, broader acceptance open.
 
 ## Context
 
@@ -65,3 +65,18 @@ from a ready-extension pass.
 
 Web lint, typecheck and production build pass (3/3). The existing large-chunk
 advisory remains. Diff checks pass; no test suite written/run.
+
+Final product source c945bcf is deployed on Vercel. Chrome verifies installed
+0.4.3 readiness/recheck, collapsed optional standalone setup, project handoff,
+new-project navigation without saving, supported Website guidance and the roadmap
+exit to `?type=website`. Failed previews disable mode/dock/hotkeys while preserving
+saved comments; their direct extension action reaches one acknowledged dialog and
+the real website, then returns with the selected thread intact. The fresh guest
+name gate renders without creating an identity. Final settings spacing is visually
+verified and captured. See the ledger for exact rollout IDs and limitations.
+
+The embedded preview did not connect during this run; a healthy readiness
+re-enable pass remains open alongside induced invalidation/old/wrong-server,
+offline, guest board and broader password/SSO/concurrency checks. Native recovery
+success does not imply the preview itself worked. No additional feedback or
+project/client/settings mutation was submitted.

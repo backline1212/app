@@ -67,6 +67,22 @@ readiness re-enable, induced invalidation/old/wrong-server/offline checks and gu
 board/provider journeys remain unverified in this pass. Successful native recovery
 is recorded separately from the failed preview; no universal compatibility claim.
 
+**Final rollout and visual check:** source
+`c945bcfb8764ef4d6241cb819367f3c89bdcdeb4` succeeds on Vercel
+`https://vercel.com/devbackline-7169/app-web/8rqfA2fHH885Ev3u1dsAH43cA9ec`.
+Reloaded Chrome renders the corrected stacked instructions, inline emphasis,
+normally sized Choose a project action (130.19×46 CSS pixels), collapsed optional
+standalone setup and actual extension 0.4.3 readiness. Visual proof is saved at
+`.tools/verification/2026-10-19-project-first-extension-setup.png`. A separate fresh
+public review renders the name/Join review gate and no-account copy; no identity
+was created. Closed that temporary guest tab.
+
+Backend/worker remain successful on 679c1c1 and cloud-login on 960c32a; unchanged
+backend inputs did not require redeployment. The installed 0.4.3 extension remains
+usable; no new extension download or permission change is required. Final source
+lint/typecheck/build is 3/3 and diff checks pass. Remaining acceptance is stated
+above and in TDR-0074; this delivery does not complete CR-02/03.
+
 ## 2026-10-19: Installed 0.4.3 short-window layout acceptance
 
 The user confirmed the updated extension was installed and connected. The original
