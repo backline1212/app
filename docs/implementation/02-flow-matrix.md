@@ -24,6 +24,10 @@ setup optional, separates local readiness from connection/access history, and
 gates canvas mode/dock/hotkeys on widget readiness. Failed previews retain portal
 feedback and expose the same native launcher; guest board actions are clarified.
 This web-only increment needs its own recorded browser acceptance.
+TDR-0075 repairs FD-20/21/25 retry and sign-in continuity in source: preserve the
+original request/evidence on ambiguous saves, copy drafts, freeze pending edits,
+reject wrong-page captures and refresh code timers by elapsed time. Its 0.4.4
+installed/browser failure acceptance remains distinct from prior 0.4.3 checks.
 
 2026-10-19: FD-08 recovery now offers explicit extension launch when proxy tools
 don't acknowledge within 15 seconds. TDR-0069 fixes the old extension API default

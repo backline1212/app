@@ -1,4 +1,4 @@
-import { type ClipboardEvent, type FormEvent, useEffect, useRef, useState } from "react";
+import { type ClipboardEvent, type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -57,6 +57,9 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [expiresIn, setExpiresIn] = useState(OTP_EXPIRY_SECONDS);
+  const authPending = useRef(false);
+  const redirectStarted = useRef(false);
+  const codeDeadlines = useRef({ resendAt: 0, expiresAt: 0 });
   // M-05/UX-AUD-019 follow-up (TDR-0037): Caps Lock is only worth flagging on a
   // password field, where the typed characters are hidden - one flag is enough
   // since the sign-in, sign-up and set-password panels never show at the same time.
@@ -64,20 +67,49 @@ export function LoginPage() {
   const codeInputRef = useRef<HTMLInputElement>(null);
   const errorId = "login-form-error";
 
+  const finishSignIn = useCallback(() => {
+    if (redirectStarted.current) return;
+    redirectStarted.current = true;
+    navigate(takeReturnPath(), { replace: true });
+  }, [navigate]);
+
+  function beginAuth(): boolean {
+    if (authPending.current || redirectStarted.current) return false;
+    authPending.current = true;
+    setIsSubmitting(true);
+    setError(null);
+    return true;
+  }
+
+  function endAuth(): void {
+    authPending.current = false;
+    setIsSubmitting(false);
+  }
+
+  function showCode(lifetime: number, requestStartedAt: number): void {
+    const now = Date.now();
+    codeDeadlines.current = {
+      resendAt: now + RESEND_COOLDOWN_SECONDS * 1000,
+      expiresAt: requestStartedAt + lifetime * 1000,
+    };
+    setCode("");
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    setExpiresIn(Math.max(0, Math.ceil((codeDeadlines.current.expiresAt - now) / 1000)));
+    setStep("code");
+  }
+
   function checkCapsLock(event: { getModifierState(key: string): boolean }) {
     setCapsOn(event.getModifierState("CapsLock"));
   }
 
   async function handleGoogleSignIn() {
-    if (isSubmitting) return;
-    setError(null);
-    setIsSubmitting(true);
+    if (!beginAuth()) return;
     try {
       const result = await startGoogleSignIn();
       window.location.assign(result.authorization_url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in couldn't start. Try again.");
-      setIsSubmitting(false);
+      endAuth();
     }
   }
 
@@ -85,11 +117,20 @@ export function LoginPage() {
   // (initial request or resend), and stop entirely once we leave the code step.
   useEffect(() => {
     if (step !== "code") return;
-    const interval = window.setInterval(() => {
-      setResendCooldown((v) => (v > 0 ? v - 1 : 0));
-      setExpiresIn((v) => (v > 0 ? v - 1 : 0));
-    }, 1000);
-    return () => window.clearInterval(interval);
+    const updateCountdown = () => {
+      const now = Date.now();
+      setResendCooldown(Math.max(0, Math.ceil((codeDeadlines.current.resendAt - now) / 1000)));
+      setExpiresIn(Math.max(0, Math.ceil((codeDeadlines.current.expiresAt - now) / 1000)));
+    };
+    updateCountdown();
+    const interval = window.setInterval(updateCountdown, 1000);
+    window.addEventListener("focus", updateCountdown);
+    document.addEventListener("visibilitychange", updateCountdown);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", updateCountdown);
+      document.removeEventListener("visibilitychange", updateCountdown);
+    };
   }, [step]);
 
   useEffect(() => {
@@ -104,13 +145,13 @@ export function LoginPage() {
   // Not mid-submit or on "Set a password": a verified code is already signed in there.
   useEffect(() => {
     if (status === "authenticated" && !isSubmitting && step !== "newpw") {
-      navigate(takeReturnPath(), { replace: true });
+      finishSignIn();
     }
-  }, [status, isSubmitting, step, navigate]);
+  }, [status, isSubmitting, step, finishSignIn]);
 
   async function sendOtp() {
-    setError(null);
-    setIsSubmitting(true);
+    if (!beginAuth()) return;
+    const requestStartedAt = Date.now();
     try {
       let lifetime = OTP_EXPIRY_SECONDS;
       if (codePurpose === "signup") {
@@ -118,14 +159,11 @@ export function LoginPage() {
       } else {
         await requestOtp(email);
       }
-      setStep("code");
-      setCode("");
-      setResendCooldown(RESEND_COOLDOWN_SECONDS);
-      setExpiresIn(lifetime);
+      showCode(lifetime, requestStartedAt);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
-      setIsSubmitting(false);
+      endAuth();
     }
   }
 
@@ -135,26 +173,26 @@ export function LoginPage() {
   }
 
   async function handleResendOtp() {
-    if (resendCooldown > 0 || isSubmitting) return;
+    if (Date.now() < codeDeadlines.current.resendAt) return;
     await sendOtp();
   }
 
   async function handlePasswordLogin(event: FormEvent) {
     event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
+    if (!beginAuth()) return;
     try {
       await loginWithPassword(email, password);
-      navigate(takeReturnPath(), { replace: true });
+      finishSignIn();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Incorrect email or password.");
     } finally {
-      setIsSubmitting(false);
+      endAuth();
     }
   }
 
   async function handleSignup(event: FormEvent) {
     event.preventDefault();
+    if (authPending.current) return;
     if (password.length < PASSWORD_MIN_LENGTH) {
       setError(`Use at least ${PASSWORD_MIN_LENGTH} characters.`);
       return;
@@ -163,32 +201,34 @@ export function LoginPage() {
       setError("Agree to the terms and privacy policy to create an account.");
       return;
     }
-    setError(null);
-    setIsSubmitting(true);
+    if (!beginAuth()) return;
+    const requestStartedAt = Date.now();
     try {
       const challenge = await signup(name, email, password);
       setCodePurpose("signup");
       setEmail(challenge.email);
-      setCode("");
-      setResendCooldown(RESEND_COOLDOWN_SECONDS);
-      setExpiresIn(challenge.expires_in_seconds);
-      setStep("code");
+      showCode(challenge.expires_in_seconds, requestStartedAt);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create that account.");
     } finally {
-      setIsSubmitting(false);
+      endAuth();
     }
   }
 
   async function handleVerifyOtp(event: FormEvent) {
     event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
+    if (authPending.current) return;
+    if (Date.now() >= codeDeadlines.current.expiresAt) {
+      setExpiresIn(0);
+      setError("This code has expired. Resend a code to continue.");
+      return;
+    }
+    if (!beginAuth()) return;
     try {
       if (codePurpose === "signup") {
         await verifySignup(name, email, password, code);
         setPassword("");
-        navigate(takeReturnPath(), { replace: true });
+        finishSignIn();
         return;
       }
       await verifyOtp(email, code);
@@ -200,36 +240,37 @@ export function LoginPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Incorrect code.");
     } finally {
-      setIsSubmitting(false);
+      endAuth();
     }
   }
 
   async function handleSetPassword(event: FormEvent) {
     event.preventDefault();
+    if (authPending.current) return;
     if (newPassword.length < PASSWORD_MIN_LENGTH) {
       setError(`Use at least ${PASSWORD_MIN_LENGTH} characters.`);
       return;
     }
-    setError(null);
-    setIsSubmitting(true);
+    if (!beginAuth()) return;
     try {
       await savePassword(newPassword);
       // The account modal's has_password gate (TDR-0034) would otherwise still show
       // stale "no password to change" copy until the next token refresh.
       if (user) updateUser({ ...user, has_password: true });
-      navigate(takeReturnPath(), { replace: true });
+      finishSignIn();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save that password.");
     } finally {
-      setIsSubmitting(false);
+      endAuth();
     }
   }
 
   function skipSetPassword() {
-    navigate(takeReturnPath(), { replace: true });
+    if (!authPending.current) finishSignIn();
   }
 
   function goToHelp() {
+    if (authPending.current) return;
     setError(null);
     setCodePurpose("signin");
     setPassword("");
@@ -237,6 +278,7 @@ export function LoginPage() {
   }
 
   function goToSignIn() {
+    if (authPending.current) return;
     setError(null);
     setCodePurpose("signin");
     setPassword("");
@@ -245,12 +287,14 @@ export function LoginPage() {
   }
 
   function goToSignup() {
+    if (authPending.current) return;
     setError(null);
     setCodePurpose("signup");
     setStep("signup");
   }
 
   function handleCodePaste(event: ClipboardEvent<HTMLInputElement>) {
+    if (authPending.current) return;
     const digits = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     if (digits.length > 0) {
       event.preventDefault();
@@ -265,7 +309,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="lg" id="lgGate">
+    <div className="lg" id="lgGate" aria-busy={isSubmitting}>
       <section className="lg-side">
         <div className="lg-theme"><ThemeToggle /></div>
         {/* Brand centred at top of the left column */}
@@ -299,6 +343,7 @@ export function LoginPage() {
                       autoComplete="username"
                       aria-describedby={error ? errorId : undefined}
                       aria-invalid={error ? true : undefined}
+                      readOnly={isSubmitting}
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder="you@studio.com"
@@ -310,7 +355,7 @@ export function LoginPage() {
                 <div className="lg-f" id="lgf-inPw">
                   <div className="lg-lbl">
                     <label htmlFor="lgInPw">Password</label>
-                    <button type="button" className="lg-forgot" onClick={goToHelp}>Forgot password?</button>
+                    <button type="button" className="lg-forgot" onClick={goToHelp} disabled={isSubmitting}>Forgot password?</button>
                   </div>
                   <span className={`lg-inp pw${capsOn ? " capson" : ""}`}>
                     <input
@@ -320,6 +365,7 @@ export function LoginPage() {
                       autoComplete="current-password"
                       aria-describedby={error ? errorId : undefined}
                       aria-invalid={error ? true : undefined}
+                      readOnly={isSubmitting}
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       onKeyDown={checkCapsLock}
@@ -359,7 +405,7 @@ export function LoginPage() {
                 </p>
               </form>
               <div className="lg-swap">
-                New here? <button type="button" onClick={goToSignup}>Create an account</button>
+                New here? <button type="button" onClick={goToSignup} disabled={isSubmitting}>Create an account</button>
               </div>
             </div>
           )}
@@ -384,6 +430,7 @@ export function LoginPage() {
                       required
                       maxLength={120}
                       autoComplete="name"
+                      readOnly={isSubmitting}
                       value={name}
                       onChange={(event) => setName(event.target.value)}
                       placeholder="Maitrik Makwana"
@@ -401,6 +448,7 @@ export function LoginPage() {
                       autoComplete="email"
                       aria-describedby={error ? errorId : undefined}
                       aria-invalid={error ? true : undefined}
+                      readOnly={isSubmitting}
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder="you@studio.com"
@@ -418,6 +466,7 @@ export function LoginPage() {
                       required
                       autoComplete="new-password"
                       aria-describedby="lgBar"
+                      readOnly={isSubmitting}
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       onKeyDown={checkCapsLock}
@@ -450,6 +499,7 @@ export function LoginPage() {
                   <input
                     type="checkbox"
                     id="lgTerms"
+                    disabled={isSubmitting}
                     checked={acceptedTerms}
                     onChange={(event) => setAcceptedTerms(event.target.checked)}
                   />
@@ -467,14 +517,14 @@ export function LoginPage() {
                 </button>
               </form>
               <div className="lg-swap">
-                Already have an account? <button type="button" onClick={goToSignIn}>Sign in</button>
+                Already have an account? <button type="button" onClick={goToSignIn} disabled={isSubmitting}>Sign in</button>
               </div>
             </div>
           )}
 
           {step === "help" && (
             <div id="lg-reset">
-              <button type="button" className="lg-back" onClick={goToSignIn}>
+              <button type="button" className="lg-back" onClick={goToSignIn} disabled={isSubmitting}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
                 Back to sign in
               </button>
@@ -495,6 +545,7 @@ export function LoginPage() {
                       autoComplete="email"
                       aria-describedby={error ? errorId : undefined}
                       aria-invalid={error ? true : undefined}
+                      readOnly={isSubmitting}
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder="you@studio.com"
@@ -514,7 +565,7 @@ export function LoginPage() {
                 </button>
               </form>
               <div className="lg-swap">
-                Remembered it? <button type="button" onClick={goToSignIn}>Sign in instead</button>
+                Remembered it? <button type="button" onClick={goToSignIn} disabled={isSubmitting}>Sign in instead</button>
               </div>
             </div>
           )}
@@ -542,6 +593,7 @@ export function LoginPage() {
                       required
                       aria-describedby={error ? errorId : undefined}
                       aria-invalid={error ? true : undefined}
+                      readOnly={isSubmitting}
                       value={code}
                       onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                       onPaste={handleCodePaste}
@@ -576,7 +628,7 @@ export function LoginPage() {
                   {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : "Resend code"}
                 </button>
                 <span style={{ margin: '0 8px' }}>|</span>
-                <button type="button" onClick={goToSignIn}>Use a different email</button>
+                <button type="button" onClick={goToSignIn} disabled={isSubmitting}>Use a different email</button>
               </div>
             </div>
           )}
@@ -599,6 +651,7 @@ export function LoginPage() {
                       required
                       autoComplete="new-password"
                       aria-describedby="lgNewPwBar"
+                      readOnly={isSubmitting}
                       value={newPassword}
                       onChange={(event) => setNewPassword(event.target.value)}
                       onKeyDown={checkCapsLock}
@@ -638,7 +691,7 @@ export function LoginPage() {
                 </button>
               </form>
               <div className="lg-swap">
-                <button type="button" onClick={skipSetPassword}>Skip for now</button>
+                <button type="button" onClick={skipSetPassword} disabled={isSubmitting}>Skip for now</button>
               </div>
             </div>
           )}

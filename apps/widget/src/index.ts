@@ -1,4 +1,5 @@
 import { createApiClient, WidgetApiError } from "./api-client";
+import { createCommentSubmission } from "./comment-submission";
 import { anchorPointFor, computeAnchor, waitForAnchorElement } from "./anchor";
 import { uploadAttachment, uploadScreenshot } from "./attachment-upload";
 import { connectDashboardStatusBridge } from "./dashboard-bridge";
@@ -176,6 +177,7 @@ async function init(config: BacklineConfig): Promise<void> {
   reviewUrl = currentSession.review_url;
 
   const pageUrl = realPageUrl(config.shareToken, resolved.target_origin);
+  let registeredDocumentUrl = location.href;
   // `let`: a single-page app's own route changes move this widget to another page
   // without a reload - see the route follower at the end of init.
   let pageId = await withRetry(() => registerCurrentPage(api, projectId, pageUrl));
@@ -358,6 +360,7 @@ async function init(config: BacklineConfig): Promise<void> {
         api,
         projectId,
         pageId,
+        documentUrl: registeredDocumentUrl,
         browserOverride,
         threadManager,
         ownCommentIds,
@@ -417,46 +420,40 @@ async function init(config: BacklineConfig): Promise<void> {
     }));
     cleanup.push(untrack);
 
-    // M-08 idempotency: generated once per pin/composer, not inside the submit
-    // callback, so posting again from the same composer after a failure (it stays
-    // open and editable - ui-composer.ts) resends the identical key instead of
-    // minting a new one - the backend replays the original comment for a repeated key
-    // rather than creating a duplicate (comments/repository.py's
-    // find_by_client_request_id).
-    const clientRequestId = crypto.randomUUID();
     // The page clicked on, even if an SPA routes elsewhere while the composer is open.
     const commentPageId = pageId;
+    const submission = createCommentSubmission(api, commentPageId, registeredDocumentUrl);
 
     const controls = openComposer(
       shadow,
       x,
       y,
       async ({ body, attachments, tags }) => {
-        controls.setStatus("Capturing anchor + screenshot...");
-
-        const anchor = await computeAnchor(target, x, y);
-        const screenshotBlob = await captureScreenshot();
-
-        let screenshotKey: string | null = null;
-        if (screenshotBlob) {
-          controls.setStatus("Uploading screenshot...");
-          screenshotKey = await uploadScreenshot(
-            api,
-            projectId,
-            screenshotBlob,
-          );
-        }
-
-        controls.setStatus("Posting comment...");
-        const { browser: detectedBrowser, os, device_type: deviceType } = parseUserAgent(navigator.userAgent);
-        const browser = browserOverride ?? detectedBrowser;
-
         try {
-          const created = await api.request<CommentRecord>(`/api/v1/pages/${commentPageId}/comments`, {
-            method: "POST",
-            body: JSON.stringify({
+          const created = await submission.submit(async () => {
+            controls.setStatus("Capturing anchor + screenshot...");
+
+            const anchor = await computeAnchor(target, x, y);
+            const screenshotBlob = await captureScreenshot();
+
+            let screenshotKey: string | null = null;
+            if (screenshotBlob) {
+              controls.setStatus("Uploading screenshot...");
+              screenshotKey = await uploadScreenshot(
+                api,
+                projectId,
+                screenshotBlob,
+              );
+            }
+
+            controls.setStatus("Posting comment...");
+            const { browser: detectedBrowser, os, device_type: deviceType } = parseUserAgent(navigator.userAgent);
+            const browser = browserOverride ?? detectedBrowser;
+
+            return {
               body,
-              anchor,
+              layer: "client",
+              anchor: { ...anchor, type: "point" },
               context: {
                 browser,
                 os,
@@ -468,8 +465,7 @@ async function init(config: BacklineConfig): Promise<void> {
               capture_status: screenshotKey ? "ok" : "failed",
               attachments,
               tags,
-              client_request_id: clientRequestId,
-            }),
+            };
           });
           pin.classList.remove("bl-pin-ghost");
           if (created.ticket_number != null) pin.textContent = String(created.ticket_number);
@@ -481,9 +477,9 @@ async function init(config: BacklineConfig): Promise<void> {
           controls.setStatus("Comment posted.");
           announceCreated(created);
           return true;
-        } catch {
-          controls.setStatus("Could not post your comment. Please try again.");
-          return false;
+        } catch (error) {
+          controls.setRetryLocked(submission.isPrepared());
+          throw error;
         }
       },
       () => {
@@ -507,11 +503,13 @@ async function init(config: BacklineConfig): Promise<void> {
   let routeTimer: ReturnType<typeof setTimeout> | null = null;
   const followRoute = async (): Promise<void> => {
     const nextUrl = realPageUrl(config.shareToken, resolved.target_origin);
+    const nextDocumentUrl = location.href;
     if (nextUrl === followedUrl) return;
     followedUrl = nextUrl;
     const nextPageId = await registerCurrentPage(api, projectId, nextUrl);
-    if (nextUrl !== followedUrl) return; // superseded by a later navigation
+    if (nextUrl !== followedUrl || location.href !== nextDocumentUrl) return;
     pageId = nextPageId;
+    registeredDocumentUrl = nextDocumentUrl;
     threadManager.clearPage();
     stopRealtime();
     stopRealtime = wireRealtimeUpdates(

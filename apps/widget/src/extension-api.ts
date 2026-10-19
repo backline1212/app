@@ -7,6 +7,7 @@
 // getAuthHeader) - none of it needed to change to be reusable outside the guest widget.
 export { createApiClient, WidgetApiError } from "./api-client";
 export type { ApiClient, AuthHeaderProvider } from "./api-client";
+export { createCommentSubmission } from "./comment-submission";
 
 export { createShadowRoot, openComposer, renderPin, showTooltip } from "./ui";
 export { composerHasDraft, nudgeComposer, cancelEmptyComposer } from "./ui-composer";

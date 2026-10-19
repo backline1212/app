@@ -8,7 +8,8 @@ const KEY = "backline_return_path";
 
 /** Same-origin app paths only - never "//host" or a full URL. */
 function isSafePath(path: string): boolean {
-  return path.startsWith("/") && !path.startsWith("//") && !path.startsWith("/login");
+  return path.startsWith("/") && !path.startsWith("//") && !path.startsWith("/login")
+    && !path.includes("\\") && !Array.from(path).some(char => char.charCodeAt(0) <= 32 || char.charCodeAt(0) === 127);
 }
 
 export function rememberReturnPath(path: string): void {

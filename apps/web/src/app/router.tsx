@@ -27,7 +27,7 @@ function RequireAuth() {
   }
   if (status === "unauthenticated") {
     // A shared /join?code=… link should still be where they end up after signing in.
-    rememberReturnPath(`${location.pathname}${location.search}`);
+    rememberReturnPath(`${location.pathname}${location.search}${location.hash}`);
     return <Navigate to="/login" replace />;
   }
   return <Outlet />;

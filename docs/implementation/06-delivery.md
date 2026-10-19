@@ -1,5 +1,28 @@
 # Delivery and verification ledger
 
+## 2026-10-19: Comment retry and sign-in continuity (TDR-0075)
+
+Point/region callbacks now share one serialized in-memory CommentCreate submission
+and exact request ID/evidence across retry, while retaining server replay guards.
+Pending/ambiguous text, tag and attachment changes are locked; Copy comment text,
+Retry save and Close preserve an honest recovery path. Document URL guards prevent
+new-page captures being saved against the previous registered page. Sign-in uses
+wall-clock code deadlines, synchronous pending guards and one-time return-path
+consumption; protected URLs retain fragments and unsafe path characters fail closed.
+
+See [TDR-0075](../tdr/0075-comment-retry-and-sign-in-continuity.md). Full frontend
+lint/typecheck/build graph passed 12/12, including widget/extension/web, before the
+final conservative authentication-loss classification; repeat affected checks
+before publishing. Existing web chunk-size advisory remains. No suite written/run,
+API contract change, backend permission change or migration. Extension version is
+consolidated at 0.4.4; installed Chrome is still 0.4.3. Deployment, installed copy,
+ambiguous-response replay, attachment locking, changed-page and actual OTP/provider
+journeys are pending; no extra comment/reply/attachment has been posted.
+
+The user additionally authorized implementation of the site's Coming soon scope
+without clarification questions. Inventory and delivery of that larger scope
+continue after this repair; do not equate removing a label with feature completion.
+
 ## 2026-10-19: Product review guidance and readiness (TDR-0074)
 
 User requested a smoother end-to-end product flow. Extension settings now guide

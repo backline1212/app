@@ -154,7 +154,7 @@ export function openComposer(
   onCancel: () => void,
   uploadFile: (file: File) => Promise<AttachmentResult | null>,
   details: ComposerDetails,
-): { setStatus: (text: string) => void; close: () => void } {
+): { setStatus: (text: string) => void; setRetryLocked: (locked: boolean) => void; close: () => void } {
   const composer = document.createElement("div");
   composer.className = "bl-card bl-composer";
   composer.setAttribute("role", "dialog");
@@ -193,6 +193,7 @@ export function openComposer(
         ${details.regionSize ? `<span class="bl-cp-rgn">${svg(REGION_ICON, 2)}${escapeHtml(details.regionSize)}</span>` : ""}
       </div>
       <div class="bl-status" role="status" aria-live="polite"></div>
+      <button type="button" class="bl-copy-draft" hidden>Copy comment text</button>
       <div class="bl-cp-foot">
         <span class="bl-cp-hint"><kbd>${isMac ? "&#8984;" : "Ctrl"}</kbd> <kbd>&#8629;</kbd> to post</span>
         <button type="button" class="bl-cp-cancel">Cancel</button>
@@ -208,6 +209,7 @@ export function openComposer(
   const submitButton = composer.querySelector<HTMLButtonElement>(".bl-submit")!;
   const closeButton = composer.querySelector<HTMLButtonElement>(".bl-cancel")!;
   const cancelButton = composer.querySelector<HTMLButtonElement>(".bl-cp-cancel")!;
+  const copyButton = composer.querySelector<HTMLButtonElement>(".bl-copy-draft")!;
   const attachLabel = composer.querySelector<HTMLSpanElement>(".bl-cp-attach-label")!;
   const tagButtons = Array.from(composer.querySelectorAll<HTMLButtonElement>(".bl-cp-tag"));
   const textarea = composer.querySelector("textarea")!;
@@ -223,6 +225,7 @@ export function openComposer(
   );
   let selectedTag: ComposerTag = COMPOSER_TAGS[0];
   let submitted = false;
+  let retryLocked = false;
   // Set once the post succeeded: the card lingers a moment to show "Comment posted.",
   // and nothing in it is a draft any more.
   let posted = false;
@@ -242,7 +245,7 @@ export function openComposer(
     void composer.offsetWidth;
     composer.classList.add("bl-nudge");
     if (!submitted) {
-      statusEl.textContent = "Post or cancel this comment first.";
+      if (!retryLocked) statusEl.textContent = "Post or cancel this comment first.";
       textarea.focus({ preventScroll: true });
     }
     composer.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -277,11 +280,14 @@ export function openComposer(
   }
 
   function setFormDisabled(disabled: boolean): void {
-    for (const button of [submitButton, closeButton, cancelButton, ...tagButtons]) {
+    composer.setAttribute("aria-busy", String(disabled));
+    for (const button of [submitButton, closeButton, cancelButton, copyButton]) {
       if (disabled) button.setAttribute("disabled", "true");
       else button.removeAttribute("disabled");
     }
-    if (disabled) attachments.disable();
+    textarea.readOnly = disabled || retryLocked;
+    for (const button of tagButtons) button.disabled = disabled || retryLocked;
+    if (disabled || retryLocked) attachments.disable();
     else attachments.enable();
   }
 
@@ -300,6 +306,7 @@ export function openComposer(
     }
     submitted = true;
     discardArmedUntil = 0;
+    statusEl.textContent = retryLocked ? "Retrying the original comment..." : "Preparing your comment...";
     setFormDisabled(true);
     // Capture/anchor/upload callbacks can throw before they reach their API error
     // handler. Handle both synchronous throws and rejected promises here so every
@@ -318,13 +325,17 @@ export function openComposer(
       // Failed - back to a normal, editable composer so the reviewer can retry or
       // dismiss it themselves, instead of a permanently disabled dead end.
       submitted = false;
+      copyButton.hidden = false;
       setFormDisabled(false);
     }).catch((error: unknown) => {
       if (closed) return;
       submitted = false;
+      copyButton.hidden = false;
       setFormDisabled(false);
       const detail = error instanceof Error && error.message ? `${error.message} ` : "";
-      statusEl.textContent = `Could not post your comment. ${detail}Your draft is still here. Try again.`;
+      statusEl.textContent = retryLocked
+        ? `${detail}Saving is unconfirmed. Retry save sends the original comment without creating a duplicate. You can also copy the text and check Backline before starting another comment.`
+        : `Could not post your comment. ${detail}Your draft is still here. You can edit it and try again, or copy the text.`;
       textarea.focus({ preventScroll: true });
     });
   }
@@ -332,6 +343,23 @@ export function openComposer(
   closeButton.addEventListener("click", cancel);
   cancelButton.addEventListener("click", cancel);
   submitButton.addEventListener("click", submit);
+  copyButton.addEventListener("click", () => {
+    void navigator.clipboard?.writeText(textarea.value).then(() => {
+      if (!closed) statusEl.textContent = retryLocked
+        ? "Text copied. Saving is still unconfirmed; retry this save or check Backline."
+        : "Comment text copied. Your draft is still here.";
+    }).catch(() => {
+      if (closed) return;
+      textarea.focus({ preventScroll: true });
+      textarea.select();
+      statusEl.textContent = `Copy is unavailable here. Your text is selected; press ${isMac ? "⌘" : "Ctrl"}+C to copy it.`;
+    });
+    if (!navigator.clipboard) {
+      textarea.focus({ preventScroll: true });
+      textarea.select();
+      statusEl.textContent = `Your text is selected; press ${isMac ? "⌘" : "Ctrl"}+C to copy it.`;
+    }
+  });
   textarea.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
@@ -340,6 +368,7 @@ export function openComposer(
   });
   textarea.addEventListener("input", () => {
     discardArmedUntil = 0;
+    copyButton.hidden = !textarea.value.trim();
     if (statusEl.textContent === "Post or cancel this comment first.") statusEl.textContent = "";
   });
   composer.addEventListener("animationend", () => composer.classList.remove("bl-nudge"));
@@ -351,13 +380,16 @@ export function openComposer(
       return;
     }
     discardArmedUntil = Date.now() + 3000;
-    statusEl.textContent = "Press Esc again to discard this comment.";
+    statusEl.textContent = retryLocked
+      ? "Saving is unconfirmed. Press Esc again to close; check Backline before posting another comment."
+      : "Press Esc again to discard this comment.";
   });
   textarea.addEventListener("paste", (event) => {
     const files = pastedImageFiles(event.clipboardData);
     if (files.length === 0) return;
     // A pasted image is never text worth inserting into the comment body.
     event.preventDefault();
+    if (submitted || retryLocked) return;
     attachments.addFiles(files);
   });
 
@@ -385,6 +417,12 @@ export function openComposer(
   return {
     setStatus: (text: string) => {
       statusEl.textContent = text;
+    },
+    setRetryLocked: (locked: boolean) => {
+      retryLocked = locked;
+      submitButton.innerHTML = `${svg(ARROW_ICON, 2.2)}${locked ? "Retry save" : "Post comment"}`;
+      cancelButton.textContent = locked ? "Close" : "Cancel";
+      closeButton.setAttribute("aria-label", locked ? "Close comment" : "Cancel comment");
     },
     close: removeComposer,
   };

@@ -50,6 +50,10 @@ The next web-only product flow increment is
 [TDR-0074](../tdr/0074-review-guidance-and-readiness.md): project-first automatic
 extension connection, optional standalone setup, explicit reload recovery and
 readiness-gated canvas controls. It retains the pending CR-02/03 boundary.
+The next functional repair is [TDR-0075](../tdr/0075-comment-retry-and-sign-in-continuity.md):
+immutable comment retries, recoverable draft copying, page binding, wall-clock
+sign-in codes and one-time return navigation. Extension 0.4.4 rollout/acceptance
+is tracked separately from the installed 0.4.3 evidence.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

@@ -235,6 +235,11 @@ const HOST_STYLES = `
   .bl-cp-rgn svg { color: var(--bl-mint-deep); }
   .bl-card .bl-status { margin-top: 10px; font-size: 12px; color: var(--bl-ink-3); }
   .bl-card .bl-status:empty { display: none; }
+  .bl-card button.bl-copy-draft {
+    margin-top: 8px; padding: 4px 0; background: none; border: 0;
+    color: var(--bl-ink); font-size: 12px; text-decoration: underline;
+  }
+  .bl-card button.bl-copy-draft[hidden] { display: none; }
   .bl-cp-foot {
     display: flex; align-items: center; gap: 8px; margin-top: 13px; padding-top: 12px;
     border-top: 1px solid var(--bl-line-soft);

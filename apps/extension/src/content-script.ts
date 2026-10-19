@@ -2,6 +2,7 @@ import type { NativeReviewInfo, Schemas } from "@backline/types";
 import {
   computeAnchor,
   createApiClient,
+  createCommentSubmission,
   createShadowRoot,
   createThreadManager,
   captureScreenshot,
@@ -152,34 +153,33 @@ function activatePointMode(ctx: AnnotationContext): () => void {
       y: y - (targetRect.top + window.scrollY),
     };
     const untrack = trackPinPosition(pin, () => target, offset);
-    const clientRequestId = crypto.randomUUID();
+    const submission = createCommentSubmission(api, pageId, ctx.pageUrl);
 
     const controls = openComposer(
       shadow,
       x,
       y,
       async ({ body, attachments, tags }) => {
-        controls.setStatus("Capturing anchor + screenshot...");
-        const anchor = await computeAnchor(target, x, y);
-        const screenshotBlob = await (ctx.native ? captureNativeScreenshot() : captureScreenshot());
-
-        let screenshotKey: string | null = null;
-        if (screenshotBlob) {
-          controls.setStatus("Uploading screenshot...");
-          screenshotKey = ctx.native ? await uploadNativeScreenshot(api, project.id, screenshotBlob)
-            : await uploadScreenshot(api, project.id, screenshotBlob);
-        }
-
-        controls.setStatus("Posting comment...");
-        const { browser, os, device_type: deviceType } = parseUserAgent(navigator.userAgent);
-
         try {
-          if (location.href !== ctx.pageUrl) throw new Error("The page changed. Cancel this draft and comment on the new page.");
-          const created = await api.request<CommentRecord>(`/api/v1/pages/${pageId}/comments`, {
-            method: "POST",
-            body: JSON.stringify({
+          const created = await submission.submit(async () => {
+            controls.setStatus("Capturing anchor + screenshot...");
+            const anchor = await computeAnchor(target, x, y);
+            const screenshotBlob = await (ctx.native ? captureNativeScreenshot() : captureScreenshot());
+
+            let screenshotKey: string | null = null;
+            if (screenshotBlob) {
+              controls.setStatus("Uploading screenshot...");
+              screenshotKey = ctx.native ? await uploadNativeScreenshot(api, project.id, screenshotBlob)
+                : await uploadScreenshot(api, project.id, screenshotBlob);
+            }
+
+            controls.setStatus("Posting comment...");
+            const { browser, os, device_type: deviceType } = parseUserAgent(navigator.userAgent);
+
+            return {
               body,
-              anchor,
+              layer: "client",
+              anchor: { ...anchor, type: "point" },
               context: {
                 browser,
                 os,
@@ -191,8 +191,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
               capture_status: screenshotKey ? "ok" : "failed",
               attachments,
               tags,
-              client_request_id: clientRequestId,
-            }),
+            };
           });
           pin.classList.remove("bl-pin-ghost");
           if (created.ticket_number != null) pin.textContent = String(created.ticket_number);
@@ -204,8 +203,8 @@ function activatePointMode(ctx: AnnotationContext): () => void {
           controls.setStatus("Comment posted.");
           return true;
         } catch (error) {
-          controls.setStatus(error instanceof Error ? error.message : "Could not post your comment. Please try again.");
-          return false;
+          controls.setRetryLocked(submission.isPrepared());
+          throw error;
         }
       },
       () => {
@@ -241,6 +240,7 @@ async function activate(mode: AnnotationMode): Promise<void> {
       api: ctx.api,
       projectId: ctx.project.id,
       pageId: ctx.pageId,
+      documentUrl: ctx.pageUrl,
       browserOverride: null,
       threadManager: ctx.threadManager,
       ownCommentIds: ctx.ownCommentIds,

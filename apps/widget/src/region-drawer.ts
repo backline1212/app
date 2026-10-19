@@ -1,4 +1,5 @@
 import type { ApiClient } from "./api-client";
+import { createCommentSubmission } from "./comment-submission";
 import type { CommentRecord } from "./types";
 import { computeRegionAnchor } from "./anchor";
 import { renderPin, openComposer, type ComposerDetails } from "./ui";
@@ -37,6 +38,7 @@ export function setupRegionDrawer({
   api,
   projectId,
   pageId,
+  documentUrl = location.href,
   browserOverride,
   threadManager,
   ownCommentIds,
@@ -52,6 +54,7 @@ export function setupRegionDrawer({
   api: ApiClient;
   projectId: string;
   pageId: string;
+  documentUrl?: string;
   browserOverride: string | null;
   threadManager: ReturnType<typeof createThreadManager>;
   ownCommentIds: Set<string>;
@@ -160,7 +163,7 @@ export function setupRegionDrawer({
       y: box.height * offsetPct.y,
     }));
 
-    const clientRequestId = crypto.randomUUID();
+    const submission = createCommentSubmission(api, pageId, documentUrl);
     const activeOverlay = overlay;
 
     const controls = openComposer(
@@ -168,30 +171,30 @@ export function setupRegionDrawer({
       finalLeft,
       finalTop + finalHeight, // open below the region
       async ({ body, attachments, tags }) => {
-        controls.setStatus("Capturing region anchor + screenshot...");
-        const anchor = await computeRegionAnchor(activeTarget, rect);
-        const screenshotBlob = await screenshot();
-
-        let screenshotKey: string | null = null;
-        if (screenshotBlob) {
-          controls.setStatus("Uploading screenshot...");
-          screenshotKey = await uploadScreenshotFile(
-            api,
-            projectId,
-            screenshotBlob,
-          );
-        }
-
-        controls.setStatus("Posting comment...");
-        const { browser: detectedBrowser, os, device_type: deviceType } = parseUserAgent(navigator.userAgent);
-        const browser = browserOverride ?? detectedBrowser;
-
         try {
-          const created = await api.request<CommentRecord>(`/api/v1/pages/${pageId}/comments`, {
-            method: "POST",
-            body: JSON.stringify({
+          const created = await submission.submit(async () => {
+            controls.setStatus("Capturing region anchor + screenshot...");
+            const anchor = await computeRegionAnchor(activeTarget, rect);
+            const screenshotBlob = await screenshot();
+
+            let screenshotKey: string | null = null;
+            if (screenshotBlob) {
+              controls.setStatus("Uploading screenshot...");
+              screenshotKey = await uploadScreenshotFile(
+                api,
+                projectId,
+                screenshotBlob,
+              );
+            }
+
+            controls.setStatus("Posting comment...");
+            const { browser: detectedBrowser, os, device_type: deviceType } = parseUserAgent(navigator.userAgent);
+            const browser = browserOverride ?? detectedBrowser;
+
+            return {
               body,
-              anchor,
+              layer: "client",
+              anchor: { ...anchor, type: "region" },
               context: {
                 browser,
                 os,
@@ -203,8 +206,7 @@ export function setupRegionDrawer({
               capture_status: screenshotKey ? "ok" : "failed",
               attachments,
               tags,
-              client_request_id: clientRequestId,
-            }),
+            };
           });
           pin.classList.remove("bl-pin-ghost");
           if (created.ticket_number != null) pin.textContent = String(created.ticket_number);
@@ -212,7 +214,7 @@ export function setupRegionDrawer({
           threadManager.threadMessages.set(created.id, [created]);
           // The drawn box was placed once, at the drag's page coordinates; from here on
           // the saved area follows its element the way a reloaded one does.
-          const tracked = threadManager.createRegionOverlay(created.anchor ?? anchor, () => activeTarget);
+          const tracked = threadManager.createRegionOverlay(created.anchor, () => activeTarget);
           if (tracked) activeOverlay.remove();
           threadManager.adoptPin(
             created.id,
@@ -229,8 +231,8 @@ export function setupRegionDrawer({
           onCommentCreated?.(created);
           return true;
         } catch (error) {
-          controls.setStatus(error instanceof Error ? error.message : "Could not post your comment. Please try again.");
-          return false;
+          controls.setRetryLocked(submission.isPrepared());
+          throw error;
         }
       },
       () => {

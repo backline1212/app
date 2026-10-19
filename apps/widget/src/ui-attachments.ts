@@ -57,9 +57,11 @@ export function setupAttachments(
   const attachButton = composer.querySelector<HTMLButtonElement>(".bl-attach-button")!;
   const uploaded: AttachmentResult[] = [];
   let pending = 0;
+  let disabled = false;
   const reportCount = () => onCountChange?.(attachmentsEl.children.length);
 
   function addFiles(files: File[]): void {
+    if (disabled) return;
     for (const file of files) {
       if (file.size > MAX_ATTACHMENT_BYTES) {
         onProblem?.(`${file.name} is over 10 MB and wasn't attached.`);
@@ -80,6 +82,7 @@ export function setupAttachments(
       let removed = false;
       pending += 1;
       removeButton.addEventListener("click", () => {
+        if (disabled) return;
         removed = true;
         chip.remove();
         reportCount();
@@ -120,12 +123,16 @@ export function setupAttachments(
     pendingCount: () => pending,
     addFiles,
     disable: () => {
+      disabled = true;
       attachButton.setAttribute("disabled", "true");
       fileInput.setAttribute("disabled", "true");
+      attachmentsEl.querySelectorAll<HTMLButtonElement>("button").forEach(button => { button.disabled = true; });
     },
     enable: () => {
+      disabled = false;
       attachButton.removeAttribute("disabled");
       fileInput.removeAttribute("disabled");
+      attachmentsEl.querySelectorAll<HTMLButtonElement>("button").forEach(button => { button.disabled = false; });
     },
     reset: () => {
       uploaded.length = 0;
