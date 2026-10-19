@@ -1,6 +1,6 @@
 # TDR-0073: Keep comment controls clear of the native toolbar
 
-Date: 2026-10-19. Status: implemented and statically verified; updated-extension visual acceptance pending.
+Date: 2026-10-19. Status: deployed and statically verified; updated-extension visual acceptance pending.
 
 ## Context
 
@@ -42,3 +42,9 @@ task's instructions. Source/geometry review confirms inset propagation and
 bounded scrollable cards. Actual 0.4.3 short/wrapped-window pointer access and
 induced capture/upload error recovery remain acceptance items until the user
 reloads the new extension. Record exact rollout IDs in the delivery ledger.
+
+Source 679c1c1 succeeds on API/worker/Vercel. The served SDK matches local bytes;
+all five deployed ZIP entries match local normalized text and report version
+0.4.3. The user was asked to update/reload the unpacked installation because the
+browser tool cannot open Chrome extension settings. The delivery ledger records
+exact deployment IDs and preserves the remaining browser checks.

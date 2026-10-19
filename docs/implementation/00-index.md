@@ -40,7 +40,7 @@ with its old-token claim, preserving strict replay detection and family continui
 Current native verification covers draft protection/cancel, original-tab return
 with a selected thread, toolbar cleanup and existing-login YouTube launch. The
 shared composer rejection repair is [TDR-0072](../tdr/0072-composer-submit-recovery.md);
-updated-extension failure-path and comment/evidence acceptance remain open.
+updated-extension failure-path and broader capture/evidence acceptance remain open.
 One explicitly approved native comment and its screenshot now survive portal
 reload. [TDR-0073](../tdr/0073-native-toolbar-card-layout.md) addresses a measured
 toolbar/composer overlap; updated-extension visual/failure-path checks remain open.

@@ -1,6 +1,6 @@
 # TDR-0072: Restore a comment draft after submission exceptions
 
-Date: 2026-10-19. Status: implemented; deployment and failure-path acceptance pending.
+Date: 2026-10-19. Status: deployed in 0.4.3; updated-browser failure-path acceptance pending.
 
 ## Context
 
@@ -38,3 +38,8 @@ test suite written/run under this Codex task's instructions. Source review confi
 that both callback rejection and synchronous throws
 reach the recovery handler; induced capture/upload failure in an updated real
 browser remains a separate acceptance item.
+
+The final 679c1c1 release also contains TDR-0073's measured toolbar-space repair.
+API/worker/Vercel rollout and matching served SDK/0.4.3 ZIP are recorded in the
+ledger. The explicitly approved normal native save/screenshot/reload pass uses
+installed 0.4.1 and does not substitute for updated-build failure acceptance.

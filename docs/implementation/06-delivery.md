@@ -41,6 +41,10 @@ No additional comment/reply, attachment selection, deletion or workflow change
 was made. Evidence: `.tools/verification/2026-10-19-native-ticket-persisted.png`.
 This is a normal native save/read/reload pass, not induced failure/concurrency or
 guest acceptance.
+Reloading the real website also restores its native toolbar in Browse mode.
+Comment mode reloads the saved pin; opening it displays the same persisted QA
+body and Bug tag. Closed the comment/tools and the two verification website tabs,
+leaving the original portal on the saved ticket.
 
 The prepared draft exposed a separate native toolbar overlap: toolbar top 544.4,
 Post at 579.75–613.875, composer bottom 626.675 CSS pixels. Fixed measured bottom
@@ -50,6 +54,22 @@ observer cleanup in [TDR-0073](../tdr/0073-native-toolbar-card-layout.md). Exten
 remains 0.4.1. Full frontend lint/typecheck/build passes 12/12 (six cached), and
 diff checks pass; no test suite written/run. Actual corrected short-window visual
 and rejection-path acceptance needs the updated/reloaded 0.4.3 extension.
+
+**Final rollout:** source `679c1c1d444511122c931923c54044f953b32a41` is successful
+on Vercel `https://vercel.com/devbackline-7169/app-web/Bacep5d2mJK9C3j4ABFViUKWVdGm`,
+Railway API `669ac879-fcae-4649-b743-9b0615ccfc82` and worker
+`b7daff69-5c22-4154-aacd-7964c1c338e8`. Cloud-login remains healthy on successful
+`960c32a` / `429eabb3-0c74-4baf-a653-e6c66f853994`: its inputs did not change in
+this slice. API/cloud health returns ok, including Mongo/Redis. The served SDK is
+byte-identical to the local build. All five ZIP entries match local extension
+output after text-newline normalization; manifest version is 0.4.3 with unchanged
+storage/activeTab/scripting permissions. No API/schema/migration was introduced.
+
+Asked the user to replace the existing unpacked extension files with the current
+same-site download, Reload its card and reload Backline. Browser URL policy blocks
+Chrome extension settings, so that final local update cannot be automated through
+the available browser tool. The installed 0.4.1 native save/return results above do
+not claim the 0.4.3 layout/rejection repair has already run in this browser.
 
 ## 2026-10-19: Refresh-family continuity during native launch (TDR-0071)
 
