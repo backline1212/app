@@ -118,6 +118,20 @@ async def guest_session_status(
     return await share_link_service.get_guest_session_status(get_db(), guest)
 
 
+@router.post("/guest-sessions/current/end", status_code=204)
+async def end_guest_session(
+    request: Request, response: Response, guest: GuestSession = Depends(get_guest_session)
+) -> None:
+    response.headers["Cache-Control"] = "no-store"
+    await check_rate_limit(
+        get_redis(),
+        key=actor_rate_limit_key("guest-session-end", request, guest),
+        limit=get_settings().review_resolve_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    await share_link_service.end_guest_session(get_db(), guest)
+
+
 @router.post("/guest-sessions", response_model=GuestSessionOut, status_code=201)
 async def create_guest_session(body: GuestSessionCreate, request: Request) -> GuestSessionOut:
     settings = get_settings()

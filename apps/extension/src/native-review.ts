@@ -6,6 +6,7 @@ interface ReviewSession extends NativeReviewInfo {
   auth: NativeReviewAuth;
   pageIds: string[];
   commentIds: string[];
+  returnTabId?: number;
 }
 
 const key = (tabId: number) => `review:${tabId}`;
@@ -13,6 +14,10 @@ const dashboardOrigin = new URL(DASHBOARD_BASE_URL).origin;
 const origin = (url: string) => new URL(url).origin;
 let activationGeneration = 0;
 const readyWaiters = new Map<string, () => void>();
+
+class NativeReviewError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
 
 function waitForReady(launchId: string): { ready: Promise<void>; cancel: () => void } {
   let timer: ReturnType<typeof setTimeout>;
@@ -45,14 +50,14 @@ async function request<T>(auth: NativeReviewAuth, path: string, init: RequestIni
   });
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new Error(response.status === 401
+    throw new NativeReviewError(response.status === 401
       ? "Review access expired. Return to Backline and open browser review again."
-      : body?.error?.message ?? `Backline request failed (${response.status}).`);
+      : body?.error?.message ?? `Backline request failed (${response.status}).`, response.status);
   }
   return response.status === 204 ? undefined as T : response.json() as Promise<T>;
 }
 
-async function launch(input: NativeReviewLaunch): Promise<void> {
+async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<void> {
   const destination = new URL(input.url);
   if (!["http:", "https:"].includes(destination.protocol) || destination.username || destination.password) {
     throw new Error("Choose an HTTP or HTTPS website.");
@@ -82,7 +87,7 @@ async function launch(input: NativeReviewLaunch): Promise<void> {
   // Keep sessionStorage and the app's in-memory state by reusing an existing tab.
   // Do not navigate that tab away from the page the reviewer has already opened.
   const candidates = (await chrome.tabs.query({})).filter(tab => {
-    try { return !!tab.url && origin(tab.url) === destination.origin; } catch { return false; }
+    try { return tab.id !== returnTabId && !!tab.url && origin(tab.url) === destination.origin; } catch { return false; }
   });
   const existing = candidates.find(tab => tab.url === input.url) ?? candidates[0];
   const tab = existing ?? await chrome.tabs.create({ url: "about:blank", active: true });
@@ -93,7 +98,7 @@ async function launch(input: NativeReviewLaunch): Promise<void> {
   // Mark handled immediately; navigation and injection can fail before the await.
   void waiter.ready.catch(() => undefined);
   await save(tab.id, { project, authorName, auth, member: auth.kind === "member", returnUrl: input.returnUrl,
-    pageIds: [], commentIds: [], launchId });
+    pageIds: [], commentIds: [], launchId, returnTabId });
   try {
     if (existing) {
       await chrome.tabs.update(tab.id, { active: true });
@@ -130,7 +135,7 @@ async function sessionFor(sender: chrome.runtime.MessageSender): Promise<{ sessi
 async function handle(message: Record<string, unknown>, sender: chrome.runtime.MessageSender): Promise<unknown> {
   if (message.type === "native-review-status" || message.type === "native-review-launch") {
     if (sender.frameId !== 0 || !sender.url || origin(sender.url) !== dashboardOrigin) throw new Error("Open Backline to start a review.");
-    if (message.type === "native-review-launch") return launch(message.input as NativeReviewLaunch);
+    if (message.type === "native-review-launch") return launch(message.input as NativeReviewLaunch, sender.tab?.id);
     const connection = await getConnection();
     return { version: 2, apiBaseUrl: API_BASE_URL, extensionVersion: chrome.runtime.getManifest().version,
       workspaceId: connection?.workspaceId ?? null, userId: connection?.userId ?? null };
@@ -142,6 +147,19 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     } catch { return null; }
   }
   const { session, tabId } = await sessionFor(sender);
+  if (message.type === "native-review-return") {
+    // Reuse the original portal tab so guest sessionStorage and the selected ticket
+    // survive. Never navigate a tab that has since moved to another page.
+    const candidates = (await chrome.tabs.query({})).filter(tab => tab.id !== tabId && tab.url === session.returnUrl);
+    const target = candidates.find(tab => tab.id === session.returnTabId) ?? candidates[0];
+    if (target?.id !== undefined) {
+      await chrome.tabs.update(target.id, { active: true });
+      await chrome.windows.update(target.windowId, { focused: true });
+    } else {
+      await chrome.tabs.create({ url: session.returnUrl, active: true });
+    }
+    return;
+  }
   if (message.type === "native-review-ready") {
     if (message.launchId !== session.launchId) throw new Error("This review was replaced. Open it again from Backline.");
     if (session.auth.kind === "member") {
@@ -207,7 +225,7 @@ export function registerNativeReview(): void {
   chrome.tabs.onActivated.addListener(() => { activationGeneration += 1; });
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (typeof message?.type !== "string" || !message.type.startsWith("native-review-")) return false;
-    void handle(message, sender).then(data => respond({ ok: true, data }), error => respond({ ok: false, error: error instanceof Error ? error.message : "Review failed." }));
+    void handle(message, sender).then(data => respond({ ok: true, data }), error => respond({ ok: false, error: error instanceof Error ? error.message : "Review failed.", status: error instanceof NativeReviewError ? error.status : 0 }));
     return true;
   });
   chrome.tabs.onRemoved.addListener(tabId => { void chrome.storage.session.remove(key(tabId)); });

@@ -156,6 +156,7 @@ class GuestSessionRepository:
                 "share_link_id": share_link_id,
                 "member_user_id": member_user_id,
                 "member_authenticated_at": {"$gte": verified_after},
+                "ended_at": None,
             }
         )
 
@@ -172,4 +173,15 @@ class GuestSessionRepository:
         await self.db.guest_sessions.update_one(
             {"_id": to_object_id(guest_session_id), "workspace_id": workspace_id},
             {"$set": {"last_seen_at": datetime.now(UTC)}},
+        )
+
+    async def end(self, *, workspace_id: str, guest_session_id: str, share_link_id: str) -> None:
+        await self.db.guest_sessions.update_one(
+            {
+                "workspace_id": workspace_id,
+                "_id": to_object_id(guest_session_id),
+                "share_link_id": share_link_id,
+                "ended_at": None,
+            },
+            {"$set": {"ended_at": datetime.now(UTC)}},
         )

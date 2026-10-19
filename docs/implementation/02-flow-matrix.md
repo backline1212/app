@@ -1,5 +1,11 @@
 # Flow inventory and acceptance criteria
 
+2026-10-19 follow-up: TDR-0070 adds a product-level sign-in question, guided
+extension setup/connection/return, recover/rejoin and real guest exit, expiry-aware
+sharing and one-write metadata/settings edits (FD-04/07/08/16/17/19). New links
+cannot enable unavailable domain verification or guest export. Legacy policies
+remain readable and explicitly labelled; browser acceptance remains open.
+
 2026-10-19: FD-08 recovery now offers explicit extension launch when proxy tools
 don't acknowledge within 15 seconds. TDR-0069 fixes the old extension API default
 and adds readiness, origin and project credential checks. TDR-0068 hardens upload

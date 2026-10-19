@@ -86,6 +86,7 @@ async def resolve_actor_project_access(
     guest_doc = await GuestSessionRepository(db).find_by_id(guest.guest_session_id)
     if (
         guest_doc is None
+        or guest_doc.get("ended_at") is not None
         or guest_doc["workspace_id"] != link["workspace_id"]
         or guest_doc["share_link_id"] != guest.share_link_id
         or guest_doc.get("member_user_id") != guest.member_user_id

@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
 import { API_BASE_URL, ApiError } from "../../lib/api-client";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
+import { useOnlineStatus } from "../../lib/use-online-status";
 import { AssetReview } from "../assets/AssetReview";
 import * as reviewApi from "./api";
 import { GuestBoard } from "./GuestBoard";
@@ -21,6 +22,7 @@ import {
 // needs a guest token in its handoff URL for the installed widget.
 export function ReviewEntryPage() {
   const cache = useQueryClient();
+  const online = useOnlineStatus();
   const { shareToken } = useParams<{ shareToken: string }>();
   const [sessionShareToken, setSessionShareToken] = useState(shareToken);
   const sessionMatchesLink = sessionShareToken === shareToken;
@@ -29,6 +31,14 @@ export function ReviewEntryPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
+  const [recoveryBlocked, setRecoveryBlocked] = useState(false);
+  const [recoveryAttempt, setRecoveryAttempt] = useState(0);
+  const [siteNeedsLogin, setSiteNeedsLogin] = useState<"yes" | "no" | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+  const joining = useRef(false);
+  const currentLink = useRef(shareToken);
+  currentLink.current = shareToken;
   const [assetGuest, setAssetGuest] = useState<string | null>(null);
   // Let website reviewers choose browser review before entering the proxy.
   const [pendingHandoff, setPendingHandoff] = useState<{ token: string; destination: string } | null>(
@@ -61,6 +71,12 @@ export function ReviewEntryPage() {
     setShowBoard(false);
     setSessionShareToken(shareToken);
     setError(null);
+    setPasscode("");
+    setDisplayName("");
+    setRecoveryBlocked(false);
+    setSiteNeedsLogin(null);
+    setLeaveError(null);
+    setLeaving(false);
   }, [shareToken]);
 
   useEffect(() => {
@@ -86,18 +102,13 @@ export function ReviewEntryPage() {
         setAssetGuest(session.guestSessionToken);
         return;
       }
-      const handoff = new URLSearchParams({
-        backline_guest: session.guestSessionToken,
-        backline_name: session.displayName,
-      });
       const proxyBase = resolved.preview_origin ?? `${API_BASE_URL}/proxy/${shareToken}`;
-      const destination =
-        resolved.mode === "proxy"
-          ? `${proxyBase}/?${handoff.toString()}`
-          : `${resolved.target_origin}${resolved.target_origin.includes("?") ? "&" : "?"}${handoff.toString()}`;
+      const destination = new URL(resolved.mode === "proxy" ? `${proxyBase}/` : resolved.target_origin);
+      destination.searchParams.set("backline_guest", session.guestSessionToken);
+      destination.searchParams.set("backline_name", session.displayName);
       // Every website reviewer can choose native browser review before being sent
       // into a proxy that may not support the site's authentication.
-      setPendingHandoff({ token: session.guestSessionToken, destination });
+      setPendingHandoff({ token: session.guestSessionToken, destination: destination.href });
     },
     [shareToken, resolved],
   );
@@ -112,6 +123,7 @@ export function ReviewEntryPage() {
     if (!stored) return;
     const controller = new AbortController();
     setIsRecovering(true);
+    setRecoveryBlocked(false);
     reviewApi.getGuestSessionStatus(stored.guestSessionToken, controller.signal).then((current) => {
       if (controller.signal.aborted) return;
       if (current.share_link_id !== resolved.share_link_id || current.member_bound) {
@@ -128,15 +140,18 @@ export function ReviewEntryPage() {
         clearStoredGuestSession(shareToken);
         setError("Your previous review session ended. Join again to continue.");
       } else {
+        setRecoveryBlocked(true);
         setError("Couldn't check your previous session. Check your connection and try again.");
       }
     }).finally(() => { if (!controller.signal.aborted) setIsRecovering(false); });
     return () => { controller.abort(); setIsRecovering(false); };
-  }, [shareToken, resolved, assetGuest, pendingHandoff, isSubmitting, routeGuest]);
+  }, [shareToken, resolved, assetGuest, pendingHandoff, isSubmitting, routeGuest, recoveryAttempt]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!shareToken || !resolved) return;
+    if (!shareToken || !resolved || joining.current || recoveryBlocked || !online) return;
+    const originalLink = shareToken;
+    joining.current = true;
     setError(null);
     setIsSubmitting(true);
     try {
@@ -150,17 +165,37 @@ export function ReviewEntryPage() {
         displayName: result.display_name,
       };
       setStoredGuestSession(shareToken, session);
+      if (currentLink.current !== originalLink) return;
       setDisplayName(result.display_name);
+      setPasscode("");
       routeGuest(session);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not join this review.");
+      if (currentLink.current === originalLink) setError(err instanceof Error ? err.message : "Could not join this review.");
     } finally {
+      joining.current = false;
       setIsSubmitting(false);
     }
   }
 
-  function handleLeave() {
+  async function handleLeave() {
+    if (leaving) return;
+    const originalLink = shareToken;
+    setLeaving(true);
+    setLeaveError(null);
+    try {
+      const token = activeToken || (shareToken ? getStoredGuestSession(shareToken)?.guestSessionToken : null);
+      if (token) await reviewApi.endGuestSession(token);
+    } catch (failure) {
+      if (!(failure instanceof ApiError && [401, 403, 404].includes(failure.status))) {
+        if (currentLink.current === originalLink) {
+          setLeaveError("Couldn't end your session. Check your connection and try again.");
+          setLeaving(false);
+        }
+        return;
+      }
+    }
     if (shareToken) clearStoredGuestSession(shareToken);
+    if (currentLink.current !== originalLink) return;
     // Full reload, not just resetting local state: it also drops the in-memory
     // React Query cache for this guest's session-scoped data and returns to a
     // clean gate, matching the reference product's own "Leave review" behavior.
@@ -170,21 +205,23 @@ export function ReviewEntryPage() {
   if (!shareToken) {
     return <ErrorScreen message="Missing share link." />;
   }
-  if (sessionEnded) return <ErrorScreen message="Your review session ended. Reopen the review link to join again." />;
+  if (sessionEnded) return <ErrorScreen message="Your review session ended. Join again to continue." onRetry={() => { if (shareToken) clearStoredGuestSession(shareToken); window.location.reload(); }} retryLabel="Rejoin review" />;
   if (sessionMatchesLink && assetGuest && resolved) {
-    return (
+    return (<>
+      {leaveError && <p role="alert" className="bl-error">{leaveError}</p>}
       <AssetReview
         projectId={resolved.project_id}
         title={resolved.project_name}
         guest={assetGuest}
         guestName={displayName}
         onLeave={handleLeave}
-      />
+      /></>
     );
   }
 
   if (sessionMatchesLink && pendingHandoff && resolved && showBoard) {
-    return (
+    return (<>
+      {leaveError && <p role="alert" className="bl-error">{leaveError}</p>}
       <GuestBoard
         projectId={resolved.project_id}
         guestToken={pendingHandoff.token}
@@ -195,7 +232,7 @@ export function ReviewEntryPage() {
         onContinue={() => {
           setShowBoard(false);
         }}
-      />
+      /></>
     );
   }
 
@@ -204,18 +241,32 @@ export function ReviewEntryPage() {
       <div className="bl-gate-scrim">
         <div className="bl-gate-modal" role="dialog" aria-modal="true" aria-labelledby="ggTitle">
           <div className="bl-gate-head">
-            <h3 id="ggTitle">You&apos;re in</h3>
-            <p id="ggSub">For websites with sign-in, use Browser review. Sign in normally and leave comments in the same tab.</p>
+            <h3 id="ggTitle">Review {resolved.project_name}</h3>
+            <p id="ggSub">Joined as {displayName}. Choose how to open the website.</p>
+          </div>
+          <div className="bl-gate-body">
+            <ol className="bl-review-steps" aria-label="Review steps"><li>Joined review</li><li aria-current="step">Open website</li><li>Leave feedback</li></ol>
+            <fieldset className="bl-review-question"><legend>Does this website ask you to sign in?</legend>
+              <label><input type="radio" name="site-login" checked={siteNeedsLogin === "yes"} onChange={() => setSiteNeedsLogin("yes")} />Yes, or I'm not sure</label>
+              <label><input type="radio" name="site-login" checked={siteNeedsLogin === "no"} onChange={() => setSiteNeedsLogin("no")} />No, it's a public page</label>
+            </fieldset>
+            {siteNeedsLogin === "yes" && <p>Use your normal browser and website account. We'll guide you through the extension setup if needed.</p>}
+            {siteNeedsLogin === "no" && <p>Open the review in a new tab, click an element and save your feedback. Keep this page open to return to your review.</p>}
+            <p className="bl-policy-note">Website sign-in is separate from joining Backline. A review link doesn't give access to the website's private pages.</p>
+            {leaveError && <p role="alert" className="bl-error">{leaveError}</p>}
+            {!online && <p role="status">You're offline. Reconnect to start or rejoin a review.</p>}
           </div>
           <div className="bl-gate-foot" style={{ flexDirection: "column" }}>
-            <NativeReviewButton projectId={resolved.project_id} url={resolved.target_origin}
-              guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} />
-            <button className="bl-button" style={{ width: "100%" }} onClick={() => (window.location.href = pendingHandoff.destination)}>
-              {resolved.mode === "proxy" ? "Open embedded review" : "Open installed website review"}
-            </button>
+            {siteNeedsLogin === "yes" && <NativeReviewButton projectId={resolved.project_id} url={resolved.target_origin}
+              guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} />}
+            {siteNeedsLogin === "no" && <>
+              <a className="bl-button" href={pendingHandoff.destination} target="_blank" rel="noopener noreferrer">Open website review ↗</a>
+              <details><summary>Page doesn't load or asks for sign-in?</summary><p>Open the real website with the extension to keep its normal login.</p><NativeReviewButton projectId={resolved.project_id} url={resolved.target_origin} guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} /></details>
+            </>}
             {resolved.show_board_to_client && <button className="bl-quiet" style={{ width: "100%" }} onClick={() => setShowBoard(true)}>
               View the board
             </button>}
+            <button type="button" className="bl-quiet" disabled={leaving} onClick={() => void handleLeave()}>{leaving ? "Leaving…" : "Leave review"}</button>
           </div>
         </div>
       </div>
@@ -239,7 +290,7 @@ export function ReviewEntryPage() {
       resolveError instanceof ApiError
         ? resolveError.message
         : "This review link could not be opened.";
-    return <ErrorScreen message={message} />;
+    return <ErrorScreen message={message} onRetry={() => void cache.invalidateQueries({ queryKey: qk.review(shareToken) })} />;
   }
 
   if (!resolved) {
@@ -250,7 +301,7 @@ export function ReviewEntryPage() {
   // signed-in member from inside the dashboard, so there is no name to ask for here.
   if (resolved.canvas_only) {
     return (
-      <ErrorScreen message="This link only opens inside the Backline dashboard. Sign in to review this project, or ask the team for a client review link." />
+      <ErrorScreen message="This link only opens inside the Backline dashboard. Sign in to review this project, or ask the team for a client review link." signIn />
     );
   }
 
@@ -263,11 +314,14 @@ export function ReviewEntryPage() {
         </div>
         <form onSubmit={handleSubmit} style={{ display: "contents" }}>
           <div className="bl-gate-body">
+            {recoveryBlocked ? <div role="alert"><p>{error}</p><button type="button" className="bl-button" disabled={!online} onClick={() => setRecoveryAttempt(value => value + 1)}>Check saved session again</button><p>Your earlier review identity is kept until we can check it.</p><button type="button" className="bl-quiet" disabled={leaving} onClick={() => void handleLeave()}>Leave and rejoin</button>{leaveError && <p className="bl-error">{leaveError}</p>}</div> : <>
             {resolved.ask_reviewer_name !== false && (
               <div className="bl-gate-field">
-                <label>Your name</label>
+                <label htmlFor="reviewer-name">Your name</label>
                 <input
                   required
+                  id="reviewer-name"
+                  maxLength={100}
                   autoComplete="name"
                   enterKeyHint={resolved.requires_passcode ? "next" : "go"}
                   value={displayName}
@@ -275,15 +329,17 @@ export function ReviewEntryPage() {
                   placeholder="Ravi Kulkarni"
                   type="text"
                 />
-                <div className="bl-gate-hint">Shown next to your comments. Nothing else is stored.</div>
+                <div className="bl-gate-hint">Your name is shown with your feedback. Review activity and any submitted evidence are saved for this project.</div>
               </div>
             )}
 
             {resolved.requires_passcode && (
               <div className="bl-gate-field">
-                <label>Passcode</label>
+                <label htmlFor="review-passcode">Review passcode</label>
                 <input
                   type="password"
+                  id="review-passcode"
+                  autoComplete="off"
                   required
                   enterKeyHint="go"
                   value={passcode}
@@ -292,11 +348,13 @@ export function ReviewEntryPage() {
               </div>
             )}
 
-            {error && <p className="bl-error" style={{ margin: "4px 0" }}>{error}</p>}
+            {error && <p role="alert" className="bl-error" style={{ margin: "4px 0" }}>{error}</p>}
+            {!online && <p role="status">You're offline. Reconnect to join this review.</p>}
+            </>}
           </div>
           <div className="bl-gate-foot">
-            <button className="bl-button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Starting..." : "Start reviewing"}
+            <button className="bl-button" type="submit" disabled={isSubmitting || recoveryBlocked || !online}>
+              {isSubmitting ? "Joining…" : "Join review"}
             </button>
           </div>
         </form>
@@ -305,7 +363,7 @@ export function ReviewEntryPage() {
   );
 }
 
-function ErrorScreen({ message }: { message: string }) {
+function ErrorScreen({ message, onRetry, retryLabel = "Try again", signIn }: { message: string; onRetry?: () => void; retryLabel?: string; signIn?: boolean }) {
   return (
     <div className="bl-gate-scrim">
       <div className="bl-gate-modal" role="dialog" aria-modal="true">
@@ -314,7 +372,9 @@ function ErrorScreen({ message }: { message: string }) {
         </div>
         <div className="bl-gate-body">
           <div className="bl-error" style={{ margin: 0 }}>{message}</div>
+          <p>If the link has expired or been revoked, ask the project team for a new link.</p>
         </div>
+        <div className="bl-gate-foot">{onRetry && <button type="button" className="bl-button" onClick={onRetry}>{retryLabel}</button>}{signIn && <Link className="bl-button" to="/login">Sign in to Backline</Link>}</div>
       </div>
     </div>
   );

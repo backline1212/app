@@ -1126,6 +1126,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/guest-sessions/current/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End Guest Session */
+        post: operations["end_guest_session_api_v1_guest_sessions_current_end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/guest-sessions": {
         parameters: {
             query?: never;
@@ -4313,6 +4330,7 @@ export interface components {
             client_id?: string | null;
             /** Hero Url */
             hero_url?: string | null;
+            settings?: components["schemas"]["ProjectSettingsUpdate"] | null;
         };
         /** ReanchorRequest */
         ReanchorRequest: {
@@ -4634,13 +4652,18 @@ export interface components {
              * @default true
              */
             ask_reviewer_name: boolean;
-            /** Domain Restrictions */
+            /**
+             * Domain Restrictions
+             * @description Verified reviewer domains are not available.
+             */
             domain_restrictions?: string[];
             /**
              * Comment Export Permission
              * @default false
+             * @constant
+             * @enum {boolean}
              */
-            comment_export_permission: boolean;
+            comment_export_permission: false;
         };
         /** ShareLinkOut */
         ShareLinkOut: {
@@ -7632,6 +7655,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GuestSessionStatusOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    end_guest_session_api_v1_guest_sessions_current_end_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-guest-session"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

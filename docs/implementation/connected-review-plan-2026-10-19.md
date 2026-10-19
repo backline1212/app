@@ -27,6 +27,9 @@ Further increments: [issued uploads/durable snapshots](../tdr/0068-review-eviden
 and [explicit proxy fallback/extension repairs](../tdr/0069-proxy-fallback-and-extension-connection.md).
 These preserve existing launch modes. CR-02/03 installed-site setup/exchange and
 signed-in browser acceptance remain pending.
+The [guided UX increment](../tdr/0070-guided-review-and-sharing.md) improves existing
+review modes, portal return and guest recovery/sharing; it does not implement
+CR-02/03. F30 project edits now use one document write; creation/outbox gaps remain.
 
 ## 1. Release boundary and product contract
 

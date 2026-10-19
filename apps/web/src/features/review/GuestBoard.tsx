@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { EmptyArt } from "../../components/illustrations";
+import { ApiError } from "../../lib/api-client";
 import { qk } from "../../lib/query-keys";
 import { useOnlineStatus } from "../../lib/use-online-status";
 import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES } from "../../lib/workflow";
@@ -27,11 +28,12 @@ export function GuestBoard({
   continueLabel?: string;
   onContinue?: () => void;
 }) {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: qk.guestBoard(projectId, guestToken),
     queryFn: () => reviewApi.getGuestBoard(projectId, guestToken),
   });
   const online = useOnlineStatus();
+  const accessDenied = error instanceof ApiError && [401, 403, 404].includes(error.status);
 
   // Real workflow statuses (todo/in_progress/in_review/blocked/resolved/wont_fix),
   // not the reference HTML's abbreviated column ids - grouping by anything else
@@ -78,9 +80,12 @@ export function GuestBoard({
 
       <div className="bl-review-body" style={{ display: "block", padding: "20px" }}>
         {isLoading && <p className="bl-mono">Loading board...</p>}
-        {error && <p className="bl-error">Could not load the board.</p>}
+        {error && <div role="alert"><p className="bl-error">{error instanceof Error ? error.message : "Could not load the board."}</p>
+          {data && !accessDenied && <p>Showing the last loaded feedback. Changes may be missing.</p>}
+          <button type="button" className="bl-quiet" disabled={!online || isFetching} onClick={() => void refetch()}>{isFetching ? "Checking…" : "Try again"}</button>
+        </div>}
 
-        {data && data.items.length === 0 && (
+        {data && !accessDenied && data.items.length === 0 && (
           <div className="bl-empty">
             <EmptyArt kind="board" />
             <h2>No items yet</h2>
@@ -88,7 +93,7 @@ export function GuestBoard({
           </div>
         )}
 
-        {data && data.items.length > 0 && (
+        {data && !accessDenied && data.items.length > 0 && (
           <div className="bl-board">
             {WORKFLOW_STATUSES.map((statusKey) => {
               const items = grouped[statusKey] || [];

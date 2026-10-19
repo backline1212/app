@@ -1,5 +1,6 @@
 import type { NativeReviewInfo } from "@backline/types";
 import { createShadowRoot } from "@backline/widget";
+import { nativeMessage } from "./native-client";
 
 export type ReviewMode = "browse" | "point" | "region";
 
@@ -40,14 +41,12 @@ export function createNativeToolbar(info: NativeReviewInfo, onMode: (mode: Revie
     buttons.set(mode, button);
     bar.appendChild(button);
   }
-  const back = document.createElement("a");
-  back.textContent = "Backline";
-  back.href = info.returnUrl;
-  back.target = "_blank";
-  back.rel = "noopener noreferrer";
+  const back = document.createElement("button");
+  back.textContent = "Return to Backline";
+  back.onclick = () => { void nativeMessage("native-review-return").catch(error => { status.textContent = error.message; }); };
   bar.appendChild(back);
   const end = document.createElement("button");
-  end.textContent = "End review";
+  end.textContent = "Close website tools";
   end.onclick = () => { void onEnd().then(() => shadow.host.remove(), error => { status.textContent = error.message; }); };
   bar.appendChild(end);
   bar.appendChild(status);

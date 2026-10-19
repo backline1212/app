@@ -9,7 +9,7 @@ from pymongo.errors import DuplicateKeyError
 
 from app.core.actor_access import resolve_actor_project_access
 from app.core.config import get_settings
-from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError
+from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
 from app.core.permissions import project_role_allows
 from app.core.project_access import check_project_action
@@ -101,7 +101,7 @@ def _ensure_active(link: dict[str, Any]) -> None:
     revoked or past its expiry is treated the same way regardless of caller."""
     if link["revoked_at"] is not None:
         raise ConflictError("This review link has been revoked.")
-    if link["expires_at"] is not None and link["expires_at"] < datetime.now(UTC):
+    if link["expires_at"] is not None and link["expires_at"] <= datetime.now(UTC):
         raise ConflictError("This review link has expired.")
 
 
@@ -120,6 +120,11 @@ async def create_share_link(
 ) -> ShareLinkOut:
     # Raises NotFoundError if the project doesn't exist or belongs to another workspace.
     await project_service.get_project(db, project_id=project_id, workspace_id=workspace_id)
+
+    if domain_restrictions or comment_export_permission:
+        raise ValidationError("Verified reviewer domains and guest export are not available.")
+    if expires_at is not None and expires_at <= datetime.now(UTC):
+        raise ValidationError("Choose an expiry in the future.")
 
     repo = ShareLinkRepository(db)
     doc = await repo.create(
@@ -324,6 +329,25 @@ async def get_guest_session_status(
         display_name=doc["display_name"],
         member_bound=member_bound,
         review_url=f"{dashboard}/" if member_bound else f"{dashboard}/review/{link['token']}",
+    )
+
+
+async def end_guest_session(db: AsyncIOMotorDatabase[dict[str, Any]], guest: GuestSession) -> None:
+    # Ending one's own signed identity must work after link revoke/archive too.
+    # This reveals nothing about the project or any other session.
+    repo = GuestSessionRepository(db)
+    doc = await repo.find_by_id(guest.guest_session_id)
+    if doc is None:
+        return
+    if (
+        doc["share_link_id"] != guest.share_link_id
+        or doc.get("member_user_id") != guest.member_user_id
+    ):
+        raise PermissionDeniedError("This review session doesn't belong to you.")
+    await repo.end(
+        workspace_id=doc["workspace_id"],
+        guest_session_id=guest.guest_session_id,
+        share_link_id=guest.share_link_id,
     )
 
 

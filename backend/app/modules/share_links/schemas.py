@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 
 ShareLinkMode = Literal["snippet", "proxy"]
 
@@ -9,10 +9,14 @@ ShareLinkMode = Literal["snippet", "proxy"]
 class ShareLinkCreate(BaseModel):
     mode: ShareLinkMode = "snippet"
     passcode: str | None = Field(default=None, min_length=4, max_length=64)
-    expires_at: datetime | None = None
+    expires_at: AwareDatetime | None = None
     ask_reviewer_name: bool = True
-    domain_restrictions: list[str] = Field(default_factory=list)
-    comment_export_permission: bool = False
+    domain_restrictions: list[str] = Field(
+        default_factory=list,
+        max_length=0,
+        description="Verified reviewer domains are not available.",
+    )
+    comment_export_permission: Literal[False] = False
 
 
 class ShareLinkOut(BaseModel):

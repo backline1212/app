@@ -17,6 +17,7 @@ import { useAuth } from "../auth/AuthContext";
 import * as boardApi from "../board/api";
 import type { CommentOut, CommentStatus } from "../board/api";
 import * as shareLinksApi from "../share-links/api";
+import { reviewLinkState, useReviewLinkClock } from "../share-links/link-state";
 import { ShareProjectModal } from "../workspaces/ShareProjectModal";
 import type { WorkspaceOut } from "../workspaces/api";
 import { ProjectFooter, type CanvasMode } from "./footer/ProjectFooter";
@@ -122,6 +123,7 @@ function comboFromEvent(event: globalThis.KeyboardEvent): string {
 }
 
 export function ProjectOverviewPage() {
+  const linkNow = useReviewLinkClock();
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
   const { projectId } = useParams<{ projectId: string }>();
   const [searchParams] = useSearchParams();
@@ -757,7 +759,7 @@ export function ProjectOverviewPage() {
     return <AssetReview projectId={project.id} title={project.name} workspaceSlug={workspace.slug} />;
   }
 
-  const activeLinks = (shareLinksQuery.data ?? []).filter((link) => link.revoked_at === null);
+  const activeLinks = (shareLinksQuery.data ?? []).filter((link) => reviewLinkState(link, linkNow) === "active");
   const reviewLink = activeLinks[0] ?? null;
   // The canvas link's own preview origin when the API reports one (docs/tdr/0040), so
   // the site runs at its real paths; the legacy path on the API origin otherwise.

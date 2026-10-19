@@ -31,6 +31,9 @@ watch-path drift, the explicit fix, and live verification limits.
 Further source work: [evidence persistence](../tdr/0068-review-evidence-persistence.md)
 and [proxy fallback/extension connection](../tdr/0069-proxy-fallback-and-extension-connection.md).
 The existing proxy remains available; connected installation/launch is still pending.
+The next UX/recovery increment is [TDR-0070](../tdr/0070-guided-review-and-sharing.md):
+guided browser setup/return, explicit guest exit/retry, expiry-aware sharing and
+single-write project edits. It preserves the pending connected-site launch scope.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

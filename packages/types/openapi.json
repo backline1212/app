@@ -3967,6 +3967,48 @@
         }
       }
     },
+    "/api/v1/guest-sessions/current/end": {
+      "post": {
+        "tags": [
+          "share-links"
+        ],
+        "summary": "End Guest Session",
+        "operationId": "end_guest_session_api_v1_guest_sessions_current_end_post",
+        "parameters": [
+          {
+            "name": "x-guest-session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/guest-sessions": {
       "post": {
         "tags": [
@@ -13294,6 +13336,16 @@
               }
             ],
             "title": "Hero Url"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectSettingsUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -14025,10 +14077,16 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Domain Restrictions"
+            "maxItems": 0,
+            "title": "Domain Restrictions",
+            "description": "Verified reviewer domains are not available."
           },
           "comment_export_permission": {
             "type": "boolean",
+            "enum": [
+              false
+            ],
+            "const": false,
             "title": "Comment Export Permission",
             "default": false
           }

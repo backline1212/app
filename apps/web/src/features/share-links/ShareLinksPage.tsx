@@ -11,6 +11,7 @@ import { useDocumentTitle } from "../../lib/use-document-title";
 import { useProject } from "../projects/use-project";
 import * as shareLinksApi from "./api";
 import type { ShareLinkOut } from "./api";
+import { reviewLinkState, useReviewLinkClock } from "./link-state";
 
 function reviewUrl(token: string): string {
   return `${window.location.origin}/review/${token}`;
@@ -30,12 +31,11 @@ export function ShareLinksPage() {
   const [mode, setMode] = useState<"snippet" | "proxy">("proxy");
   const [passcode, setPasscode] = useState("");
   const [askReviewerName, setAskReviewerName] = useState(true);
-  const [domainRestrictionsStr, setDomainRestrictionsStr] = useState("");
-  const [commentExportPermission, setCommentExportPermission] = useState(false);
   const [expiration, setExpiration] = useState<"never" | "7" | "30">("never");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copyError, setCopyError] = useState("");
   const [revokeCandidate, setRevokeCandidate] = useState<ShareLinkOut | null>(null);
+  const now = useReviewLinkClock();
 
   const linksQuery = useQuery({
     queryKey: qk.shareLinks(projectId ?? ""),
@@ -49,13 +49,10 @@ export function ShareLinksPage() {
         mode,
         passcode: passcode.trim() || undefined,
         askReviewerName,
-        domainRestrictions: domainRestrictionsStr.split(",").map((domain) => domain.trim()).filter(Boolean),
-        commentExportPermission,
         expiresAt: expiration === "never" ? undefined : new Date(Date.now() + Number(expiration) * 24 * 60 * 60 * 1000).toISOString(),
       }),
     onSuccess: async () => {
       setPasscode("");
-      setDomainRestrictionsStr("");
       await queryClient.invalidateQueries({ queryKey: qk.shareLinks(projectId ?? "") });
       toast("Share link created.");
     },
@@ -78,6 +75,12 @@ export function ShareLinksPage() {
 
   async function copyLink(id: string, token: string) {
     setCopyError("");
+    const link = linksQuery.data?.find(item => item.id === id);
+    if (!link || reviewLinkState(link) !== "active") {
+      setCopyError("This link is no longer active. Create a replacement below.");
+      void linksQuery.refetch();
+      return;
+    }
     try {
       await navigator.clipboard.writeText(reviewUrl(token));
       setCopiedId(id);
@@ -131,22 +134,25 @@ export function ShareLinksPage() {
               <tbody>
                 {links.map((link) => {
                   const revoked = link.revoked_at !== null;
+                  const state = reviewLinkState(link, now);
                   return (
                     <tr key={link.id}>
                       <td>
                         <span className="bl-mono">{link.token}</span>
                         {link.has_passcode && <small>Passcode required</small>}
+                        {!!link.domain_restrictions?.length && <small className="bl-error">Legacy request-origin filter. This does not verify reviewer identity. Create a replacement with a passcode.</small>}
+                        {link.comment_export_permission && <small>Guest export is unavailable.</small>}
                       </td>
                       <td style={{ textTransform: "capitalize" }}>{link.mode}</td>
                       <td>
-                        <span className={`bl-access-state${revoked ? "" : " is-on"}`}><i />{revoked ? "Revoked" : "Active"}</span>
+                        <span className={`bl-access-state${state === "active" ? " is-on" : ""}`}><i />{state === "revoked" ? "Revoked" : state === "expired" ? "Expired" : "Active"}</span>
                       </td>
                       <td>{link.expires_at ? new Date(link.expires_at).toLocaleDateString() : "Never"}</td>
                       <td>{new Date(link.created_at).toLocaleDateString()}</td>
                       <td style={{ textAlign: "right" }}>
                         {!revoked && (
                           <>
-                            <button type="button" className="bl-quiet" onClick={() => copyLink(link.id, link.token)}>
+                            <button type="button" className="bl-quiet" disabled={state !== "active"} onClick={() => copyLink(link.id, link.token)}>
                               {copiedId === link.id ? "Copied" : "Copy link"}
                             </button>{" "}
                             <button
@@ -185,8 +191,8 @@ export function ShareLinksPage() {
           <label>
             Link type
             <select className="bl-input" value={mode} onChange={(event) => setMode(event.target.value as "snippet" | "proxy")}>
-              <option value="proxy">Proxy (install-free)</option>
-              <option value="snippet">Snippet (installed on the site)</option>
+              <option value="proxy">Backline review (browser fallback available)</option>
+              <option value="snippet">Website tools (existing installation required)</option>
             </select>
           </label>
           <label>
@@ -199,28 +205,15 @@ export function ShareLinksPage() {
           </label>
           <label>
             Passcode <span className="bl-optional">Optional</span>
-            <input className="bl-input" value={passcode} onChange={(event) => setPasscode(event.target.value)} autoComplete="new-password" />
-          </label>
-          <label>
-            Allowed review domains <span className="bl-optional">Optional</span>
-            <input
-              className="bl-input"
-              placeholder="client.com, agency.com"
-              value={domainRestrictionsStr}
-              onChange={(event) => setDomainRestrictionsStr(event.target.value)}
-            />
-            <small>Comma-separated. The server enforces the reviewer's request origin or referrer.</small>
+            <input className="bl-input" minLength={4} maxLength={64} value={passcode} onChange={(event) => setPasscode(event.target.value)} autoComplete="new-password" />
+            <small>Use 4–64 characters and send the passcode separately.</small>
           </label>
           <label className="bl-setting-row compact">
             <span className="bl-setting-copy"><strong>Ask reviewers for a name</strong><span>Required before their first comment.</span></span>
             <input className="bl-switch-input" type="checkbox" checked={askReviewerName} onChange={(event) => setAskReviewerName(event.target.checked)} />
             <span className="bl-switch" aria-hidden="true"><i /></span>
           </label>
-          <label className="bl-setting-row compact">
-            <span className="bl-setting-copy"><strong>Allow comment export</strong><span>Guests may download the project's client-visible comment export.</span></span>
-            <input className="bl-switch-input" type="checkbox" checked={commentExportPermission} onChange={(event) => setCommentExportPermission(event.target.checked)} />
-            <span className="bl-switch" aria-hidden="true"><i /></span>
-          </label>
+          <p className="bl-policy-note">Email-domain verification and guest export are not available. Use a passcode to protect this review link.</p>
           {createMutation.isError && (
             <p role="alert" className="bl-error">
               {createMutation.error instanceof Error ? createMutation.error.message : "Could not create share link."}

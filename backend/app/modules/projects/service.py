@@ -391,14 +391,29 @@ async def update_project(
         workspace_id, patch["client_id"]
     ):
         raise ValidationError("Client must belong to this workspace and be active.")
-    await repo.update_metadata(workspace_id, project_id, patch)
+    settings_patch = {
+        key: value
+        for key, value in (patch.pop("settings", None) or {}).items()
+        if value is not None
+    }
+    # One document mutation: invalid metadata/client never leaves settings partly
+    # saved. Dot paths preserve unrelated settings during concurrent changes.
+    await repo.update_metadata(
+        workspace_id,
+        project_id,
+        {**patch, **{f"settings_json.{key}": value for key, value in settings_patch.items()}},
+    )
     await append_event(
         db,
         workspace_id=workspace_id,
         type=project_events.PROJECT_UPDATED,
         actor_type="member",
         actor_id=actor_user_id,
-        payload={"project_id": project_id, **patch},
+        payload={
+            "project_id": project_id,
+            **patch,
+            **({"settings": settings_patch} if settings_patch else {}),
+        },
     )
 
     # Deferred import: integrations/service.py imports ProjectRepository from this
@@ -480,7 +495,7 @@ async def update_project_settings(
     managed by separate code paths and must not be cleared here.
     """
     existing = await get_project(db, project_id=project_id, workspace_id=workspace_id)
-    patch = settings.model_dump(exclude_unset=True)
+    patch = settings.model_dump(exclude_unset=True, exclude_none=True)
     if not patch:
         return existing.settings
 

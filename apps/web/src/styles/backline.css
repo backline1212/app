@@ -2962,3 +2962,16 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-review-browser-help > div { flex: 1; min-width: 220px; }
 .bl-review-browser-help p { margin: 4px 0 0; font-size: 12px; }
 .bl-review-browser-help[role="alert"] { border-left: 3px solid currentColor; }
+.bl-browser-flow { padding: 8px 24px 20px; line-height: 1.6; }
+.bl-browser-flow label { display: grid; gap: 6px; margin: 12px 0; }
+.bl-browser-flow small { display: block; margin-top: 8px; color: var(--bl-muted); overflow-wrap: anywhere; }
+.bl-browser-flow ol:not(.bl-review-steps) { padding-left: 22px; }
+.bl-browser-flow li + li { margin-top: 8px; }
+.bl-review-steps { display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 12px 0; margin: 0 0 16px; list-style-position: inside; border-bottom: 1px solid var(--bl-line); color: var(--bl-muted); font-size: 12px; }
+.bl-review-steps li + li { margin-top: 0; }
+.bl-review-steps [aria-current="step"] { color: var(--bl-ink); font-weight: 700; }
+.bl-review-question { border: 1px solid var(--bl-line); border-radius: 6px; padding: 14px; margin: 0 0 14px; }
+.bl-review-question legend { padding: 0 6px; font-weight: 600; }
+.bl-review-question label { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; }
+.bl-setup-checklist { margin: 14px 0; padding-left: 22px; line-height: 1.7; }
+@media (max-width: 480px) { .bl-browser-flow { padding: 8px 16px 16px; } .bl-browser-flow .bl-link-row { flex-wrap: wrap; } }

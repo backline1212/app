@@ -1,5 +1,41 @@
 # Delivery and verification ledger
 
+## 2026-10-19: Guided reviewer flow and sharing safeguards (TDR-0070)
+
+Implemented a website sign-in question, guided desktop extension setup/retry,
+acknowledged connection steps and return instructions. Extension 0.4.0 forwards
+HTTP errors and returns to the original matching portal tab, preserving tab-local
+guest identity when available. Launch excludes the originating Backline tab even
+when Backline itself is the target. Closing website tools and ending the guest
+identity are labelled distinctly.
+
+Guest recovery offers retry/rejoin without losing identity on transient failure.
+The new authenticated, rate-limited `/guest-sessions/current/end` action persists
+additive `ended_at`; shared access guards reject ended sessions. Leaving clears
+portal storage/cache after acknowledged exit. Board loading errors offer retry;
+permission loss hides previously loaded rows. Share-link/route changes guard late
+join/leave completions.
+
+Share dialogs/manager/project preview distinguish active, expired and revoked
+links and recheck before copying. Creation advises a real first review before
+sharing. New links cannot enable unavailable verified domain/export options;
+legacy filters/flags remain readable and explicitly labelled, with replacement
+guidance. New expiries require a timezone/future instant. Project edits use one
+scoped document mutation for metadata/settings; null settings are ignored without
+clearing unrelated keys. Cross-browser capture is visibly unavailable while the
+server isolation gate remains disabled. See [TDR-0070](../tdr/0070-guided-review-and-sharing.md).
+
+Verification passed: regenerated Pydantic OpenAPI/TypeScript contracts; final full
+frontend lint/typecheck/build passed 12/12 (nine cached), Ruff lint/format (218 files),
+strict mypy (201 files), workspace scoping (20 repositories) and `git diff --check`.
+The build retains its large-chunk advisory. Deployment evidence will follow.
+No test suite written/run. Browser control became available:
+Chrome opens Backline and reaches its signed-out login page; user sign-in was
+requested asynchronously. Actual extension setup/login/return and session lifecycle acceptance
+remain pending, as do CR-02/03, native panel parity, email receipt and isolated
+storage/concurrency tests. F15 legacy migration and F30 creation/event delivery are
+not declared closed.
+
 ## 2026-10-19: Proxy recovery, extension connection and evidence persistence
 
 User examples: Backline itself, YouTube and Notion, followed by an explicit request

@@ -143,6 +143,7 @@ class ProjectUpdate(BaseModel):
     environment: Environment | None = None
     client_id: str | None = None
     hero_url: str | None = None
+    settings: "ProjectSettingsUpdate | None" = None
 
     @field_validator("target_origin")
     @classmethod

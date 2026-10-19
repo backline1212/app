@@ -31,6 +31,11 @@ storage/concurrency acceptance. The extension's obsolete API default is fixed wi
 protocol/version checks and explicit proxy fallback in
 [TDR-0069](../tdr/0069-proxy-fallback-and-extension-connection.md). F14 has partial
 project binding/expiry/route constraints; remaining scope is explicit.
+The [guided UX follow-up](../tdr/0070-guided-review-and-sharing.md) repairs the
+metadata/settings split-save portion of F30 and improves F34 recovery/exit. New
+links reject F15's unavailable identity restriction/export options; legacy request
+filters remain labelled and are not verified identity, so migration/acceptance
+remain open. Guided extension setup and return do not close native capability limits.
 
 ## Result and evidence boundary
 

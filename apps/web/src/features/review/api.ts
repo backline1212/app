@@ -22,6 +22,18 @@ export function resolveShareLink(shareToken: string): Promise<ReviewResolveOut> 
   return apiFetch<ReviewResolveOut>(`/api/v1/review/${shareToken}`);
 }
 
+export async function endGuestSession(token: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/guest-sessions/current/end`, {
+    method: "POST", credentials: "omit", cache: "no-store",
+    headers: { "X-Guest-Session": token },
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(response.status, body?.error?.code ?? "GUEST_SESSION_ERROR",
+      body?.error?.message ?? "Could not end this review session.");
+  }
+}
+
 export function createGuestSession(
   shareToken: string,
   displayName: string,
@@ -42,10 +54,12 @@ export function createGuestSession(
 // assetRequest convention, and backend/tests/helpers.py's guest_headers fixture).
 export async function getGuestBoard(projectId: string, guestToken: string): Promise<GuestBoardOut> {
   const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/guest-board`, {
-    headers: { "X-Guest-Session": guestToken },
+    credentials: "omit", cache: "no-store", headers: { "X-Guest-Session": guestToken },
   });
   if (!response.ok) {
-    throw new Error("Could not load the board.");
+    const body = await response.json().catch(() => null);
+    throw new ApiError(response.status, body?.error?.code ?? "GUEST_BOARD_ERROR",
+      body?.error?.message ?? "Could not load the board. Try again.");
   }
   return response.json() as Promise<GuestBoardOut>;
 }

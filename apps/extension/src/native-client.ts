@@ -1,9 +1,13 @@
 import type { ApiClient } from "@backline/widget";
 import { DASHBOARD_BASE_URL } from "./lib/config";
 
+class NativeMessageError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
+
 export async function nativeMessage<T>(type: string, fields: Record<string, unknown> = {}): Promise<T> {
   const result = await chrome.runtime.sendMessage({ type, ...fields });
-  if (!result?.ok) throw new Error(result?.error ?? "Reload this page to reconnect Backline.");
+  if (!result?.ok) throw new NativeMessageError(result?.error ?? "Reload this page to reconnect Backline.", Number(result?.status) || 0);
   return result.data as T;
 }
 
@@ -15,7 +19,7 @@ export function installDashboardBridge(): void {
     if (typeof id !== "string" || !["status", "launch"].includes(action)) return;
     void nativeMessage(`native-review-${action}`, { input }).then(
       data => window.postMessage({ source: "backline-extension", id, ok: true, data }, location.origin),
-      error => window.postMessage({ source: "backline-extension", id, ok: false, error: error.message }, location.origin),
+      error => window.postMessage({ source: "backline-extension", id, ok: false, error: error.message, status: error instanceof NativeMessageError ? error.status : 0 }, location.origin),
     );
   });
 }

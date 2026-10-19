@@ -10,6 +10,7 @@ import { uploadAsset } from "../assets/api";
 import { planLimitUpgrade } from "../billing/api";
 import { createClient, listClients } from "../clients/api";
 import { listShareLinks } from "../share-links/api";
+import { reviewLinkState } from "../share-links/link-state";
 import { listMembers } from "../workspaces/api";
 import type { WorkspaceOut } from "../workspaces/api";
 import { ProjectAccessFields } from "./access/ProjectAccessFields";
@@ -104,9 +105,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [captureDeviceDetails, setCaptureDeviceDetails] = useState(project?.settings.capture_device_details ?? false);
   const [reviewerCanResolve, setReviewerCanResolve] = useState(project?.settings.reviewer_can_resolve ?? false);
   const [showBoardToClient, setShowBoardToClient] = useState(project?.settings.show_board_to_client ?? false);
-  const [enableCrossBrowserRender, setEnableCrossBrowserRender] = useState(
-    project?.settings.enable_cross_browser_render ?? false,
-  );
+  const enableCrossBrowserRender = project?.settings.enable_cross_browser_render ?? false;
   const [newClientName, setNewClientName] = useState("");
   const [newClientContact, setNewClientContact] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
@@ -159,13 +158,13 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         await cache.invalidateQueries({ queryKey: qk.clients(workspace.id) });
       }
       if (project) {
-        await api.updateProjectSettings(project.id, {
+        const settings = {
           capture_device_details: captureDeviceDetails,
           reviewer_can_resolve: reviewerCanResolve,
           show_board_to_client: showBoardToClient,
           enable_cross_browser_render: enableCrossBrowserRender,
-        });
-        return api.updateProject(project.id, { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId || null });
+        };
+        return api.updateProject(project.id, { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId || null, settings });
       }
       const members = Object.entries(grants).map(([user_id, role]) => ({ user_id, role }));
       const current = created ?? await api.createProject(workspace.id, name.trim(), type === "website" ? url.trim() : "", { project_type: type, environment, client_id: clientId || null, visibility, default_role: defaultRole, members });
@@ -175,7 +174,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         if (!uploaded.includes(key)) { await uploadAsset(current.id, file); setUploaded((old) => [...old, key]); }
       }
       const links = await listShareLinks(current.id).catch(() => []);
-      const active = links.find((item) => !item.revoked_at);
+      const active = links.find((item) => reviewLinkState(item) === "active");
       setLink(active ? `${window.location.origin}/review/${active.token}` : "");
       return current;
     },
@@ -195,8 +194,11 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         <div className="bl-project-success">
           <span className="bl-success-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5" /></svg></span>
           <p className="bl-dialog-kicker">{created.name}{selectedClient ? ` · ${selectedClient.name}` : ""}</p>
-          <h3>Ready for feedback</h3>
-          <p>Send the review link to your client. Public sites work without an install; signed-in sites offer Browser review after a one-time extension setup.</p>
+          <h3>{type === "website" ? "Your project is saved. Try the review first." : "Your files are ready for review."}</h3>
+          {type === "website" ? <>
+            <p>Check the page before sharing it with your client. Creating a project doesn't verify the website's loading or sign-in.</p>
+            <ol className="bl-setup-checklist"><li>Open the project and check the website loads.</li><li>If it asks for sign-in or doesn't load, choose Open with extension and sign in on the real website.</li><li>Save a first comment, confirm it appears in Backline, then send the review link.</li></ol>
+          </> : <p>Open the project to check the uploaded files, then share the review link.</p>}
           {link ? (
             <div className="bl-link-row">
               <input className="bl-input bl-mono" aria-label="Review link" readOnly value={link} onFocus={(event) => event.target.select()} />
@@ -205,7 +207,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           ) : <p className="bl-inline-warning">The project was created, but its review link could not be loaded. Open the project and use Share to retrieve it.</p>}
           {copyError && <p role="alert" className="bl-error">{copyError}</p>}
           <p className="bl-policy-note">Reviewers are asked for a name before their first comment on the default link.</p>
-          <footer className="bl-dialog-actions"><button type="button" className="bl-quiet" onClick={onClose}>Done</button><Link className="bl-button mint" to={`/w/${workspace.slug}/p/${created.id}`}>Open project</Link></footer>
+          <footer className="bl-dialog-actions"><button type="button" className="bl-quiet" onClick={onClose}>Done</button><Link className="bl-button mint" to={`/w/${workspace.slug}/p/${created.id}`} onClick={onClose}>{type === "website" ? "Open and check review" : "Open project"}</Link></footer>
         </div>
       </Dialog>
     );
@@ -263,7 +265,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           {clients.isLoading ? <div className="bl-input bl-input-loading" role="status">Loading clients…</div> : clients.isError ? <div className="bl-inline-error" role="alert"><span>Clients could not load.</span><button type="button" onClick={() => clients.refetch()}>Try again</button></div> : (
             <select id="project-client" className="bl-input" value={client} onChange={(event) => setClient(event.target.value)} disabled={Boolean(created) || save.isPending}><option value="">No client — internal work</option>{clients.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="new">＋ Add a new client</option></select>
           )}
-          <small>The project appears with this client, while access remains controlled by its review link.</small>
+          <small>This groups the project under a client. Team access is managed below; guest access uses its review link.</small>
         </div>
 
         {client === "new" && <div className="bl-new-client-fields"><label>Client name<input className="bl-input" required maxLength={200} placeholder="Sarvam AI" value={newClientName} onChange={(event) => setNewClientName(event.target.value)} disabled={Boolean(created) || save.isPending} /></label><div className="bl-two-fields"><label>Main contact<input className="bl-input" maxLength={200} placeholder="Ravi Kulkarni" value={newClientContact} onChange={(event) => setNewClientContact(event.target.value)} disabled={Boolean(created) || save.isPending} /></label><label>Their email<input className="bl-input" type="email" placeholder="ravi@client.com" value={newClientEmail} onChange={(event) => setNewClientEmail(event.target.value)} disabled={Boolean(created) || save.isPending} /></label></div></div>}
@@ -312,7 +314,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           {fileError && <p role="alert" className="bl-error">{fileError}</p>}{uploaded.length > 0 && <p className="bl-mono">{uploaded.length} of {files.length} uploaded</p>}
         </div> : null}
 
-        {project && <fieldset className="bl-review-settings"><legend>Review settings</legend><SettingRow checked={captureDeviceDetails} onChange={setCaptureDeviceDetails} label="Capture browser and device details" description="Attaches OS, viewport and the element selector to every new comment." /><SettingStatusRow label="Automatic anchor recovery" description="Recovery runs for every new revision. The legacy per-project toggle is retained for compatibility but is not an active control." status="Always on" /><SettingRow checked={reviewerCanResolve} onChange={setReviewerCanResolve} label="Let reviewers resolve their own comments" description="Off means only your team can move a guest comment to Resolved." /><SettingRow checked={showBoardToClient} onChange={setShowBoardToClient} label="Show the ticket board to this client" description="Off hides due dates, assignees and the board from guest reviewers." /><SettingRow checked={enableCrossBrowserRender} onChange={setEnableCrossBrowserRender} label="Render real cross-browser screenshots" description="Lets the footer's Capture As dropdown request a real Chromium/WebKit/Firefox screenshot instead of just tagging the browser name. Each render costs worker time, so it's off by default." /><SettingStatusRow label="Client email digest" description="Client digest delivery has no approved recipient, privacy, or scheduling contract and cannot be enabled." status="Not available" /></fieldset>}
+        {project && <fieldset className="bl-review-settings"><legend>Review settings</legend><SettingRow checked={captureDeviceDetails} onChange={setCaptureDeviceDetails} label="Capture browser and device details" description="Saves browser, OS, device and viewport details with new comments. Page URLs and element anchors are saved either way." /><SettingStatusRow label="Automatic anchor recovery" description="Recovery runs for every new revision. The legacy per-project toggle is retained for compatibility but is not an active control." status="Always on" /><SettingRow checked={reviewerCanResolve} onChange={setReviewerCanResolve} label="Let reviewers resolve their own comments" description="Off means only your team can move a guest comment to Resolved." /><SettingRow checked={showBoardToClient} onChange={setShowBoardToClient} label="Show the ticket board to this client" description="Off hides due dates, assignees and the board from guest reviewers." /><SettingStatusRow label="Cross-browser screenshot captures" status="Unavailable" description="Server capture is currently disabled. Resizing the Backline canvas changes the viewport; it does not test another browser engine." /><SettingStatusRow label="Client email digest" description="Client digest delivery has no approved recipient, privacy, or scheduling contract and cannot be enabled." status="Not available" /></fieldset>}
 
         </fieldset>
         {phase === "saving" && <p role="status">{files.length ? `${uploaded.length} of ${files.length} files uploaded. Processing remaining files…` : "Saving project…"}</p>}
