@@ -1,5 +1,108 @@
 # Delivery and verification ledger
 
+## 2026-10-19: Production rollout preflight and email reliability (TDR-0067)
+
+Fixed F11's false-success/logged-OTP fallback: only explicit local mode without a
+provider uses inbox logs. Production and configured-provider failures return a
+standard delivery error, with provider exception classes only in logs.
+
+Preflight found Railway API on `52f611b`, worker on `311ddf5`, cloud-login on
+`1eba944`: API watched only widget paths; worker watched only extension paths.
+Added a checked-in build-input manifest and read-only-first PowerShell repair
+command. Dry-run confirmed all three requested changes; no database writes.
+
+Read-only production identity inventory: nine accounts require initial inbox
+proof, zero existing passwords to retire, twelve unrevoked refresh records, four
+extension tokens, zero MCP tokens. Member IDs and review data are preserved.
+Apps Script/Resend/Google are configured; Resend domain listing returned 401 and
+Apps Script GET reachability does not prove mail delivery. Actual code receipt
+remains an acceptance item. Local browser control is disabled in Work settings.
+
+Verification: full frontend lint/typecheck/build passed 12/12 (cached unchanged
+frontend inputs); backend Ruff lint and format (214 files), strict mypy (198 files)
+and workspace scoping (20 repositories) passed. `git diff --check` passed. No test
+suite written/run. Deployment IDs, live checks and remaining blockers will be
+recorded after rollout, without treating these preflight checks as live acceptance.
+
+## 2026-10-19: Guest recovery and review lifetime (TDR-0066)
+
+Added a no-store, guest-authenticated current-session endpoint using shared live
+policy, and exact share-link identity/return metadata in public resolution. Portal
+and widget validate stored/handoff identity before reuse, clear invalid cache entries,
+tolerate unavailable storage, and preserve identity on transient failures. Member
+identity is never silently downgraded to a guest.
+
+The portal monitors active guest sessions, cancels/removes old guest-token query
+data on access loss, returns to a clear rejoin gate and resets state on review-link
+navigation. This covers its website choice, guest board and image/PDF flows. The
+widget ends its client/listeners/route polling/region capture and clears protected
+UI on authorization loss, with a visible return/dismiss notice. Reconnects detect
+expired tokens and stop retrying revoked sessions. Shared transport type boundaries
+remain compatible with the extension. See [TDR-0066](../tdr/0066-guest-session-recovery.md).
+
+**Verification passed:** Pydantic OpenAPI/types regenerated; backend Ruff
+lint/format (214 files), strict mypy (198 source files) and workspace-scoping lint
+(20 repository files) passed. The frontend check found shared transport types that
+required the new concrete widget `close` method; narrowed capture helper and extension
+context types to their actual request/upload contract. Full
+`pnpm turbo run lint typecheck build` passed all 12 tasks after that correction
+(five cached). SDK output is 64.46 kB / 21.26 kB gzip. `git diff --check` passed with
+only existing LF/CRLF conversion notices. No new test suite, live database/browser/provider
+acceptance, data migration, deployment, commit or push in this increment.
+
+**Still open:** all live acceptance groups, CR-01 upload registry (F03), general
+tool credential lifecycle (F14), domain ownership (F15), snapshot durability (F22)
+and actual server-browser isolation. F01/F34 have source repairs requiring real
+identity/guest recovery verification. CR-02..06, including new installation and
+safe launch/login return, are not completed by these changes. Legacy URL bearers
+(F20) are still present until CR-03 replaces that handoff.
+
+## 2026-10-19: Verified member identities and server capture gate (TDR-0064/0065)
+
+Implemented a further CR-01 increment. Signup now returns an emailed-code challenge
+(HTTP 202); `/auth/signup/verify` consumes its signup-purpose OTP and conditionally
+activates the password identity before issuing a session. The login page includes
+verification/resend/cancel, keeps the password in tab memory and supports existing
+code/Google recovery. No account/password/session is created by the initial request.
+Pydantic/OpenAPI/types have been regenerated for the changed signup contract.
+
+First explicit code/Google proof on a legacy account retires its old password. JWT
+families, refresh, extension/MCP tokens and member canvas sessions enforce an explicit
+verification marker and reject credentials originating before proof. Account IDs,
+memberships and feedback remain stored. Canvas session reuse excludes obsolete
+records. Email changes record new proof and sign out old sessions with clear UI.
+A read-only aggregate rollout inventory script is added; it has not been run against
+a live/shared database and never marks historical accounts verified.
+
+**Rollout behavior:** old members must verify once with an email code or Google and
+reconnect older tools. Backend and frontend must deploy together; verify actual email
+delivery before promotion. See [TDR-0064](../tdr/0064-verified-email-identities.md).
+
+Added operator-only `SERVER_BROWSER_ENABLED=false` to environment examples and the
+settings default. Unisolated environments reject fresh server render/manual preview
+requests, skip automatic preview queuing and fail queued render/preview execution
+before browser launch. The legacy cloud-login ticket/execution follows the gate.
+Saved previews remain readable; user-browser review stays available. Preview errors
+now surface the API's unavailable reason. This mitigates F09 but does not implement
+network isolation; only enable after [TDR-0065](../tdr/0065-server-browser-isolation-gate.md)'s
+infrastructure acceptance. No infrastructure purchase/change is performed.
+
+**Verification:** full backend Ruff lint/format passed (214 files), mypy passed
+(198 source files), and workspace-scoping lint passed (20 repository files).
+Generated contracts succeeded. Full frontend lint/typecheck/build passed 12/12
+(five cached); the final preview-error-message follow-up passed web-only lint,
+typecheck and build (3/3). Guest-recovery follow-up verification is recorded above.
+No automated suites are written or run per
+the Codex repository instruction. No shared database changes, migration, deployment,
+commit or push in this increment.
+
+**Open:** live signup/invited/pre-registered account/code/Google recovery, credential
+cutoff and ordinary-guest regressions; actual isolated browser-worker egress;
+F03 upload registry/type/existence, F14 general tool credential lifecycle, F15 domain
+ownership, F22 snapshot durability and F34 guest cache/rejoin. CR-01 remains open;
+CR-02 installation and CR-03 launch/login handoff are next, followed by panel parity,
+portal reproduction and MCP verification. All CR-A groups still require live evidence.
+
 ## 2026-10-19: Validation recovered; refresh and OTP concurrency (TDR-0063)
 
 Local command execution recovered. Re-exported OpenAPI from the backend and

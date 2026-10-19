@@ -15,6 +15,14 @@ Google sign-in state protection is the subsequent CR-01 increment in
 The next auth increment adds cross-tab refresh serialization where Web Locks are
 supported, startup restore race protection and atomic OTP verification
 ([TDR-0063](../tdr/0063-auth-concurrency.md)). These remain live acceptance items.
+CR-01 now also has the verified-signup/legacy recovery source changes in
+[TDR-0064](../tdr/0064-verified-email-identities.md) and default-off server-browser
+mitigation in [TDR-0065](../tdr/0065-server-browser-isolation-gate.md). These require
+coordinated frontend/backend rollout and verified email delivery; F09 still needs
+an isolated worker deployment before optional server captures can be enabled.
+Guest session recovery and installed-widget teardown are implemented in source in
+[TDR-0066](../tdr/0066-guest-session-recovery.md), awaiting live acceptance. The legacy
+URL bearer handoff is still scheduled for replacement in CR-03.
 
 ## 1. Release boundary and product contract
 

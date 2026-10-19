@@ -112,6 +112,7 @@ class GuestSessionRepository:
         email: str | None,
         ua_fingerprint: str,
         member_user_id: str | None = None,
+        member_authenticated_at: datetime | None = None,
     ) -> dict[str, Any]:
         now = datetime.now(UTC)
         doc: dict[str, Any] = {
@@ -125,6 +126,7 @@ class GuestSessionRepository:
         }
         if member_user_id is not None:
             doc["member_user_id"] = member_user_id
+            doc["member_authenticated_at"] = member_authenticated_at
         result = await self.db.guest_sessions.insert_one(doc)
         doc["_id"] = result.inserted_id
         return doc
@@ -139,7 +141,12 @@ class GuestSessionRepository:
         return await self.db.guest_sessions.find_one({"_id": oid})
 
     async def find_for_member(
-        self, *, workspace_id: str, share_link_id: str, member_user_id: str
+        self,
+        *,
+        workspace_id: str,
+        share_link_id: str,
+        member_user_id: str,
+        verified_after: datetime,
     ) -> dict[str, Any] | None:
         """A member's canvas session on this link, reused rather than minting one per
         visit (TDR-0057)."""
@@ -148,6 +155,7 @@ class GuestSessionRepository:
                 "workspace_id": workspace_id,
                 "share_link_id": share_link_id,
                 "member_user_id": member_user_id,
+                "member_authenticated_at": {"$gte": verified_after},
             }
         )
 

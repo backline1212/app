@@ -6,6 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.errors import PermissionDeniedError
 from app.core.project_access import load_project_for
 from app.core.session import Actor, GuestSession, Session
+from app.core.verified_identity import require_verified_identity
 from app.modules.projects import service as project_service
 from app.modules.share_links.repository import (
     GuestSessionRepository,
@@ -28,6 +29,12 @@ async def _check_canvas_member(
     session minted any other way - is refused outright."""
     if guest.member_user_id is None:
         raise PermissionDeniedError("This link only opens inside the Backline dashboard.")
+    guest_doc = await GuestSessionRepository(db).find_by_id(guest.guest_session_id)
+    await require_verified_identity(
+        db,
+        guest.member_user_id,
+        issued_at=guest_doc.get("member_authenticated_at", False) if guest_doc else False,
+    )
     membership = await MembershipRepository(db).find(
         workspace_id=link["workspace_id"], user_id=guest.member_user_id
     )

@@ -7,6 +7,8 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
+from app.core.actor_access import resolve_actor_project_access
+from app.core.config import get_settings
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.events import append_event
 from app.core.permissions import project_role_allows
@@ -14,7 +16,8 @@ from app.core.project_access import check_project_action
 from app.core.rate_limit import RateLimitedError
 from app.core.redis_client import get_redis
 from app.core.security import create_guest_token, generate_share_token, hash_secret
-from app.core.session import Session
+from app.core.session import GuestSession, Session
+from app.core.verified_identity import require_verified_identity
 from app.modules.auth.repository import UserRepository
 from app.modules.projects import service as project_service
 from app.modules.projects.repository import ProjectRepository
@@ -30,6 +33,7 @@ from app.modules.share_links.repository import (
 from app.modules.share_links.schemas import (
     CanvasSessionOut,
     GuestSessionOut,
+    GuestSessionStatusOut,
     ReviewResolveOut,
     ShareLinkOut,
 )
@@ -192,6 +196,7 @@ async def resolve_share_link(
         raise NotFoundError("Project not found.")
 
     return ReviewResolveOut(
+        share_link_id=str(link["_id"]),
         project_id=str(project["_id"]),
         project_name=project["name"],
         project_type=project.get("project_type", "website"),
@@ -202,6 +207,9 @@ async def resolve_share_link(
         show_board_to_client=project.get("settings_json", {}).get("show_board_to_client", False),
         preview_origin=_preview_origin(link),
         canvas_only=is_canvas_link(link),
+        review_url=f"{get_settings().public_dashboard_base_url.rstrip('/')}/"
+        if is_canvas_link(link)
+        else f"{get_settings().public_dashboard_base_url.rstrip('/')}/review/{token}",
     )
 
 
@@ -298,6 +306,27 @@ async def get_or_create_canvas_link(
         return raced
 
 
+async def get_guest_session_status(
+    db: AsyncIOMotorDatabase[dict[str, Any]], guest: GuestSession
+) -> GuestSessionStatusOut:
+    link = await ShareLinkRepository(db).find_by_id(guest.share_link_id)
+    if link is None:
+        raise NotFoundError("This review session no longer exists. Rejoin the review link.")
+    await resolve_actor_project_access(db, guest, link["project_id"])
+    doc = await GuestSessionRepository(db).find_by_id(guest.guest_session_id)
+    if doc is None:
+        raise NotFoundError("This review session no longer exists. Rejoin the review link.")
+    dashboard = get_settings().public_dashboard_base_url.rstrip("/")
+    member_bound = guest.member_user_id is not None
+    return GuestSessionStatusOut(
+        project_id=link["project_id"],
+        share_link_id=guest.share_link_id,
+        display_name=doc["display_name"],
+        member_bound=member_bound,
+        review_url=f"{dashboard}/" if member_bound else f"{dashboard}/review/{link['token']}",
+    )
+
+
 async def create_canvas_session(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
@@ -323,12 +352,18 @@ async def create_canvas_session(
         db, workspace_id=workspace_id, project_id=project_id, actor_user_id=session.user_id
     )
     user = await UserRepository(db).find_by_id(session.user_id)
+    if user is None or not user.get("email_verified_at"):
+        raise PermissionDeniedError("Verify your email before opening member review.")
+    await require_verified_identity(db, session.user_id, issued_at=session.authenticated_at)
     display_name = ((user or {}).get("name") or (user or {}).get("email") or "Team member")[:100]
 
     guests = GuestSessionRepository(db)
     link_id = str(link["_id"])
     guest = await guests.find_for_member(
-        workspace_id=workspace_id, share_link_id=link_id, member_user_id=session.user_id
+        workspace_id=workspace_id,
+        share_link_id=link_id,
+        member_user_id=session.user_id,
+        verified_after=user["email_verified_at"],
     )
     if guest is None:
         guest = await guests.create(
@@ -338,6 +373,7 @@ async def create_canvas_session(
             email=None,
             ua_fingerprint=ua_fingerprint,
             member_user_id=session.user_id,
+            member_authenticated_at=session.authenticated_at,
         )
     elif guest["display_name"] != display_name:
         await guests.set_display_name(

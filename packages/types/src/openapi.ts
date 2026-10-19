@@ -47,12 +47,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Signup
-         * @description Creates an account with a password and signs it straight in - the member never
-         *     has to go and log in again with credentials they just chose.
-         */
+        /** Signup */
         post: operations["signup_api_v1_auth_signup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/signup/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Signup Verify */
+        post: operations["signup_verify_api_v1_auth_signup_verify_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1088,6 +1101,23 @@ export interface paths {
         };
         /** Resolve Share Link */
         get: operations["resolve_share_link_api_v1_review__share_token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/guest-sessions/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Guest Session Status */
+        get: operations["guest_session_status_api_v1_guest_sessions_current_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3211,6 +3241,19 @@ export interface components {
             /** Display Name */
             display_name: string;
         };
+        /** GuestSessionStatusOut */
+        GuestSessionStatusOut: {
+            /** Project Id */
+            project_id: string;
+            /** Share Link Id */
+            share_link_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Member Bound */
+            member_bound: boolean;
+            /** Review Url */
+            review_url: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -4351,6 +4394,8 @@ export interface components {
         };
         /** ReviewResolveOut */
         ReviewResolveOut: {
+            /** Share Link Id */
+            share_link_id: string;
             /**
              * Project Type
              * @default website
@@ -4386,6 +4431,8 @@ export interface components {
              * @default false
              */
             canvas_only: boolean;
+            /** Review Url */
+            review_url: string;
         };
         /** RevisionChangeSummary */
         RevisionChangeSummary: {
@@ -4613,11 +4660,17 @@ export interface components {
             /** Preview Origin */
             preview_origin?: string | null;
         };
+        /** SignupChallengeOut */
+        SignupChallengeOut: {
+            /** Email */
+            email: string;
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+        };
         /**
          * SignupRequest
-         * @description 13-Authentication.md §13.2a. The length bounds live here so an over-long or
-         *     obviously too-short password is rejected before it ever reaches scrypt; the rest of
-         *     the policy (content, not shape) is service-side in _validate_new_password.
+         * @description Signup draft, validated before sending a code; grants no account/session.
+         *     The password remains in the tab and is submitted again with the inbox proof.
          */
         SignupRequest: {
             /** Name */
@@ -4629,6 +4682,20 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** SignupVerifyRequest */
+        SignupVerifyRequest: {
+            /** Name */
+            name: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Password */
+            password: string;
+            /** Code */
+            code: string;
         };
         /** SlackIntegrationCreate */
         SlackIntegrationCreate: {
@@ -5209,6 +5276,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SignupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupChallengeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    signup_verify_api_v1_auth_signup_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupVerifyRequest"];
             };
         };
         responses: {
@@ -7479,6 +7579,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReviewResolveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    guest_session_status_api_v1_guest_sessions_current_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-guest-session"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestSessionStatusOut"];
                 };
             };
             /** @description Validation Error */

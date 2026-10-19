@@ -1,4 +1,4 @@
-import { nativeFetch, type createApiClient } from "./api-client";
+import { nativeFetch, type ApiClient } from "./api-client";
 
 interface UploadResponse {
   upload_url: string;
@@ -10,7 +10,7 @@ interface StoredUploadResponse {
 }
 
 async function uploadThroughApi(
-  api: ReturnType<typeof createApiClient>,
+  api: ApiClient,
   projectId: string,
   body: Blob,
   filename: string,
@@ -27,7 +27,7 @@ async function uploadThroughApi(
 }
 
 export async function uploadScreenshot(
-  api: ReturnType<typeof createApiClient>,
+  api: ApiClient,
   projectId: string,
   blob: Blob,
 ): Promise<string | null> {
@@ -60,7 +60,7 @@ export async function uploadScreenshot(
 // uploadFile callback expects, or null on failure (the
 // caller removes the attachment's chip when this happens).
 export async function uploadAttachment(
-  api: ReturnType<typeof createApiClient>,
+  api: ApiClient,
   projectId: string,
   file: File,
 ): Promise<{ key: string; filename: string; content_type: string } | null> {

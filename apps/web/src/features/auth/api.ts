@@ -1,10 +1,12 @@
 import type { Schemas } from "@backline/types";
 
 import { apiFetch, refreshSession as refreshApiSession } from "../../lib/api-client";
+import { setAccessToken } from "../../lib/auth-token";
 
 export type UserOut = Schemas["UserOut"];
 export type TokenPairOut = Schemas["TokenPairOut"];
 export type AccessTokenOut = Schemas["AccessTokenOut"];
+export type SignupChallengeOut = Schemas["SignupChallengeOut"];
 
 export function requestOtp(email: string): Promise<void> {
   return apiFetch<void>("/api/v1/auth/otp/request", {
@@ -20,10 +22,17 @@ export function verifyOtp(email: string, code: string): Promise<TokenPairOut> {
   });
 }
 
-export function signup(name: string, email: string, password: string): Promise<TokenPairOut> {
-  return apiFetch<TokenPairOut>("/api/v1/auth/signup", {
+export function signup(name: string, email: string, password: string): Promise<SignupChallengeOut> {
+  return apiFetch<SignupChallengeOut>("/api/v1/auth/signup", {
     method: "POST",
     body: JSON.stringify({ name, email, password }),
+  });
+}
+
+export function verifySignup(name: string, email: string, password: string, code: string): Promise<TokenPairOut> {
+  return apiFetch<TokenPairOut>("/api/v1/auth/signup/verify", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password, code }),
   });
 }
 
@@ -109,9 +118,11 @@ export function requestEmailChange(email: string, password: string | null): Prom
   });
 }
 
-export function confirmEmailChange(email: string, code: string): Promise<UserOut> {
-  return apiFetch<UserOut>("/api/v1/auth/me/email/confirm", {
+export async function confirmEmailChange(email: string, code: string): Promise<UserOut> {
+  const result = await apiFetch<UserOut>("/api/v1/auth/me/email/confirm", {
     method: "POST",
     body: JSON.stringify({ email, code }),
   });
+  setAccessToken(null);
+  return result;
 }

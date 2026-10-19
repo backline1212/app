@@ -47,6 +47,7 @@ export const qk = {
   assetComments: (pageId: string | undefined) => ["asset-comments", pageId] as const,
   review: (shareToken: string) => ["review", shareToken] as const,
   guestBoard: (projectId: string, guestToken: string) => ["guest-board", projectId, guestToken] as const,
+  guestSession: (guestToken: string) => ["guest-session", guestToken] as const,
   notificationsUnread: () => ["notifications", "unread-count"] as const,
   notificationsList: () => ["notifications", "list"] as const,
   billingPlans: (workspaceId: string) => ["workspace", workspaceId, "billing", "plans"] as const,

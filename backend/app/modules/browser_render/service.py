@@ -8,7 +8,9 @@ if TYPE_CHECKING:
     from playwright.async_api import Route
 
 from app.core.arq_pool import get_arq_pool
+from app.core.config import get_settings
 from app.core.errors import NotFoundError, ValidationError
+from app.core.server_browser import UNAVAILABLE_MESSAGE, require_server_browser
 from app.core.ssrf_guard import assert_safe_to_fetch
 from app.modules.browser_render.repository import BrowserRenderRepository
 from app.modules.browser_render.schemas import (
@@ -37,10 +39,9 @@ async def _guard_document_navigation(route: "Route") -> None:
     httpx redirect loop does (A4's SSRF fix). route() is that hook: every request the
     page makes - including each redirect hop of the top-level navigation, since a
     redirect target is itself a new intercepted request - passes through here first.
-    Only "document" requests (the navigating frame, not subresources like images/XHR
-    the loaded page makes) are checked - the vulnerability is a page whose *own* URL
-    (or a redirect of it) resolves to an internal address once the browser actually
-    navigates there, not what that page subsequently fetches once safely loaded."""
+    This document-only hook is defense in depth. Subresources, browser DNS and other
+    protocols require worker network isolation; SERVER_BROWSER_ENABLED defaults off
+    until an operator provisions and verifies that boundary (TDR-0065)."""
     request = route.request
     if request.resource_type != "document":
         await route.continue_()
@@ -85,6 +86,7 @@ async def request_render(
     page_id: str,
     body: RenderRequest,
 ) -> RenderStatusOut:
+    require_server_browser()
     project = await project_service.get_project(
         db, project_id=project_id, workspace_id=workspace_id
     )
@@ -197,6 +199,9 @@ async def run_render(
     )
     if doc is None:
         return  # the queued record was superseded/removed; nothing left to report into
+    if not get_settings().server_browser_enabled:
+        await repo.mark_failed(doc_id=doc["_id"], error=UNAVAILABLE_MESSAGE)
+        return
 
     # SSRF guard: a page's URL isn't otherwise tied to its project's target_origin, and
     # this worker navigates a real headless browser to it - reject anything resolving to

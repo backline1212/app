@@ -15,6 +15,16 @@ The subsequent F02 Google callback state repair is documented in
 F12/F13 now also have source repairs in
 [TDR-0063](../tdr/0063-auth-concurrency.md); cross-tab/browser and database acceptance
 is still outstanding. Baseline descriptions below remain the original audit evidence.
+F01 now has a verified signup and legacy credential recovery repair in
+[TDR-0064](../tdr/0064-verified-email-identities.md). F09 has the default-off execution
+gate in [TDR-0065](../tdr/0065-server-browser-isolation-gate.md); network isolation
+itself remains unprovisioned/unverified. Neither is declared production-closed.
+F34's cache validation/rejoin and widget cleanup source changes are recorded in
+[TDR-0066](../tdr/0066-guest-session-recovery.md). Browser/guest regression evidence is
+still outstanding; the legacy URL handoff remains a separate CR-03/F20 issue.
+F11 now fails closed on production email-provider failure and avoids logging live
+message bodies; see [TDR-0067](../tdr/0067-email-delivery-and-deployment-consistency.md).
+Actual delivery/receipt and login acceptance are still open.
 
 ## Result and evidence boundary
 

@@ -41,6 +41,7 @@ export function wireRealtimeUpdates(
   threadManager: ThreadManager,
   ownCommentIds: Set<string>,
   onUnknownThread?: (record: CommentRecord) => void,
+  onAuthorizationLost?: () => void,
 ): () => void {
   let indicator: { dismiss: () => void, setStatus: (status: string) => void } | null = null;
   let closed = false;
@@ -92,7 +93,9 @@ export function wireRealtimeUpdates(
       }
     },
     (status) => {
-      if (status === "connected") {
+      if (status === "authorization-lost") {
+        onAuthorizationLost?.();
+      } else if (status === "connected") {
         if (indicator) {
           indicator.dismiss();
           indicator = null;

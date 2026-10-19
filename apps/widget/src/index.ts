@@ -2,7 +2,8 @@ import { createApiClient, WidgetApiError } from "./api-client";
 import { anchorPointFor, computeAnchor, waitForAnchorElement } from "./anchor";
 import { uploadAttachment, uploadScreenshot } from "./attachment-upload";
 import { connectDashboardStatusBridge } from "./dashboard-bridge";
-import { ensureGuestSession, requestDashboardCanvasSession, requestDashboardDisplayName } from "./guest-session";
+import { clearStoredGuestSession, ensureGuestSession, requestDashboardCanvasSession, requestDashboardDisplayName } from "./guest-session";
+import { showSessionNotice } from "./session-notice";
 import { registerCurrentPage, realPageUrl, submitPageSnapshot } from "./page-registration";
 import { wireRealtimeUpdates } from "./realtime";
 import { captureScreenshot } from "./screenshot";
@@ -20,6 +21,7 @@ import { setCardBottomInset } from "./ui-card";
 import { composerHasDraft, nudgeComposer } from "./ui-composer";
 import { parseUserAgent } from "./user-agent";
 import { setupRegionDrawer } from "./region-drawer";
+import type { Schemas } from "../../../packages/types/src/index";
 
 // "view" is the dashboard canvas for a member whose project role can't comment
 // (TDR-0056): pins and their cards behave as in Comment mode, but nothing opens a
@@ -50,10 +52,25 @@ async function init(config: BacklineConfig): Promise<void> {
   // request, not its value at construction time, so requests before/after that point
   // pick up the right header automatically.
   let guestToken: string | null = null;
+  let ended = false;
+  let reviewUrl: string | undefined;
+  const listenerLifetime = new AbortController();
+  const cleanup: Array<() => void> = [];
   const api = createApiClient(config.apiBaseUrl, () =>
     guestToken ? { "X-Guest-Session": guestToken } : ({} as Record<string, string>),
+    () => { if (guestToken) endSession(); },
   );
   const shadow = createShadowRoot();
+  function endSession(): void {
+    if (ended) return;
+    ended = true;
+    guestToken = null;
+    clearStoredGuestSession(config.shareToken);
+    api.close();
+    listenerLifetime.abort();
+    cleanup.forEach((stop) => stop());
+    showSessionNotice(shadow, "Your review session ended. Rejoin in Backline to continue.", reviewUrl);
+  }
 
   // The dashboard's own canvas preview (ProjectOverviewPage) toggles between "Browse"
   // (the site behaves normally - existing pins are still visible/clickable for
@@ -101,11 +118,11 @@ async function init(config: BacklineConfig): Promise<void> {
     if (typeof next !== "string" || !WIDGET_MODES.includes(next)) return;
     if (next === currentMode) return;
     applyMode(next as WidgetMode);
-  });
+  }, { signal: listenerLifetime.signal });
 
   // Connected this early for the same reason as the mode listener above: its question
   // to the dashboard is answered while the rest of init is still awaiting the API.
-  const statusUpdater = connectDashboardStatusBridge();
+  const statusUpdater = connectDashboardStatusBridge(listenerLifetime.signal);
 
   // The dashboard's BrowserMenu ("CAPTURE AS") lets a team member manually tag which
   // browser a comment should be recorded against, for QA scenarios where they can't
@@ -122,11 +139,12 @@ async function init(config: BacklineConfig): Promise<void> {
   // request body, so it's resolved once here via the public review-resolve endpoint -
   // first, since it also says whether this is the dashboard canvas's own link.
   const resolved = await withRetry(() =>
-    api.request<{ project_id: string; target_origin: string; canvas_only?: boolean }>(
+    api.request<Schemas["ReviewResolveOut"]>(
       `/api/v1/review/${config.shareToken}`,
     ),
   );
   const projectId = resolved.project_id;
+  reviewUrl = resolved.review_url;
 
   // blMode is only ever set by the dashboard's canvas iframe (see above). There the
   // dashboard hands over the signed-in member's own session (TDR-0057); the guest flow
@@ -142,8 +160,20 @@ async function init(config: BacklineConfig): Promise<void> {
     (await ensureGuestSession(api, config.shareToken, async () => {
       const dashboardName = blMode ? await requestDashboardDisplayName() : null;
       return dashboardName ?? promptForName(shadow);
+    }, resolved.share_link_id).catch((error: unknown) => {
+      showSessionNotice(shadow, error instanceof Error ? error.message : "Review could not start. Reopen your review link.", reviewUrl);
+      throw error;
     }));
   guestToken = guest.guestSessionToken;
+  const currentSession = await api.request<Schemas["GuestSessionStatusOut"]>("/api/v1/guest-sessions/current").catch((error: unknown) => {
+    if (error instanceof WidgetApiError && [401, 403, 404].includes(error.status)) endSession();
+    throw error;
+  });
+  if (currentSession.share_link_id !== resolved.share_link_id) {
+    endSession();
+    return;
+  }
+  reviewUrl = currentSession.review_url;
 
   const pageUrl = realPageUrl(config.shareToken, resolved.target_origin);
   // `let`: a single-page app's own route changes move this widget to another page
@@ -183,6 +213,7 @@ async function init(config: BacklineConfig): Promise<void> {
   // reasoning behind each piece. index.ts still owns the DOM events (clicks,
   // postMessage, websocket) that drive them.
   const threadManager = createThreadManager({ shadow, pagePath: currentPagePath, statusUpdater });
+  cleanup.push(() => threadManager.clearPage());
   const { threadMessages, pinsByTopId, trackPinPosition, openThreadForComment, attachPinClickHandler } =
     threadManager;
   const inDashboard = window.parent !== window;
@@ -252,6 +283,7 @@ async function init(config: BacklineConfig): Promise<void> {
       // Give the scroll (and position-tracker's own viewport re-check) a moment to
       // settle before opening the thread.
       setTimeout(() => {
+        if (ended) return;
         const pin = pinsByTopId.get(topId)?.pin;
         const point = anchorPointFor(element, anchor);
         const x = pin && pin.style.display !== "none" ? parseFloat(pin.style.left) : point.x;
@@ -259,7 +291,7 @@ async function init(config: BacklineConfig): Promise<void> {
         openThreadForComment(topId, x, y);
       }, 400);
     });
-  });
+  }, { signal: listenerLifetime.signal });
 
   // Tells the dashboard (if it's embedding this in the canvas iframe) which page is
   // currently loaded, so its Comments panel can offer "show comments on current page
@@ -300,7 +332,10 @@ async function init(config: BacklineConfig): Promise<void> {
     threadManager,
     ownCommentIds,
     loadThreadMadeVisible,
+    endSession,
   );
+  cleanup.push(() => stopRealtime());
+  if (ended) { stopRealtime(); return; }
 
   // Everything above this point is mode-independent (pins for existing comments,
   // realtime updates, scroll-to-comment) and stays wired in every mode. Only what
@@ -308,7 +343,9 @@ async function init(config: BacklineConfig): Promise<void> {
   // longer needs a reload: the region drawer is set up and torn down in place, and the
   // click handler below is attached once and checks the live mode.
   let regionTeardown: (() => void) | null = null;
+  cleanup.push(() => regionTeardown?.());
   applyMode = (next: WidgetMode) => {
+    if (ended) return;
     currentMode = next;
     showMode(next);
     regionTeardown?.();
@@ -378,6 +415,7 @@ async function init(config: BacklineConfig): Promise<void> {
       x: box.width * offsetPct.x,
       y: box.height * offsetPct.y,
     }));
+    cleanup.push(untrack);
 
     // M-08 idempotency: generated once per pin/composer, not inside the submit
     // callback, so posting again from the same composer after a failure (it stays
@@ -455,7 +493,7 @@ async function init(config: BacklineConfig): Promise<void> {
       (file) => uploadAttachment(api, projectId, file),
       composerDetails(),
     );
-  });
+  }, { signal: listenerLifetime.signal });
 
   // A single-page app navigates with history.pushState and never reloads this script,
   // so without this every comment after the first in-app navigation (signing in, say)
@@ -484,6 +522,7 @@ async function init(config: BacklineConfig): Promise<void> {
       threadManager,
       ownCommentIds,
       loadThreadMadeVisible,
+      endSession,
     );
     // The region drawer is bound to a page id when it's set up.
     if (currentMode === "draw") applyMode(currentMode);
@@ -493,7 +532,8 @@ async function init(config: BacklineConfig): Promise<void> {
     window.parent.postMessage({ type: "backline:page-registered", pageId }, "*");
     await submitPageSnapshot(api, pageId).catch(() => undefined);
   };
-  window.setInterval(() => {
+  const routePoll = window.setInterval(() => {
+    if (ended) return;
     const now = realPageUrl(config.shareToken, resolved.target_origin);
     if (now === seenUrl) return;
     seenUrl = now;
@@ -510,6 +550,7 @@ async function init(config: BacklineConfig): Promise<void> {
       });
     }, 400);
   }, 300);
+  cleanup.push(() => { clearInterval(routePoll); if (routeTimer) clearTimeout(routeTimer); });
 }
 
 declare global {
@@ -525,6 +566,11 @@ function safeInit(config: BacklineConfig): Promise<void> {
   return init(config).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[Backline] Commenting could not start:", error);
+    const roots = document.querySelectorAll("[data-backline-root]");
+    const shadow = roots[roots.length - 1]?.shadowRoot;
+    if (shadow && !shadow.querySelector("[data-backline-session-notice]")) {
+      showSessionNotice(shadow, message);
+    }
     if (window.parent !== window) {
       window.parent.postMessage({ type: "backline:widget-error", message }, "*");
     }

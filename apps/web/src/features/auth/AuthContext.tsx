@@ -7,7 +7,7 @@ import { getAccessToken, onAccessTokenChange, setAccessToken } from "../../lib/a
 import { decodeAccessToken } from "../../lib/jwt";
 import { qk } from "../../lib/query-keys";
 import * as authApi from "./api";
-import type { UserOut } from "./api";
+import type { SignupChallengeOut, UserOut } from "./api";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -17,7 +17,8 @@ interface AuthContextValue {
   workspaceId: string | null;
   role: string | null;
   featureFlags: Record<string, boolean>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<SignupChallengeOut>;
+  verifySignup: (name: string, email: string, password: string, code: string) => Promise<void>;
   loginWithPassword: (email: string, password: string) => Promise<void>;
   requestOtp: (email: string) => Promise<void>;
   verifyOtp: (email: string, code: string) => Promise<void>;
@@ -101,7 +102,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: payload?.role ?? null,
     featureFlags,
     async signup(name, email, password) {
-      const result = await authApi.signup(name, email, password);
+      return authApi.signup(name, email, password);
+    },
+    async verifySignup(name, email, password, code) {
+      const result = await authApi.verifySignup(name, email, password, code);
       setAccessToken(result.access_token);
       setUser(result.user);
       setStatus("authenticated");

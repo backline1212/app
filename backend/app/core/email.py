@@ -5,13 +5,13 @@ import httpx
 import resend
 
 from app.core.config import get_settings
+from app.core.errors import ExternalServiceError
 
 logger = logging.getLogger("backline.email")
 
 
 async def send_email(*, to: str, subject: str, html: str) -> None:
-    """Sends an email using either Google Apps Script Web App, Resend, or falls back
-    to logging the email in development/local environments."""
+    """Report success only after a provider accepts the email (except local mode)."""
     settings = get_settings()
 
     # Priority 1: Google Apps Script Web App (Staging fallback)
@@ -33,16 +33,15 @@ async def send_email(*, to: str, subject: str, html: str) -> None:
                 if res_data.get("status") != "success":
                     message = res_data.get("message", "Unknown error from Google Apps Script")
                     raise Exception(message)
-                logger.info("Successfully sent email via Google Apps Script to %s", to)
+                logger.info("Email accepted by Google Apps Script")
                 return
         except Exception as e:
             # Fall through to Resend (Priority 2) instead of re-raising - previously a
             # Google Apps Script outage took down all email (OTP codes, invites) even
             # when Resend was also configured, silently defeating the intended fallback
             # chain the "Priority 1/2/3" comments here describe.
-            logger.exception(
-                "Failed to send email via Google Apps Script to %s, falling back: %s", to, e
-            )
+            # Provider errors can include request bodies, tokens and inbox addresses.
+            logger.warning("Google Apps Script email failed (%s)", type(e).__name__)
 
     # Priority 2: Resend (Production standard)
     if settings.resend_api_key:
@@ -62,14 +61,14 @@ async def send_email(*, to: str, subject: str, html: str) -> None:
             await asyncio.to_thread(_send)
             return
         except Exception as e:
-            logger.exception("Failed to send email via Resend to %s: %s", to, e)
-            raise
+            logger.warning("Resend email failed (%s)", type(e).__name__)
+            raise ExternalServiceError(
+                "Email could not be sent. Please try again shortly."
+            ) from None
 
-    # Fallback: Local logging
-    logger.warning(
-        "Neither Google Apps Script URL nor RESEND_API_KEY set - logging email instead of "
-        "sending. to=%s subject=%s\n%s",
-        to,
-        subject,
-        html,
-    )
+    # An explicitly local environment may use inbox logs; never hide an actual
+    # configured-provider outage behind this development convenience.
+    if settings.environment == "local" and not settings.google_apps_script_url:
+        logger.warning("Local-only email preview: to=%s subject=%s\n%s", to, subject, html)
+        return
+    raise ExternalServiceError("Email is currently unavailable. Please try again shortly.")

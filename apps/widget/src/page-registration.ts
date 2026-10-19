@@ -1,4 +1,4 @@
-import type { createApiClient } from "./api-client";
+import type { ApiClient } from "./api-client";
 import { captureSnapshot } from "./dom-snapshot";
 
 interface RegisterPageResponse {
@@ -32,7 +32,7 @@ export function realPageUrl(shareToken: string, targetOrigin: string): string {
 }
 
 export async function registerCurrentPage(
-  api: ReturnType<typeof createApiClient>,
+  api: ApiClient,
   projectId: string,
   url: string,
 ): Promise<string> {
@@ -48,7 +48,7 @@ export async function registerCurrentPage(
 }
 
 export async function submitPageSnapshot(
-  api: ReturnType<typeof createApiClient>,
+  api: ApiClient,
   pageId: string,
 ): Promise<void> {
   const snapshot = await captureSnapshot();

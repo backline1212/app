@@ -31,7 +31,7 @@ import { createNativeToolbar } from "./native-toolbar";
 // worker the way the popup does, since nothing here ever *writes* the connection.
 
 interface AnnotationContext {
-  api: ReturnType<typeof createApiClient>;
+  api: import("@backline/widget").ApiClient;
   shadow: ShadowRoot;
   project: NativeReviewInfo["project"];
   pageUrl: string;

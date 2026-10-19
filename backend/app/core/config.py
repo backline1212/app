@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     environment: str = "local"
+    # Off until worker egress isolation blocks internal networks, metadata, DNS
+    # rebinding and non-HTTP browser traffic. A page route hook alone is insufficient.
+    server_browser_enabled: bool = False
 
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db_name: str = "backline_local"

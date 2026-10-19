@@ -10,7 +10,7 @@ export function connectReviewSocket(
   guestToken: string,
   pageId: string,
   onEvent: (type: string, payload: any) => void, // eslint-disable-line @typescript-eslint/no-explicit-any
-  onStatusChange?: (status: "connected" | "connecting" | "offline") => void,
+  onStatusChange?: (status: "connected" | "connecting" | "offline" | "authorization-lost") => void,
 ): () => void {
   const wsBaseUrl = apiBaseUrl.replace(/^http/, "ws");
   let socket: WebSocket | null = null;
@@ -19,6 +19,17 @@ export function connectReviewSocket(
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   function open(): void {
+    // UI expiry detection only; the server remains the authority for the signature
+    // and live policy. It also prevents retrying an expired handshake forever.
+    try {
+      const encoded = guestToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      const claims = JSON.parse(atob(encoded.padEnd(encoded.length + ((4 - encoded.length % 4) % 4), "="))) as { exp?: unknown };
+      if (typeof claims.exp !== "number" || !Number.isFinite(claims.exp) || claims.exp * 1000 <= Date.now()) throw new Error("Expired");
+    } catch {
+      closedByCaller = true;
+      onStatusChange?.("authorization-lost");
+      return;
+    }
     const url = `${wsBaseUrl}/ws?token=${encodeURIComponent(guestToken)}&page_id=${encodeURIComponent(pageId)}`;
     socket = new WebSocket(url);
 
@@ -36,8 +47,13 @@ export function connectReviewSocket(
       }
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       if (closedByCaller) return;
+      if (event.code === 4401 || event.code === 4403) {
+        closedByCaller = true;
+        onStatusChange?.("authorization-lost");
+        return;
+      }
       onStatusChange?.(navigator.onLine ? "connecting" : "offline");
 
       const delay = Math.min(1000 * 2 ** attempt, 30_000);

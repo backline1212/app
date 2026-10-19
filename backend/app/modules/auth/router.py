@@ -25,7 +25,9 @@ from app.modules.auth.schemas import (
     PasswordLoginRequest,
     PasswordSetRequest,
     SessionOut,
+    SignupChallengeOut,
     SignupRequest,
+    SignupVerifyRequest,
     SwitchWorkspaceRequest,
     TokenPairOut,
     UserOut,
@@ -97,10 +99,8 @@ async def google_callback(
     return TokenPairOut(access_token=issued.access_token, user=issued.user)
 
 
-@router.post("/signup", response_model=TokenPairOut, status_code=201)
-async def signup(body: SignupRequest, request: Request, response: Response) -> TokenPairOut:
-    """Creates an account with a password and signs it straight in - the member never
-    has to go and log in again with credentials they just chose."""
+@router.post("/signup", response_model=SignupChallengeOut, status_code=202)
+async def signup(body: SignupRequest, request: Request) -> SignupChallengeOut:
     settings = get_settings()
     ip = get_client_ip(request)
     await check_rate_limit(
@@ -109,13 +109,35 @@ async def signup(body: SignupRequest, request: Request, response: Response) -> T
         limit=settings.signup_rate_limit_per_minute,
         window_seconds=60,
     )
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:signup:email:{body.email}",
+        limit=settings.signup_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    return await auth_service.request_signup(
+        get_db(), name=body.name, email=body.email, password=body.password
+    )
+
+
+@router.post("/signup/verify", response_model=TokenPairOut, status_code=201)
+async def signup_verify(
+    body: SignupVerifyRequest, request: Request, response: Response
+) -> TokenPairOut:
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:signup-verify:ip:{get_client_ip(request)}",
+        limit=get_settings().password_login_rate_limit_per_minute,
+        window_seconds=60,
+    )
     issued = await auth_service.signup_with_password(
         get_db(),
         name=body.name,
         email=body.email,
         password=body.password,
+        code=body.code,
         ua=request.headers.get("user-agent"),
-        ip=ip,
+        ip=get_client_ip(request),
     )
     _set_refresh_cookie(response, issued.refresh_token)
     return TokenPairOut(access_token=issued.access_token, user=issued.user)
@@ -291,8 +313,10 @@ async def request_email_change(
 
 @router.post("/me/email/confirm", response_model=UserOut)
 async def confirm_email_change(
-    body: EmailChangeConfirm, session: Session = Depends(get_current_session)
+    body: EmailChangeConfirm, response: Response, session: Session = Depends(get_current_session)
 ) -> UserOut:
-    return await auth_service.confirm_email_change(
+    updated = await auth_service.confirm_email_change(
         get_db(), session.user_id, email=body.email, code=body.code
     )
+    response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
+    return updated

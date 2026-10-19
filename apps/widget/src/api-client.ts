@@ -30,19 +30,29 @@ export function nativeFetch(input: RequestInfo | URL, init?: RequestInit): Promi
 export function createApiClient(
   apiBaseUrl: string = DEFAULT_API_BASE_URL,
   getAuthHeader: AuthHeaderProvider = () => ({}),
+  onUnauthorized: () => void = () => undefined,
 ) {
+  const lifetime = new AbortController();
+  function requireOpen(): void {
+    if (lifetime.signal.aborted) throw new WidgetApiError(401, "SESSION_ENDED", "Your review session ended. Rejoin to continue.");
+  }
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    requireOpen();
+    const auth = getAuthHeader();
     const response = await nativeFetch(`${apiBaseUrl}${path}`, {
       ...init,
+      signal: init.signal ?? lifetime.signal,
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeader(),
+        ...auth,
         ...init.headers,
       },
     });
+    requireOpen();
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
+      if (response.status === 401 && auth["X-Guest-Session"]) onUnauthorized();
       throw new WidgetApiError(
         response.status,
         body?.error?.code ?? "UNKNOWN_ERROR",
@@ -53,27 +63,38 @@ export function createApiClient(
     if (response.status === 204) {
       return undefined as T;
     }
-    return response.json() as Promise<T>;
+    const body = await response.json() as T;
+    requireOpen();
+    return body;
   }
 
   async function upload<T>(path: string, form: FormData): Promise<T> {
+    requireOpen();
+    const auth = getAuthHeader();
     const response = await nativeFetch(`${apiBaseUrl}${path}`, {
       method: "POST",
       body: form,
-      headers: getAuthHeader(),
+      headers: auth,
+      signal: lifetime.signal,
     });
+    requireOpen();
     if (!response.ok) {
       const body = await response.json().catch(() => null);
+      if (response.status === 401 && auth["X-Guest-Session"]) onUnauthorized();
       throw new WidgetApiError(
         response.status,
         body?.error?.code ?? "UNKNOWN_ERROR",
         body?.error?.message ?? response.statusText,
       );
     }
-    return response.json() as Promise<T>;
+    const body = await response.json() as T;
+    requireOpen();
+    return body;
   }
 
-  return { request, upload };
+  return { request, upload, close: () => lifetime.abort() };
 }
 
-export type ApiClient = ReturnType<typeof createApiClient>;
+// Shared capture helpers also accept the extension's message-based transport.
+// Lifetime cancellation belongs to the concrete installed-widget client.
+export type ApiClient = Pick<ReturnType<typeof createApiClient>, "request" | "upload">;

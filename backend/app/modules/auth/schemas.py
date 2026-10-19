@@ -16,13 +16,21 @@ class GoogleAuthorizationOut(BaseModel):
 
 
 class SignupRequest(BaseModel):
-    """13-Authentication.md §13.2a. The length bounds live here so an over-long or
-    obviously too-short password is rejected before it ever reaches scrypt; the rest of
-    the policy (content, not shape) is service-side in _validate_new_password."""
+    """Signup draft, validated before sending a code; grants no account/session.
+    The password remains in the tab and is submitted again with the inbox proof."""
 
     name: str = Field(min_length=1, max_length=120)
     email: NormalizedEmail
     password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+
+
+class SignupChallengeOut(BaseModel):
+    email: str
+    expires_in_seconds: int
+
+
+class SignupVerifyRequest(SignupRequest):
+    code: str = Field(pattern=r"^[0-9]{6}$")
 
 
 class PasswordLoginRequest(BaseModel):
@@ -47,7 +55,7 @@ class OtpRequestRequest(BaseModel):
 
 class OtpVerifyRequest(BaseModel):
     email: NormalizedEmail
-    code: str
+    code: str = Field(pattern=r"^[0-9]{6}$")
 
 
 class SwitchWorkspaceRequest(BaseModel):

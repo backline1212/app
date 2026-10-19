@@ -17,6 +17,17 @@ use the delivery ledger for completed static checks and remaining gates. The
 Auth follow-ups: [Google state protection](../tdr/0062-google-sign-in-state.md) and
 [refresh/OTP concurrency](../tdr/0063-auth-concurrency.md). API contracts are regenerated
 from Pydantic; these changes do not yet switch the website launch flow.
+Current follow-ups: [verified email identities](../tdr/0064-verified-email-identities.md)
+and [server browser isolation gate](../tdr/0065-server-browser-isolation-gate.md).
+TDR-0064 intentionally requires legacy members to prove inbox ownership once before
+reconnecting older credentials. TDR-0065 disables fresh server captures by default
+pending actual worker isolation. Review their rollout notes before deployment.
+Guest cache/rejoin and active widget cleanup follow
+[TDR-0066](../tdr/0066-guest-session-recovery.md); the primary connected-site launch
+exchange is still pending.
+Deployment follow-up: [TDR-0067](../tdr/0067-email-delivery-and-deployment-consistency.md)
+closes the fake email-success path in source and records production deployment
+watch-path drift, the explicit fix, and live verification limits.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

@@ -73,13 +73,53 @@
           "auth"
         ],
         "summary": "Signup",
-        "description": "Creates an account with a password and signs it straight in - the member never\nhas to go and log in again with credentials they just chose.",
         "operationId": "signup_api_v1_auth_signup_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SignupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupChallengeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signup/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Signup Verify",
+        "operationId": "signup_verify_api_v1_auth_signup_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupVerifyRequest"
               }
             }
           },
@@ -3861,6 +3901,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReviewResolveOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/guest-sessions/current": {
+      "get": {
+        "tags": [
+          "share-links"
+        ],
+        "summary": "Guest Session Status",
+        "operationId": "guest_session_status_api_v1_guest_sessions_current_get",
+        "parameters": [
+          {
+            "name": "x-guest-session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestSessionStatusOut"
                 }
               }
             }
@@ -10427,6 +10516,39 @@
         ],
         "title": "GuestSessionOut"
       },
+      "GuestSessionStatusOut": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "share_link_id": {
+            "type": "string",
+            "title": "Share Link Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "member_bound": {
+            "type": "boolean",
+            "title": "Member Bound"
+          },
+          "review_url": {
+            "type": "string",
+            "title": "Review Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "share_link_id",
+          "display_name",
+          "member_bound",
+          "review_url"
+        ],
+        "title": "GuestSessionStatusOut"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -11646,6 +11768,7 @@
           },
           "code": {
             "type": "string",
+            "pattern": "^[0-9]{6}$",
             "title": "Code"
           }
         },
@@ -13385,6 +13508,10 @@
       },
       "ReviewResolveOut": {
         "properties": {
+          "share_link_id": {
+            "type": "string",
+            "title": "Share Link Id"
+          },
           "project_type": {
             "type": "string",
             "title": "Project Type",
@@ -13439,15 +13566,21 @@
             "type": "boolean",
             "title": "Canvas Only",
             "default": false
+          },
+          "review_url": {
+            "type": "string",
+            "title": "Review Url"
           }
         },
         "type": "object",
         "required": [
+          "share_link_id",
           "project_id",
           "project_name",
           "mode",
           "requires_passcode",
-          "target_origin"
+          "target_origin",
+          "review_url"
         ],
         "title": "ReviewResolveOut"
       },
@@ -13949,6 +14082,24 @@
         ],
         "title": "ShareLinkOut"
       },
+      "SignupChallengeOut": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "title": "Expires In Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "expires_in_seconds"
+        ],
+        "title": "SignupChallengeOut"
+      },
       "SignupRequest": {
         "properties": {
           "name": {
@@ -13976,7 +14127,41 @@
           "password"
         ],
         "title": "SignupRequest",
-        "description": "13-Authentication.md \u00a713.2a. The length bounds live here so an over-long or\nobviously too-short password is rejected before it ever reaches scrypt; the rest of\nthe policy (content, not shape) is service-side in _validate_new_password."
+        "description": "Signup draft, validated before sending a code; grants no account/session.\nThe password remains in the tab and is submitted again with the inbox proof."
+      },
+      "SignupVerifyRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 12,
+            "title": "Password"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password",
+          "code"
+        ],
+        "title": "SignupVerifyRequest"
       },
       "SlackIntegrationCreate": {
         "properties": {

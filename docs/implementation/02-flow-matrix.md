@@ -55,6 +55,11 @@ rows remain unverified until their live journeys are demonstrated; CR-A01..04/07
 are not implemented by this foundation slice.
 Google state and refresh/OTP concurrency repairs (TDR-0062/0063) now pass their static
 checks; the corresponding FD-25 and CR-A02/05/06 live acceptance remains pending.
+TDR-0064 adds signup code confirmation, legacy inbox recovery and credential cutoffs
+to FD-25/CR-A02/06. TDR-0065 mitigates unsafe optional server capture by default-off
+execution until worker isolation is verified. Their live acceptance remains pending.
+TDR-0066 adds stored guest validation, explicit rejoin and active access-loss cleanup
+to FD-19/CR-A05/06/09, including guest image/PDF views. Live acceptance remains open.
 
 The normal connected flow is project/ticket/evidence in Backline -> Open on site ->
 actual website with its installed review panel -> return to the same ticket. Existing

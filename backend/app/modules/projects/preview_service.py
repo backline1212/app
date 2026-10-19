@@ -19,6 +19,8 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.arq_pool import get_arq_pool
+from app.core.config import get_settings
+from app.core.server_browser import UNAVAILABLE_MESSAGE, require_server_browser
 from app.core.ssrf_guard import assert_safe_to_fetch
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.schemas import ProjectOut
@@ -88,6 +90,8 @@ async def queue_capture(
 ) -> bool:
     """Queue a capture for this project if one is due. Never raises: a card preview
     isn't worth failing the request that noticed it was missing."""
+    if not get_settings().server_browser_enabled:
+        return False
     now = datetime.now(UTC)
     if not _capture_due(doc, now, force=force):
         return False
@@ -177,6 +181,7 @@ async def _delete_quietly(key: str) -> None:
 
 
 async def _screenshot(url: str) -> bytes:
+    require_server_browser()
     # Imported here so the API process never loads Playwright (see
     # browser_render/service.py's run_render), and because browser_render.service
     # imports projects.service, which imports this module.
@@ -232,6 +237,9 @@ async def run_capture(
         return
     preview = doc.get("preview") or {}
     if preview.get("token") != token or not _wants_preview(doc):
+        return
+    if not get_settings().server_browser_enabled:
+        await repo.fail_preview(workspace_id, project_id, token=token, error=UNAVAILABLE_MESSAGE)
         return
     origin = preview.get("origin") or doc["target_origin"]
 

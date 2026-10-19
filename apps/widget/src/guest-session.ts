@@ -1,4 +1,5 @@
-import type { ApiClient } from "./api-client";
+import { WidgetApiError, type ApiClient } from "./api-client";
+import type { Schemas } from "../../../packages/types/src/index";
 
 export interface StoredGuestSession {
   guestSessionToken: string;
@@ -12,17 +13,27 @@ function storageKey(shareToken: string): string {
 }
 
 export function getStoredGuestSession(shareToken: string): StoredGuestSession | null {
-  const raw = sessionStorage.getItem(storageKey(shareToken));
-  if (!raw) return null;
   try {
-    return JSON.parse(raw) as StoredGuestSession;
+    const raw = sessionStorage.getItem(storageKey(shareToken));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredGuestSession> | null;
+    if (typeof parsed?.guestSessionToken === "string" && parsed.guestSessionToken && typeof parsed.displayName === "string") {
+      return { guestSessionToken: parsed.guestSessionToken, displayName: parsed.displayName };
+    }
+    clearStoredGuestSession(shareToken);
+    return null;
   } catch {
+    clearStoredGuestSession(shareToken);
     return null;
   }
 }
 
 function setStoredGuestSession(shareToken: string, session: StoredGuestSession): void {
-  sessionStorage.setItem(storageKey(shareToken), JSON.stringify(session));
+  try { sessionStorage.setItem(storageKey(shareToken), JSON.stringify(session)); } catch { /* Continue without tab recovery when storage is unavailable. */ }
+}
+
+export function clearStoredGuestSession(shareToken: string): void {
+  try { sessionStorage.removeItem(storageKey(shareToken)); } catch { /* Storage may be disabled. */ }
 }
 
 // Milestone 9: the dashboard's ReviewEntryPage already creates a guest session (name +
@@ -102,15 +113,31 @@ export async function ensureGuestSession(
   api: ApiClient,
   shareToken: string,
   promptForName: () => Promise<string>,
+  expectedShareLinkId: string,
 ): Promise<StoredGuestSession> {
   const fromHandoff = getGuestSessionFromQueryParam();
-  if (fromHandoff) {
-    setStoredGuestSession(shareToken, fromHandoff);
-    return fromHandoff;
+  const existing = fromHandoff ?? getStoredGuestSession(shareToken);
+  if (existing) {
+    try {
+      const current = await api.request<Schemas["GuestSessionStatusOut"]>("/api/v1/guest-sessions/current", {
+        headers: { "X-Guest-Session": existing.guestSessionToken }, cache: "no-store",
+      });
+      if (current.share_link_id !== expectedShareLinkId) {
+        throw new WidgetApiError(403, "WRONG_REVIEW_LINK", "Open the original review link to join again.");
+      }
+      const session = { ...existing, displayName: current.display_name };
+      setStoredGuestSession(shareToken, session);
+      return session;
+    } catch (error) {
+      if (error instanceof WidgetApiError && [401, 403, 404].includes(error.status)) {
+        clearStoredGuestSession(shareToken);
+        // Rejoin through the normal gate, including passcode/member requirements.
+        // Never silently turn a member-bound identity into an ordinary guest.
+        throw new Error("This review session ended. Open your review link to join again.");
+      }
+      throw error;
+    }
   }
-
-  const existing = getStoredGuestSession(shareToken);
-  if (existing) return existing;
 
   const displayName = await promptForName();
   const result = await api.request<{ guest_session_token: string; display_name: string }>(

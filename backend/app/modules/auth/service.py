@@ -28,9 +28,10 @@ from app.core.security import (
     secrets_match,
     verify_password,
 )
+from app.core.verified_identity import require_verified_identity
 from app.modules.auth.google_oauth import exchange_code_for_user_info
 from app.modules.auth.repository import OtpRepository, RefreshTokenRepository, UserRepository
-from app.modules.auth.schemas import SessionOut, UserOut
+from app.modules.auth.schemas import SessionOut, SignupChallengeOut, UserOut
 from app.modules.workspaces.repository import MembershipRepository
 
 
@@ -97,6 +98,10 @@ async def _issue_tokens(
     the client calls /auth/switch-workspace next (auto-selecting if there's exactly
     one membership, or prompting if there are several / none yet)."""
     user_id = str(user_doc["_id"])
+    authenticated_at = datetime.now(UTC)
+    await require_verified_identity(
+        db, user_id, issued_at=authenticated_at, expected_email=user_doc["email"]
+    )
 
     refresh_repo = RefreshTokenRepository(db)
     raw_refresh = generate_opaque_token()
@@ -113,7 +118,7 @@ async def _issue_tokens(
         os=os,
         ip_address=ip,
         auth_method=auth_method,
-        authenticated_at=datetime.now(UTC),
+        authenticated_at=authenticated_at,
     )
     # A member works from one active session at a time: signing in anywhere signs out
     # every other device (TDR-0034).
@@ -141,6 +146,7 @@ async def login_with_google(
         avatar_url=user_info.avatar_url,
         auth_provider="google",
     )
+    existing = await _record_email_proof(db, existing)
     await user_repo.touch_login(existing["_id"], "google")
 
     return await _issue_tokens(db, existing, auth_method="google", ua=ua, ip=ip)
@@ -175,46 +181,77 @@ def _validate_new_password(password: str, email: str) -> None:
         raise ValidationError("Leave your email address out of your password.")
 
 
+async def request_signup(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, name: str, email: str, password: str
+) -> SignupChallengeOut:
+    if not name.strip():
+        raise ValidationError("Tell us your name.")
+    _validate_new_password(password, email)
+    existing = await UserRepository(db).find_by_email(email)
+    if existing is not None and existing.get("email_verified_at"):
+        raise ConflictError("That email already has a Backline account. Sign in instead.")
+    settings = get_settings()
+    code = generate_otp_code()
+    await OtpRepository(db).create(
+        email=email,
+        code_hash=hash_secret(code),
+        purpose="signup",
+        ttl_minutes=settings.otp_ttl_minutes,
+    )
+    await send_email(
+        to=email,
+        subject="Verify your Backline account",
+        html=f"<p>Your account verification code is <strong>{code}</strong>. It expires in "
+        f"{settings.otp_ttl_minutes} minutes.</p>"
+        "<p>If you didn't request an account, ignore this message.</p>",
+    )
+    return SignupChallengeOut(email=email, expires_in_seconds=settings.otp_ttl_minutes * 60)
+
+
+async def _record_email_proof(
+    db: AsyncIOMotorDatabase[dict[str, Any]], user_doc: dict[str, Any]
+) -> dict[str, Any]:
+    verified = await UserRepository(db).verify_email(user_doc["_id"], email=user_doc["email"])
+    if verified is None:
+        raise AuthenticationError("Your account changed. Sign in again.")
+    return verified
+
+
 async def signup_with_password(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
     name: str,
     email: str,
     password: str,
+    code: str,
     ua: str | None = None,
     ip: str | None = None,
 ) -> IssuedTokens:
-    """Creating an account with a password, the only flow that sets one. An address that
-    already exists is refused rather than having the password attached to it: a member
-    who signed in with Google or a code has a real account, and letting an unauthenticated
-    caller set a password on it just because they know the address would hand over the
-    account. They sign in the way they already do instead."""
+    """Only an inbox-proven signup may create or activate its password identity."""
     name = name.strip()
     if not name:
         raise ValidationError("Tell us your name.")
     _validate_new_password(password, email)
 
     user_repo = UserRepository(db)
-    if await user_repo.find_by_email(email) is not None:
+    existing = await user_repo.find_by_email(email)
+    if existing is not None and existing.get("email_verified_at"):
         raise ConflictError("That email already has a Backline account. Sign in instead.")
+    await _verify_and_consume_otp(db, email, code, purpose="signup")
 
     # Blocking and memory-bound (~32 MiB, ~175 ms) - off the event loop, or every other
     # request in this worker waits behind it.
     password_hash = await anyio.to_thread.run_sync(hash_password, password)
-    try:
-        user_doc = await user_repo.create(
-            email=email,
-            name=name,
-            avatar_url=None,
-            auth_provider="password",
-            password_hash=password_hash,
-        )
-    except DuplicateKeyError:
-        # Same race the unique email index catches for get_or_create: two signups for
-        # one address in flight at once, both past the check above.
-        raise ConflictError("That email already has a Backline account. Sign in instead.") from None
+    user_doc = await user_repo.get_or_create(
+        email=email, name=name, avatar_url=None, auth_provider="email_otp"
+    )
+    activated = await user_repo.activate_verified_signup(
+        user_doc["_id"], email=user_doc["email"], name=name, password_hash=password_hash
+    )
+    if activated is None:
+        raise ConflictError("This account was verified elsewhere. Sign in instead.")
 
-    return await _issue_tokens(db, user_doc, auth_method="password", ua=ua, ip=ip)
+    return await _issue_tokens(db, activated, auth_method="password", ua=ua, ip=ip)
 
 
 async def login_with_password(
@@ -238,6 +275,7 @@ async def login_with_password(
     # member with no password still gets in.
     if user_doc is None or not stored or not matched:
         raise AuthenticationError("Incorrect email or password.")
+    await require_verified_identity(db, str(user_doc["_id"]))
 
     await user_repo.touch_login(user_doc["_id"], "password")
     return await _issue_tokens(db, user_doc, auth_method="password", ua=ua, ip=ip)
@@ -291,6 +329,7 @@ async def verify_otp(
     existing = await user_repo.get_or_create(
         email=email, name=email.split("@")[0], avatar_url=None, auth_provider="email_otp"
     )
+    existing = await _record_email_proof(db, existing)
     await user_repo.touch_login(existing["_id"], "email_otp")
 
     return await _issue_tokens(db, existing, auth_method="email_otp", ua=ua, ip=ip)
@@ -321,6 +360,9 @@ async def refresh_tokens(
     user_doc = await user_repo.find_by_id(str(token_doc["user_id"]))
     if user_doc is None:
         raise AuthenticationError("User no longer exists.")
+    await require_verified_identity(
+        db, str(user_doc["_id"]), issued_at=token_doc.get("authenticated_at", False)
+    )
 
     new_raw = generate_opaque_token()
     new_hash = hash_secret(new_raw)
@@ -601,9 +643,12 @@ async def confirm_email_change(
     if user_doc is None:
         raise AuthenticationError("User not found.")
     try:
-        await user_repo.update(user_doc["_id"], {"email": email})
+        await user_repo.update(
+            user_doc["_id"], {"email": email, "email_verified_at": datetime.now(UTC)}
+        )
     except DuplicateKeyError:
         raise ConflictError("That email already has a Backline account.") from None
     updated = await user_repo.find_by_id(session_user_id)
     assert updated is not None
+    await revoke_all_sessions(db, session_user_id)
     return _user_out(updated)

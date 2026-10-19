@@ -34,6 +34,7 @@ class ShareLinkOut(BaseModel):
 
 
 class ReviewResolveOut(BaseModel):
+    share_link_id: str
     project_type: str = "website"
     project_id: str
     project_name: str
@@ -57,6 +58,7 @@ class ReviewResolveOut(BaseModel):
     # TDR-0057: the dashboard canvas's own link. It opens only inside the dashboard, for
     # a signed-in member - the entry page says so instead of asking for a name.
     canvas_only: bool = False
+    review_url: str
 
 
 class GuestSessionCreate(BaseModel):
@@ -74,6 +76,14 @@ class GuestSessionCreate(BaseModel):
 class GuestSessionOut(BaseModel):
     guest_session_token: str
     display_name: str
+
+
+class GuestSessionStatusOut(BaseModel):
+    project_id: str
+    share_link_id: str
+    display_name: str
+    member_bound: bool
+    review_url: str
 
 
 class CanvasSessionOut(BaseModel):

@@ -100,7 +100,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
   const refreshPreview = useMutation({
     mutationFn: () => api.refreshProjectPreview(project.id),
     onSuccess: async () => { await refreshWorkspace(); toast("Taking a new screenshot of the site. The card updates in a moment."); },
-    onError: () => toast("Could not refresh the preview.", "error"),
+    onError: (error) => toast(error instanceof Error ? error.message : "Could not refresh the preview.", "error"),
   });
 
   function focusMenuEdge(edge: "first" | "last") {

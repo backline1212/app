@@ -125,11 +125,10 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
     setEmailError("");
     try {
       const updated = await confirmEmailChange(codeSentTo, code.trim());
-      updateUser(updated);
       setEmail(updated.email);
       setCodeSentTo(null);
       setEmailPassword("");
-      toast("Email updated.");
+      toast("Email updated. Sign in with your new email to continue.");
     } catch (err) {
       setEmailError(err instanceof Error ? err.message : "Couldn't confirm that code.");
     } finally {

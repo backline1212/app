@@ -1,5 +1,14 @@
 # Taking Backline live — a step-by-step guide
 
+> 2026-10-19 amendment: [TDR-0064](docs/tdr/0064-verified-email-identities.md)
+> requires inbox verification and one code/Google sign-in for legacy accounts.
+> Production email failures now return an error rather than log codes and claim
+> delivery. Fresh server browser captures stay disabled until worker isolation.
+> Audit Railway watch paths with `./scripts/configure-railway-watch-paths.ps1`
+> (read-only); add `-Apply` to repair only the documented source watchers.
+> Check actual deployment commits after every release; see
+> [TDR-0067](docs/tdr/0067-email-delivery-and-deployment-consistency.md).
+
 This guide assumes **no coding knowledge**. Every step says exactly what to click, what
 to type, and how to check it worked. Follow it top to bottom.
 

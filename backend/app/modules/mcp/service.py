@@ -7,12 +7,13 @@ from bson import ObjectId
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.errors import NotFoundError
+from app.core.errors import AuthenticationError, NotFoundError
 from app.core.events import append_event
 from app.core.permissions import Role, role_allows
 from app.core.project_access import check_project_action
 from app.core.security import generate_opaque_token, hash_secret
 from app.core.session import Session
+from app.core.verified_identity import require_verified_identity
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.schemas import CommentOut
 from app.modules.comments.service import _comment_out
@@ -180,6 +181,10 @@ async def verify_bearer_token(
     if doc is None or doc["revoked_at"] is not None:
         return None
     user_id = str(doc["user_id"])
+    try:
+        await require_verified_identity(db, user_id, issued_at=doc.get("created_at", False))
+    except AuthenticationError:
+        return None
     member = await MembershipRepository(db).find(workspace_id=doc["workspace_id"], user_id=user_id)
     if member is None or not role_allows("comment:view_team", Role(member["role"])):
         return None

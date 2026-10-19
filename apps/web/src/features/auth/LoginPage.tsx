@@ -36,7 +36,7 @@ function passwordScore(value: string): number {
 
 export function LoginPage() {
   const { t } = useTranslation();
-  const { status, requestOtp, verifyOtp, signup, loginWithPassword, setPassword: savePassword, user, updateUser } = useAuth();
+  const { status, requestOtp, verifyOtp, signup, verifySignup, loginWithPassword, setPassword: savePassword, user, updateUser } = useAuth();
   // Not the "Sign in to Backline" heading: the hook appends "— Backline" itself.
   useDocumentTitle("Sign in");
   const navigate = useNavigate();
@@ -52,6 +52,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [code, setCode] = useState("");
+  const [codePurpose, setCodePurpose] = useState<"signin" | "signup">("signin");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -111,11 +112,16 @@ export function LoginPage() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await requestOtp(email);
+      let lifetime = OTP_EXPIRY_SECONDS;
+      if (codePurpose === "signup") {
+        lifetime = (await signup(name, email, password)).expires_in_seconds;
+      } else {
+        await requestOtp(email);
+      }
       setStep("code");
       setCode("");
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
-      setExpiresIn(OTP_EXPIRY_SECONDS);
+      setExpiresIn(lifetime);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -160,8 +166,13 @@ export function LoginPage() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await signup(name, email, password);
-      navigate(takeReturnPath(), { replace: true });
+      const challenge = await signup(name, email, password);
+      setCodePurpose("signup");
+      setEmail(challenge.email);
+      setCode("");
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setExpiresIn(challenge.expires_in_seconds);
+      setStep("code");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create that account.");
     } finally {
@@ -174,6 +185,12 @@ export function LoginPage() {
     setError(null);
     setIsSubmitting(true);
     try {
+      if (codePurpose === "signup") {
+        await verifySignup(name, email, password, code);
+        setPassword("");
+        navigate(takeReturnPath(), { replace: true });
+        return;
+      }
       await verifyOtp(email, code);
       // The code just proved control of this inbox - offer to set/replace the
       // password right here (UX-AUD-057/TDR-0037) instead of only signing in,
@@ -214,16 +231,22 @@ export function LoginPage() {
 
   function goToHelp() {
     setError(null);
+    setCodePurpose("signin");
+    setPassword("");
     setStep("help");
   }
 
   function goToSignIn() {
     setError(null);
+    setCodePurpose("signin");
+    setPassword("");
+    setCode("");
     setStep("signin");
   }
 
   function goToSignup() {
     setError(null);
+    setCodePurpose("signup");
     setStep("signup");
   }
 
@@ -440,7 +463,7 @@ export function LoginPage() {
                 )}
                 <button type="submit" className="lg-go" disabled={isSubmitting}>
                   {isSubmitting ? <span className="lg-spin"></span> : null}
-                  Create account
+                  Send verification code
                 </button>
               </form>
               <div className="lg-swap">
@@ -540,7 +563,7 @@ export function LoginPage() {
                 )}
                 <button type="submit" className="lg-go" disabled={isSubmitting || expiresIn <= 0}>
                   {isSubmitting ? <span className="lg-spin"></span> : null}
-                  Verify and sign in
+                  {codePurpose === "signup" ? "Verify and create account" : "Verify and sign in"}
                 </button>
               </form>
               <div className="lg-swap">

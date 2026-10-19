@@ -1,0 +1,18 @@
+{
+  "projectId": "a1fd7a3f-4a09-4b91-9199-d0b3fb8fc607",
+  "environment": "production",
+  "services": {
+    "app": {
+      "id": "ebe25c9a-ffb4-4967-a903-6b8e2695e76b",
+      "watchPatterns": ["/backend/**", "/apps/widget/**", "/apps/extension/**", "/packages/types/**", "/packages/ui/package.json", "/apps/web/package.json", "/apps/e2e/package.json", "/package.json", "/pnpm-workspace.yaml", "/pnpm-lock.yaml"]
+    },
+    "worker": {
+      "id": "7d0043cd-adb2-4f40-94a0-974eee4af919",
+      "watchPatterns": ["/backend/**", "/apps/widget/**", "/apps/extension/**", "/packages/types/**", "/packages/ui/package.json", "/apps/web/package.json", "/apps/e2e/package.json", "/package.json", "/pnpm-workspace.yaml", "/pnpm-lock.yaml"]
+    },
+    "cloud-login": {
+      "id": "67c791e3-df1e-4793-9070-49e5525de97c",
+      "watchPatterns": ["/backend/**"]
+    }
+  }
+}

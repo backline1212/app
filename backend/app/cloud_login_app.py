@@ -24,6 +24,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.redis_client import get_redis
+from app.core.server_browser import UNAVAILABLE_MESSAGE
 from app.core.ssrf_guard import assert_safe_to_fetch
 from app.modules.cloud_login import service as cloud_login_service
 from app.modules.cloud_login.service import CloudLoginTarget
@@ -118,6 +119,10 @@ async def _read_local_storage(page: "Page") -> list[tuple[str, str]]:
 
 
 async def _run_session(websocket: WebSocket, target: CloudLoginTarget) -> None:
+    if not get_settings().server_browser_enabled:
+        await _send_json(websocket, {"type": "error", "message": UNAVAILABLE_MESSAGE})
+        await websocket.close(code=4403)
+        return
     # Imported lazily, same reasoning as browser_render/service.py's run_render: only
     # this service's image has the browser binaries `playwright install` downloads.
     from playwright.async_api import async_playwright

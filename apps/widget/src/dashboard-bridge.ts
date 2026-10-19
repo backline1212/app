@@ -21,7 +21,7 @@ const STATUS_REPLY_TIMEOUT_MS = 15_000;
  * page that frames the site and answers in the dashboard's place gains nothing: the
  * status change is only ever made by the dashboard, with a member's own session.
  */
-export function connectDashboardStatusBridge(): () => StatusUpdater | null {
+export function connectDashboardStatusBridge(signal?: AbortSignal): () => StatusUpdater | null {
   if (window.parent === window) return () => null;
 
   let allowed = false;
@@ -44,7 +44,15 @@ export function connectDashboardStatusBridge(): () => StatusUpdater | null {
     clearTimeout(request.timer);
     if (data.ok === true && typeof data.status === "string") request.resolve(data.status);
     else request.reject(new Error("The dashboard could not change this comment's status."));
-  });
+  }, { signal });
+  signal?.addEventListener("abort", () => {
+    allowed = false;
+    for (const request of pending.values()) {
+      clearTimeout(request.timer);
+      request.reject(new Error("Your review session ended."));
+    }
+    pending.clear();
+  }, { once: true });
   window.parent.postMessage({ type: "backline:request-status-access" }, "*");
 
   const updateStatus: StatusUpdater = (commentId, status) =>
@@ -58,5 +66,5 @@ export function connectDashboardStatusBridge(): () => StatusUpdater | null {
       window.parent.postMessage({ type: "backline:update-comment-status", requestId, commentId, status }, "*");
     });
 
-  return () => (allowed ? updateStatus : null);
+  return () => (allowed && !signal?.aborted ? updateStatus : null);
 }

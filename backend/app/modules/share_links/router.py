@@ -1,19 +1,20 @@
 import hashlib
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.errors import ValidationError
 from app.core.permissions import require_project_permission
-from app.core.rate_limit import check_rate_limit, get_client_ip
+from app.core.rate_limit import actor_rate_limit_key, check_rate_limit, get_client_ip
 from app.core.redis_client import get_redis
-from app.core.session import Session, require_workspace_context
+from app.core.session import GuestSession, Session, get_guest_session, require_workspace_context
 from app.modules.share_links import service as share_link_service
 from app.modules.share_links.schemas import (
     CanvasSessionOut,
     GuestSessionCreate,
     GuestSessionOut,
+    GuestSessionStatusOut,
     ReviewResolveOut,
     ShareLinkCreate,
     ShareLinkOut,
@@ -101,6 +102,20 @@ async def resolve_share_link(share_token: str, request: Request) -> ReviewResolv
         window_seconds=60,
     )
     return await share_link_service.resolve_share_link(get_db(), share_token)
+
+
+@router.get("/guest-sessions/current", response_model=GuestSessionStatusOut)
+async def guest_session_status(
+    request: Request, response: Response, guest: GuestSession = Depends(get_guest_session)
+) -> GuestSessionStatusOut:
+    response.headers["Cache-Control"] = "no-store"
+    await check_rate_limit(
+        get_redis(),
+        key=actor_rate_limit_key("guest-session-status", request, guest),
+        limit=get_settings().review_resolve_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    return await share_link_service.get_guest_session_status(get_db(), guest)
 
 
 @router.post("/guest-sessions", response_model=GuestSessionOut, status_code=201)

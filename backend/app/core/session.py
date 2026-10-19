@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import datetime
+from typing import cast
 
 from fastapi import Depends, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -31,6 +33,7 @@ class Session:
     workspace_id: str | None
     role: str | None
     sid: str | None = None
+    authenticated_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -65,8 +68,7 @@ async def get_current_session(
     session = Session(
         user_id=claims.sub, workspace_id=claims.workspace_id, role=claims.role, sid=claims.sid
     )
-    await validate_member_session(session)
-    return session
+    return replace(session, authenticated_at=await validate_member_session(session))
 
 
 async def _resolve_extension_session(token: str) -> Session:
@@ -79,6 +81,9 @@ async def _resolve_extension_session(token: str) -> Session:
         raise AuthenticationError("Invalid or expired token.")
 
     user_id = str(doc["user_id"])
+    from app.core.verified_identity import require_verified_identity
+
+    await require_verified_identity(get_db(), user_id, issued_at=doc.get("created_at", False))
     # Same role-drift guard validate_member_session applies to JWTs (below): a token
     # minted while the member was, say, an admin must stop authorizing the instant
     # they're demoted or removed, not just once the token itself expires.
@@ -89,7 +94,13 @@ async def _resolve_extension_session(token: str) -> Session:
         raise PermissionDeniedError("Workspace access changed. Reconnect the extension.")
 
     await ExtensionTokenRepository(get_db()).touch_last_used(doc["_id"])
-    return Session(user_id=user_id, workspace_id=doc["workspace_id"], role=doc["role"], sid=None)
+    return Session(
+        user_id=user_id,
+        workspace_id=doc["workspace_id"],
+        role=doc["role"],
+        sid=None,
+        authenticated_at=doc["created_at"],
+    )
 
 
 async def get_guest_session(
@@ -164,20 +175,28 @@ def actor_identity(actor: Actor) -> tuple[ActorType, str]:
     return "guest", actor.guest_session_id
 
 
-async def validate_member_session(session: Session) -> None:
+async def validate_member_session(session: Session) -> datetime:
     # New tokens retain their login family through refresh and workspace switching.
-    # Legacy tokens keep their existing short access-token lifetime during rollout.
+    # A legacy token without a family/proven inbox must use code/Google sign-in.
     from app.core.db import get_db
+    from app.core.verified_identity import require_verified_identity
     from app.modules.auth.repository import RefreshTokenRepository
     from app.modules.workspaces.repository import MembershipRepository
 
-    if session.sid and not await RefreshTokenRepository(get_db()).family_is_active(
-        session.user_id, session.sid
-    ):
+    login = (
+        await RefreshTokenRepository(get_db()).find_active_in_family(session.user_id, session.sid)
+        if session.sid
+        else None
+    )
+    if login is None:
         raise AuthenticationError("This session has been signed out.")
+    await require_verified_identity(
+        get_db(), session.user_id, issued_at=login.get("authenticated_at", False)
+    )
     if session.workspace_id:
         member = await MembershipRepository(get_db()).find(
             workspace_id=session.workspace_id, user_id=session.user_id
         )
         if member is None or member["role"] != session.role:
             raise WorkspaceAccessChangedError("Workspace access changed. Reopen the workspace.")
+    return cast(datetime, login["authenticated_at"])

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -20,11 +20,15 @@ import {
 // the real browser tab or the compatible embedded/snippet path; only the latter
 // needs a guest token in its handoff URL for the installed widget.
 export function ReviewEntryPage() {
+  const cache = useQueryClient();
   const { shareToken } = useParams<{ shareToken: string }>();
+  const [sessionShareToken, setSessionShareToken] = useState(shareToken);
+  const sessionMatchesLink = sessionShareToken === shareToken;
   const [displayName, setDisplayName] = useState("");
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRecovering, setIsRecovering] = useState(false);
   const [assetGuest, setAssetGuest] = useState<string | null>(null);
   // Let website reviewers choose browser review before entering the proxy.
   const [pendingHandoff, setPendingHandoff] = useState<{ token: string; destination: string } | null>(
@@ -43,6 +47,33 @@ export function ReviewEntryPage() {
     retry: false,
   });
   useDocumentTitle([resolved?.project_name, "Review"]);
+  const activeToken = sessionMatchesLink ? assetGuest ?? pendingHandoff?.token ?? "" : "";
+  const sessionStatus = useQuery({
+    queryKey: qk.guestSession(activeToken),
+    queryFn: ({ signal }) => reviewApi.getGuestSessionStatus(activeToken, signal),
+    enabled: Boolean(activeToken), retry: false, refetchInterval: 15_000,
+  });
+  const sessionEnded = sessionStatus.error instanceof ApiError && [401, 403, 404].includes(sessionStatus.error.status);
+
+  useEffect(() => {
+    setAssetGuest(null);
+    setPendingHandoff(null);
+    setShowBoard(false);
+    setSessionShareToken(shareToken);
+    setError(null);
+  }, [shareToken]);
+
+  useEffect(() => {
+    if (!sessionEnded || !activeToken || !shareToken) return;
+    clearStoredGuestSession(shareToken);
+    setAssetGuest(null);
+    setPendingHandoff(null);
+    setShowBoard(false);
+    setError("Your review session ended. Join again to continue.");
+    const guestQueries = { predicate: (query: { queryKey: readonly unknown[] }) => query.queryKey.includes(activeToken) };
+    void cache.cancelQueries(guestQueries).then(() => cache.removeQueries(guestQueries));
+    void cache.invalidateQueries({ queryKey: qk.review(shareToken) });
+  }, [sessionEnded, activeToken, shareToken, cache]);
 
   // Routes an already-identified guest (freshly created, or recovered from a prior
   // visit this tab) to the right destination for this project's type, without
@@ -79,8 +110,28 @@ export function ReviewEntryPage() {
     if (assetGuest || pendingHandoff || isSubmitting) return;
     const stored = getStoredGuestSession(shareToken);
     if (!stored) return;
-    setDisplayName(stored.displayName);
-    routeGuest(stored);
+    const controller = new AbortController();
+    setIsRecovering(true);
+    reviewApi.getGuestSessionStatus(stored.guestSessionToken, controller.signal).then((current) => {
+      if (controller.signal.aborted) return;
+      if (current.share_link_id !== resolved.share_link_id || current.member_bound) {
+        clearStoredGuestSession(shareToken);
+        setError("Open the original review link to join this project again.");
+        return;
+      }
+      const session = { ...stored, displayName: current.display_name };
+      setDisplayName(session.displayName);
+      routeGuest(session);
+    }).catch((failure: unknown) => {
+      if (controller.signal.aborted) return;
+      if (failure instanceof ApiError && [401, 403, 404].includes(failure.status)) {
+        clearStoredGuestSession(shareToken);
+        setError("Your previous review session ended. Join again to continue.");
+      } else {
+        setError("Couldn't check your previous session. Check your connection and try again.");
+      }
+    }).finally(() => { if (!controller.signal.aborted) setIsRecovering(false); });
+    return () => { controller.abort(); setIsRecovering(false); };
   }, [shareToken, resolved, assetGuest, pendingHandoff, isSubmitting, routeGuest]);
 
   async function handleSubmit(event: FormEvent) {
@@ -119,7 +170,8 @@ export function ReviewEntryPage() {
   if (!shareToken) {
     return <ErrorScreen message="Missing share link." />;
   }
-  if (assetGuest && resolved) {
+  if (sessionEnded) return <ErrorScreen message="Your review session ended. Reopen the review link to join again." />;
+  if (sessionMatchesLink && assetGuest && resolved) {
     return (
       <AssetReview
         projectId={resolved.project_id}
@@ -131,7 +183,7 @@ export function ReviewEntryPage() {
     );
   }
 
-  if (pendingHandoff && resolved && showBoard) {
+  if (sessionMatchesLink && pendingHandoff && resolved && showBoard) {
     return (
       <GuestBoard
         projectId={resolved.project_id}
@@ -147,7 +199,7 @@ export function ReviewEntryPage() {
     );
   }
 
-  if (pendingHandoff && resolved) {
+  if (sessionMatchesLink && pendingHandoff && resolved) {
     return (
       <div className="bl-gate-scrim">
         <div className="bl-gate-modal" role="dialog" aria-modal="true" aria-labelledby="ggTitle">
@@ -170,7 +222,7 @@ export function ReviewEntryPage() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || isRecovering) {
     return (
       <div className="bl-gate-scrim">
         <div className="bl-gate-modal" role="dialog" aria-modal="true">

@@ -4,6 +4,7 @@ from typing import Any
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from app.core.email_address import normalize_email
@@ -119,6 +120,31 @@ class UserRepository:
                 "$set": {"password_hash": password_hash},
                 "$addToSet": {"auth_providers": "password"},
             },
+        )
+
+    async def verify_email(self, user_id: ObjectId, *, email: str) -> dict[str, Any] | None:
+        # First explicit proof retires every password created before ownership was
+        # enforced. A legacy provider history alone cannot certify that password.
+        await self.db.users.update_one(
+            {"_id": user_id, "email": email, "email_verified_at": None},
+            {"$set": {"email_verified_at": datetime.now(UTC), "password_hash": None}},
+        )
+        return await self.db.users.find_one({"_id": user_id, "email": email})
+
+    async def activate_verified_signup(
+        self, user_id: ObjectId, *, email: str, name: str, password_hash: str
+    ) -> dict[str, Any] | None:
+        return await self.db.users.find_one_and_update(
+            {"_id": user_id, "email": email, "email_verified_at": None},
+            {
+                "$set": {
+                    "email_verified_at": datetime.now(UTC),
+                    "password_hash": password_hash,
+                    "name": name,
+                },
+                "$addToSet": {"auth_providers": "password"},
+            },
+            return_document=ReturnDocument.AFTER,
         )
 
     async def touch_login(self, user_id: ObjectId, auth_provider: str) -> None:

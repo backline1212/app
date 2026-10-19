@@ -53,6 +53,9 @@ async def create_session_ticket(
     workspace_id: str,
     project_id: str,
 ) -> CloudLoginSessionOut:
+    from app.core.server_browser import require_server_browser
+
+    require_server_browser()
     settings = get_settings()
     if not settings.cloud_login_ws_url:
         raise ValidationError(

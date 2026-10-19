@@ -17,8 +17,14 @@ export function getStoredGuestSession(shareToken: string): StoredGuestSession | 
   try {
     const raw = sessionStorage.getItem(storageKey(shareToken));
     if (!raw) return null;
-    return JSON.parse(raw) as StoredGuestSession;
+    const parsed = JSON.parse(raw) as Partial<StoredGuestSession> | null;
+    if (typeof parsed?.guestSessionToken === "string" && parsed.guestSessionToken && typeof parsed.displayName === "string") {
+      return { guestSessionToken: parsed.guestSessionToken, displayName: parsed.displayName };
+    }
+    clearStoredGuestSession(shareToken);
+    return null;
   } catch {
+    clearStoredGuestSession(shareToken);
     return null;
   }
 }
