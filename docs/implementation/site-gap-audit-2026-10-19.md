@@ -39,6 +39,10 @@ remain open. Guided extension setup and return do not close native capability li
 Live launch verification additionally identified a refresh family read gap between
 old-token revocation and successor creation. [TDR-0071](../tdr/0071-atomic-refresh-successor.md)
 commits those writes together; broader F12 logout/replay/failure acceptance remains open.
+F21 now has a shared composer rejection/synchronous-throw recovery repair in
+[TDR-0072](../tdr/0072-composer-submit-recovery.md), pending an induced failure on
+the updated real extension. The ledger also records 0.4.1 draft/cancel/return and
+existing-login YouTube launch; complete capture/persistence acceptance remains open.
 
 ## Result and evidence boundary
 

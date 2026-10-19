@@ -7,9 +7,12 @@ cannot enable unavailable domain verification or guest export. Legacy policies
 remain readable and explicitly labelled; browser acceptance remains open.
 User-assisted Chrome checks now cover project/share access, guest join/recover/exit,
 missing/stale extension guidance, real signed-in 0.4.1 tab launch and Comment mode.
-TDR-0071 closes the refresh successor read gap observed during launch. Remaining
-draft/post/evidence, current-version return and broad-site acceptance are explicit
-in the delivery ledger; these observations do not close complete acceptance rows.
+TDR-0071 closes the refresh successor read gap observed during launch. The next
+0.4.1 pass covers filled-draft protection/cancel, return retaining the selected
+thread, toolbar cleanup and existing-login YouTube launch. TDR-0072 repairs the
+shared composer's rejected-submit recovery in source. Posting/evidence, induced
+failure on the updated extension and broad-site acceptance remain explicit in
+the delivery ledger; these observations do not close complete acceptance rows.
 
 2026-10-19: FD-08 recovery now offers explicit extension launch when proxy tools
 don't acknowledge within 15 seconds. TDR-0069 fixes the old extension API default

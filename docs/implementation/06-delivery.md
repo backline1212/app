@@ -1,5 +1,37 @@
 # Delivery and verification ledger
 
+## 2026-10-19: Native draft/return acceptance and composer recovery (TDR-0072)
+
+Browser use is available again. With the user's installed 0.4.1 extension, the
+existing Example Project opens its exact real website tab and acknowledges the
+toolbar. Comment placement opens the composer. A filled draft blocks a switch to
+Browse with "Finish or cancel your current comment first"; its body remains
+visible. Cancel removes the composer/ghost pin, and Browse resumes. Return to
+Backline uses the original project tab without a duplicate. After selecting an
+existing portal thread, returning again retains the exact `?thread=` URL. Closing
+website tools removes the toolbar and leaves the target page usable. Existing
+portal feedback remains readable during proxy failure; the two-comment count is
+unchanged. No comment, reply, attachment or workflow mutation was submitted.
+
+The existing YouTube project also opens its actual top-level website, retaining
+the already signed-in YouTube account and receiving toolbar acknowledgement.
+Return reaches the original project. Its proxy fails explicitly with extension
+and retry actions and the footer reports "Preview unavailable". This verifies
+native launch/session reuse for this site; it does not establish a fresh password,
+Google/SSO, CAPTCHA or arbitrary-site login pass. Local visual evidence is saved at
+`.tools/verification/2026-10-19-youtube-fallback.png` (ignored).
+
+Fixed audit F21 in source: the shared composer now catches rejected promises and
+synchronous adapter callback exceptions, restores Post/Cancel, preserves the draft
+and shows a retryable error. It ignores completion after teardown. Extension
+0.4.2 bundles the repair with unchanged permissions/protocol; minimum launch
+compatibility remains 0.4.1. See [TDR-0072](../tdr/0072-composer-submit-recovery.md).
+Full frontend lint/typecheck/build passes 12/12 (three cached), retaining the
+existing large-chunk build advisory. No test suite written/run. Deployment
+evidence will follow. A real induced failure on the
+updated extension, comment/evidence persistence, guest native lifecycle and broad
+site/auth acceptance remain open. CR-02/03 and native panel parity remain pending.
+
 ## 2026-10-19: Refresh-family continuity during native launch (TDR-0071)
 
 After the user updated to extension 0.4.1, minimum-version validation passed and

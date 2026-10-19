@@ -33,8 +33,11 @@ CR-02/03. F30 project edits now use one document write; creation/outbox gaps rem
 User-assisted Chrome verification covers real signed-in 0.4.1 extension launch,
 toolbar acknowledgement and Comment mode after the atomic refresh successor repair
 in [TDR-0071](../tdr/0071-atomic-refresh-successor.md). Guest join/recovery/exit and
-sharing were also exercised. Full draft/post/evidence/return and broad site/auth
-acceptance remain open; browser control was disabled again at the next continuation.
+sharing were also exercised. The subsequent 0.4.1 pass covers filled-draft
+protection/cancel, return retaining the selected thread, toolbar cleanup and
+existing-login YouTube launch. [TDR-0072](../tdr/0072-composer-submit-recovery.md)
+repairs rejected-submit recovery in the shared composer. Posting/evidence,
+updated-extension failure-path and broad site/auth acceptance remain open.
 
 ## 1. Release boundary and product contract
 

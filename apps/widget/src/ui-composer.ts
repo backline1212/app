@@ -298,7 +298,11 @@ export function openComposer(
     submitted = true;
     discardArmedUntil = 0;
     setFormDisabled(true);
-    onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag] }).then((ok) => {
+    // Capture/anchor/upload callbacks can throw before they reach their API error
+    // handler. Handle both synchronous throws and rejected promises here so every
+    // adapter keeps the draft and restores its controls for an explicit retry.
+    void Promise.resolve().then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag] })).then((ok) => {
+      if (closed) return;
       if (ok) {
         posted = true;
         if (activeComposer === handle) activeComposer = null;
@@ -312,6 +316,13 @@ export function openComposer(
       // dismiss it themselves, instead of a permanently disabled dead end.
       submitted = false;
       setFormDisabled(false);
+    }).catch((error: unknown) => {
+      if (closed) return;
+      submitted = false;
+      setFormDisabled(false);
+      const detail = error instanceof Error && error.message ? `${error.message} ` : "";
+      statusEl.textContent = `Could not post your comment. ${detail}Your draft is still here. Try again.`;
+      textarea.focus({ preventScroll: true });
     });
   }
 

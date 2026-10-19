@@ -37,6 +37,10 @@ single-write project edits. It preserves the pending connected-site launch scope
 The user-assisted launch check then identified an auth read gap during rotation;
 [TDR-0071](../tdr/0071-atomic-refresh-successor.md) commits the refresh successor
 with its old-token claim, preserving strict replay detection and family continuity.
+Current native verification covers draft protection/cancel, original-tab return
+with a selected thread, toolbar cleanup and existing-login YouTube launch. The
+shared composer rejection repair is [TDR-0072](../tdr/0072-composer-submit-recovery.md);
+updated-extension failure-path and comment/evidence acceptance remain open.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)
