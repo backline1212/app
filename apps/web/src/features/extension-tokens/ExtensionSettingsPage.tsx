@@ -114,7 +114,7 @@ export function ExtensionSettingsPage() {
         </header>
         <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
           <p>Available for desktop Chrome and Edge. Installation is manual for now.</p>
-          <ol className="bl-mono" style={{ margin: 0, paddingLeft: "18px" }}>
+          <ol style={{ margin: 0, paddingLeft: "18px", fontSize: "13px", lineHeight: 1.6 }}>
             <li>Download and unzip the file below.</li>
             <li>
               In Chrome, go to <code>chrome://extensions</code> and turn on Developer mode
@@ -136,7 +136,7 @@ export function ExtensionSettingsPage() {
 
       <section className="bl-attention bl-settings-section">
         <header><h2>2. Open a project and start review</h2></header>
-        <div>
+        <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "12px" }}>
           <p>Choose <strong>Open with extension</strong> in your project. Backline connects the review automatically; you don't need to generate or paste a token.</p>
           <p>Sign in to the website using your own account if needed. Leave feedback with the Backline toolbar, then choose <strong>Return to Backline</strong> to see the saved ticket.</p>
           <Link className="bl-button" to={`/w/${workspace.slug}`}>Choose a project</Link>

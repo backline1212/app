@@ -24,6 +24,23 @@ diff checks pass. No test suite written/run. Deployment and browser evidence wil
 follow. Full CR-02/03, native panel parity,
 induced errors and broad guest/provider coverage remain open.
 
+Initial rollout `a9de5a6` succeeds on Vercel
+`https://vercel.com/devbackline-7169/app-web/Eb4XGeZ44RsPSGVjcJ1zN1x1yyNk`.
+Chrome detects installed 0.4.3 and repeats the readiness check successfully.
+Standalone Generate token is initially hidden, becomes visible only on opening
+the optional disclosure, and is not used; the seven access records remain seven
+across checking. Choose a project reaches the workspace.
+
+The actual Example Project preview fails on this run, including one retry; this
+is recorded as failure rather than a successful live-preview check. Initial and
+failed Comment/Draw/dock buttons are disabled. Existing Comments (3) remain
+readable. The recovery action inside the failed preview opens exactly one dialog,
+launches the real example.com page and reaches acknowledged native connection.
+The live visual check also caught a horizontal layout inherited by the new Step 2
+content; a follow-up stacks its instructions and sizes the project action normally,
+and increases install-list legibility. Final web lint/typecheck/build again pass
+3/3. The corrected layout's rollout/browser evidence will follow.
+
 ## 2026-10-19: Installed 0.4.3 short-window layout acceptance
 
 The user confirmed the updated extension was installed and connected. The original
