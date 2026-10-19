@@ -10,6 +10,16 @@ class ExtensionError extends Error {
   constructor(message: string, readonly status = 0) { super(message); }
 }
 
+function supportsReviewFlow(version: unknown): boolean {
+  if (typeof version !== "string" || !/^\d+(\.\d+){2,3}$/.test(version)) return false;
+  const parts = version.split(".").map(Number);
+  const minimum = [0, 4, 1];
+  for (let i = 0; i < minimum.length; i += 1) {
+    if (parts[i] !== minimum[i]) return parts[i] > minimum[i];
+  }
+  return true;
+}
+
 function extensionRequest<T>(action: "status" | "launch", input?: NativeReviewLaunch, signal?: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
     const id = crypto.randomUUID();
@@ -94,9 +104,10 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
       }
       if (!current()) return;
       if (status.version !== 2 || typeof status.apiBaseUrl !== "string"
-        || status.apiBaseUrl.replace(/\/$/, "") !== API_BASE_URL.replace(/\/$/, "")) {
+        || status.apiBaseUrl.replace(/\/$/, "") !== API_BASE_URL.replace(/\/$/, "")
+        || !supportsReviewFlow(status.extensionVersion)) {
         setPhase("setup");
-        setMessage("Your extension needs an update. Replace its files with this download, reload its extension card, then choose Check again.");
+        setMessage("Update to Backline extension 0.4.1 or newer. Replace its files with this download, reload its extension card, then choose Check again.");
         return;
       }
       if (!online) throw new Error("You're offline. Reconnect, then choose Try again.");

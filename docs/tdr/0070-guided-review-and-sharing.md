@@ -39,6 +39,8 @@ Live verification of 0.4.0 found that same-origin fallback can still attach to a
 unrelated Backline tab. Version 0.4.1 requires an exact destination URL when the
 target shares Backline's dashboard origin; otherwise it creates the requested tab.
 Other website origins retain the existing session-preserving reuse behavior.
+Portal launch requires at least extension 0.4.1 as well as protocol/API matching,
+so an unpacked older installation cannot keep the reproduced tab-selection bug.
 
 POST `/guest-sessions/current/end` is a no-store, rate-limited, idempotent action on
 the caller's signed guest session. Persist additive `ended_at`; shared HTTP/socket

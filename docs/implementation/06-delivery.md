@@ -94,6 +94,16 @@ source lint/typecheck/build passes 12/12 (nine cached) after the public-query an
 the already verified 123-path deployment. `git diff --check` passes. Extension
 permissions are unchanged. Signed-in site posting/evidence and full browser
 acceptance of 0.4.1 still require the installed extension update.
+The portal now checks a minimum extension version of 0.4.1 before issuing a launch
+credential, with explicit update instructions for 0.4.0/older unpacked installs.
+Affected web lint/typecheck/build pass after this minimum-version check. Live ZIP
+reports 0.4.1 and contains both tab-selection and return-path repairs. API and
+worker report SUCCESS for `108ea48f401787b9d52ddd3282c6b631f264fb7e`, respectively
+`c4520e5d-940f-4f38-9df0-2661d31308d0` and
+`7ef6a374-e628-4258-a72a-27ca73344741`. Cloud-login remains the successful
+8037aeb build because none of its backend inputs changed. The corrected preview
+footer now reports Preview unavailable during real failure. Existing project
+comments remain accessible in the side panel while the preview fails.
 
 ## 2026-10-19: Proxy recovery, extension connection and evidence persistence
 
