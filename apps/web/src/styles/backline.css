@@ -2967,6 +2967,11 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-browser-flow small { display: block; margin-top: 8px; color: var(--bl-muted); overflow-wrap: anywhere; }
 .bl-browser-flow ol:not(.bl-review-steps) { padding-left: 22px; }
 .bl-browser-flow li + li { margin-top: 8px; }
+.bl-extension-check { padding: 12px; border: 1px solid var(--bl-line); border-radius: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.bl-extension-check p { flex: 1 1 260px; margin: 0; }
+.bl-extension-advanced { margin: 20px 0; }
+.bl-extension-advanced > summary { cursor: pointer; font-weight: 600; padding: 12px 0; }
+.bl-review-mode button:disabled, .bl-dock-btn:disabled { opacity: .45; cursor: default; }
 .bl-review-steps { display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 12px 0; margin: 0 0 16px; list-style-position: inside; border-bottom: 1px solid var(--bl-line); color: var(--bl-muted); font-size: 12px; }
 .bl-review-steps li + li { margin-top: 0; }
 .bl-review-steps [aria-current="step"] { color: var(--bl-ink); font-weight: 700; }

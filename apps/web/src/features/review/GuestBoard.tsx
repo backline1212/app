@@ -54,9 +54,9 @@ export function GuestBoard({
             {continueLabel ?? "Continue to site"}
           </button>
         )}
-        <button onClick={onBack} className="bl-quiet">
+        {!onContinue && <button onClick={onBack} className="bl-quiet">
           Back
-        </button>
+        </button>}
       </header>
 
       {guestName && (
@@ -89,7 +89,7 @@ export function GuestBoard({
           <div className="bl-empty">
             <EmptyArt kind="board" />
             <h2>No items yet</h2>
-            <p>The board is currently empty.</p>
+            <p>Go back to the review, open the website and leave the first comment. Saved feedback will appear here.</p>
           </div>
         )}
 

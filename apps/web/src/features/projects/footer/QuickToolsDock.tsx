@@ -12,10 +12,12 @@ interface QuickToolsDockProps {
   mode: "browse" | "comment" | "draw" | "view";
   /** False for a project viewer (TDR-0056): the Comment and Draw tools are left out. */
   canComment?: boolean;
+  toolsReady?: boolean;
+  toolsUnavailableReason?: string;
   onModeChange?: (mode: "browse" | "comment" | "draw") => void;
 }
 
-export function QuickToolsDock({ environment, mode, canComment = true, onModeChange }: QuickToolsDockProps) {
+export function QuickToolsDock({ environment, mode, canComment = true, toolsReady = true, toolsUnavailableReason, onModeChange }: QuickToolsDockProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [startHidden, setStartHidden] = useState(() => localStorage.getItem("bl-dock-hidden") === "true");
@@ -75,10 +77,10 @@ export function QuickToolsDock({ environment, mode, canComment = true, onModeCha
         <div className="bl-dock-divider" />
         {canComment && (
           <>
-            <button type="button" className={`bl-dock-btn ${mode === "comment" ? "active" : ""}`} onClick={() => onModeChange?.("comment")} aria-label="Comment (C)" title="Comment (C)">
+            <button type="button" className={`bl-dock-btn ${mode === "comment" ? "active" : ""}`} disabled={!toolsReady} onClick={() => onModeChange?.("comment")} aria-label="Comment (C)" title={toolsReady ? "Comment (C)" : toolsUnavailableReason}>
               <CommentsIcon width={16} height={16} />
             </button>
-            <button type="button" className={`bl-dock-btn ${mode === "draw" ? "active" : ""}`} onClick={() => onModeChange?.("draw")} aria-label="Draw Region (D)" title="Draw Region (D)">
+            <button type="button" className={`bl-dock-btn ${mode === "draw" ? "active" : ""}`} disabled={!toolsReady} onClick={() => onModeChange?.("draw")} aria-label="Draw Region (D)" title={toolsReady ? "Draw Region (D)" : toolsUnavailableReason}>
               <span style={{ fontSize: "16px", lineHeight: 1 }}>✛</span>
             </button>
           </>

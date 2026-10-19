@@ -46,6 +46,10 @@ reload. [TDR-0073](../tdr/0073-native-toolbar-card-layout.md) addresses a measur
 toolbar/composer overlap; updated-extension visual/failure-path checks remain open.
 The user-updated 0.4.3 short-window layout and long-draft cancellation now pass;
 wrapped/narrow-window and induced failure acceptance remain open in the ledger.
+The next web-only product flow increment is
+[TDR-0074](../tdr/0074-review-guidance-and-readiness.md): project-first automatic
+extension connection, optional standalone setup, explicit reload recovery and
+readiness-gated canvas controls. It retains the pending CR-02/03 boundary.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

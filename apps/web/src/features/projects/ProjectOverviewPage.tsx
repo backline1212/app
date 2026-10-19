@@ -148,9 +148,11 @@ export function ProjectOverviewPage() {
   // so the status bar stops inviting clicks that nothing will pick up.
   const [widgetError, setWidgetError] = useState<string | null>(null);
   const widgetReady = useRef(false);
+  const [widgetConnected, setWidgetConnected] = useState(false);
   const [proxyUnconfirmed, setProxyUnconfirmed] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const canvasRef = useRef<HTMLIFrameElement>(null);
+  const nativeReviewTrigger = useRef<HTMLButtonElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const frameShellRef = useRef<HTMLDivElement>(null);
   // Memoizes the canvas URL against the target it was built for - see where iframeSrc
@@ -396,6 +398,7 @@ export function ProjectOverviewPage() {
       }
       if (event.data?.type !== "backline:page-registered") return;
       widgetReady.current = true;
+      setWidgetConnected(true);
       setProxyUnconfirmed(false);
       setWidgetError(null);
       const pageId = event.data.pageId as string;
@@ -582,6 +585,7 @@ export function ProjectOverviewPage() {
     if (activePageIdParam !== null && activePageIdParam === frameDrivenPageRef.current) return;
     setIframeStatus("loading");
     widgetReady.current = false;
+    setWidgetConnected(false);
     setWidgetError(null);
     setProxyUnconfirmed(false);
     const timer = window.setTimeout(() => {
@@ -656,6 +660,7 @@ export function ProjectOverviewPage() {
   }
 
   function setMode(nextMode: CanvasMode) {
+    if (!widgetReady.current || iframeStatus !== "loaded" || widgetError || proxyUnconfirmed || isCrossBrowserRenderActive) return;
     // "view" is never stored in the URL: it is what Comment and Draw become for a viewer.
     const stored = nextMode === "view" || (!canComment && nextMode === "draw") ? "comment" : nextMode;
     updateViewParams({ mode: stored === "comment" ? null : stored });
@@ -844,7 +849,13 @@ export function ProjectOverviewPage() {
   const pageIds = sortedPages.map((page) => page.id);
   const effectiveFrameStatus = !iframeSrc ? "unavailable"
     : iframeStatus === "error" || widgetError || proxyUnconfirmed ? "error"
-    : widgetReady.current ? iframeStatus : "loading";
+    : widgetConnected ? iframeStatus : "loading";
+  const canvasToolsReady = effectiveFrameStatus === "loaded" && !isCrossBrowserRenderActive;
+  const previewFailed = effectiveFrameStatus === "error";
+  const toolsUnavailableReason = previewFailed
+    ? "Open with extension or retry the preview to leave feedback."
+    : isCrossBrowserRenderActive ? "Switch to the live preview to leave feedback."
+    : "Comment tools will be available when the website connects.";
 
   return (
     <main className="bl-review-workspace">
@@ -870,21 +881,21 @@ export function ProjectOverviewPage() {
 
         <div className="bl-review-header-tools">
           {/* Browser review exists to leave comments, which the API refuses a viewer. */}
-          {user && canComment && <NativeReviewButton projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
+          {user && canComment && <NativeReviewButton triggerRef={nativeReviewTrigger} projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
           <div className="bl-review-mode" aria-label="Canvas mode">
-            <button type="button" aria-pressed={mode === "browse"} onClick={() => setMode("browse")}>
+            <button type="button" aria-pressed={mode === "browse"} disabled={!canvasToolsReady} title={canvasToolsReady ? undefined : toolsUnavailableReason} onClick={() => setMode("browse")}>
               <PointerIcon width={13} height={13} />
               Browse
             </button>
             {canComment ? (
               <>
-                <button type="button" aria-pressed={mode === "comment"} onClick={() => setMode("comment")}>
+                <button type="button" aria-pressed={mode === "comment"} disabled={!canvasToolsReady} title={canvasToolsReady ? undefined : toolsUnavailableReason} onClick={() => setMode("comment")}>
                   <CommentsIcon width={13} height={13} />
                   Comment
                 </button>
                 {/* Draw was reachable only from the dock (and D); with it missing here, drawing
                     left this switch showing no mode at all. */}
-                <button type="button" aria-pressed={mode === "draw"} onClick={() => setMode("draw")} title="Draw an area to comment on (D)">
+                <button type="button" aria-pressed={mode === "draw"} disabled={!canvasToolsReady} onClick={() => setMode("draw")} title={canvasToolsReady ? "Draw an area to comment on (D)" : toolsUnavailableReason}>
                   <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeDasharray="3 2.5" aria-hidden="true">
                     <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
                   </svg>
@@ -895,8 +906,9 @@ export function ProjectOverviewPage() {
               <button
                 type="button"
                 aria-pressed={mode === "view"}
+                disabled={!canvasToolsReady}
                 onClick={() => setMode("view")}
-                title="You can read comments on this project. Ask a project manager to make you a commenter to leave your own."
+                title={canvasToolsReady ? "You can read comments on this project. Ask a project manager to make you a commenter to leave your own." : toolsUnavailableReason}
               >
                 <CommentsIcon width={13} height={13} />
                 View comments
@@ -933,16 +945,16 @@ export function ProjectOverviewPage() {
         </div>
       </header>
 
-      <div className="bl-review-browser-help" role={proxyUnconfirmed || widgetError ? "alert" : "status"}>
+      <div className="bl-review-browser-help" role={previewFailed ? "alert" : undefined}>
         <div>
-          <strong>{proxyUnconfirmed || widgetError || iframeStatus === "error"
-            ? "This page hasn't connected to Backline's proxy review tools."
+          <strong>{previewFailed
+            ? "This website isn't ready for review inside Backline."
             : "Trouble loading this site or signing in?"}</strong>
-          <p>Open with the extension to use the real website and your normal login. Comments and evidence stay in this project. YouTube, Notion and other sites may block embedded sign-in.</p>
-          {widgetError && <p>{widgetError}</p>}
+          <p>{previewFailed ? "Your saved feedback is still available in Comments. Open the website with the extension to review it using your normal login, or retry the preview." : "If the preview or website sign-in doesn't work, Open with extension uses the real website. Your saved feedback stays in Backline."}</p>
+          {widgetError && <details><summary>Connection details</summary><p>{widgetError}</p></details>}
         </div>
-        {user && canComment && <NativeReviewButton projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
-        {(proxyUnconfirmed || widgetError) && <button type="button" className="bl-quiet" onClick={reloadPreview}>Retry proxy</button>}
+        {user && canComment && <button type="button" className="bl-button" onClick={() => nativeReviewTrigger.current?.click()}>Open with extension</button>}
+        {previewFailed && <button type="button" className="bl-quiet" onClick={reloadPreview}>Retry preview</button>}
       </div>
 
       <div className="bl-review-pagebar">
@@ -991,7 +1003,7 @@ export function ProjectOverviewPage() {
             <div className="bl-review-empty-canvas" role="status">
               <span className="bl-review-loader" aria-hidden="true" />
               <strong>Preparing the review source</strong>
-              <p>Opening the site through Backline’s private review proxy…</p>
+              <p>Loading the website and connecting your review tools…</p>
             </div>
           ) : canvasSessionQuery.error ? (
             <div className="bl-review-empty-canvas" role="alert">
@@ -1084,7 +1096,7 @@ export function ProjectOverviewPage() {
               <div className="bl-live-frame-bar">
                 <span className="bl-live-frame-lights" aria-hidden="true"><i /><i /><i /></span>
                 <span className="bl-live-frame-address" title={displayUrl}>{displayUrl.replace(/^https?:\/\//, "")}</span>
-                <span className="bl-live-frame-source"><i aria-hidden="true" />Safe proxy</span>
+                <span className="bl-live-frame-source"><i aria-hidden="true" />Website preview</span>
                 <button type="button" onClick={reloadPreview} aria-label="Reload proxy preview" title="Reload proxy preview">
                   <ReloadIcon width={13} height={13} className={iframeStatus === "loading" ? "bl-is-spinning" : ""} />
                 </button>
@@ -1103,16 +1115,17 @@ export function ProjectOverviewPage() {
                     <span className="bl-review-loader" aria-hidden="true" />
                     <strong>Loading {displayUrl.replace(/^https?:\/\//, "")}</strong>
                     <span className="bl-iframe-steps" aria-hidden="true"><i /><i /><i /></span>
-                    <p>Backline is loading the page through the private review proxy so its real widget pins can attach safely.</p>
+                    <p>Wait for the comment tools to connect. If this website needs its normal browser login, use Open with extension.</p>
                   </div>
                 )}
                 {iframeStatus === "error" && (
                   <div className="bl-iframe-state is-error" role="alert">
                     <span className="bl-review-state-icon is-warning"><GlobeIcon /></span>
-                    <strong>This page couldn’t connect through the proxy</strong>
-                    <p>It may require its normal browser login or block embedded review. Use Open with extension above to review the real site.</p>
+                    <strong>This website couldn't open in the preview</strong>
+                    <p>Your saved feedback is still available. Open with extension uses the real website and your normal login.</p>
                     <div>
-                      <button type="button" className="bl-button" onClick={reloadPreview}>Try again</button>
+                      {user && canComment && <button type="button" className="bl-button" onClick={() => nativeReviewTrigger.current?.click()}>Open with extension</button>}
+                      <button type="button" className="bl-quiet" onClick={reloadPreview}>Retry preview</button>
                       <a className="bl-quiet" href={displayUrl} target="_blank" rel="noreferrer">Open live page</a>
                       {canManageProject ? <button type="button" className="bl-quiet" onClick={() => setShowSettings(true)}>Check URL</button> : <p>Ask a project manager if the project URL needs changing.</p>}
                     </div>
@@ -1120,8 +1133,8 @@ export function ProjectOverviewPage() {
                 )}
               </div>
               <div className="bl-live-frame-meta">
-                <span className={widgetError || proxyUnconfirmed ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{widgetError || proxyUnconfirmed ? "Review tools haven't connected — open with the extension or retry the proxy" : !widgetReady.current ? "Waiting for review tools to connect" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : mode === "view" ? "View only — open a pin to read it. Your role on this project can't add comments" : "Browse mode — comments are hidden, use the site as normal")}</span>
-                <span>Source: proxy</span>
+                <span className={previewFailed ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{previewFailed ? "Preview unavailable — use Open with extension or Retry preview" : !widgetConnected ? "Connecting comment tools…" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : mode === "view" ? "View only — open a pin to read it. Your role on this project can't add comments" : "Browse mode — comments are hidden, use the site as normal")}</span>
+                <span>Review inside Backline</span>
               </div>
               {!viewport && (
                 <CanvasResizer
@@ -1137,7 +1150,7 @@ export function ProjectOverviewPage() {
             <div className="bl-review-empty-canvas" role="status">
               <span className="bl-review-loader" aria-hidden="true" />
               <strong>Preparing the review source</strong>
-              <p>Opening the site through Backline’s private review proxy…</p>
+              <p>Loading the website and connecting your review tools…</p>
             </div>
           )}
         </div>
@@ -1146,6 +1159,8 @@ export function ProjectOverviewPage() {
           environment={project.environment}
           mode={mode}
           canComment={canComment}
+          toolsReady={canvasToolsReady}
+          toolsUnavailableReason={toolsUnavailableReason}
           onModeChange={(m) => setMode(m)}
         />
 

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useRef, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { Link, useOutletContext } from "react-router-dom";
 
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { LoadingScreen } from "../../components/LoadingScreen";
@@ -9,6 +9,7 @@ import { formatRelativeTime } from "../../lib/date-format";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import type { WorkspaceOut } from "../workspaces/api";
+import { ExtensionReadiness } from "../review/ExtensionReadiness";
 import * as extensionTokensApi from "./api";
 
 export function ExtensionSettingsPage() {
@@ -19,6 +20,13 @@ export function ExtensionSettingsPage() {
   const [name, setName] = useState("");
   const [copied, setCopied] = useState(false);
   const [revokeCandidate, setRevokeCandidate] = useState<extensionTokensApi.ExtensionTokenOut | null>(null);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const update = () => setNow(Date.now());
+    const timer = window.setInterval(update, 15_000);
+    window.addEventListener("focus", update);
+    return () => { clearInterval(timer); window.removeEventListener("focus", update); };
+  }, []);
 
   const queryKey = qk.extensionTokens(workspace.id);
   const { data: tokens, isLoading, error: listError } = useQuery({
@@ -77,7 +85,9 @@ export function ExtensionSettingsPage() {
     }
   }
 
-  const activeTokens = (tokens ?? []).filter((t) => !t.revoked_at);
+  const unrevokedTokens = (tokens ?? []).filter((token) => !token.revoked_at);
+  const activeTokens = unrevokedTokens.filter((token) => Date.parse(token.expires_at) > now);
+  const expiredCount = unrevokedTokens.length - activeTokens.length;
 
   return (
     <main className="bl-wrap">
@@ -85,8 +95,7 @@ export function ExtensionSettingsPage() {
         <div>
           <h1>Browser Extension</h1>
           <p>
-            Connect the Backline browser extension so you can leave comments on any site
-            without opening the dashboard first.
+            Review the real website with your normal login. Saved comments and screenshots stay in Backline.
           </p>
         </div>
       </header>
@@ -101,12 +110,10 @@ export function ExtensionSettingsPage() {
 
       <section className="bl-attention bl-settings-section">
         <header>
-          <h2>Step 1 - Get the extension</h2>
+          <h2>1. Install or update the extension</h2>
         </header>
         <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
-          <p className="bl-mono">
-            Not yet on the Chrome Web Store - download it and load it manually for now:
-          </p>
+          <p>Available for desktop Chrome and Edge. Installation is manual for now.</p>
           <ol className="bl-mono" style={{ margin: 0, paddingLeft: "18px" }}>
             <li>Download and unzip the file below.</li>
             <li>
@@ -115,6 +122,7 @@ export function ExtensionSettingsPage() {
             </li>
             <li>Click "Load unpacked" and select the unzipped folder.</li>
           </ol>
+          <p>Already installed? Replace the files in the folder you loaded, click Reload on its extension card, then reload your Backline tabs. In Edge, use <code>edge://extensions</code>.</p>
           <a
             href={`${API_BASE_URL}/extension/backline-extension.zip`}
             className="bl-button"
@@ -122,17 +130,29 @@ export function ExtensionSettingsPage() {
           >
             Download extension (.zip)
           </a>
+          <ExtensionReadiness />
         </div>
       </section>
 
       <section className="bl-attention bl-settings-section">
+        <header><h2>2. Open a project and start review</h2></header>
+        <div>
+          <p>Choose <strong>Open with extension</strong> in your project. Backline connects the review automatically; you don't need to generate or paste a token.</p>
+          <p>Sign in to the website using your own account if needed. Leave feedback with the Backline toolbar, then choose <strong>Return to Backline</strong> to see the saved ticket.</p>
+          <Link className="bl-button" to={`/w/${workspace.slug}`}>Choose a project</Link>
+        </div>
+      </section>
+
+      <details className="bl-extension-advanced">
+        <summary>Standalone connection (optional)</summary>
+      <section className="bl-attention bl-settings-section">
         <header>
-          <h2>Step 2 - Connect it</h2>
+          <h2>Review without opening a project first</h2>
         </header>
         <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
           <p className="bl-mono">
-            Browser review connects automatically from a project or guest review link.
-            For standalone extension use, generate a token below and paste it into the extension popup.
+            Only use this if you want to start directly from the extension popup.
+            Generate a token and paste it into the popup. It expires after 30 days.
           </p>
           <form onSubmit={handleCreate} style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "4px" }}>
             <input
@@ -170,6 +190,7 @@ export function ExtensionSettingsPage() {
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                 <input
                   readOnly
+                  aria-label="New standalone extension token"
                   value={revealedToken.token}
                   onFocus={(event) => event.target.select()}
                   className="bl-input"
@@ -191,13 +212,15 @@ export function ExtensionSettingsPage() {
           )}
         </div>
       </section>
+      </details>
 
       {activeTokens.length > 0 && (
         <section className="bl-attention bl-settings-section">
           <header>
-            <h2>Connected</h2>
+            <h2>Active review access</h2>
           </header>
           <div style={{ flex: 1, padding: "20px" }}>
+            <p>These tokens authorize review access. This list does not indicate whether a website tab is connected. Revoking access keeps the saved feedback.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {activeTokens.map((token) => (
                 <div
@@ -219,6 +242,9 @@ export function ExtensionSettingsPage() {
                         ? `Last used ${formatRelativeTime(token.last_used_at)}`
                         : "Never used"}
                     </div>
+                    <div className="bl-mono" style={{ fontSize: "11px" }}>
+                      {token.project_id ? "Project review" : "Standalone extension"} · Expires {new Date(token.expires_at).toLocaleString()}
+                    </div>
                   </div>
                   <button
                     className="bl-quiet"
@@ -233,6 +259,7 @@ export function ExtensionSettingsPage() {
           </div>
         </section>
       )}
+      {expiredCount > 0 && <p className="bl-mono">{expiredCount} expired {expiredCount === 1 ? "token no longer grants" : "tokens no longer grant"} access. Open a project to start a fresh review.</p>}
 
       {revokeCandidate && (
         <ConfirmDialog

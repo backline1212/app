@@ -1,49 +1,11 @@
-import type { NativeReviewAuth, NativeReviewLaunch, NativeReviewStatus } from "@backline/types";
-import { useEffect, useRef, useState } from "react";
+import type { NativeReviewAuth, NativeReviewStatus } from "@backline/types";
+import { type Ref, useEffect, useRef, useState } from "react";
 
 import { Dialog } from "../../components/Dialog";
 import { API_BASE_URL, ApiError } from "../../lib/api-client";
 import { useOnlineStatus } from "../../lib/use-online-status";
 import { createExtensionToken, revokeExtensionToken } from "../extension-tokens/api";
-
-class ExtensionError extends Error {
-  constructor(message: string, readonly status = 0) { super(message); }
-}
-
-function supportsReviewFlow(version: unknown): boolean {
-  if (typeof version !== "string" || !/^\d+(\.\d+){2,3}$/.test(version)) return false;
-  const parts = version.split(".").map(Number);
-  const minimum = [0, 4, 1];
-  for (let i = 0; i < minimum.length; i += 1) {
-    if (parts[i] !== minimum[i]) return parts[i] > minimum[i];
-  }
-  return true;
-}
-
-function extensionRequest<T>(action: "status" | "launch", input?: NativeReviewLaunch, signal?: AbortSignal): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const id = crypto.randomUUID();
-    const timer = window.setTimeout(() => finish(new ExtensionError(action === "status"
-      ? "Backline couldn't find the extension in this browser."
-      : "The website hasn't confirmed its review tools. Finish signing in on the website, then try again.")), action === "status" ? 2500 : 30000);
-    function finish(error?: Error, data?: T) {
-      window.clearTimeout(timer);
-      window.removeEventListener("message", receive);
-      signal?.removeEventListener("abort", abort);
-      if (error) reject(error); else resolve(data as T);
-    }
-    function abort() { finish(new DOMException("Review launch cancelled", "AbortError")); }
-    function receive(event: MessageEvent) {
-      if (event.source !== window || event.origin !== window.location.origin
-        || event.data?.source !== "backline-extension" || event.data.id !== id) return;
-      finish(event.data.ok ? undefined : new ExtensionError(event.data.error, Number(event.data.status) || 0), event.data.data);
-    }
-    if (signal?.aborted) { abort(); return; }
-    signal?.addEventListener("abort", abort, { once: true });
-    window.addEventListener("message", receive);
-    window.postMessage({ source: "backline-dashboard", id, action, input }, window.location.origin);
-  });
-}
+import { ExtensionError, extensionRequest, isExtensionContextInvalidated, reviewExtensionProblem } from "./review-extension";
 
 interface Props {
   projectId: string;
@@ -51,11 +13,12 @@ interface Props {
   member?: { workspaceId: string; userId: string };
   guest?: Extract<NativeReviewAuth, { kind: "guest" }>;
   onGuestSessionExpired?: () => void;
+  triggerRef?: Ref<HTMLButtonElement>;
 }
 
-type Phase = "checking" | "setup" | "opening" | "connected" | "error";
+type Phase = "checking" | "setup" | "reload" | "opening" | "connected" | "error";
 
-export function NativeReviewButton({ projectId, url, member, guest, onGuestSessionExpired }: Props) {
+export function NativeReviewButton({ projectId, url, member, guest, onGuestSessionExpired, triggerRef }: Props) {
   const online = useOnlineStatus();
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("checking");
@@ -98,16 +61,15 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
       try { status = await extensionRequest<NativeReviewStatus>("status", undefined, controller.signal); }
       catch (error) {
         if (!current()) return;
-        setPhase("setup");
+        setPhase(isExtensionContextInvalidated(error) ? "reload" : "setup");
         setMessage(error instanceof Error ? error.message : "Install the extension to continue.");
         return;
       }
       if (!current()) return;
-      if (status.version !== 2 || typeof status.apiBaseUrl !== "string"
-        || status.apiBaseUrl.replace(/\/$/, "") !== API_BASE_URL.replace(/\/$/, "")
-        || !supportsReviewFlow(status.extensionVersion)) {
+      const problem = reviewExtensionProblem(status);
+      if (problem) {
         setPhase("setup");
-        setMessage("Update to Backline extension 0.4.1 or newer. Replace its files with this download, reload its extension card, then choose Check again.");
+        setMessage(problem);
         return;
       }
       if (!online) throw new Error("You're offline. Reconnect, then choose Try again.");
@@ -126,7 +88,7 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
       setPhase("connected");
     } catch (error) {
       if (!current()) return;
-      setPhase("error");
+      setPhase(isExtensionContextInvalidated(error) ? "reload" : "error");
       const status = error instanceof ApiError || error instanceof ExtensionError ? error.status : 0;
       setNeedsRejoin(Boolean(guest && [401, 403, 404].includes(status)));
       setMessage(error instanceof Error ? error.message : "Browser review couldn't connect. Try again.");
@@ -144,14 +106,14 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
 
   const busy = phase === "checking" || phase === "opening";
   return <>
-    <button type="button" className="bl-review-control bl-button" onClick={() => void start()} disabled={open && busy}>
-      {hasConnected ? "Return to website review" : "Open with extension"}
+    <button ref={triggerRef} type="button" className="bl-review-control bl-button" onClick={() => void start()} disabled={open && busy}>
+      {hasConnected ? "Open website review again" : "Open with extension"}
     </button>
-    {open && <Dialog title={phase === "setup" ? "Set up browser review" : phase === "connected" ? "Website review connected" : "Open website review"} onClose={close}>
+    {open && <Dialog title={phase === "reload" ? "Reconnect browser review" : phase === "setup" ? "Set up browser review" : phase === "connected" ? "Website review connected" : "Open website review"} onClose={close}>
       <div className="bl-dialog-intro"><p>Your website opens in a separate tab. Keep Backline open for saved feedback.</p></div>
       <div className="bl-browser-flow" aria-busy={busy}>
         <ol className="bl-review-steps" aria-label="Browser review steps">
-          <li aria-current={phase === "setup" || phase === "checking" ? "step" : undefined}>Connect extension</li>
+          <li aria-current={phase === "setup" || phase === "reload" || phase === "checking" ? "step" : undefined}>Connect extension</li>
           <li aria-current={phase === "opening" ? "step" : undefined}>Open website</li>
           <li aria-current={phase === "connected" ? "step" : undefined}>Leave feedback</li>
         </ol>
@@ -166,13 +128,15 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
           <small>Paste this address into your browser's address bar. For an existing installation, replace its files and click Reload on its extension card. Reload Backline if it still cannot connect.</small>
         </>}
         {phase === "error" && <p role="alert" className="bl-error">{message}</p>}
+        {phase === "reload" && <p role="status">Your extension was updated. Reload this Backline tab to reconnect, then open website review again. Your saved feedback stays in this project.</p>}
         {phase === "connected" && <p role="status">The Backline toolbar is connected in your website tab.</p>}
-        {phase !== "setup" && <ol><li>Sign in to the website using your own account if needed.</li><li>Choose Comment to pin an issue, or Draw to select an area.</li><li>Write your feedback and save. Use Return to Backline to see the saved ticket.</li></ol>}
+        {phase !== "setup" && phase !== "reload" && <ol><li>Sign in to the website using your own account if needed.</li><li>Choose Comment to see saved pins and add feedback, or Draw to select an area.</li><li>Write your feedback and save. Use Return to Backline to see the saved ticket.</li></ol>}
         <p className="bl-policy-note">A Backline review link doesn't sign you in to the website or give access to another person's website account.</p>
       </div>
       <footer className="bl-dialog-actions bl-dialog-actions-bordered">
         <button type="button" className="bl-quiet" onClick={close}>{busy ? "Stop waiting" : phase === "connected" ? "Done" : "Close"}</button>
-        {!busy && phase !== "connected" && (needsRejoin && onGuestSessionExpired
+        {phase === "reload" && <button type="button" className="bl-button" onClick={() => window.location.reload()}>Reload Backline</button>}
+        {!busy && phase !== "connected" && phase !== "reload" && (needsRejoin && onGuestSessionExpired
           ? <button type="button" className="bl-button" onClick={() => { close(); onGuestSessionExpired(); }}>Rejoin review</button>
           : <button type="button" className="bl-button" disabled={!online} onClick={() => void start()}>{phase === "setup" ? "Check again" : "Try again"}</button>)}
       </footer>

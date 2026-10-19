@@ -1,5 +1,29 @@
 # Delivery and verification ledger
 
+## 2026-10-19: Product review guidance and readiness (TDR-0074)
+
+User requested a smoother end-to-end product flow. Extension settings now guide
+install/update -> actual browser check -> choose project -> automatic launch.
+Standalone token generation is optional/collapsed; the access list distinguishes
+scope/expiry and excludes expired records instead of labelling them Connected.
+No new credentials are created by the readiness check. Shared bridge validation
+keeps exact source/origin/request matching, cancellation and compatibility checks.
+Invalidated-context recovery offers an explicit Reload Backline action.
+
+Canvas readiness now updates React state. Mode/dock controls and shortcuts reject
+interaction until real widget acknowledgement, during failure or on static renders.
+The project has one native launcher/dialog; recovery actions delegate to it. The
+failed preview explains that saved feedback remains available and offers direct
+extension launch/retry. Diagnostic details are disclosed on demand. Guest choice
+and board-return/empty-state guidance now describe their actual next steps.
+
+See [TDR-0074](../tdr/0074-review-guidance-and-readiness.md). This is web-only: no
+API/schema/data migration, extension update or backend behavior change. Web lint,
+typecheck and production build pass (3/3), with the existing large-chunk advisory;
+diff checks pass. No test suite written/run. Deployment and browser evidence will
+follow. Full CR-02/03, native panel parity,
+induced errors and broad guest/provider coverage remain open.
+
 ## 2026-10-19: Installed 0.4.3 short-window layout acceptance
 
 The user confirmed the updated extension was installed and connected. The original

@@ -229,7 +229,7 @@ export function ReviewEntryPage() {
         guestName={displayName}
         onBack={() => setShowBoard(false)}
         onLeave={handleLeave}
-        continueLabel="Continue to site"
+        continueLabel="Back to review"
         onContinue={() => {
           setShowBoard(false);
         }}
@@ -251,6 +251,7 @@ export function ReviewEntryPage() {
               <label><input type="radio" name="site-login" checked={siteNeedsLogin === "yes"} onChange={() => setSiteNeedsLogin("yes")} />Yes, or I'm not sure</label>
               <label><input type="radio" name="site-login" checked={siteNeedsLogin === "no"} onChange={() => setSiteNeedsLogin("no")} />No, it's a public page</label>
             </fieldset>
+            {siteNeedsLogin === null && <p role="status">Choose an option above to continue to the website.</p>}
             {siteNeedsLogin === "yes" && <p>Use your normal browser and website account. We'll guide you through the extension setup if needed.</p>}
             {siteNeedsLogin === "no" && <p>Open the review in a new tab, click an element and save your feedback. Keep this page open to return to your review.</p>}
             <p className="bl-policy-note">Website sign-in is separate from joining Backline. A review link doesn't give access to the website's private pages.</p>
