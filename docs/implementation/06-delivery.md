@@ -28,13 +28,34 @@ server isolation gate remains disabled. See [TDR-0070](../tdr/0070-guided-review
 Verification passed: regenerated Pydantic OpenAPI/TypeScript contracts; final full
 frontend lint/typecheck/build passed 12/12 (nine cached), Ruff lint/format (218 files),
 strict mypy (201 files), workspace scoping (20 repositories) and `git diff --check`.
-The build retains its large-chunk advisory. Deployment evidence will follow.
+The build retains its large-chunk advisory.
 No test suite written/run. Browser control became available:
 Chrome opens Backline and reaches its signed-out login page; user sign-in was
 requested asynchronously. Actual extension setup/login/return and session lifecycle acceptance
 remain pending, as do CR-02/03, native panel parity, email receipt and isolated
 storage/concurrency tests. F15 legacy migration and F30 creation/event delivery are
 not declared closed.
+
+Deployed product commit `8037aeb569a7f1bf2e71b9ce9526e3ff705cb1ef` to main.
+Vercel reports success at
+`https://vercel.com/devbackline-7169/app-web/9err4aKSA7wdQqntykD3F57MbZAA`.
+Railway API `187cb5bd-d6b5-472f-921e-d32672c83a20`, worker
+`3cd6cbb5-0e20-4c39-b614-bbbaa3f232f1` and cloud-login
+`b128284a-2a12-4e18-b4ab-f433a22b5097` all report SUCCESS for this exact source.
+
+Live verification: API/cloud health 200; Mongo/Redis ok; all 123 OpenAPI paths and
+schemas match generated source exactly; SDK bytes match local build. Guest status,
+guest end, project detail and guest board without credentials return 401. Extension
+download is 0.4.0, has the current API/return handler/close-tools label, and all ZIP
+entries match local build after normalizing Windows/Linux text newlines; manifest
+JSON also matches structurally. Archive timestamps/newlines prevent byte-identical
+ZIPs. Served frontend chunks contain setup/retry, sign-in question, rejoin and
+expired/unavailable-policy copy. Chrome confirms the invalid-link recovery page,
+Try again enters loading and returns to a usable recovery page. These checks do not
+establish signed-in review, extension installation or site-login acceptance. Update
+unpacked extensions to 0.4.0 and reload Backline to use the new toolbar return flow.
+The verification sign-in tab is retained for user continuation. No production
+review content or account fixture was created or modified for these checks.
 
 ## 2026-10-19: Proxy recovery, extension connection and evidence persistence
 

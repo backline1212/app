@@ -1,6 +1,6 @@
 # TDR-0070: Guided review, sharing and session exit
 
-Date: 2026-10-19. Status: accepted for implementation.
+Date: 2026-10-19. Status: implemented and deployed; signed-in acceptance pending.
 
 ## Problem
 
@@ -72,6 +72,8 @@ deployment evidence in the delivery ledger. Browser control became available on
 this follow-up; Chrome reaches Backline's signed-out login page. The verification
 tab awaits user sign-in. Actual Chrome/Edge installation, login/SSO, two-tab guest
 return, expired-link replacement and concurrent/end-session behavior remain open.
+The deployed invalid-link recovery page and its loading/retry cycle were verified
+in Chrome. Deployment artifacts/guards and exact revisions are in the ledger.
 Do not infer universal reliability from static or HTTP artifact checks.
 
 Still pending: CR-02/03 connection and short-lived launch exchange, URL-bearer
