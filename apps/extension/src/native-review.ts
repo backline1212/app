@@ -89,7 +89,10 @@ async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<
   const candidates = (await chrome.tabs.query({})).filter(tab => {
     try { return tab.id !== returnTabId && !!tab.url && origin(tab.url) === destination.origin; } catch { return false; }
   });
-  const existing = candidates.find(tab => tab.url === input.url) ?? candidates[0];
+  // Backline itself can be the review target. Another portal/settings/review tab
+  // is not that website page: never attach its toolbar merely by matching origin.
+  const existing = candidates.find(tab => tab.url === input.url)
+    ?? (destination.origin === dashboardOrigin ? undefined : candidates[0]);
   const tab = existing ?? await chrome.tabs.create({ url: "about:blank", active: true });
   if (tab.id === undefined) throw new Error("Could not open the review tab.");
   const previous = await read(tab.id);
@@ -148,10 +151,19 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
   }
   const { session, tabId } = await sessionFor(sender);
   if (message.type === "native-review-return") {
-    // Reuse the original portal tab so guest sessionStorage and the selected ticket
-    // survive. Never navigate a tab that has since moved to another page.
-    const candidates = (await chrome.tabs.query({})).filter(tab => tab.id !== tabId && tab.url === session.returnUrl);
-    const target = candidates.find(tab => tab.id === session.returnTabId) ?? candidates[0];
+    // Preserve the original portal tab and its latest ticket/filter query. Widget
+    // page registration can update the query while this website tab is opening.
+    // Focus only; never navigate a tab that has moved to another page.
+    const tabs = (await chrome.tabs.query({})).filter(tab => tab.id !== tabId);
+    const returnPage = new URL(session.returnUrl);
+    const original = tabs.find(tab => {
+      if (tab.id !== session.returnTabId || !tab.url) return false;
+      try {
+        const current = new URL(tab.url);
+        return current.origin === returnPage.origin && current.pathname === returnPage.pathname;
+      } catch { return false; }
+    });
+    const target = original ?? tabs.find(tab => tab.url === session.returnUrl);
     if (target?.id !== undefined) {
       await chrome.tabs.update(target.id, { active: true });
       await chrome.windows.update(target.windowId, { focused: true });

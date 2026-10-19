@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -31,6 +31,15 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function clearProtectedCache(client: QueryClient) {
+  // A public review can stay open while the member cookie is restored or changed.
+  // Removing its active resolver query can strand that observer with no data and
+  // no in-flight request. Keep only the public, share-token resolution contract;
+  // guest-session/board and every other protected query are still discarded.
+  client.removeQueries({ predicate: query => !(query.queryKey.length === 2 && query.queryKey[0] === "review") });
+  client.getMutationCache().clear();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<AuthStatus>("loading");
@@ -48,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (contextChanged || previous?.role !== next?.role) {
         // Cancel in-flight queries and discard data from a prior identity/context.
         // This also covers expiry and access loss, not only an explicit logout.
-        queryClient.clear();
+        clearProtectedCache(queryClient);
         if (contextChanged) setFeatureFlags({});
       }
       previous = next;
@@ -147,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Without this, a stale cache (other members' names, the previous workspace's
       // data) can flash on next render or leak into whoever logs in next in this same
       // tab - the access token is gone but every useQuery result stays in memory.
-      queryClient.clear();
+      clearProtectedCache(queryClient);
     },
     updateUser(u) {
       setUser(u);

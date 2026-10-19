@@ -69,6 +69,32 @@ require a backend change. Browser installation approval was obtained, but the
 browser URL policy refuses `chrome://` settings; the user was asked to complete
 the unpacked 0.4.0 installation manually. Further live results follow separately.
 
+After the user installed the site download and connected the extension, a full
+portal reload enabled protocol detection. Verified toolbar acknowledgement,
+Return to Backline without a duplicate in that run, and closing the website tools.
+The run also reproduced a wrong destination: 0.4.0 reused an unrelated Backline
+review tab merely because its origin matched. Version 0.4.1 restricts that case to
+an exact URL, otherwise opens the requested website page. The return action also
+retains the originating portal on the same origin/path when its query changed,
+without navigating away from its latest ticket/filter context.
+
+A public review tab became blank after member session restoration. Source review
+identified active public-query removal as a cache-lifetime gap. Preserve only the
+public review resolver family during identity/workspace change/logout; protected
+queries and the mutation cache are cleared. Missing resolver data gets an explicit
+refetch recovery screen. Verified the real guest name gate, join, sign-in question
+and same-tab identity recovery across reload using one clearly labelled flow-check
+guest identity. No comment, attachment, contact or project-setting mutation has
+been submitted in this pass. Final 0.4.1 checks and rollout follow below.
+
+Guest exit now also verified live: POST current/end returns 204, reload displays a
+fresh empty name gate, and the flow-check identity is no longer reused. Final
+source lint/typecheck/build passes 12/12 (nine cached) after the public-query and
+0.4.1 tab-selection/return repairs; backend source/contracts are unchanged from
+the already verified 123-path deployment. `git diff --check` passes. Extension
+permissions are unchanged. Signed-in site posting/evidence and full browser
+acceptance of 0.4.1 still require the installed extension update.
+
 ## 2026-10-19: Proxy recovery, extension connection and evidence persistence
 
 User examples: Backline itself, YouTube and Notion, followed by an explicit request

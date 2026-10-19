@@ -50,6 +50,7 @@ export function ReviewEntryPage() {
     data: resolved,
     isLoading,
     error: resolveError,
+    refetch: reloadReview,
   } = useQuery({
     queryKey: qk.review(shareToken ?? ""),
     queryFn: () => reviewApi.resolveShareLink(shareToken!),
@@ -290,11 +291,11 @@ export function ReviewEntryPage() {
       resolveError instanceof ApiError
         ? resolveError.message
         : "This review link could not be opened.";
-    return <ErrorScreen message={message} onRetry={() => void cache.invalidateQueries({ queryKey: qk.review(shareToken) })} />;
+    return <ErrorScreen message={message} onRetry={() => void reloadReview()} />;
   }
 
   if (!resolved) {
-    return null;
+    return <ErrorScreen message="Review details need to be loaded again." onRetry={() => void reloadReview()} />;
   }
 
   // The dashboard canvas's own link (TDR-0057): sessions on it are only issued to a

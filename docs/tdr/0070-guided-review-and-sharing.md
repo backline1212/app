@@ -28,12 +28,17 @@ Extension 0.4.0 forwards HTTP failure status and can offer guest rejoin. Success
 toolbar acknowledgement, not a tab-open event, declares connection.
 
 The extension records the originating portal tab and focuses it on Return to
-Backline when it still has the exact return URL, otherwise an existing matching
-tab or a new tab. It never navigates a tab that has moved elsewhere. A closed
+Backline when it still has the same origin/path (preserving newer ticket/filter
+queries), otherwise an existing exact matching tab or a new tab. It never
+navigates a tab that has moved elsewhere. A closed
 portal/new-tab fallback may require joining again; no bearer goes into a return
 URL. Website tab selection excludes the launching portal, including when reviewing
 Backline itself. Closing website tools removes that tab's overlay/session only;
 the portal's Leave review action ends the guest identity on the server.
+Live verification of 0.4.0 found that same-origin fallback can still attach to an
+unrelated Backline tab. Version 0.4.1 requires an exact destination URL when the
+target shares Backline's dashboard origin; otherwise it creates the requested tab.
+Other website origins retain the existing session-preserving reuse behavior.
 
 POST `/guest-sessions/current/end` is a no-store, rate-limited, idempotent action on
 the caller's signed guest session. Persist additive `ended_at`; shared HTTP/socket
@@ -44,6 +49,12 @@ authentication rejection; transient errors retain identity and expose retry.
 Recovery errors offer Check saved session again or Leave and rejoin. Board errors
 offer retry and hide cached rows on permission loss. Route changes cannot apply an
 old join/leave completion to the new review.
+On member identity/workspace changes and logout, clear protected queries and all
+mutation cache; preserve only the exact public share-token resolver query family.
+That contract is public metadata, not guest/session/team content. Clearing its
+active observer during cookie restoration can leave a review with no result.
+Missing resolver data now displays an explicit reload action rather than null;
+retry calls the observer's refetch even if its cache record was removed.
 
 Sharing uses one expiry/revocation helper, updates while open/on focus, rechecks
 before copying and labels expired history accurately. Project creation asks the
