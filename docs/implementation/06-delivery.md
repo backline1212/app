@@ -1,5 +1,25 @@
 # Delivery and verification ledger
 
+## 2026-10-19: Refresh-family continuity during native launch (TDR-0071)
+
+After the user updated to extension 0.4.1, minimum-version validation passed and
+the real requested website tab opened, preserving its Backline login; the wrong
+same-origin reuse is fixed. Toolbar readiness then failed. API evidence shows
+project GET 200 at 11:58:19 UTC and 401 at 11:58:20 while the new tab restored its
+member cookie. Source tracing found revocation and successor creation in separate
+awaited writes, allowing `find_active_in_family` to see an empty live family.
+
+Committed both writes in one Mongo transaction with snapshot/majority concerns,
+an expiry/revocation CAS and unchanged replay/family guards. Repository sessions
+remain optional for other callers; service owns orchestration. No API/schema,
+index or content migration. Read-only production hello verifies replica set,
+logical-session support and wire version 25, without printing credentials or
+topology names. Ruff lint/format (218 files), strict mypy (201 files), workspace
+scoping (20 repositories) and diff checks pass; no test suite written/run. Actual
+database failure/replay/logout concurrency acceptance remains open. Rollout and
+new-tab retest evidence will follow. The installed 0.4.1 extension needs no further
+update for this server-side repair.
+
 ## 2026-10-19: Guided reviewer flow and sharing safeguards (TDR-0070)
 
 Implemented a website sign-in question, guided desktop extension setup/retry,

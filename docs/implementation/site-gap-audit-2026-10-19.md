@@ -36,6 +36,9 @@ metadata/settings split-save portion of F30 and improves F34 recovery/exit. New
 links reject F15's unavailable identity restriction/export options; legacy request
 filters remain labelled and are not verified identity, so migration/acceptance
 remain open. Guided extension setup and return do not close native capability limits.
+Live launch verification additionally identified a refresh family read gap between
+old-token revocation and successor creation. [TDR-0071](../tdr/0071-atomic-refresh-successor.md)
+commits those writes together; broader F12 logout/replay/failure acceptance remains open.
 
 ## Result and evidence boundary
 

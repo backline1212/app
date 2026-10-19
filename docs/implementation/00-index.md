@@ -34,6 +34,9 @@ The existing proxy remains available; connected installation/launch is still pen
 The next UX/recovery increment is [TDR-0070](../tdr/0070-guided-review-and-sharing.md):
 guided browser setup/return, explicit guest exit/retry, expiry-aware sharing and
 single-write project edits. It preserves the pending connected-site launch scope.
+The user-assisted launch check then identified an auth read gap during rotation;
+[TDR-0071](../tdr/0071-atomic-refresh-successor.md) commits the refresh successor
+with its old-token claim, preserving strict replay detection and family continuity.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

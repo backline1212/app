@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from bson import ObjectId
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
@@ -175,6 +175,7 @@ class RefreshTokenRepository:
         ip_address: str | None = None,
         auth_method: str | None = None,
         authenticated_at: datetime | None = None,
+        session: AsyncIOMotorClientSession | None = None,
     ) -> None:
         """`auth_method`/`authenticated_at` describe the sign-in that started the family
         and are copied onto every rotated token, so they hold for the whole session."""
@@ -193,13 +194,20 @@ class RefreshTokenRepository:
                 "expires_at": now + timedelta(days=ttl_days),
                 "revoked_at": None,
                 "replaced_by_token_hash": None,
-            }
+            },
+            session=session,
         )
 
     async def find_by_hash(self, token_hash: str) -> dict[str, Any] | None:
         return await self.db.refresh_tokens.find_one({"token_hash": token_hash})
 
-    async def rotate(self, *, old_token_hash: str, new_token_hash: str) -> dict[str, Any] | None:
+    async def rotate(
+        self,
+        *,
+        old_token_hash: str,
+        new_token_hash: str,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> dict[str, Any] | None:
         """Atomically claims the old token for rotation - only succeeds if it was
         still unrevoked at the exact moment of this update. Without the `revoked_at:
         None` filter here, two concurrent /auth/refresh calls carrying the same
@@ -211,8 +219,13 @@ class RefreshTokenRepository:
         (pre-update) document, or None if someone else already claimed/revoked it
         first - the caller treats a None return exactly like reuse-of-a-revoked-token."""
         return await self.db.refresh_tokens.find_one_and_update(
-            {"token_hash": old_token_hash, "revoked_at": None},
+            {
+                "token_hash": old_token_hash,
+                "revoked_at": None,
+                "expires_at": {"$gt": datetime.now(UTC)},
+            },
             {"$set": {"revoked_at": datetime.now(UTC), "replaced_by_token_hash": new_token_hash}},
+            session=session,
         )
 
     async def family_is_active(self, user_id: str, family_id: str) -> bool:

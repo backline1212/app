@@ -4,8 +4,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import anyio
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
+from pymongo.read_concern import ReadConcern
+from pymongo.write_concern import WriteConcern
 
 from app.core.config import get_settings
 from app.core.email import send_email
@@ -367,28 +369,41 @@ async def refresh_tokens(
     new_raw = generate_opaque_token()
     new_hash = hash_secret(new_raw)
 
-    # Atomic compare-and-swap: claims the old token for rotation only if it's still
-    # unrevoked right now, closing the race between the revoked_at check above and
-    # this write (two concurrent refreshes of the same token could otherwise both
-    # pass that check and both mint a child, defeating reuse detection).
-    claimed = await refresh_repo.rotate(old_token_hash=token_hash, new_token_hash=new_hash)
+    settings = get_settings()
+    browser, os = _parse_user_agent(ua)
+
+    async def commit_rotation(session: AsyncIOMotorClientSession) -> dict[str, Any] | None:
+        claimed = await refresh_repo.rotate(
+            old_token_hash=token_hash, new_token_hash=new_hash, session=session
+        )
+        if claimed is None:
+            return None
+        await refresh_repo.create(
+            user_id=claimed["user_id"],
+            token_hash=new_hash,
+            family_id=claimed["family_id"],
+            ttl_days=settings.jwt_refresh_ttl_days,
+            browser=browser,
+            os=os,
+            ip_address=ip,
+            auth_method=claimed.get("auth_method"),
+            authenticated_at=claimed.get("authenticated_at"),
+            session=session,
+        )
+        return claimed
+
+    # Session validation (including extension readiness) must always see a live
+    # family member while another tab refreshes. CAS plus successor insertion
+    # commit together; neither a write failure nor a reader can observe a gap.
+    async with await db.client.start_session() as session:
+        claimed: dict[str, Any] | None = await session.with_transaction(
+            commit_rotation,
+            read_concern=ReadConcern("snapshot"),
+            write_concern=WriteConcern("majority"),
+        )
     if claimed is None:
         await refresh_repo.revoke_family(token_doc["family_id"])
         raise AuthenticationError("Refresh token has already been used. Session revoked.")
-
-    settings = get_settings()
-    browser, os = _parse_user_agent(ua)
-    await refresh_repo.create(
-        user_id=token_doc["user_id"],
-        token_hash=new_hash,
-        family_id=token_doc["family_id"],
-        ttl_days=settings.jwt_refresh_ttl_days,
-        browser=browser,
-        os=os,
-        ip_address=ip,
-        auth_method=token_doc.get("auth_method"),
-        authenticated_at=token_doc.get("authenticated_at"),
-    )
 
     access_token = create_access_token(str(user_doc["_id"]), sid=token_doc["family_id"])
     return IssuedTokens(access_token=access_token, refresh_token=new_raw, user=_user_out(user_doc))
