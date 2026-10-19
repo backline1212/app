@@ -32,6 +32,25 @@ evidence will follow. A real induced failure on the
 updated extension, comment/evidence persistence, guest native lifecycle and broad
 site/auth acceptance remain open. CR-02/03 and native panel parity remain pending.
 
+After explicit user approval for one labelled QA comment and a screenshot of the
+public example.com page, posted exactly that comment via Ctrl+Enter. Native pin
+and portal ticket #2 (`6ad60df94461891ca00808fe`) appear; total comments change
+from two to three. The portal loads "Captured review context" at 1920×799 pixels.
+Reload retains the exact page/thread URL, comment body and loaded screenshot.
+No additional comment/reply, attachment selection, deletion or workflow change
+was made. Evidence: `.tools/verification/2026-10-19-native-ticket-persisted.png`.
+This is a normal native save/read/reload pass, not induced failure/concurrency or
+guest acceptance.
+
+The prepared draft exposed a separate native toolbar overlap: toolbar top 544.4,
+Post at 579.75–613.875, composer bottom 626.675 CSS pixels. Fixed measured bottom
+space, card resize/inset/viewport updates, bounded scrollable card bodies and
+observer cleanup in [TDR-0073](../tdr/0073-native-toolbar-card-layout.md). Extension
+0.4.3 includes this and TDR-0072; permissions/protocol unchanged. The portal minimum
+remains 0.4.1. Full frontend lint/typecheck/build passes 12/12 (six cached), and
+diff checks pass; no test suite written/run. Actual corrected short-window visual
+and rejection-path acceptance needs the updated/reloaded 0.4.3 extension.
+
 ## 2026-10-19: Refresh-family continuity during native launch (TDR-0071)
 
 After the user updated to extension 0.4.1, minimum-version validation passed and

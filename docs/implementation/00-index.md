@@ -41,6 +41,9 @@ Current native verification covers draft protection/cancel, original-tab return
 with a selected thread, toolbar cleanup and existing-login YouTube launch. The
 shared composer rejection repair is [TDR-0072](../tdr/0072-composer-submit-recovery.md);
 updated-extension failure-path and comment/evidence acceptance remain open.
+One explicitly approved native comment and its screenshot now survive portal
+reload. [TDR-0073](../tdr/0073-native-toolbar-card-layout.md) addresses a measured
+toolbar/composer overlap; updated-extension visual/failure-path checks remain open.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

@@ -1,5 +1,5 @@
 import type { NativeReviewInfo } from "@backline/types";
-import { createShadowRoot } from "@backline/widget";
+import { createShadowRoot, setCardBottomInset } from "@backline/widget";
 import { nativeMessage } from "./native-client";
 
 export type ReviewMode = "browse" | "point" | "region";
@@ -47,10 +47,24 @@ export function createNativeToolbar(info: NativeReviewInfo, onMode: (mode: Revie
   bar.appendChild(back);
   const end = document.createElement("button");
   end.textContent = "Close website tools";
-  end.onclick = () => { void onEnd().then(() => shadow.host.remove(), error => { status.textContent = error.message; }); };
+  end.onclick = () => { void onEnd().then(remove, error => { status.textContent = error.message; }); };
   bar.appendChild(end);
   bar.appendChild(status);
   shadow.appendChild(bar);
   setMode("browse");
-  return { setMode, remove: () => shadow.host.remove(), error: (message: string) => { status.textContent = message; } };
+  const reserveToolbarSpace = () => {
+    const rect = bar.getBoundingClientRect();
+    // Native screenshots temporarily hide the overlay. Retain its space until it
+    // is visible again instead of moving the draft behind it during capture.
+    if (rect.height > 0) setCardBottomInset(window.innerHeight - rect.top + 12);
+  };
+  const observer = new ResizeObserver(reserveToolbarSpace);
+  observer.observe(bar);
+  reserveToolbarSpace();
+  function remove(): void {
+    observer.disconnect();
+    shadow.host.remove();
+    setCardBottomInset(12);
+  }
+  return { setMode, remove, error: (message: string) => { status.textContent = message; } };
 }

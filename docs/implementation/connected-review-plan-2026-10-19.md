@@ -38,6 +38,10 @@ protection/cancel, return retaining the selected thread, toolbar cleanup and
 existing-login YouTube launch. [TDR-0072](../tdr/0072-composer-submit-recovery.md)
 repairs rejected-submit recovery in the shared composer. Posting/evidence,
 updated-extension failure-path and broad site/auth acceptance remain open.
+The user then explicitly approved one native QA comment/public-page screenshot;
+both are visible after portal reload. [TDR-0073](../tdr/0073-native-toolbar-card-layout.md)
+fixes the measured toolbar overlap found in that flow. Updated-extension visual,
+induced failure, guest and broad-site acceptance remain pending.
 
 ## 1. Release boundary and product contract
 

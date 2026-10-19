@@ -108,6 +108,7 @@ const HOST_STYLES = `
        positioning would leave it glued to that screen position as the page scrolls
        underneath it, drifting away from the element it's actually about. */
     position: absolute; z-index: 2147483000; width: 344px; max-width: calc(100vw - 24px);
+    display: flex; flex-direction: column;
     background: var(--bl-surface); color: var(--bl-ink); border: 1px solid var(--bl-line);
     border-radius: 8px; box-shadow: 0 20px 48px rgba(11,11,11,0.24);
     font-size: 14px; line-height: 1.45; text-align: left;
@@ -120,7 +121,7 @@ const HOST_STYLES = `
   .bl-card button { font: inherit; margin: 0; cursor: pointer; }
   .bl-card button:disabled { cursor: default; opacity: 0.55; }
   .bl-cp-head {
-    display: flex; align-items: center; gap: 9px; padding: 11px 12px;
+    display: flex; flex: none; align-items: center; gap: 9px; padding: 11px 12px;
     background: var(--bl-ink); color: #fff; border-radius: 7px 7px 0 0;
     font-size: 13px; font-weight: 600;
   }
@@ -176,7 +177,7 @@ const HOST_STYLES = `
   .bl-cv-status-opt svg { margin-left: auto; color: var(--bl-mint-deep); flex: none; visibility: hidden; }
   .bl-card .bl-cv-status-opt[aria-checked="true"] { color: var(--bl-ink); font-weight: 600; }
   .bl-cv-status-opt[aria-checked="true"] svg { visibility: visible; }
-  .bl-cp-body { padding: 13px 13px 12px; }
+  .bl-cp-body { min-height: 0; overflow-y: auto; padding: 13px 13px 12px; }
   /* max-height is the cap the composer's own auto-grow reads back out of the computed
      style (ui-composer.ts) - one source of truth for how tall this can get before it
      starts scrolling instead. resize stays on, so it's still draggable past that. */

@@ -1,5 +1,5 @@
 import { ATTACHMENT_ACCEPT, setupAttachments, type AttachmentResult } from "./ui-attachments";
-import { cardHeaderHtml, escapeHtml, placeCard, svg, TAG_ICONS } from "./ui-card";
+import { cardHeaderHtml, escapeHtml, observeCardPlacement, placeCard, svg, TAG_ICONS } from "./ui-card";
 
 // The first four of the backend's Tag vocabulary (comments/schemas.py's Tag literal) -
 // the same four the design's "Tag this as" row offers. Single-select with the first one
@@ -68,7 +68,7 @@ function pastedImageFiles(clipboardData: DataTransfer | null): File[] {
 /** Grows `textarea` to fit its content, capped by the max-height in its stylesheet.
  * A height the reviewer set themselves by dragging the corner becomes a floor, so
  * typing can push the box taller but a keystroke never undoes their drag. */
-function autoGrowTextarea(textarea: HTMLTextAreaElement, onResize: () => void): void {
+function autoGrowTextarea(textarea: HTMLTextAreaElement, onResize: () => void): () => void {
   let floor = 0;
   let lastSet = "";
 
@@ -100,6 +100,7 @@ function autoGrowTextarea(textarea: HTMLTextAreaElement, onResize: () => void): 
 
   textarea.addEventListener("input", fit);
   fit();
+  return () => { observer.disconnect(); textarea.removeEventListener("input", fit); };
 }
 
 // At most one composer is ever being written in. Its handle is kept here so the page's
@@ -201,7 +202,7 @@ export function openComposer(
   `;
   shadow.appendChild(composer);
 
-  placeCard(composer, x, y);
+  const stopPlacement = observeCardPlacement(composer, x, y);
 
   const statusEl = composer.querySelector<HTMLDivElement>(".bl-status")!;
   const submitButton = composer.querySelector<HTMLButtonElement>(".bl-submit")!;
@@ -264,6 +265,8 @@ export function openComposer(
   function removeComposer(): void {
     closed = true;
     if (activeComposer === handle) activeComposer = null;
+    stopPlacement();
+    stopAutoGrow();
     removeOutsideClickListener();
     composer.remove();
   }
@@ -362,7 +365,7 @@ export function openComposer(
   // up to the max-height its CSS sets, after which it scrolls. placeCard runs again on
   // each growth so a card that was opened near the bottom of the viewport rides up
   // instead of growing off the edge of the screen.
-  autoGrowTextarea(textarea, () => placeCard(composer, x, y));
+  const stopAutoGrow = autoGrowTextarea(textarea, () => placeCard(composer, x, y));
 
   const outsideClickHandler = (event: MouseEvent) => {
     // event.target is retargeted to the shadow host when observed from outside the

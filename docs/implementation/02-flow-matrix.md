@@ -13,6 +13,9 @@ thread, toolbar cleanup and existing-login YouTube launch. TDR-0072 repairs the
 shared composer's rejected-submit recovery in source. Posting/evidence, induced
 failure on the updated extension and broad-site acceptance remain explicit in
 the delivery ledger; these observations do not close complete acceptance rows.
+An explicitly approved native QA comment and its screenshot now persist through
+portal reload. TDR-0073 fixes the toolbar overlap found during that check, with
+updated-extension visual/failure-path acceptance still pending.
 
 2026-10-19: FD-08 recovery now offers explicit extension launch when proxy tools
 don't acknowledge within 15 seconds. TDR-0069 fixes the old extension API default

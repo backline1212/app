@@ -1,6 +1,6 @@
 import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES } from "./status";
 import { attachmentIcon, type AttachmentInfo } from "./ui-attachments";
-import { cardHeaderHtml, escapeHtml, placeCard, svg, TAG_ICONS } from "./ui-card";
+import { cardHeaderHtml, escapeHtml, observeCardPlacement, placeCard, svg, TAG_ICONS } from "./ui-card";
 
 export interface CommentViewReply {
   authorName: string;
@@ -174,7 +174,7 @@ export function openCommentView(
   renderStatus(currentStatus);
 
   shadow.appendChild(view);
-  placeCard(view, x, y);
+  const stopPlacement = observeCardPlacement(view, x, y);
 
   const menuOpen = (): boolean => menu !== null && !menu.hidden;
 
@@ -255,6 +255,7 @@ export function openCommentView(
   function close(): void {
     if (closed) return;
     closed = true;
+    stopPlacement();
     document.removeEventListener("click", outsideClickHandler, true);
     document.removeEventListener("keydown", escapeHandler, true);
     view.remove();

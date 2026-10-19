@@ -60,9 +60,32 @@ const EDGE_GAP = 12;
 // Space kept clear at the bottom of the viewport. Larger inside the dashboard's canvas,
 // where its quick-tools dock floats over the bottom of the frame (index.ts).
 let bottomInset = EDGE_GAP;
+const layoutListeners = new Set<() => void>();
 
 export function setCardBottomInset(px: number): void {
-  bottomInset = Math.max(EDGE_GAP, px);
+  const next = Math.max(EDGE_GAP, px);
+  if (next === bottomInset) return;
+  bottomInset = next;
+  for (const update of layoutListeners) update();
+}
+
+/** Keep open cards clear of a resizing toolbar and growing draft/attachment content. */
+export function observeCardPlacement(card: HTMLElement, x: number, y: number): () => void {
+  const update = () => {
+    if (!card.isConnected) { stop(); return; }
+    placeCard(card, x, y);
+  };
+  const observer = new ResizeObserver(update);
+  function stop(): void {
+    observer.disconnect();
+    window.removeEventListener("resize", update);
+    layoutListeners.delete(update);
+  }
+  observer.observe(card);
+  window.addEventListener("resize", update);
+  layoutListeners.add(update);
+  update();
+  return stop;
 }
 
 /**
@@ -75,6 +98,7 @@ export function setCardBottomInset(px: number): void {
  */
 export function placeCard(card: HTMLElement, x: number, y: number): void {
   const width = Math.min(CARD_WIDTH, window.innerWidth - EDGE_GAP * 2);
+  card.style.maxHeight = `${Math.max(1, window.innerHeight - bottomInset - EDGE_GAP)}px`;
   const height = card.offsetHeight;
   const viewRight = window.scrollX + window.innerWidth - EDGE_GAP;
   const viewBottom = window.scrollY + window.innerHeight - bottomInset;
