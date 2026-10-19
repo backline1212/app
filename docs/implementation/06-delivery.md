@@ -105,6 +105,19 @@ worker report SUCCESS for `108ea48f401787b9d52ddd3282c6b631f264fb7e`, respective
 footer now reports Preview unavailable during real failure. Existing project
 comments remain accessible in the side panel while the preview fails.
 
+Final flow consistency: footer Access now delegates to the primary Share dialog,
+removing the legacy one-link revoke toggle that implied project-wide disable.
+Project-menu copy also excludes expired links. Failure-screen URL editing and
+settings rendering now respect manager access, matching the project menu/API;
+editors see manager guidance. Web lint/typecheck/build pass. The minimum-version
+portal release `31c3e58` is successful on Vercel
+`https://vercel.com/devbackline-7169/app-web/CUx7c6hcsRtVKfK9QCwcS2oMgz1w`;
+live chunks include 0.4.1 update guidance, mutation-cache cleanup and blank-data
+recovery. Chrome confirms an installed 0.4.0 is refused before launch with clear
+update instructions. The formerly blank public review renders its recovery screen
+after reload/session restore. User was given the same-site 0.4.1 ZIP link and asked
+to replace the already approved extension files/reload; final native checks await it.
+
 ## 2026-10-19: Proxy recovery, extension connection and evidence persistence
 
 User examples: Backline itself, YouTube and Notion, followed by an explicit request

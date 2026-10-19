@@ -68,6 +68,10 @@ that this is not verified reviewer identity and recommends replacement with a
 passcode. Legacy identity-policy enforcement remains an open F15 migration issue;
 no existing link is silently stripped of its filter. New expiry inputs require a
 timezone and a future instant. Guest export remains unavailable even on old flags.
+Footer Access delegates to the same ShareProjectModal rather than maintaining a
+second link toggle that revokes one link while implying all access is off. The
+project-menu copy action also uses the shared expiry check. Failed-preview URL
+editing is offered only to project managers; other roles get manager guidance.
 
 Project metadata and optional validated settings share one scoped Mongo document
 update. Null settings are ignored; nullable metadata such as client association
@@ -81,15 +85,16 @@ delivery is not made transactional by this change; F30 remains partially open.
 
 Regenerate contracts from Pydantic; run lint/typecheck/build and workspace scoping.
 No test suite is written under this task's Codex instructions. Record results and
-deployment evidence in the delivery ledger. Browser control became available on
-this follow-up; Chrome reaches Backline's signed-out login page. The verification
-tab awaits user sign-in. Actual Chrome/Edge installation, login/SSO, two-tab guest
-return, expired-link replacement and concurrent/end-session behavior remain open.
-The deployed invalid-link recovery page and its loading/retry cycle were verified
-in Chrome. Deployment artifacts/guards and exact revisions are in the ledger.
-After the user signed in, the real project/share panel and missing-extension setup
-were inspected. Proxy failure now takes precedence over missing readiness in the
-footer, so a failed preview reports unavailable rather than Connecting proxy.
+deployment evidence in the delivery ledger. Browser control became available;
+the user signed in and installed/connected 0.4.0. Chrome checks cover workspace and
+project access, saved comments during preview failure, setup/connection/return,
+sharing safeguards, guest join/identity recovery/exit and invalid-link recovery.
+The extension run reproduced wrong same-origin tab selection and a blank public
+review was observed; the subsequent repairs and 0.4.1 minimum are recorded above.
+Proxy failure now reports Preview unavailable. Current 0.4.1 installation/launch,
+site password/SSO, guest native return, expired-link replacement and concurrent
+session behavior still require acceptance. Deployment artifacts/guards and exact
+revisions are in the ledger.
 Do not infer universal reliability from static or HTTP artifact checks.
 
 Still pending: CR-02/03 connection and short-lived launch exchange, URL-bearer

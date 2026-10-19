@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Dialog } from "../../components/Dialog";
+import { reviewLinkState } from "../share-links/link-state";
 import { useToast } from "../../components/Toast";
 import { invalidateProjectMutation, qk } from "../../lib/query-keys";
 import { useOnClickOutside } from "../../lib/use-click-outside";
@@ -74,7 +75,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
   const copyLink = useMutation({
     mutationFn: () => listShareLinks(project.id),
     onSuccess: (links) => {
-      const active = links.find((link) => !link.revoked_at);
+      const active = links.find((link) => reviewLinkState(link) === "active");
       if (!active) { toast("No active review link — use Share to create one.", "warning"); return; }
       void navigator.clipboard.writeText(reviewUrl(active.token)).then(() => toast("Review link copied.")).catch(() => toast("Could not copy. Open Share and copy the link manually.", "warning"));
     },

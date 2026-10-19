@@ -221,6 +221,7 @@ export function ProjectOverviewPage() {
   // the widget's session acts for this member (TDR-0057) - this just doesn't offer it.
   const canComment = projectCan(projectQuery.data, "comment");
   const canTriage = projectCan(projectQuery.data, "edit");
+  const canManageProject = projectCan(projectQuery.data, "manage");
   const mode: CanvasMode = canComment ? requestedMode : requestedMode === "browse" ? "browse" : "view";
   // The canvas loads through the project's own canvas link, with a widget session bound
   // to this member (TDR-0057) - not through a client review link, which a viewer is
@@ -1006,7 +1007,7 @@ export function ProjectOverviewPage() {
               <p>Backline will not proxy a page from a different host. Update the page or project URL before reviewing it here.</p>
               <div className="bl-review-empty-actions">
                 <button type="button" className="bl-button" onClick={() => setShowPages(true)}>Manage pages</button>
-                <button type="button" className="bl-quiet" onClick={() => setShowSettings(true)}>Check project URL</button>
+                {canManageProject ? <button type="button" className="bl-quiet" onClick={() => setShowSettings(true)}>Check project URL</button> : <p>Ask a project manager to check the project URL.</p>}
               </div>
             </div>
           ) : iframeSrc && isCrossBrowserRenderActive ? (
@@ -1113,7 +1114,7 @@ export function ProjectOverviewPage() {
                     <div>
                       <button type="button" className="bl-button" onClick={reloadPreview}>Try again</button>
                       <a className="bl-quiet" href={displayUrl} target="_blank" rel="noreferrer">Open live page</a>
-                      <button type="button" className="bl-quiet" onClick={() => setShowSettings(true)}>Check URL</button>
+                      {canManageProject ? <button type="button" className="bl-quiet" onClick={() => setShowSettings(true)}>Check URL</button> : <p>Ask a project manager if the project URL needs changing.</p>}
                     </div>
                   </div>
                 )}
@@ -1199,7 +1200,7 @@ export function ProjectOverviewPage() {
         />
       )}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
-      {showSettings && <ProjectForm workspace={workspace} project={project} onClose={() => setShowSettings(false)} />}
+      {showSettings && canManageProject && <ProjectForm workspace={workspace} project={project} onClose={() => setShowSettings(false)} />}
     </main>
   );
 }
