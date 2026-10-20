@@ -5213,6 +5213,7 @@ export interface components {
              *       "notify_on_mention": true,
              *       "notify_on_reply": true,
              *       "notify_on_status_change": true,
+             *       "email_notifications": false,
              *       "daily_digest": true
              *     }
              */
@@ -5245,6 +5246,11 @@ export interface components {
              * @default true
              */
             notify_on_status_change: boolean;
+            /**
+             * Email Notifications
+             * @default false
+             */
+            email_notifications: boolean;
             /**
              * Daily Digest
              * @default true

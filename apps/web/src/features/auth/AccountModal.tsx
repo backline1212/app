@@ -7,11 +7,12 @@ import { changePassword, confirmEmailChange, listSessions, requestEmailChange, u
 type Tab = "profile" | "notifications" | "security";
 
 const NOTIFICATION_ROWS = [
-  ["notify_on_assignment", "Email me when I'm assigned", "A ticket or comment lands on your plate."],
-  ["notify_on_mention", "Mentions always email me", "Someone @mentions you in a thread."],
-  ["notify_on_reply", "Replies to my comments", "A teammate or client answers a thread you're in."],
-  ["notify_on_status_change", "Status changes on my tickets", "Something you raised or own moves column."],
-  ["daily_digest", "Daily digest", "One email with everything from the day before."],
+  ["notify_on_assignment", "Assignments", "Notify me when someone assigns a ticket or comment to me."],
+  ["notify_on_mention", "Mentions", "Notify me when someone @mentions me in a thread."],
+  ["notify_on_reply", "Replies to my comments", "Notify me when a teammate or client answers a thread I'm in."],
+  ["notify_on_status_change", "Status changes on my tickets", "Notify me when something I raised or own changes status."],
+  ["email_notifications", "Email feedback updates", "Also email me for the enabled feedback notifications above. Applies across my workspaces."],
+  ["daily_digest", "Daily digest email", "A daily email with new comments in projects I can access."],
 ] as const;
 
 type Prefs = Record<(typeof NOTIFICATION_ROWS)[number][0], boolean>;
@@ -58,6 +59,7 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
     notify_on_mention: true,
     notify_on_reply: true,
     notify_on_status_change: true,
+    email_notifications: false,
     daily_digest: true,
     ...user?.preferences,
   });

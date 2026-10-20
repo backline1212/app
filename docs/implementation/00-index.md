@@ -75,6 +75,9 @@ results; provider/concurrency acceptance remains open.
 [TDR-0080](../tdr/0080-atomic-plan-capacity.md) follows F26 with transactional
 project/member capacity and expiring AI credit reservations. Live contention and
 provider/restart acceptance remain open.
+[TDR-0081](../tdr/0081-feedback-email-delivery.md) adds explicit feedback-email
+opt-in, a durable notification outbox and bounded provider sends for F28. Actual
+inbox receipt, role/preference changes and worker retry acceptance remain pending.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

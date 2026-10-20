@@ -1,17 +1,22 @@
+import logging
 from datetime import datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.core.arq_pool import get_arq_pool
 from app.core.errors import PermissionDeniedError
 from app.core.project_access import can_view_project, effective_project_role
 from app.modules.auth.repository import UserRepository
 from app.modules.notifications import events as notification_events
+from app.modules.notifications.preferences import FEEDBACK_PREFERENCES
 from app.modules.notifications.repository import NotificationRepository
 from app.modules.notifications.schemas import NotificationOut
 from app.modules.projects.repository import ProjectRepository
 from app.modules.realtime.pubsub import publish as publish_realtime_event
 from app.modules.workspaces.repository import MembershipRepository, WorkspaceRepository
+
+logger = logging.getLogger("backline.notifications")
 
 
 def _notification_out(doc: dict[str, Any]) -> NotificationOut:
@@ -80,23 +85,35 @@ async def _create_and_broadcast(
         workspace_role=membership["role"],
     ):
         return None
-    preference = {
-        notification_events.COMMENT_ASSIGNED: "notify_on_assignment",
-        notification_events.COMMENT_REPLY: "notify_on_reply",
-        notification_events.COMMENT_MENTION: "notify_on_mention",
-        notification_events.COMMENT_STATUS_CHANGED: "notify_on_status_change",
-    }.get(type)
+    preference = FEEDBACK_PREFERENCES.get(type)
+    email_pending = False
     if preference:
         user = await UserRepository(db).find_by_id(user_id)
         if user is None or not user.get("preferences", {}).get(preference, True):
             return None
+        email_pending = bool(
+            user.get("email_verified_at")
+            and user.get("preferences", {}).get("email_notifications", False)
+        )
     doc = await NotificationRepository(db).create(
         workspace_id=workspace_id,
         user_id=user_id,
         type=type,
         payload_json=payload_json,
         target_route=target_route,
+        email_pending=email_pending,
     )
+    if email_pending:
+        try:
+            pool = await get_arq_pool()
+            await pool.enqueue_job(
+                "send_member_notification_email_job",
+                workspace_id=workspace_id,
+                notification_id=str(doc["_id"]),
+            )
+        except Exception as exc:
+            # The notification row is the durable outbox; minute sweeps retry it.
+            logger.warning("Notification email deferred to sweep (%s)", exc.__class__.__name__)
     notification = _notification_out(doc)
     # The workspace channel is internal fan-out. Its server-side socket filter must
     # authorize the recipient and current project access before delivery.

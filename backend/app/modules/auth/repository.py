@@ -72,6 +72,7 @@ class UserRepository:
                 "notify_on_mention": True,
                 "notify_on_reply": True,
                 "notify_on_status_change": True,
+                "email_notifications": False,
                 "daily_digest": True,
             },
         }

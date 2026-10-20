@@ -1,5 +1,29 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Audit F28 — feedback email and honest settings (TDR-0081)
+
+Existing feedback switches now describe notifications accurately. A separate,
+default-off email switch opts into assignments/replies/mentions/status email;
+daily digest stays separate. New eligible rows persist an email outbox, with
+immediate Arq jobs, a minute sweep, bounded batches/deadlines, leases, access/email/
+preference rechecks and backoff/exhaustion. Initial envelopes persist for stable
+Resend idempotency. Apps Script deduplication is unverified and remains at least
+once. Provider requests use bounded async HTTP rather than the unbounded pinned
+Resend SDK call. No new dependency or historical backfill.
+
+Read-only production index dry-run succeeds: existing review indexes present,
+notifications_email_due missing, no conflicts, no review data changes. Contracts
+regenerated. Final static checks/rollout are in progress. No production preference,
+feedback or email was sent for verification. Receipt, worker restarts/retries,
+revocation/opt-out and settings/link acceptance remain pending. See
+[TDR-0081](../tdr/0081-feedback-email-delivery.md).
+
+Final source checks pass: full frontend lint/typecheck/build (12/12 Turbo tasks),
+backend Ruff across app, mypy on affected modules (20 files), scope audit (20
+repositories), regenerated contracts and diff checks. Existing large-chunk warning
+remains. No suite written/run. Preceding capacity commit fd7effa reports SUCCESS
+on Railway API, worker and cloud-login; live quota contention is still unverified.
+
 ## 2026-10-20: Audit F26 — atomic capacity (TDR-0080)
 
 Project create/restore/sample conversion and member invite/direct join/approval

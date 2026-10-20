@@ -2,7 +2,6 @@ import asyncio
 import logging
 
 import httpx
-import resend
 
 from app.core.config import get_settings
 from app.core.errors import ExternalServiceError
@@ -10,14 +9,16 @@ from app.core.errors import ExternalServiceError
 logger = logging.getLogger("backline.email")
 
 
-async def send_email(*, to: str, subject: str, html: str) -> None:
+async def send_email(
+    *, to: str, subject: str, html: str, idempotency_key: str | None = None
+) -> None:
     """Report success only after a provider accepts the email (except local mode)."""
     settings = get_settings()
 
     # Priority 1: Google Apps Script Web App (Staging fallback)
-    if settings.google_apps_script_url:
+    if settings.google_apps_script_url and not (idempotency_key and settings.resend_api_key):
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with asyncio.timeout(20), httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
                     settings.google_apps_script_url,
                     json={
@@ -25,6 +26,7 @@ async def send_email(*, to: str, subject: str, html: str) -> None:
                         "subject": subject,
                         "html": html,
                         "secret": settings.google_apps_script_secret,
+                        **({"idempotency_key": idempotency_key} if idempotency_key else {}),
                     },
                     follow_redirects=True,
                 )
@@ -45,20 +47,27 @@ async def send_email(*, to: str, subject: str, html: str) -> None:
 
     # Priority 2: Resend (Production standard)
     if settings.resend_api_key:
-
-        def _send() -> None:
-            resend.api_key = settings.resend_api_key
-            resend.Emails.send(
-                {
-                    "from": settings.resend_from_address,
-                    "to": [to],
-                    "subject": subject,
-                    "html": html,
-                }
-            )
-
         try:
-            await asyncio.to_thread(_send)
+            headers = {"Authorization": f"Bearer {settings.resend_api_key}"}
+            if idempotency_key:
+                headers["Idempotency-Key"] = idempotency_key
+            # The pinned SDK sends requests without a timeout. Bounded async HTTP
+            # prevents a stalled provider from outliving a notification worker lease.
+            async with asyncio.timeout(20), httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    "https://api.resend.com/emails",
+                    headers=headers,
+                    json={
+                        "from": settings.resend_from_address,
+                        "to": [to],
+                        "subject": subject,
+                        "html": html,
+                    },
+                )
+                response.raise_for_status()
+                accepted = response.json()
+                if not isinstance(accepted, dict) or not accepted.get("id"):
+                    raise ValueError("Email provider did not return an accepted message ID.")
             return
         except Exception as e:
             logger.warning("Resend email failed (%s)", type(e).__name__)

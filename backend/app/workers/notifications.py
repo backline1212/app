@@ -7,6 +7,17 @@ from typing import Any
 from app.core.db import get_db
 from app.core.email import send_email
 from app.modules.notifications.digest import run_daily_digests
+from app.modules.notifications.email_delivery import deliver_email, sweep_emails
+
+
+async def send_member_notification_email_job(
+    ctx: dict[str, Any], *, workspace_id: str, notification_id: str
+) -> None:
+    await deliver_email(get_db(), workspace_id=workspace_id, notification_id=notification_id)
+
+
+async def sweep_notification_emails_job(ctx: dict[str, Any]) -> int:
+    return await sweep_emails(get_db())
 
 
 async def send_guest_resolved_email_job(

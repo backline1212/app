@@ -15740,6 +15740,7 @@
               "notify_on_mention": true,
               "notify_on_reply": true,
               "notify_on_status_change": true,
+              "email_notifications": false,
               "daily_digest": true
             }
           },
@@ -15778,6 +15779,11 @@
             "type": "boolean",
             "title": "Notify On Status Change",
             "default": true
+          },
+          "email_notifications": {
+            "type": "boolean",
+            "title": "Email Notifications",
+            "default": false
           },
           "daily_digest": {
             "type": "boolean",

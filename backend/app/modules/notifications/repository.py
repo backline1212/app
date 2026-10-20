@@ -1,7 +1,9 @@
-from datetime import UTC, datetime
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import Any, Literal
+from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 
 from app.core.mongo_utils import to_object_id
 
@@ -22,8 +24,9 @@ class NotificationRepository:
         type: str,
         payload_json: dict[str, Any],
         target_route: str | None = None,
+        email_pending: bool = False,
     ) -> dict[str, Any]:
-        doc = {
+        doc: dict[str, Any] = {
             "workspace_id": workspace_id,
             "user_id": user_id,
             "type": type,
@@ -32,9 +35,88 @@ class NotificationRepository:
             "read_at": None,
             "created_at": datetime.now(UTC),
         }
+        if email_pending:
+            doc.update(
+                {
+                    "email_state": "pending",
+                    "email_after": datetime.now(UTC),
+                    "email_expires_at": datetime.now(UTC) + timedelta(hours=24),
+                    "email_attempts": 0,
+                }
+            )
         result = await self.db.notifications.insert_one(doc)
         doc["_id"] = result.inserted_id
         return doc
+
+    async def due_email_deliveries(self, limit: int = 50) -> list[dict[str, Any]]:
+        # workspace-scope-exempt: internal worker sweep of opted-in outbox rows only;
+        # each claim and delivery uses the row's workspace and rechecks recipient access.
+        cursor = self.db.notifications.find(
+            {"email_state": "pending", "email_after": {"$lte": datetime.now(UTC)}},
+            {"workspace_id": 1, "email_after": 1},
+        )
+        return await cursor.sort("email_after", 1).limit(limit).to_list(length=limit)
+
+    async def claim_email(self, workspace_id: str, notification_id: str) -> dict[str, Any] | None:
+        return await self.db.notifications.find_one_and_update(
+            {
+                "workspace_id": workspace_id,
+                "_id": to_object_id(notification_id),
+                "email_state": "pending",
+                "email_after": {"$lte": datetime.now(UTC)},
+            },
+            {
+                "$set": {
+                    "email_after": datetime.now(UTC) + timedelta(minutes=2),
+                    "email_lease": uuid4().hex,
+                },
+                "$inc": {"email_attempts": 1},
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+
+    async def finish_email(
+        self,
+        workspace_id: str,
+        notification_id: str,
+        *,
+        lease: str,
+        state: Literal["sent", "skipped", "failed", "pending"],
+        retry_after: datetime | None = None,
+    ) -> None:
+        fields: dict[str, Any] = {"email_state": state}
+        if retry_after is not None:
+            fields["email_after"] = retry_after
+        else:
+            fields["email_finished_at"] = datetime.now(UTC)
+        await self.db.notifications.update_one(
+            {
+                "workspace_id": workspace_id,
+                "_id": to_object_id(notification_id),
+                "email_state": "pending",
+                "email_lease": lease,
+            },
+            {"$set": fields, "$unset": {"email_lease": ""}},
+        )
+
+    async def prepare_email(
+        self,
+        workspace_id: str,
+        notification_id: str,
+        *,
+        lease: str,
+        envelope: dict[str, str],
+    ) -> bool:
+        result = await self.db.notifications.update_one(
+            {
+                "workspace_id": workspace_id,
+                "_id": to_object_id(notification_id),
+                "email_state": "pending",
+                "email_lease": lease,
+            },
+            {"$set": {"email_envelope": envelope}},
+        )
+        return result.matched_count == 1
 
     async def list_for_user(
         self,

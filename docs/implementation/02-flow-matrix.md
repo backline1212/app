@@ -106,6 +106,13 @@ legacy flows require explicit migration and must not silently change destination
 
 ### Existing negative journeys
 
+F28 acceptance (TDR-0081): enable/disable feedback email independently of the daily
+digest, trigger each enabled event, verify correct thread links and actual inbox
+receipt, then retry after queue/provider failure or worker restart. Queued messages
+must skip after opt-out, removed membership/project access, changed verified
+address or expiry. No historical/default-on email backfill. Source implementation
+does not establish inbox delivery; Apps Script deduplication remains unverified.
+
 F26 capacity acceptance (TDR-0080): race two project creates/restores/sample
 conversions, invites/room joins/approvals and AI requests for the last slot. Only
 capacity-fitting writes may commit; failed approvals remain pending. Confirm
