@@ -1,11 +1,20 @@
 # Flow inventory and acceptance criteria
 
+FD-08/09/21 website reply follow-up (TDR-0093): verify member/guest and project-role
+controls, preserved team visibility, original request/body retry after timeout or
+lost acknowledgement, one confirmed reply in pin/portal, polling without draft loss,
+discard/copy/unload and SPA registration races. Recheck revoked link/role/parent and
+cross-project relay negatives. Embedded member replies remain in the portal; no
+inline edit/delete/resolve/attachment/mention parity is claimed.
+
 FD-08/09/18 recovery follow-up (TDR-0092): verify one effective-readiness recovery
 surface, direct saved-feedback access during loading/failure/origin mismatch,
 panel URL reload/close/reopen, retained page/thread/filter choices and one-time
 pin/AI-open requests. Do not count document onLoad as working comment tools. Live
 baseline observation confirms saved feedback remains accessible during fallback;
-the final web change needs its own post-deploy acceptance.
+post-deploy Chrome checks confirm one failure surface, direct feedback, panel close
+and closed panel state retained on reload. Broader pin/AI/filter acceptance remains
+tracked separately.
 
 FD-08/09 snapshot follow-up (TDR-0091): verify visible/hidden-node, depth, text,
 serialized-byte and elapsed-work limits without partial versions; overlapping

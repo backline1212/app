@@ -1,6 +1,7 @@
 import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES } from "./status";
 import { attachmentIcon, type AttachmentInfo } from "./ui-attachments";
 import { cardHeaderHtml, escapeHtml, observeCardPlacement, placeCard, svg, TAG_ICONS } from "./ui-card";
+import { setupThreadReply, type ThreadReplyRequest } from "./ui-thread-reply";
 
 export interface CommentViewReply {
   authorName: string;
@@ -16,10 +17,12 @@ export interface CommentViewData {
   attachments: AttachmentInfo[];
   pagePath: string;
   replies: CommentViewReply[];
+  layer?: "client" | "team";
 }
 
 export interface CommentViewControls {
-  close: () => void;
+  /** Forced close is reserved for page teardown or revoked access. */
+  close: (force?: boolean) => boolean;
   /** Shows a status the comment was moved to elsewhere (the dashboard, another tab). */
   setStatus: (status: string) => void;
   /** Re-renders the text, tags, attachments and replies - a reply or an edit made
@@ -84,10 +87,8 @@ function statusHtml(editable: boolean): string {
 
 /**
  * The card opened by clicking an *existing* pin: the same box as the new-comment
- * composer (openComposer), but read-only - just the comment as it was posted (its text,
- * the tag it was filed under and any attachments), with no input, tag picker or post
- * button. The one thing it can change is the comment's status, from the header, and
- * only when `onStatusChange` is given (it resolves with the status actually saved).
+ * composer (openComposer), with the saved text, tags, attachments and replies.
+ * Optional callbacks add reply/status actions for an authorized review transport.
  * Dismissed by its "x", Escape, or a click anywhere outside it; `onClose` fires once
  * whichever way it closes.
  */
@@ -98,6 +99,7 @@ export function openCommentView(
   comment: CommentViewData,
   onClose: () => void,
   onStatusChange: ((status: string) => Promise<string>) | null = null,
+  onReply: ((request: ThreadReplyRequest) => Promise<void>) | null = null,
 ): CommentViewControls {
   const view = document.createElement("div");
   view.className = "bl-card bl-thread";
@@ -175,6 +177,7 @@ export function openCommentView(
 
   shadow.appendChild(view);
   const stopPlacement = observeCardPlacement(view, x, y);
+  const reply = onReply ? setupThreadReply(view, x, y, comment.layer ?? "client", onReply) : null;
 
   const menuOpen = (): boolean => menu !== null && !menu.hidden;
 
@@ -252,24 +255,31 @@ export function openCommentView(
   }
 
   let closed = false;
-  function close(): void {
-    if (closed) return;
+  function close(force = false): boolean {
+    if (closed) return true;
+    if (!force && reply && !reply.canClose(() => close(true))) return false;
     closed = true;
+    reply?.dispose();
     stopPlacement();
     document.removeEventListener("click", outsideClickHandler, true);
     document.removeEventListener("keydown", escapeHandler, true);
     view.remove();
     onClose();
+    return true;
   }
 
-  view.querySelector<HTMLButtonElement>(".bl-cancel")!.addEventListener("click", close);
+  view.querySelector<HTMLButtonElement>(".bl-cancel")!.addEventListener("click", () => close());
 
   const outsideClickHandler = (event: MouseEvent) => {
     // Same event-retargeting reasoning as openComposer's own outside-click handler.
-    if (!event.composedPath().includes(view)) close();
+    if (!event.composedPath().includes(view)) {
+      if (reply?.hasDraft()) reply.nudge();
+      else close();
+    }
   };
   const escapeHandler = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return;
+    event.preventDefault();
     // Backs out of an open status menu first; the next Escape closes the card.
     if (menuOpen()) closeMenu(true);
     else close();

@@ -107,11 +107,19 @@ function autoGrowTextarea(textarea: HTMLTextAreaElement, onResize: () => void): 
 // own click handlers (index.ts, region-drawer.ts, the extension's content script) can
 // ask whether a new click would throw away something the reviewer typed.
 let activeComposer: { hasDraft: () => boolean; nudge: () => void; cancel: () => void } | null = null;
+const relatedDrafts = new Set<{ hasDraft: () => boolean; nudge: () => void }>();
+
+/** Existing-thread replies share the same mode/navigation protection as a new
+ * comment, without taking ownership of the new-comment composer's lifecycle. */
+export function registerRelatedDraft(draft: { hasDraft: () => boolean; nudge: () => void }): () => void {
+  relatedDrafts.add(draft);
+  return () => { relatedDrafts.delete(draft); };
+}
 
 /** Whether a composer is open with something in it that isn't posted yet - text, an
  * attachment, or a post still on its way. Clicking elsewhere then keeps it open. */
 export function composerHasDraft(): boolean {
-  return activeComposer?.hasDraft() ?? false;
+  return (activeComposer?.hasDraft() ?? false) || [...relatedDrafts].some(draft => draft.hasDraft());
 }
 
 /** Remove an empty draft before tearing down its page or switching review modes. */
@@ -121,7 +129,8 @@ export function cancelEmptyComposer(): void {
 
 /** Draws the reviewer back to the composer they left unfinished. */
 export function nudgeComposer(): void {
-  activeComposer?.nudge();
+  if (activeComposer?.hasDraft()) activeComposer.nudge();
+  else [...relatedDrafts].find(draft => draft.hasDraft())?.nudge();
 }
 
 /**

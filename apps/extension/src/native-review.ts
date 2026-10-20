@@ -212,20 +212,34 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     const pageMatch = /^\/api\/v1\/pages\/([a-f0-9]{24})\/comments$/.exec(path);
     const snapshotMatch = /^\/api\/v1\/pages\/([a-f0-9]{24})\/snapshots$/.exec(path);
     const commentMatch = /^\/api\/v1\/comments\/([a-f0-9]{24})$/.exec(path);
+    const replyMatch = /^\/api\/v1\/comments\/([a-f0-9]{24})\/replies$/.exec(path);
     const register = path === "/api/v1/pages" && method === "POST" && body?.project_id === session.project.id
       && typeof body.url === "string" && origin(body.url) === origin(session.project.target_origin);
     const comments = pageMatch && session.pageIds.includes(pageMatch[1]) && ["GET", "POST"].includes(method);
     const update = commentMatch && session.member && session.commentIds.includes(commentMatch[1]) && method === "PATCH";
     const snapshot = snapshotMatch && session.pageIds.includes(snapshotMatch[1]) && method === "POST";
-    if (!register && !comments && !update && !snapshot) throw new Error("Request is outside this review.");
-    const result = await request<Record<string, unknown> | Record<string, unknown>[]>(session.auth, path, {
-      method, ...(body ? { body: JSON.stringify(body) } : {}),
-    });
+    const reply = replyMatch && session.commentIds.includes(replyMatch[1]) && method === "POST"
+      && typeof body?.body === "string" && body.body.trim().length > 0 && body.body.length <= 10_000
+      && typeof body.client_request_id === "string" && body.client_request_id.length > 0 && body.client_request_id.length <= 100
+      && ["body", "layer", "client_request_id"].every(field => Object.prototype.hasOwnProperty.call(body, field))
+      && Object.keys(body).every(field => ["body", "layer", "client_request_id"].includes(field))
+      && ["client", "team"].includes(body.layer) && (session.member || body.layer === "client");
+    if (!register && !comments && !update && !snapshot && !reply) throw new Error("Request is outside this review.");
+    const replyController = reply ? new AbortController() : null;
+    const replyTimer = replyController ? setTimeout(() => replyController.abort(), 30_000) : null;
+    let result: Record<string, unknown> | Record<string, unknown>[];
+    try {
+      result = await request<Record<string, unknown> | Record<string, unknown>[]>(session.auth, path, {
+        method, ...(body ? { body: JSON.stringify(body) } : {}), ...(replyController ? { signal: replyController.signal } : {}),
+      });
+    } finally {
+      if (replyTimer) clearTimeout(replyTimer);
+    }
     // Keep one writer's scope additions even when capture/upload requests overlap.
     const latest = await read(tabId);
     if (latest && latest.auth.token === session.auth.token && latest.project.id === session.project.id) {
       if (register && !Array.isArray(result)) latest.pageIds = [...new Set([...latest.pageIds, String(result.id)])];
-      if (comments) latest.commentIds = [...new Set([...latest.commentIds, ...(Array.isArray(result) ? result : [result]).map(c => String(c.id))])];
+      if (comments || reply) latest.commentIds = [...new Set([...latest.commentIds, ...(Array.isArray(result) ? result : [result]).map(c => String(c.id))])];
       await save(tabId, latest);
     }
     return result;

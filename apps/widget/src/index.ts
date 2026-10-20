@@ -20,6 +20,7 @@ import {
 } from "./ui";
 import { setCardBottomInset } from "./ui-card";
 import { composerHasDraft, nudgeComposer } from "./ui-composer";
+import { postThreadReply } from "./thread-reply";
 import { parseUserAgent } from "./user-agent";
 import { setupRegionDrawer } from "./region-drawer";
 import type { Schemas } from "../../../packages/types/src/index";
@@ -214,7 +215,13 @@ async function init(config: BacklineConfig): Promise<void> {
   // read/mutate them all live in thread-manager.ts now - see its own comments for the
   // reasoning behind each piece. index.ts still owns the DOM events (clicks,
   // postMessage, websocket) that drive them.
-  const threadManager = createThreadManager({ shadow, pagePath: currentPagePath, statusUpdater });
+  const threadManager = createThreadManager({
+    shadow, pagePath: currentPagePath, statusUpdater,
+    // An embedded member preview uses a guest transport. Keep its replies in the
+    // signed-in portal, rather than silently posting a member's text as a guest.
+    replyPoster: () => window.parent !== window || currentMode === "view" ? null
+      : (topId, request) => postThreadReply(api, topId, request),
+  });
   cleanup.push(() => threadManager.clearPage());
   const { threadMessages, pinsByTopId, trackPinPosition, openThreadForComment, attachPinClickHandler } =
     threadManager;
@@ -502,12 +509,14 @@ async function init(config: BacklineConfig): Promise<void> {
   let seenUrl = pageUrl;
   let routeTimer: ReturnType<typeof setTimeout> | null = null;
   const followRoute = async (): Promise<void> => {
+    if (composerHasDraft()) { seenUrl = ""; return; }
     const nextUrl = realPageUrl(config.shareToken, resolved.target_origin);
     const nextDocumentUrl = location.href;
     if (nextUrl === followedUrl) return;
-    followedUrl = nextUrl;
     const nextPageId = await registerCurrentPage(api, projectId, nextUrl);
-    if (nextUrl !== followedUrl || location.href !== nextDocumentUrl) return;
+    if (location.href !== nextDocumentUrl || realPageUrl(config.shareToken, resolved.target_origin) !== nextUrl) return;
+    if (composerHasDraft()) { seenUrl = ""; return; }
+    followedUrl = nextUrl;
     pageId = nextPageId;
     registeredDocumentUrl = nextDocumentUrl;
     threadManager.clearPage();
@@ -532,6 +541,9 @@ async function init(config: BacklineConfig): Promise<void> {
   };
   const routePoll = window.setInterval(() => {
     if (ended) return;
+    // A site may navigate itself while a reviewer writes. Keep the old thread and
+    // immutable request in place until they finish or explicitly discard it.
+    if (composerHasDraft()) return;
     const now = realPageUrl(config.shareToken, resolved.target_origin);
     if (now === seenUrl) return;
     seenUrl = now;

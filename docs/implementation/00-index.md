@@ -112,6 +112,10 @@ remain separate from source verification.
 [TDR-0092](../tdr/0092-preview-recovery-and-feedback-navigation.md) records resumed
 read-only browser checks and consolidates failed-preview recovery with direct saved
 feedback and URL-owned panel selection. The preview network cause remains unproven.
+[TDR-0093](../tdr/0093-website-thread-replies.md) adds immutable text-reply saves and
+draft protection to native and standalone guest website threads, with role-aware
+controls. Embedded member replies still use the signed-in portal; other pin-card
+mutation parity and installed-extension acceptance remain open.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

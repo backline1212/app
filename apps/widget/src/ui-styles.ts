@@ -259,7 +259,12 @@ const HOST_STYLES = `
     border: 0; border-radius: 3px; padding: 8px 14px; font-size: 12.5px; font-weight: 600;
   }
   .bl-card button.bl-submit:hover:not(:disabled) { background: #232523; }
-  /* Read-only view of an existing comment (ui-comment-view.ts). */
+  /* Existing thread and optional reply editor (ui-comment-view.ts). */
+  .bl-cv-reply-form { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bl-line-soft); }
+  .bl-cv-reply-form textarea { display: block; margin-top: 8px; text-transform: none; letter-spacing: normal; }
+  .bl-cv-visibility { margin: 6px 0 0; font-size: 11px; color: var(--bl-ink-3); }
+  .bl-reply-discard { font-size: 12px; margin-top: 10px; padding: 8px; border: 1px solid var(--bl-line); }
+  .bl-reply-discard[hidden] { display: none; }
   .bl-cv-text {
     margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--bl-ink);
     white-space: pre-wrap; word-break: break-word;

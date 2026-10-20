@@ -8,6 +8,7 @@
 export { createApiClient, WidgetApiError } from "./api-client";
 export type { ApiClient, AuthHeaderProvider } from "./api-client";
 export { createCommentSubmission } from "./comment-submission";
+export { postThreadReply } from "./thread-reply";
 
 export { createShadowRoot, openComposer, renderPin, showTooltip } from "./ui";
 export { composerHasDraft, nudgeComposer, cancelEmptyComposer } from "./ui-composer";

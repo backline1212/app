@@ -1,5 +1,33 @@
 # Delivery and verification ledger
 
+## 2026-10-21: Website-thread replies (TDR-0093)
+
+Added native and standalone guest text replies through existing authorized/idempotent
+API contracts. Native relay requires a known session comment and bounded exact
+payload; project-role controls avoid offering viewer writes. Team visibility is
+preserved. Draft form survives content refresh, uses an immutable request after first
+submission and exposes waiting/retry/copy/discard states. Dirty/pending replies share
+mode/pin protections, guard unload and delay SPA registration; revoked-access teardown
+purges them. Embedded member replies stay in the signed-in portal. Remaining card
+edit/delete/resolve/attachments/mentions are explicit open parity work.
+
+Initial affected widget/extension lint/typecheck/build passes 6/6. Final source and
+0.4.7 full frontend checks pass 12/12; existing web chunk advisory and diff checks
+are recorded. No suite, additional shared reply/comment/upload or
+backend schema/migration. Installed extension remains 0.4.3; rollout is pending the
+Railway pause. The local store/icons work remains separate.
+
+Post-deploy web evidence for TDR-0092: e2c35a9 reports Vercel success
+`https://vercel.com/devbackline-7169/app-web/5LvF8czGkz1qKgXyf4VM1AjH95mJ`.
+Fresh Chrome reload shows one failure recovery surface with extension/retry/live
+page/URL correction and View saved feedback. That action opens the three existing
+comments and writes panel=comments to the URL. Close removes the panel and sets
+panel=closed, preserved after reload with the panel closed and recovery action still
+available. No additional comment or credential saved. Signed-out IAB checks show
+Google ready, sign-in recovery and signup navigation without submission. Found dead
+Privacy/Terms/Support hash links; legal documents/destinations remain unresolved and
+must not be invented or counted as working. No provider sign-in or OTP email sent.
+
 ## 2026-10-20: Live flow pass and preview recovery (TDR-0092)
 
 Browser use resumed through a fresh Chrome tab. Baseline observations: extension

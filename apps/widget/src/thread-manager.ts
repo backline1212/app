@@ -3,6 +3,8 @@ import { trackAnchor, type AnchorBox } from "./position-tracker";
 import type { StatusUpdater } from "./status";
 import type { AnchorPayload, CommentRecord } from "./types";
 import { openCommentView, renderPin, type CommentViewControls, type CommentViewData } from "./ui";
+import type { ThreadReplyRequest } from "./ui-thread-reply";
+import { composerHasDraft, nudgeComposer } from "./ui-composer";
 
 export type PinOffset =
   | { x: number; y: number }
@@ -18,6 +20,7 @@ export interface ThreadManagerOptions {
   // than once up front: the guest widget only learns it's inside the dashboard - and so
   // may offer the change - once the dashboard answers (dashboard-bridge.ts).
   statusUpdater?: () => StatusUpdater | null;
+  replyPoster?: () => ((topId: string, request: ThreadReplyRequest) => Promise<CommentRecord>) | null;
 }
 
 // Mirrors apps/web's lib/workflow.ts isClosed(): nothing more is expected of these.
@@ -34,6 +37,7 @@ export function createThreadManager({
   shadow,
   pagePath = () => window.location.pathname,
   statusUpdater = () => null,
+  replyPoster = () => null,
 }: ThreadManagerOptions) {
   // Every top-level comment id maps to [top, ...replies] (sorted oldest-first) - the
   // full flat list the backend returns per page, regrouped here since the widget is
@@ -200,6 +204,7 @@ export function createThreadManager({
       authorName: top.author_name,
       body: top.body,
       status: top.status,
+      layer: top.layer ?? "client",
       tags: top.tags ?? [],
       attachments: top.attachments ?? [],
       pagePath: pagePath(),
@@ -219,15 +224,12 @@ export function createThreadManager({
     openThread.controls.update(viewData(thread));
   }
 
-  function closeOpenThread(): void {
-    if (!openThread) return;
-    const { topId, controls } = openThread;
-    openThread = null;
-    controls.close();
-    applyPinState(topId);
+  function closeOpenThread(force = false): boolean {
+    return openThread?.controls.close(force) ?? true;
   }
 
   function openThreadForComment(topId: string, x: number, y: number): void {
+    if (composerHasDraft()) { nudgeComposer(); return; }
     // A previously-open thread never gets an "outside click" to dismiss it when this
     // is triggered from outside the iframe (the dashboard's Comments panel, via
     // postMessage) - clicking through several comments in a row would otherwise just
@@ -235,12 +237,13 @@ export function createThreadManager({
     // with its own outside-click listener still live. Unconditional (not just "a
     // different thread") so re-triggering the same comment doesn't duplicate its own
     // panel either.
-    closeOpenThread();
+    if (!closeOpenThread()) return;
 
     const thread = threadMessages.get(topId);
     if (!thread || thread.length === 0) return;
 
     const updateStatus = statusUpdater();
+    const postReply = replyPoster();
     const controls = openCommentView(
       shadow,
       x,
@@ -257,6 +260,10 @@ export function createThreadManager({
             return saved;
           }
         : null,
+      postReply ? async request => {
+        const saved = await postReply(topId, request);
+        handleCommentCreated(saved, thread[0].page_id);
+      } : null,
     );
     openThread = { topId, controls };
     applyPinState(topId);
@@ -361,7 +368,7 @@ export function createThreadManager({
   // made team-only, which leaves a guest's view the same way.
   function handleCommentDeleted(commentId: string, topId: string): void {
     if (commentId === topId) {
-      if (openThread?.topId === topId) closeOpenThread();
+      if (openThread?.topId === topId) closeOpenThread(true);
       removeThreadPin(topId);
       threadMessages.delete(topId);
       return;
@@ -376,7 +383,7 @@ export function createThreadManager({
   // (index.ts's route follower), and every pin and thread here belongs to the page left.
   function clearPage(): void {
     generation += 1;
-    closeOpenThread();
+    closeOpenThread(true);
     for (const topId of [...pinsByTopId.keys()]) removeThreadPin(topId);
     threadMessages.clear();
   }

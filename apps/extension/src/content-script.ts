@@ -5,6 +5,7 @@ import {
   createCommentSubmission,
   createShadowRoot,
   createThreadManager,
+  postThreadReply,
   captureScreenshot,
   composerHasDraft,
   cancelEmptyComposer,
@@ -87,13 +88,16 @@ async function buildFreshContext(): Promise<AnnotationContext | null> {
   // comment's status itself - the same member-only PATCH the dashboard uses.
   const threadManager = createThreadManager({
     shadow,
-    statusUpdater: () => info && !info.member ? null : async (commentId, status) => {
+    statusUpdater: () => (info && !info.member) || !["editor", "manager"].includes(project.my_role ?? "") ? null : async (commentId, status) => {
       const updated = await api.request<CommentRecord>(`/api/v1/comments/${commentId}`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
       return updated.status;
     },
+    replyPoster: () => info && !info.member ? (topId, request) => postThreadReply(api, topId, request)
+      : ["commenter", "editor", "manager"].includes(project.my_role ?? "")
+        ? (topId, request) => postThreadReply(api, topId, request) : null,
   });
   for (const top of existingComments.filter(c => c.parent_id === null)) {
     threadManager.addThread(top, existingComments.filter(c => c.parent_id === top.id)

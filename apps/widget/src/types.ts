@@ -72,7 +72,7 @@ export interface AttachmentRecord {
 }
 
 // Subset of the backend's CommentOut (packages/types/src/openapi.ts) - just the fields
-// the widget needs to place a comment's pin and show it in its read-only card.
+// the widget needs to place a comment's pin and show its thread/reply card.
 export interface CommentRecord {
   id: string;
   page_id: string;
