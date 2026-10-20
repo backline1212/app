@@ -106,6 +106,12 @@ legacy flows require explicit migration and must not silently change destination
 
 ### Existing negative journeys
 
+File-upload acceptance (TDR-0084): lose the response for the only PDF / final image
+slot, retry the same batch and recover the same page/file; confirm acknowledged
+files are skipped. Race equal IDs, reject differing actor/body/project reuse, and
+revoke membership/session/role during storage. Close batch/reselect/restart is a
+new intent, not persisted queue recovery. Orphan/byte quota reconciliation is open.
+
 F30 acceptance (TDR-0083): fail client/project/default-link/audit insertion and verify
 atomic rollback; lose a create response and retry at full quota to recover the same
 record/link; race extension origin resolution; reject changed-body/actor request-ID

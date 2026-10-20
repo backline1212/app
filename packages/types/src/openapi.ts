@@ -2559,6 +2559,8 @@ export interface components {
              * Format: binary
              */
             file: string;
+            /** Client Request Id */
+            client_request_id?: string | null;
         };
         /** BugHuntFinding */
         BugHuntFinding: {

@@ -9,6 +9,17 @@ class AssetRepository:
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
 
+    async def find_by_request(
+        self,
+        workspace_id: str,
+        request_id: str,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> dict[str, Any] | None:
+        return await self.db.project_assets.find_one(
+            {"workspace_id": workspace_id, "client_request_id": request_id}, session=session
+        )
+
     async def move_comment(
         self,
         workspace_id: str,

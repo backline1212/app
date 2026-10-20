@@ -1,21 +1,25 @@
 import asyncio
+import hashlib
 import io
 import uuid
 import warnings
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import PurePath
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from PIL import Image, UnidentifiedImageError
+from pymongo.errors import DuplicateKeyError
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
 from app.core.actor_access import resolve_actor_project_access
 from app.core.config import get_settings
-from app.core.errors import NotFoundError, ValidationError
+from app.core.creation_idempotency import require_creation_replay
+from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
-from app.core.session import Actor, GuestSession, Session, actor_identity
+from app.core.session import Actor, GuestSession, Session, actor_identity, validate_member_session
 from app.modules.assets.repository import AssetRepository
 from app.modules.assets.schemas import AssetCommentCreate, AssetOut, AssetUpdate, Region
 from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
@@ -29,6 +33,7 @@ from app.modules.storage.r2_client import (
     download_bytes_limited,
     generate_presigned_get,
 )
+from app.modules.workspaces.repository import MembershipRepository
 
 MAX_ASSET_SIZE = 20 * 1024 * 1024
 
@@ -80,24 +85,71 @@ async def asset_out(doc: dict[str, Any]) -> AssetOut:
     )
 
 
+async def _upload_access(
+    db: AsyncIOMotorDatabase[dict[str, Any]], project_id: str, actor: Session
+) -> tuple[str, Session]:
+    if actor.workspace_id is None:
+        raise PermissionDeniedError("No active workspace.")
+    if actor.sid:
+        await validate_member_session(actor)
+    membership = await MembershipRepository(db).find(
+        workspace_id=actor.workspace_id, user_id=actor.user_id
+    )
+    if membership is None:
+        raise PermissionDeniedError("You're no longer a member of this workspace.")
+    current = replace(actor, role=membership["role"])
+    workspace_id = await resolve_actor_project_access(db, current, project_id, "asset:upload")
+    return workspace_id, current
+
+
 async def upload_asset(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     project_id: str,
     actor: Session,
     filename: str,
     data: bytes,
+    *,
+    client_request_id: str | None = None,
 ) -> AssetOut:
-    workspace_id = await resolve_actor_project_access(db, actor, project_id)
+    workspace_id, actor = await _upload_access(db, project_id, actor)
     project = await get_project(db, project_id=project_id, workspace_id=workspace_id)
     if project.project_type == "website":
         raise ValidationError("Files belong in an Images or PDF project.")
+    if not data or len(data) > MAX_ASSET_SIZE:
+        raise ValidationError("Choose a non-empty file smaller than 20 MB.")
+    safe_name = PurePath(filename.replace("\\", "/")).name[:255] or "Untitled"
+    fingerprint = request_fingerprint(
+        {
+            "project_id": project_id,
+            "filename": safe_name,
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "project_type": project.project_type,
+        }
+    )
+    repo = AssetRepository(db)
+
+    def require_replay(existing: dict[str, Any]) -> None:
+        if existing.get("project_id") != project_id:
+            raise ConflictError("This upload request ID is already in use.")
+        require_creation_replay(existing, actor_id=actor.user_id, fingerprint=fingerprint)
+
+    if client_request_id:
+        existing = await repo.find_by_request(workspace_id, client_request_id)
+        if existing is not None:
+            require_replay(existing)
+            return await asset_out(existing)
     limit = 1 if project.project_type == "pdf" else 50
     content_type, page_count, width, height = await asyncio.to_thread(
         inspect_asset, data, project.project_type
     )
-    file_id = str(uuid.uuid4())
+    # The same prepared request writes the same bytes/key after a lost storage
+    # acknowledgement. Different bytes/actors/requests can never overwrite that key.
+    file_id = (
+        hashlib.sha256(f"{actor.user_id}:{client_request_id}:{fingerprint}".encode()).hexdigest()
+        if client_request_id
+        else str(uuid.uuid4())
+    )
     key = f"assets/{workspace_id}/{project_id}/{file_id}"
-    safe_name = PurePath(filename.replace("\\", "/")).name[:255] or "Untitled"
     await asyncio.to_thread(
         _make_client().put_object,
         Bucket=get_settings().r2_bucket_name,
@@ -105,17 +157,24 @@ async def upload_asset(
         Body=data,
         ContentType=content_type,
     )
+    # Inspection/storage can outlive a role/session change. Recheck before any
+    # database mutation, rather than relying on the route's earlier authorization.
+    _, actor = await _upload_access(db, project_id, actor)
 
     # The count check and the page+asset inserts must be atomic against a concurrent
     # upload to the same project - two uploads racing past a check-then-act count
     # (read len(existing), then insert) can both pass it and leave a project over its
     # file limit (e.g. 2 PDFs where exactly 1 is assumed everywhere else). The R2
-    # object above is uploaded before the transaction and stays orphaned if the
-    # transaction aborts on the limit check - an acceptable tradeoff (a stray object,
-    # not a stray/duplicate DB row), same as this codebase's other best-effort
-    # cleanup-on-failure paths.
+    # object above precedes Mongo. A rejected request can leave an orphan, which must
+    # not be deleted after an ambiguous commit; object GC/quota reconciliation is
+    # separate. Retries of this same request reuse its object instead of adding one.
     async def _create_within_limit(session: AsyncIOMotorClientSession) -> dict[str, Any]:
         await AssetRepository(db).serialize_changes(workspace_id, project_id, session)
+        if client_request_id:
+            existing = await repo.find_by_request(workspace_id, client_request_id, session=session)
+            if existing is not None:
+                require_replay(existing)
+                return existing
         count = await AssetRepository(db).count(workspace_id, project_id, session=session)
         if count >= limit:
             raise ValidationError("This project has reached its file limit.")
@@ -126,7 +185,7 @@ async def upload_asset(
             title=safe_name,
             session=session,
         )
-        return await AssetRepository(db).create(
+        doc = await repo.create(
             {
                 "workspace_id": workspace_id,
                 "project_id": project_id,
@@ -139,21 +198,36 @@ async def upload_asset(
                 "width": width,
                 "height": height,
                 "created_at": datetime.now(UTC),
+                "created_by": actor.user_id,
+                "client_request_id": client_request_id,
+                "request_fingerprint": fingerprint,
             },
             session=session,
         )
+        await append_event(
+            db,
+            workspace_id=workspace_id,
+            type="asset.created",
+            actor_type="member",
+            actor_id=actor.user_id,
+            payload={"project_id": project_id, "asset_id": str(doc["_id"]), "name": safe_name},
+            session=session,
+        )
+        return doc
 
-    async with await db.client.start_session() as session:
-        doc: dict[str, Any] = await session.with_transaction(_create_within_limit)
-
-    await append_event(
-        db,
-        workspace_id=workspace_id,
-        type="asset.created",
-        actor_type="member",
-        actor_id=actor.user_id,
-        payload={"project_id": project_id, "asset_id": str(doc["_id"]), "name": safe_name},
-    )
+    try:
+        async with await db.client.start_session() as session:
+            doc: dict[str, Any] = await session.with_transaction(_create_within_limit)
+    except DuplicateKeyError:
+        existing = (
+            await repo.find_by_request(workspace_id, client_request_id)
+            if client_request_id
+            else None
+        )
+        if existing is None:
+            raise
+        require_replay(existing)
+        doc = existing
     return await asset_out(doc)
 
 

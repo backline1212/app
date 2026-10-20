@@ -1,5 +1,30 @@
 # Delivery and verification ledger
 
+## 2026-10-20: PDF/image upload response recovery (TDR-0084)
+
+ID-backed asset uploads validate byte/name/type/project/creator replay before checking
+capacity, returning the original active asset after a lost response. Repeated storage
+uses the same actor/request/payload-derived object key. Page/asset/audit writes commit
+together with the project's existing transaction guard, and current membership/
+session/upload permission is rechecked after storage. Manage files retains a failed
+batch, skips acknowledged files, and offers retry at capacity plus explicit close.
+
+Contracts regenerated. Production read-only index dry-run reports the two creation
+indexes present, the new asset request index missing, no conflicts/duplicates and
+no business data modified. Full frontend checks passed 12/12 before the batch UX
+follow-up; final affected checks are in progress. Storage orphans/byte quotas and
+restart/reselection queue persistence are separate. No production file/comment or
+screenshot write. See [TDR-0084](../tdr/0084-file-upload-replay.md).
+
+Final source checks pass: full frontend 12/12 and affected web 3/3 after batch UX,
+backend Ruff, affected mypy (6 files), scope audit (20 repositories), codegen and
+diff checks. Existing large-chunk advisory remains. No suite written/run. Browser/
+storage response-loss and role/session-loss acceptance remain pending.
+
+Preceding metadata commit 8e2762eaee017e64e424d629f07b3fc084c9f13f reports
+SUCCESS on Railway API/worker/cloud-login. Public OpenAPI exposes project/client
+request IDs and nested-client create. Actual atomic/retry/browser acceptance remains open.
+
 ## 2026-10-20: Audit F30 — atomic project/client creation (TDR-0083)
 
 Project + optional new client + default review link + their audit events now commit

@@ -5,6 +5,10 @@ continued core flow repair, without clarification questions. This inventory cove
 actual source behavior, including promises in pricing; a removed label is not proof
 of a feature. Preserve current architecture and the isolation gate in TDR-0065.
 
+Core follow-ups now also include [atomic metadata onboarding](../tdr/0083-atomic-project-and-client-creation.md)
+and [PDF/image upload replay](../tdr/0084-file-upload-replay.md). These source repairs
+do not establish browser/storage failure acceptance or full storage-byte quotas.
+
 | Area | Current delivery | Remaining work / acceptance |
 |---|---|---|
 | Login/comment continuity | TDR-0075 source deployed as 6366103; extension 0.4.4 published | Installed extension update and lost-response/actual OTP/provider acceptance |

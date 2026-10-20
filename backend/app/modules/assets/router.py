@@ -1,6 +1,6 @@
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import Response
 
 from app.core.config import get_settings
@@ -89,6 +89,7 @@ async def upload_asset(
     project_id: str,
     request: Request,
     file: UploadFile = File(...),
+    client_request_id: str | None = Form(default=None, min_length=1, max_length=64),
     session: Session = Depends(require_project_permission("asset:upload")),
 ) -> AssetOut:
     await check_rate_limit(
@@ -99,7 +100,12 @@ async def upload_asset(
     )
     data = await file.read(service.MAX_ASSET_SIZE + 1)
     return await service.upload_asset(
-        get_db(), project_id, session, file.filename or "Untitled", data
+        get_db(),
+        project_id,
+        session,
+        file.filename or "Untitled",
+        data,
+        client_request_id=client_request_id,
     )
 
 

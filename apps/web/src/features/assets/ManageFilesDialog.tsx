@@ -14,6 +14,8 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
   const [archiveTarget, setArchiveTarget] = useState<api.Asset | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [progress, setProgress] = useState("");
+  const batch = useRef<{ files: File[]; completed: Set<File> } | null>(null);
+  const [hasPendingBatch, setHasPendingBatch] = useState(false);
   const files = useQuery({ queryKey: qk.assetManagement(project.id), queryFn: () => api.listAssets(project.id, undefined, true) });
   const canEdit = projectCan(project, "edit") && !project.archived_at;
   const activeCount = (files.data ?? []).filter(file => !file.archived_at).length;
@@ -40,18 +42,25 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
     mutationFn: async (selected: File[]) => {
       if (busy.current) throw new Error("A file change is already in progress.");
       busy.current = true;
-      if (selected.length > limit - activeCount) throw new Error(`This project has room for ${Math.max(0, limit - activeCount)} more file(s).`);
+      if (!batch.current && selected.length > limit - activeCount) throw new Error(`This project has room for ${Math.max(0, limit - activeCount)} more file(s).`);
       for (const file of selected) {
         if (file.size > 20 * 1024 * 1024) throw new Error(`${file.name} exceeds the 20 MB file limit.`);
         if (project.project_type === "pdf" ? !/\.pdf$/i.test(file.name) : !/\.(png|jpe?g|webp|gif)$/i.test(file.name)) throw new Error(project.project_type === "pdf" ? "Choose a PDF document." : "Choose PNG, JPG, WebP or GIF files.");
       }
-      for (const [index, file] of selected.entries()) {
-        setProgress(`Uploading ${index + 1} of ${selected.length}: ${file.name}`);
+      batch.current ??= { files: selected, completed: new Set() };
+      setHasPendingBatch(true);
+      const current = batch.current;
+      for (const [index, file] of current.files.entries()) {
+        if (current.completed.has(file)) continue;
+        setProgress(`Uploading ${index + 1} of ${current.files.length}: ${file.name}`);
         await api.uploadAsset(project.id, file);
+        current.completed.add(file);
       }
+      batch.current = null;
+      setHasPendingBatch(false);
       setProgress("Files uploaded. They are ready for review.");
     },
-    onError: () => setProgress("Check the file list before uploading again; completed uploads stay saved."),
+    onError: () => setProgress(batch.current ? "Some uploads are unconfirmed. Retry this batch to recover saved files and continue the rest." : "The upload could not start. Check the files and available space."),
     onSettled: async () => { await refresh(); busy.current = false; },
   });
   const pending = update.isPending || upload.isPending;
@@ -64,12 +73,13 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
           <button type="button" aria-pressed={!showArchived} disabled={pending} onClick={() => setShowArchived(false)}>Active</button>
           <button type="button" aria-pressed={showArchived} disabled={pending} onClick={() => setShowArchived(true)}>Archived</button>
         </div>
-        {canEdit && <label className="bl-button mint">{upload.isPending ? "Uploading…" : "Add files"}<input type="file" className="sr-only" aria-label="Add project files" disabled={pending || files.isLoading || files.isError || activeCount >= limit} multiple={limit > 1} accept={project.project_type === "pdf" ? "application/pdf" : "image/png,image/jpeg,image/webp,image/gif"} onChange={event => { const selected = Array.from(event.target.files ?? []); event.target.value = ""; if (selected.length && !busy.current) upload.mutate(selected); }} /></label>}
+        {canEdit && <label className="bl-button mint">{upload.isPending ? "Uploading…" : "Add files"}<input type="file" className="sr-only" aria-label="Add project files" disabled={pending || hasPendingBatch || files.isLoading || files.isError || activeCount >= limit} multiple={limit > 1} accept={project.project_type === "pdf" ? "application/pdf" : "image/png,image/jpeg,image/webp,image/gif"} onChange={event => { const selected = Array.from(event.target.files ?? []); event.target.value = ""; if (selected.length && !busy.current) upload.mutate(selected); }} /></label>}
       </div>
       {files.isLoading && <p role="status">Loading files…</p>}
       {files.error && <p role="alert" className="bl-error">{files.error.message} <button type="button" onClick={() => void files.refetch()}>Retry</button></p>}
       {(update.error || upload.error) && <p role="alert" className="bl-error">{update.error?.message ?? upload.error?.message}</p>}
       {progress && <p role="status">{progress}</p>}
+      {hasPendingBatch && !upload.isPending && <div><button type="button" className="bl-button" disabled={pending || !canEdit} onClick={() => { if (batch.current && !busy.current) upload.mutate(batch.current.files); }}>Retry remaining uploads</button><button type="button" className="bl-quiet" disabled={pending} onClick={() => { batch.current = null; setHasPendingBatch(false); setProgress("Batch closed. Check the file list before selecting files again; unconfirmed uploads may already be saved."); upload.reset(); }}>Close batch</button></div>}
       {!files.isLoading && !files.error && !visible.length && <p>No {showArchived ? "archived" : "active"} files.</p>}
       <ul className="bl-managed-files">
         {visible.map(file => <li key={file.id}>

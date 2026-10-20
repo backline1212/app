@@ -1,4 +1,4 @@
-"""Inspect additive project/client request indexes; writes require --apply."""
+"""Inspect additive creation/upload request indexes; writes require --apply."""
 
 import argparse
 import asyncio

@@ -3,6 +3,9 @@ import { API_BASE_URL, ApiError, apiFetch, apiFetchBlob } from "../../lib/api-cl
 
 export type Asset = Schemas["AssetOut"];
 export type Region = Schemas["Region"];
+// File objects are immutable. Keep one request per file/project while a form retries;
+// selecting a new File starts a new upload intent without storing business data locally.
+const uploadRequests = new WeakMap<File, Map<string, string>>();
 export async function assetRequest<T>(path: string, guest?: string, init?: RequestInit): Promise<T> {
   if (!guest) return apiFetch<T>(path, init);
   const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers: { 'Content-Type': 'application/json', 'X-Guest-Session': guest, ...init?.headers } });
@@ -14,7 +17,12 @@ export function updateAsset(projectId: string, assetId: string, body: Schemas['A
   return apiFetch<Asset>(`/api/v1/projects/${projectId}/assets/${assetId}`, { method: 'PATCH', body: JSON.stringify(body) });
 }
 export function uploadAsset(projectId: string, file: File) {
+  let projectRequests = uploadRequests.get(file);
+  if (!projectRequests) { projectRequests = new Map(); uploadRequests.set(file, projectRequests); }
+  let requestId = projectRequests.get(projectId);
+  if (!requestId) { requestId = crypto.randomUUID(); projectRequests.set(projectId, requestId); }
   const form = new FormData(); form.append('file', file);
+  form.append('client_request_id', requestId);
   return apiFetch<Asset>(`/api/v1/projects/${projectId}/assets`, { method: 'POST', body: form });
 }
 export function listAssetComments(pageId: string, guest?: string) { return assetRequest<Schemas['CommentOut'][]>(`/api/v1/pages/${pageId}/comments`, guest); }

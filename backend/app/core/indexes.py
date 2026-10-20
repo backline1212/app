@@ -42,7 +42,7 @@ CREATION_REQUEST_INDEXES: tuple[AdditiveIndex, ...] = tuple(
         f"{collection}_workspace_create_request_strings",
         {"unique": True, "partialFilterExpression": {"client_request_id": {"$type": "string"}}},
     )
-    for collection in ("projects", "clients")
+    for collection in ("projects", "clients", "project_assets")
 )
 
 

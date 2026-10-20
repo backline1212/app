@@ -84,6 +84,9 @@ paths/queries/hash at launch. Browser/page-identity acceptance remains pending.
 [TDR-0083](../tdr/0083-atomic-project-and-client-creation.md) repairs F30's project/
 client/link partial saves with atomic creation, actor-bound request replay and
 frozen form recovery. File-upload acknowledgement recovery remains separate.
+[TDR-0084](../tdr/0084-file-upload-replay.md) implements that remaining PDF/image
+upload replay and retained-batch recovery in source; actual storage/browser failure
+acceptance remains pending and F24 storage quotas are still separate.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)
