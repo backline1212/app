@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
 from app.core.mongo_utils import to_object_id
@@ -39,6 +39,7 @@ class ProjectRepository:
         hero_url: str | None = None,
         access: dict[str, Any] | None = None,
         is_sample: bool = False,
+        session: AsyncIOMotorClientSession | None = None,
     ) -> dict[str, Any]:
         now = datetime.now(UTC)
         doc: dict[str, Any] = {
@@ -72,18 +73,20 @@ class ProjectRepository:
         }
         if is_sample:
             doc["is_sample"] = True
-        result = await self.db.projects.insert_one(doc)
+        result = await self.db.projects.insert_one(doc, session=session)
         doc["_id"] = result.inserted_id
         return doc
 
-    async def find_by_id(self, project_id: str) -> dict[str, Any] | None:
+    async def find_by_id(
+        self, project_id: str, *, session: AsyncIOMotorClientSession | None = None
+    ) -> dict[str, Any] | None:
         oid = to_object_id(project_id)
         if oid is None:
             return None
         # workspace-scope-exempt: single-document lookup by its own unique _id; every
         # caller checks doc["workspace_id"] against the caller's workspace immediately
         # after (e.g. get_project in projects/service.py).
-        return await self.db.projects.find_one({"_id": oid})
+        return await self.db.projects.find_one({"_id": oid}, session=session)
 
     async def list_for_workspace(
         self,
@@ -223,11 +226,17 @@ class ProjectRepository:
         )
 
     async def update_metadata(
-        self, workspace_id: str, project_id: str, patch: dict[str, Any]
+        self,
+        workspace_id: str,
+        project_id: str,
+        patch: dict[str, Any],
+        *,
+        session: AsyncIOMotorClientSession | None = None,
     ) -> None:
         await self.db.projects.update_one(
             {"workspace_id": workspace_id, "_id": to_object_id(project_id)},
             {"$set": {**patch, "updated_at": datetime.now(UTC)}},
+            session=session,
         )
 
     async def update_settings(

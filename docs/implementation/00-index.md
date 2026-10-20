@@ -72,6 +72,9 @@ plan/AI/acceptance claims; live acceptance remains distinct from source completi
 [TDR-0079](../tdr/0079-conditional-ai-priority-updates.md) addresses F29 with
 conditional authorized priority writes, normal events and explicit applied/skipped
 results; provider/concurrency acceptance remains open.
+[TDR-0080](../tdr/0080-atomic-plan-capacity.md) follows F26 with transactional
+project/member capacity and expiring AI credit reservations. Live contention and
+provider/restart acceptance remain open.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

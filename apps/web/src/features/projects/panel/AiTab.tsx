@@ -49,6 +49,7 @@ export function AiTab({ workspaceId, projectId, onViewComment }: AiTabProps) {
     } catch (err) {
       setError(aiErrorMessage(err, "Could not analyze this project right now."));
     } finally {
+      void queryClient.invalidateQueries({ queryKey: qk.aiUsage(workspaceId) });
       setIsAnalyzing(false);
       pending.current = false;
     }
@@ -186,9 +187,8 @@ export function AiTab({ workspaceId, projectId, onViewComment }: AiTabProps) {
       {result && disabled && <p className="bl-inline-note">{result.summary}</p>}
 
       <p className="bl-inline-note">
-        {result
-          ? "Runs against your configured Groq keys. No usage is metered or billed."
-          : "Analysis runs against your configured Groq keys. No usage is metered or billed."}
+        Uses one workspace AI credit per completed analysis. A credit is reserved while
+        the request runs and released if it fails.
       </p>
 
       <button

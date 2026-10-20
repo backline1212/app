@@ -109,7 +109,7 @@ class AiUsageOut(BaseModel):
     limit: int
     period_start: datetime
     resets_at: datetime
-    # False when no AI provider key is configured: AI answers are placeholders and free.
+    # False when no AI provider key is configured: AI features are unavailable.
     ai_enabled: bool
     by_action: list[AiUsageActionOut]
     # Most credits first.

@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from html import escape
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
 from app.core.config import get_settings
@@ -27,7 +27,7 @@ from app.core.project_access import (
 )
 from app.core.session import Session
 from app.modules.auth.repository import UserRepository
-from app.modules.billing.limits import require_within_plan_limit
+from app.modules.billing.limits import require_within_plan_limit, run_plan_change
 from app.modules.billing.plans import effective_plan_id
 from app.modules.workspaces import events as workspace_events
 from app.modules.workspaces.onboarding import seed_sample_project
@@ -332,6 +332,35 @@ async def list_members(
     ]
 
 
+async def _add_member_with_capacity(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    user_id: str,
+    role: str,
+    invited_by: str | None,
+    joined_via: str,
+) -> tuple[dict[str, Any], bool]:
+    repo = MembershipRepository(db)
+
+    async def create(session: AsyncIOMotorClientSession) -> tuple[dict[str, Any], bool]:
+        existing = await repo.find(workspace_id=workspace_id, user_id=user_id, session=session)
+        if existing is not None:
+            return existing, False
+        await require_within_plan_limit(db, workspace_id, "members", session=session)
+        membership = await repo.create(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            role=role,
+            invited_by=invited_by,
+            joined_via=joined_via,
+            session=session,
+        )
+        return membership, True
+
+    return await run_plan_change(db, workspace_id, create)
+
+
 async def invite_member(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
@@ -349,8 +378,8 @@ async def invite_member(
     ):
         raise ConflictError("User is already a member of this workspace.")
 
-    # Before get_or_create, so an invite the plan refuses doesn't leave a user record
-    # behind for an address that was never actually invited.
+    # Fast preflight before creating an invited account. Capacity is rechecked with
+    # the membership write inside the transaction below.
     await require_within_plan_limit(db, workspace_id, "members")
 
     user_doc = existing_user or await user_repo.get_or_create(
@@ -359,13 +388,16 @@ async def invite_member(
     user_id = str(user_doc["_id"])
 
     try:
-        membership = await membership_repo.create(
+        membership, added = await _add_member_with_capacity(
+            db,
             workspace_id=workspace_id,
             user_id=user_id,
             role=role,
             invited_by=inviter_user_id,
             joined_via="invite",
         )
+        if not added:
+            raise ConflictError("User is already a member of this workspace.")
     except DuplicateKeyError as exc:
         # Same check-then-act race as create_workspace's slug above - a concurrent
         # invite for the same (workspace_id, user_id) can pass the find() check before
@@ -740,22 +772,19 @@ async def submit_join_request(
 
     if not workspace.get("join_requires_approval", True):
         try:
-            await require_within_plan_limit(db, workspace_id, "members")
-        except PlanLimitExceededError as exc:
-            raise ConflictError(
-                "This workspace has no free seats right now. Ask one of its admins to make room."
-            ) from exc
-        try:
-            await membership_repo.create(
+            _, added = await _add_member_with_capacity(
+                db,
                 workspace_id=workspace_id,
                 user_id=user_id,
                 role="member",
                 invited_by=None,
                 joined_via="room_code",
             )
-        except DuplicateKeyError:
-            pass  # A second tab got there first; they're a member either way.
-        else:
+        except PlanLimitExceededError as exc:
+            raise ConflictError(
+                "This workspace has no free seats right now. Ask one of its admins to make room."
+            ) from exc
+        if added:
             await append_event(
                 db,
                 workspace_id=workspace_id,
@@ -893,31 +922,28 @@ async def approve_join_request(
         raise NotFoundError("The person who asked no longer has an account.")
 
     membership_repo = MembershipRepository(db)
-    membership = await membership_repo.find(workspace_id=workspace_id, user_id=req["user_id"])
-    if membership is None:
-        await require_within_plan_limit(db, workspace_id, "members")
-    if not await join_repo.claim(
-        workspace_id, request_id, status="approved", decided_by=actor_user_id
-    ):
-        raise NotFoundError("This request was already handled.")
-    if membership is None:
-        try:
+
+    async def approve(session: AsyncIOMotorClientSession) -> dict[str, Any]:
+        if not await join_repo.claim(
+            workspace_id, request_id, status="approved", decided_by=actor_user_id, session=session
+        ):
+            raise NotFoundError("This request was already handled.")
+        membership = await membership_repo.find(
+            workspace_id=workspace_id, user_id=req["user_id"], session=session
+        )
+        if membership is None:
+            await require_within_plan_limit(db, workspace_id, "members", session=session)
             membership = await membership_repo.create(
                 workspace_id=workspace_id,
                 user_id=req["user_id"],
                 role=role,
                 invited_by=actor_user_id,
                 joined_via="join_request",
+                session=session,
             )
-        except DuplicateKeyError:
-            membership = await membership_repo.find(
-                workspace_id=workspace_id, user_id=req["user_id"]
-            )
-        except Exception:
-            await join_repo.reopen(workspace_id, request_id)
-            raise
-    if membership is None:
-        raise ConflictError("Could not add them. Try again.")
+        return membership
+
+    membership = await run_plan_change(db, workspace_id, approve)
 
     await append_event(
         db,

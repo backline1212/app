@@ -1,5 +1,8 @@
+import asyncio
 import json
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
@@ -25,7 +28,8 @@ from app.modules.ai.schemas import (
     SuggestReplyResult,
     SummarizeResult,
 )
-from app.modules.billing.limits import record_ai_credit, require_within_plan_limit
+from app.modules.billing.limits import reserve_ai_credit
+from app.modules.billing.repository import BillingRepository
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.service import apply_ai_priority
 from app.modules.pages.repository import PageRepository
@@ -46,6 +50,35 @@ _VALID_SEVERITIES: frozenset[str] = frozenset(("low", "medium", "high"))
 _CLOSED_STATUSES = frozenset(("resolved", "wont_fix"))
 
 logger = logging.getLogger("backline.ai")
+
+
+@asynccontextmanager
+async def _credit(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    *,
+    action: str,
+    user_id: str | None,
+) -> AsyncIterator[None]:
+    reservation = await reserve_ai_credit(db, workspace_id, action=action, user_id=user_id)
+    repo = BillingRepository(db)
+    try:
+        # Bounded well inside the reservation lease, including rejected-key retries.
+        async with asyncio.timeout(60):
+            yield
+    except BaseException as exc:
+        try:
+            await repo.finish_ai_credit(workspace_id, reservation, completed=False)
+        except Exception:
+            logger.exception("Could not release AI credit reservation; lease will expire.")
+        if isinstance(exc, TimeoutError):
+            raise ExternalServiceError(
+                "AI took too long. Your credit was released; try again."
+            ) from exc
+        raise
+    else:
+        if not await repo.finish_ai_credit(workspace_id, reservation, completed=True):
+            raise ExternalServiceError("AI credit reservation expired. Please try again.")
 
 
 async def _get_thread_context(
@@ -175,12 +208,11 @@ async def summarize_thread(
             "AI is not configured for this deployment. Ask an administrator to enable it."
         )
 
-    await require_within_plan_limit(db, workspace_id, "ai_credits")
     prompt = f"Summarize the following feedback thread in one concise paragraph:\n\n{context}"
-    text = await _complete(prompt)
-    await record_ai_credit(db, workspace_id, action="summarize", user_id=user_id)
-    if not text.strip():
-        raise ExternalServiceError("AI returned an empty summary. Try again.")
+    async with _credit(db, workspace_id, action="summarize", user_id=user_id):
+        text = await _complete(prompt)
+        if not text.strip():
+            raise ExternalServiceError("AI returned an empty summary. Try again.")
     return SummarizeResult(summary=text.strip())
 
 
@@ -199,19 +231,18 @@ async def suggest_reply(
             "AI is not configured for this deployment. Ask an administrator to enable it."
         )
 
-    await require_within_plan_limit(db, workspace_id, "ai_credits")
     prompt = (
         "Given the following feedback thread, suggest 3 short, helpful replies the "
         f"team could send. Format each reply on a new line starting with '- ':\n\n{context}"
     )
-    text = await _complete(prompt)
-    await record_ai_credit(db, workspace_id, action="suggest_reply", user_id=user_id)
-
-    suggestions = [
-        line.strip("- *").strip() for line in text.split("\n") if line.strip().startswith("-")
-    ]
-    if not suggestions:
-        raise ExternalServiceError("AI returned no usable reply suggestions. Try again.")
+    async with _credit(db, workspace_id, action="suggest_reply", user_id=user_id):
+        text = await _complete(prompt)
+        suggestions = [
+            line.strip("- *").strip() for line in text.split("\n") if line.strip().startswith("-")
+        ]
+        suggestions = [suggestion for suggestion in suggestions if suggestion]
+        if not suggestions:
+            raise ExternalServiceError("AI returned no usable reply suggestions. Try again.")
 
     return SuggestReplyResult(suggestions=suggestions[:3])
 
@@ -256,7 +287,6 @@ async def analyze_project(
     if not candidates:
         return ProjectAnalysisResult(summary="No open issues to analyze.", analyzed_comment_count=0)
 
-    await require_within_plan_limit(db, workspace_id, "ai_credits")
     by_id = {str(doc["_id"]): doc for doc in candidates}
     lines = [
         f'id={cid} ticket=#{doc.get("ticket_number")} '
@@ -275,8 +305,10 @@ async def analyze_project(
         "Include a finding for every comment listed.\n\n" + "\n".join(lines)
     )
 
-    text = await _complete(prompt, json_mode=True)
-    await record_ai_credit(db, workspace_id, action="analyze_project", user_id=user_id)
+    async with _credit(db, workspace_id, action="analyze_project", user_id=user_id):
+        text = await _complete(prompt, json_mode=True)
+        if not text.strip():
+            raise ExternalServiceError("AI returned an empty analysis. Try again.")
     if actor.sid:
         await validate_member_session(actor)
     await resolve_actor_project_access(db, actor, project_id, "comment:update_status")

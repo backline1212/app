@@ -1,15 +1,17 @@
 """Server-side plan limits: active projects, team seats and monthly AI credits."""
 
-from datetime import UTC, datetime
-from typing import Any, Literal
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime, timedelta
+from typing import Any, Literal, TypeVar
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
 from app.core.errors import NotFoundError, PlanLimitExceededError
 from app.modules.billing.plans import effective_plan_id, get_plan_definition
 from app.modules.billing.repository import BillingRepository
 
 LimitedResource = Literal["projects", "members", "ai_credits"]
+T = TypeVar("T")
 
 # Which plan an upgrade prompt points at from each tier.
 _NEXT_PLAN = {"free": "solo", "solo": "team", "team": "enterprise", "enterprise": "enterprise"}
@@ -28,14 +30,18 @@ def ai_credit_window(now: datetime | None = None) -> tuple[datetime, datetime]:
 
 
 async def count_usage(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, resource: LimitedResource
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    resource: LimitedResource,
+    *,
+    session: AsyncIOMotorClientSession | None = None,
 ) -> int:
     repo = BillingRepository(db)
     if resource == "projects":
-        return await repo.count_active_projects(workspace_id)
+        return await repo.count_active_projects(workspace_id, session=session)
     if resource == "members":
-        return await repo.count_members(workspace_id)
-    return await repo.count_ai_credits_since(workspace_id, ai_credit_window()[0])
+        return await repo.count_members(workspace_id, session=session)
+    return await repo.count_ai_credits_since(workspace_id, ai_credit_window()[0], session=session)
 
 
 def plan_limit(plan: dict[str, Any], resource: LimitedResource) -> int | None:
@@ -57,20 +63,21 @@ _LIMIT_MESSAGES = {
 
 
 async def require_within_plan_limit(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, resource: LimitedResource
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    resource: LimitedResource,
+    *,
+    session: AsyncIOMotorClientSession | None = None,
 ) -> None:
-    """Raises 402 PLAN_LIMIT_EXCEEDED when adding one more `resource` would exceed the
-    workspace's current plan. The count and the insert that follows are not atomic, so
-    two simultaneous creates at the boundary can both pass - an accepted overshoot of
-    one, not worth a transaction on every project/member/AI call."""
-    workspace = await BillingRepository(db).find_workspace(workspace_id)
+    """Check capacity. Mutations must call inside run_plan_change's transaction."""
+    workspace = await BillingRepository(db).find_workspace(workspace_id, session=session)
     if workspace is None:
         raise NotFoundError("Workspace not found.")
     plan = get_plan_definition(effective_plan_id(workspace))
     limit = plan_limit(plan, resource)
     if limit is None:
         return
-    current = await count_usage(db, workspace_id, resource)
+    current = await count_usage(db, workspace_id, resource, session=session)
     if current < limit:
         return
     raise PlanLimitExceededError(
@@ -85,14 +92,42 @@ async def require_within_plan_limit(
     )
 
 
-async def record_ai_credit(
+async def run_plan_change(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    operation: Callable[[AsyncIOMotorClientSession], Awaitable[T]],
+) -> T:
+    """Serialize count + write; callbacks contain database work only and may retry."""
+
+    async def commit(session: AsyncIOMotorClientSession) -> T:
+        if not await BillingRepository(db).serialize_plan_changes(workspace_id, session=session):
+            raise NotFoundError("Workspace not found.")
+        return await operation(session)
+
+    async with await db.client.start_session() as session:
+        result: T = await session.with_transaction(commit)
+    return result
+
+
+async def reserve_ai_credit(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     workspace_id: str,
     *,
     action: str,
     user_id: str | None = None,
-) -> None:
-    """One credit per completed AI call, attributed to the member who asked for it (the
-    AI Usage page breaks usage down by member). Placeholder answers given while AI is
-    not configured never reach this, so they cost nothing."""
-    await BillingRepository(db).record_ai_credit(workspace_id, action=action, user_id=user_id)
+) -> str:
+    """Reserve before provider work. Active reservations count in the usage display."""
+
+    async def reserve(session: AsyncIOMotorClientSession) -> str:
+        await require_within_plan_limit(db, workspace_id, "ai_credits", session=session)
+        now = datetime.now(UTC)
+        return await BillingRepository(db).reserve_ai_credit(
+            workspace_id,
+            action=action,
+            user_id=user_id,
+            created_at=now,
+            expires_at=now + timedelta(minutes=10),
+            session=session,
+        )
+
+    return await run_plan_change(db, workspace_id, reserve)

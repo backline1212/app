@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 from urllib.parse import urlsplit
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
@@ -21,7 +21,7 @@ from app.core.project_access import (
 )
 from app.core.server_browser import require_server_browser
 from app.core.session import Session
-from app.modules.billing.limits import require_within_plan_limit
+from app.modules.billing.limits import require_within_plan_limit, run_plan_change
 from app.modules.clients.repository import ClientRepository
 from app.modules.pages.repository import PageRepository
 from app.modules.projects import events as project_events
@@ -186,7 +186,6 @@ async def create_project(
 
     if viewer is not None:
         await require_can_create_projects(db, workspace_id, viewer.role)
-    await require_within_plan_limit(db, workspace_id, "projects")
 
     repo = ProjectRepository(db)
     if client_id and not await ClientRepository(db).find(workspace_id, client_id):
@@ -204,17 +203,23 @@ async def create_project(
             strict=strict_members,
         ),
     }
-    doc = await repo.create(
-        workspace_id=workspace_id,
-        name=name,
-        target_origin=target_origin,
-        created_by=actor_user_id,
-        project_type=project_type,
-        environment=environment,
-        client_id=client_id,
-        hero_url=hero_url,
-        access=access,
-    )
+
+    async def create(session: AsyncIOMotorClientSession) -> dict[str, Any]:
+        await require_within_plan_limit(db, workspace_id, "projects", session=session)
+        return await repo.create(
+            workspace_id=workspace_id,
+            name=name,
+            target_origin=target_origin,
+            created_by=actor_user_id,
+            project_type=project_type,
+            environment=environment,
+            client_id=client_id,
+            hero_url=hero_url,
+            access=access,
+            session=session,
+        )
+
+    doc = await run_plan_change(db, workspace_id, create)
     await append_event(
         db,
         workspace_id=workspace_id,
@@ -396,13 +401,28 @@ async def update_project(
         for key, value in (patch.pop("settings", None) or {}).items()
         if value is not None
     }
+
     # One document mutation: invalid metadata/client never leaves settings partly
     # saved. Dot paths preserve unrelated settings during concurrent changes.
-    await repo.update_metadata(
-        workspace_id,
-        project_id,
-        {**patch, **{f"settings_json.{key}": value for key, value in settings_patch.items()}},
-    )
+    async def update(session: AsyncIOMotorClientSession) -> None:
+        current = await repo.find_by_id(project_id, session=session)
+        if current is None or current["workspace_id"] != workspace_id:
+            raise NotFoundError("Project not found.")
+        next_state = {**current, **patch}
+        if (
+            current.get("archived_at") is None
+            and is_untouched_sample(current)
+            and not is_untouched_sample(next_state)
+        ):
+            await require_within_plan_limit(db, workspace_id, "projects", session=session)
+        await repo.update_metadata(
+            workspace_id,
+            project_id,
+            {**patch, **{f"settings_json.{key}": value for key, value in settings_patch.items()}},
+            session=session,
+        )
+
+    await run_plan_change(db, workspace_id, update)
     await append_event(
         db,
         workspace_id=workspace_id,
@@ -462,13 +482,18 @@ async def restore_project(
     actor_user_id: str,
     viewer: Session | None = None,
 ) -> ProjectOut:
-    project = await get_project(db, project_id=project_id, workspace_id=workspace_id)
-    stored = await ProjectRepository(db).find_by_id(project_id)
-    if project.archived_at is not None and not (stored and is_untouched_sample(stored)):
-        # Restoring makes the project active again, so it counts against the plan the
-        # same as creating one - otherwise archive, create, restore walks past the limit.
-        await require_within_plan_limit(db, workspace_id, "projects")
-    await ProjectRepository(db).update_metadata(workspace_id, project_id, {"archived_at": None})
+    await get_project(db, project_id=project_id, workspace_id=workspace_id)
+    repo = ProjectRepository(db)
+
+    async def restore(session: AsyncIOMotorClientSession) -> None:
+        stored = await repo.find_by_id(project_id, session=session)
+        if stored is None or stored["workspace_id"] != workspace_id:
+            raise NotFoundError("Project not found.")
+        if stored.get("archived_at") is not None and not is_untouched_sample(stored):
+            await require_within_plan_limit(db, workspace_id, "projects", session=session)
+        await repo.update_metadata(workspace_id, project_id, {"archived_at": None}, session=session)
+
+    await run_plan_change(db, workspace_id, restore)
     await append_event(
         db,
         workspace_id=workspace_id,

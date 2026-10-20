@@ -41,7 +41,7 @@ const CAPABILITIES: {
   {
     action: "analyze_project",
     title: "BugHunt AI",
-    description: "Reads every open comment in a project, ranks the issues by severity and flags likely duplicates.",
+    description: "Reads up to 40 recent open comments, ranks the issues by severity and flags likely duplicates. Uses up to 400 characters per comment.",
     where: "Open a project and choose BugHunt AI in the side panel.",
     icon: SearchIcon,
   },
@@ -114,11 +114,12 @@ export function AiPage() {
               </div>
               <small>
                 {!data.ai_enabled
-                  ? "AI isn't connected on this server, so AI features give placeholder answers that don't use credits."
+                  ? "AI isn't connected on this server. An administrator needs to enable the provider."
                   : data.used >= data.limit
                     ? `All used. AI features pause until ${resets}, or upgrade for more.`
                     : `${(data.limit - data.used).toLocaleString()} left on the ${data.plan_name} plan. Resets ${resets}.`}
               </small>
+              <small>Usage includes credits reserved while requests run. Failed requests release their credit.</small>
               <div className="bl-ai-meter-links">
                 <Link to={`/w/${workspace.slug}/usage`}>Usage by feature and member</Link>
                 <Link to={`/w/${workspace.slug}/billing`}>Compare plans</Link>

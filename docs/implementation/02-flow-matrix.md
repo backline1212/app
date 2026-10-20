@@ -106,4 +106,11 @@ legacy flows require explicit migration and must not silently change destination
 
 ### Existing negative journeys
 
+F26 capacity acceptance (TDR-0080): race two project creates/restores/sample
+conversions, invites/room joins/approvals and AI requests for the last slot. Only
+capacity-fitting writes may commit; failed approvals remain pending. Confirm
+duplicate joins need no extra seat, failed/empty/cancelled AI calls release credit,
+crashed reservations expire, successful calls retain their request-start month and
+legacy credits remain visible. Source checks pass; these live journeys are pending.
+
 Wrong workspace IDs, guest access to staff routes, assignment to a foreign user, client/project from another tenant, invalid/duplicate tags, null required values, date clearing, archived project writes, expired links, reply-as-root counts, empty searches, CSV formula payloads, upload failures, missing provider configuration, and stale query responses must all have explicit behavior.

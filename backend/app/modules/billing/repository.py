@@ -152,30 +152,95 @@ class BillingRepository:
 
     # -- usage -----------------------------------------------------------------------
 
-    async def count_active_projects(self, workspace_id: str) -> int:
+    async def serialize_plan_changes(
+        self, workspace_id: str, *, session: AsyncIOMotorClientSession
+    ) -> bool:
+        """All capacity-increasing writes contend on the same workspace document."""
+        result = await self.db.workspaces.update_one(
+            {"_id": to_object_id(workspace_id)},
+            {"$inc": {"plan_write_version": 1}},
+            session=session,
+        )
+        return result.matched_count == 1
+
+    async def count_active_projects(
+        self, workspace_id: str, *, session: MongoSession = None
+    ) -> int:
         return await self.db.projects.count_documents(
-            {"workspace_id": workspace_id, "archived_at": None, **EXCLUDE_UNTOUCHED_SAMPLE}
+            {"workspace_id": workspace_id, "archived_at": None, **EXCLUDE_UNTOUCHED_SAMPLE},
+            session=session,
         )
 
-    async def count_members(self, workspace_id: str) -> int:
-        return await self.db.memberships.count_documents({"workspace_id": workspace_id})
+    async def count_members(self, workspace_id: str, *, session: MongoSession = None) -> int:
+        return await self.db.memberships.count_documents(
+            {"workspace_id": workspace_id}, session=session
+        )
 
-    async def count_ai_credits_since(self, workspace_id: str, since: datetime) -> int:
+    @staticmethod
+    def active_ai_usage(workspace_id: str, since: datetime) -> dict[str, Any]:
+        # Missing status is a completed legacy credit. Expired reservations release
+        # capacity after a crashed process without deleting billing history.
+        return {
+            "workspace_id": workspace_id,
+            "created_at": {"$gte": since},
+            "$or": [
+                {"status": None},
+                {"status": "completed"},
+                {"status": "reserved", "expires_at": {"$gt": datetime.now(UTC)}},
+            ],
+        }
+
+    async def count_ai_credits_since(
+        self, workspace_id: str, since: datetime, *, session: MongoSession = None
+    ) -> int:
         return await self.db.ai_usage.count_documents(
-            {"workspace_id": workspace_id, "created_at": {"$gte": since}}
+            self.active_ai_usage(workspace_id, since), session=session
         )
 
-    async def record_ai_credit(
-        self, workspace_id: str, *, action: str, user_id: str | None = None
-    ) -> None:
-        await self.db.ai_usage.insert_one(
+    async def reserve_ai_credit(
+        self,
+        workspace_id: str,
+        *,
+        action: str,
+        user_id: str | None,
+        created_at: datetime,
+        expires_at: datetime,
+        session: AsyncIOMotorClientSession,
+    ) -> str:
+        result = await self.db.ai_usage.insert_one(
             {
                 "workspace_id": workspace_id,
                 "action": action,
                 "user_id": user_id,
-                "created_at": datetime.now(UTC),
-            }
+                "created_at": created_at,
+                "expires_at": expires_at,
+                "status": "reserved",
+            },
+            session=session,
         )
+        return str(result.inserted_id)
+
+    async def finish_ai_credit(
+        self, workspace_id: str, reservation_id: str, *, completed: bool
+    ) -> bool:
+        query: dict[str, Any] = {
+            "workspace_id": workspace_id,
+            "_id": to_object_id(reservation_id),
+            "status": "reserved",
+        }
+        if completed:
+            query["expires_at"] = {"$gt": datetime.now(UTC)}
+        result = await self.db.ai_usage.update_one(
+            query,
+            {
+                "$set": {
+                    "status": "completed" if completed else "released",
+                    "finished_at": datetime.now(UTC),
+                },
+                "$unset": {"expires_at": ""},
+            },
+        )
+        return result.modified_count == 1
 
     async def ai_usage_breakdown(
         self, workspace_id: str, *, period_start: datetime
@@ -183,7 +248,7 @@ class BillingRepository:
         """This period's credits grouped by feature, by member and by UTC day. Credits
         recorded before members were tracked group under a null user_id."""
         pipeline: list[dict[str, Any]] = [
-            {"$match": {"workspace_id": workspace_id, "created_at": {"$gte": period_start}}},
+            {"$match": self.active_ai_usage(workspace_id, period_start)},
             {
                 "$facet": {
                     "by_action": [{"$group": {"_id": "$action", "count": {"$sum": 1}}}],
@@ -209,7 +274,7 @@ class BillingRepository:
     async def ai_usage_by_month(self, workspace_id: str, *, since: datetime) -> dict[str, int]:
         """Credits per UTC calendar month ("YYYY-MM") from `since` on."""
         pipeline: list[dict[str, Any]] = [
-            {"$match": {"workspace_id": workspace_id, "created_at": {"$gte": since}}},
+            {"$match": self.active_ai_usage(workspace_id, since)},
             {
                 "$group": {
                     "_id": {"$dateToString": {"format": "%Y-%m", "date": "$created_at"}},

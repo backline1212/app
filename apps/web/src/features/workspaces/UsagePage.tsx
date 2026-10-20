@@ -109,10 +109,11 @@ export function UsagePage() {
         <>
           {!data.ai_enabled && (
             <p className="bl-inline-note bl-usage-note">
-              AI isn't connected on this server, so AI features give placeholder answers that don't use credits.
+              AI isn't connected on this server. AI features are unavailable until an administrator enables the provider.
             </p>
           )}
 
+          <p className="bl-inline-note">Usage includes credits reserved by requests in progress. Failed requests release their credit; interrupted reservations expire automatically.</p>
           <section className="bl-usage-card bl-usage-grid bl-usage-tiles" aria-label="This month">
             <div className="bl-usage">
               <p><span>AI credits this month</span><b>{data.used.toLocaleString()} / {data.limit.toLocaleString()}</b></p>

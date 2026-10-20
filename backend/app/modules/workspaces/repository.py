@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
 from app.core.mongo_utils import to_object_id
 
@@ -134,6 +134,7 @@ class MembershipRepository:
         role: str,
         invited_by: str | None,
         joined_via: str | None = None,
+        session: AsyncIOMotorClientSession | None = None,
     ) -> dict[str, Any]:
         doc = {
             "user_id": user_id,
@@ -144,13 +145,19 @@ class MembershipRepository:
         }
         if joined_via is not None:
             doc["joined_via"] = joined_via
-        result = await self.db.memberships.insert_one(doc)
+        result = await self.db.memberships.insert_one(doc, session=session)
         doc["_id"] = result.inserted_id
         return doc
 
-    async def find(self, *, workspace_id: str, user_id: str) -> dict[str, Any] | None:
+    async def find(
+        self,
+        *,
+        workspace_id: str,
+        user_id: str,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> dict[str, Any] | None:
         return await self.db.memberships.find_one(
-            {"workspace_id": workspace_id, "user_id": user_id}
+            {"workspace_id": workspace_id, "user_id": user_id}, session=session
         )
 
     async def find_by_id(self, *, workspace_id: str, membership_id: str) -> dict[str, Any] | None:
@@ -281,6 +288,7 @@ class JoinRequestRepository:
         *,
         status: str,
         decided_by: str | None,
+        session: AsyncIOMotorClientSession | None = None,
     ) -> bool:
         """Moves a pending request to `status`. False when it isn't pending any more,
         so two admins deciding at once can't both act on it."""
@@ -296,6 +304,7 @@ class JoinRequestRepository:
                     "decided_by": decided_by,
                 }
             },
+            session=session,
         )
         return result.modified_count == 1
 

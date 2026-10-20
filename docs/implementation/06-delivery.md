@@ -1,5 +1,26 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Audit F26 — atomic capacity (TDR-0080)
+
+Project create/restore/sample conversion and member invite/direct join/approval
+now serialize count + mutation on the workspace in a Mongo transaction. Approval
+and seat insertion commit together. AI reserves credit before provider work,
+completes on usable output, releases on failure/cancellation and expires abandoned
+reservations after ten minutes. The sixty-second provider deadline stays within
+the lease. Legacy usage rows remain counted. Usage/AI screens describe reservations,
+actual credits, provider unavailability and bounded BugHunt coverage.
+
+Backend Ruff, full mypy (201 files), scope check (20 repositories), web lint,
+typecheck/build and diff checks pass; existing chunk warning remains. No suite,
+production writes or provider requests. Live contention, rollback, cancellation,
+rollover and restart acceptance remains pending. Storage quotas (F24), create
+replay (F30) and notification delivery (F28) are still open. Extension/store files
+from concurrent work remain excluded. See [TDR-0080](../tdr/0080-atomic-plan-capacity.md).
+
+The preceding TDR-0079 commit 37c2c1a35c17546c27d4e5111bc7fc12c2346b6a now
+reports SUCCESS for Railway API, worker and cloud-login. This is deployment
+evidence only; no live AI mutation/concurrency acceptance is inferred.
+
 ## 2026-10-20: Audit F29 — preserve concurrent priority edits (TDR-0079)
 
 BugHunt now passes its actor through the comments mutation service, rechecks

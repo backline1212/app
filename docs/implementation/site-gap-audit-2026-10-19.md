@@ -3,6 +3,11 @@
 Date: 2026-10-19 (Asia/Calcutta). Baseline: `main`, commit `2daf5a7`.
 Scope decision: [TDR-0059](../tdr/0059-site-gap-audit.md).
 
+F26 source follow-up: [TDR-0080](../tdr/0080-atomic-plan-capacity.md) serializes
+project/member capacity with writes and reserves AI credits before provider work.
+The baseline below remains audit evidence; live contention/rollback/lease/month
+acceptance is pending and F24 storage-byte quotas remain open.
+
 Implementation follow-up: the baseline findings below are preserved. Partial CR-01
 repairs now address comment replay authorization (F04), guest mutation checks (F05),
 socket authorization (F06/F07), notification visibility (F08) and workspace refresh
