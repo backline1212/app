@@ -5208,6 +5208,13 @@ export interface components {
             ai_credits_reset_at: string;
             /** Storage Gb Limit */
             storage_gb_limit: number;
+            /** Storage Bytes Used */
+            storage_bytes_used?: number | null;
+            /**
+             * Storage Quota Enforced
+             * @default false
+             */
+            storage_quota_enforced: boolean;
         };
         /** UserOut */
         UserOut: {

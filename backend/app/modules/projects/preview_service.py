@@ -25,7 +25,9 @@ from app.core.server_browser import UNAVAILABLE_MESSAGE, require_server_browser
 from app.core.ssrf_guard import assert_safe_to_fetch
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.schemas import ProjectOut
-from app.modules.storage.r2_client import delete_object, generate_presigned_gets, upload_bytes
+from app.modules.storage.quota import store_bytes
+from app.modules.storage.quota_repository import StorageQuotaRepository
+from app.modules.storage.r2_client import delete_object, generate_presigned_gets
 
 logger = logging.getLogger(__name__)
 
@@ -174,9 +176,12 @@ async def with_previews(
     return result
 
 
-async def _delete_quietly(key: str) -> None:
+async def _delete_quietly(
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, key: str
+) -> None:
     try:
         await delete_object(key)
+        await StorageQuotaRepository(db).release_deleted(workspace_id, key)
     except Exception:  # noqa: BLE001 - an orphaned thumbnail is cleaned up on hard delete
         logger.warning("Could not delete project preview %s", key, exc_info=True)
 
@@ -256,7 +261,18 @@ async def run_capture(
         return
 
     key = f"previews/{workspace_id}/{project_id}/{token}.jpg"
-    await upload_bytes(key, thumbnail, "image/jpeg")
+    try:
+        await store_bytes(
+            db,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            key=key,
+            data=thumbnail,
+            content_type="image/jpeg",
+        )
+    except Exception as exc:
+        await repo.fail_preview(workspace_id, project_id, token=token, error=str(exc))
+        return
     before = await repo.finish_preview(
         workspace_id,
         project_id,
@@ -266,8 +282,8 @@ async def run_capture(
         captured_at=datetime.now(UTC),
     )
     if before is None:
-        await _delete_quietly(key)  # superseded while this one was rendering
+        await _delete_quietly(db, workspace_id, key)  # superseded while rendering
         return
     replaced = (before.get("preview") or {}).get("key")
     if replaced and replaced != key:
-        await _delete_quietly(replaced)
+        await _delete_quietly(db, workspace_id, replaced)

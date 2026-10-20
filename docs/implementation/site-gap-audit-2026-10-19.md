@@ -3,6 +3,12 @@
 Date: 2026-10-19 (Asia/Calcutta). Baseline: `main`, commit `2daf5a7`.
 Scope decision: [TDR-0059](../tdr/0059-site-gap-audit.md).
 
+F24 source follow-up: [TDR-0085](../tdr/0085-storage-byte-reservations.md) adds
+transactional byte reservations across object writes, additive legacy inventory,
+confirmed-deletion release and honest billing state. Staged enforcement rollout
+and manual quota/reconciliation acceptance are tracked separately; unused signed
+upload grants retain conservative holds.
+
 F30 source follow-up: [TDR-0083](../tdr/0083-atomic-project-and-client-creation.md)
 adds transactional project/client/default-link/audit creation and actor-bound
 request replay. Settings/client save recovery is included. Live rollback/retry

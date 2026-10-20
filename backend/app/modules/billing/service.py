@@ -56,6 +56,7 @@ from app.modules.billing.schemas import (
     UsageMetricsOut,
     VerifyPaymentRequest,
 )
+from app.modules.storage.quota_repository import StorageQuotaRepository
 
 logger = logging.getLogger("backline.billing")
 
@@ -149,6 +150,13 @@ async def get_workspace_subscription(
         ai_credits_limit=plan["ai_credits_monthly"],
         ai_credits_reset_at=ai_credit_window(now)[1],
         storage_gb_limit=plan["storage_gb"],
+        storage_bytes_used=(
+            await StorageQuotaRepository(db).usage(workspace_id)
+            if workspace.get("storage_inventory_ready")
+            and workspace.get("storage_inventory_bucket") == settings.r2_bucket_name
+            else None
+        ),
+        storage_quota_enforced=settings.storage_quota_enforcement_enabled,
     )
 
     interval = workspace.get("billing_interval")

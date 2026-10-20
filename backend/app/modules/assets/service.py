@@ -15,7 +15,6 @@ from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
 from app.core.actor_access import resolve_actor_project_access
-from app.core.config import get_settings
 from app.core.creation_idempotency import require_creation_replay
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
@@ -28,8 +27,8 @@ from app.modules.comments.schemas import CommentOut
 from app.modules.comments.service import _broadcast_comment_event, _comment_out
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.service import get_project
+from app.modules.storage.quota import store_bytes
 from app.modules.storage.r2_client import (
-    _make_client,
     download_bytes_limited,
     generate_presigned_get,
 )
@@ -150,12 +149,13 @@ async def upload_asset(
         else str(uuid.uuid4())
     )
     key = f"assets/{workspace_id}/{project_id}/{file_id}"
-    await asyncio.to_thread(
-        _make_client().put_object,
-        Bucket=get_settings().r2_bucket_name,
-        Key=key,
-        Body=data,
-        ContentType=content_type,
+    await store_bytes(
+        db,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        key=key,
+        data=data,
+        content_type=content_type,
     )
     # Inspection/storage can outlive a role/session change. Recheck before any
     # database mutation, rather than relying on the route's earlier authorization.

@@ -32,6 +32,10 @@ from app.workers.snapshot_delivery import (
     sweep_snapshot_deliveries_job,
 )
 from app.workers.storage_gc import resume_project_hard_delete_job
+from app.workers.storage_quota import (
+    reconcile_storage_reservation_job,
+    sweep_storage_reservations_job,
+)
 
 
 class WorkerSettings:
@@ -48,6 +52,8 @@ class WorkerSettings:
         resume_project_hard_delete_job,
         render_browser_snapshot_job,
         capture_project_preview_job,
+        reconcile_storage_reservation_job,
+        sweep_storage_reservations_job,
     ]
     # Real headless-browser renders (Chromium/WebKit/Firefox via Playwright) are
     # meaningfully heavier than every other job here - cap how many run at once so a
@@ -61,5 +67,6 @@ class WorkerSettings:
         cron(send_daily_digests_job, hour=9, minute=0),
         cron(sweep_snapshot_deliveries_job, second=15),
         cron(sweep_notification_emails_job, second=30),
+        cron(sweep_storage_reservations_job, second=45),
     ]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)

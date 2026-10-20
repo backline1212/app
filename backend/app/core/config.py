@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     # activates the plan without charging anyone. Always off when ENVIRONMENT is
     # "production", whatever this says (billing/service.py's sandbox_allowed).
     billing_sandbox_enabled: bool = True
+    # Enable only after inventory migration on a deployment tracking every write.
+    storage_quota_enforcement_enabled: bool = False
 
     # Fernet key (32 url-safe base64-encoded bytes) for encrypting OAuth tokens at the
     # application layer before they reach Mongo (Rule 6, §17.3's "encrypted at the

@@ -3,6 +3,7 @@ from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
+from app.core.config import get_settings
 from app.core.mongo_utils import to_object_id
 
 
@@ -20,6 +21,8 @@ class WorkspaceRepository:
             "slug": slug,
             "plan": "free",
             "branding_json": {},
+            "storage_inventory_ready": True,
+            "storage_inventory_bucket": get_settings().r2_bucket_name,
             # TDR-0056 joining and project creation. room_code None = joining by code
             # is off; a workspace saved before then reads the same way.
             "room_code": None,

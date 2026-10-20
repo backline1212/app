@@ -7,7 +7,9 @@ from pydantic import ValidationError as PydanticValidationError
 from app.core.actor_access import resolve_actor_project_access
 from app.core.errors import ValidationError
 from app.core.session import Actor, actor_identity
-from app.modules.storage.r2_client import generate_presigned_put, head_upload, upload_bytes
+from app.modules.storage.quota import reserve_bytes, store_bytes
+from app.modules.storage.quota_repository import StorageQuotaRepository
+from app.modules.storage.r2_client import generate_presigned_put, head_upload
 from app.modules.storage.repository import UploadRepository
 from app.modules.storage.schemas import StoredUploadOut, UploadOut, UploadRequest
 
@@ -70,6 +72,7 @@ async def validate_upload_reference(
     metadata = await head_upload(key)
     if metadata != (expected_type, record["content_length"]):
         raise ValidationError("The file upload is incomplete or changed. Upload it again.")
+    await StorageQuotaRepository(db).mark_stored(workspace_id, key, metadata[1])
 
 
 async def _record_upload(
@@ -115,6 +118,14 @@ async def create_upload_url(
     # its attachments, so the key shouldn't imply it's only ever a screenshot.
     key = _upload_key(workspace_id, project_id, content_type)
 
+    await reserve_bytes(
+        db,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        key=key,
+        size=content_length,
+        release_missing=False,
+    )
     upload_url = await generate_presigned_put(key, content_type, content_length)
     await _record_upload(
         db,
@@ -147,7 +158,14 @@ async def store_upload(
         raise ValidationError("Unsupported upload type or size.") from exc
     workspace_id = await resolve_actor_project_access(db, actor, project_id, "comment:create")
     key = _upload_key(workspace_id, project_id, validated.content_type)
-    await upload_bytes(key, data, validated.content_type)
+    await store_bytes(
+        db,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        key=key,
+        data=data,
+        content_type=validated.content_type,
+    )
     await _record_upload(
         db,
         actor=actor,

@@ -15774,6 +15774,22 @@
           "storage_gb_limit": {
             "type": "integer",
             "title": "Storage Gb Limit"
+          },
+          "storage_bytes_used": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Bytes Used"
+          },
+          "storage_quota_enforced": {
+            "type": "boolean",
+            "title": "Storage Quota Enforced",
+            "default": false
           }
         },
         "type": "object",

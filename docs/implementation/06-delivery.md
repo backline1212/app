@@ -1,5 +1,29 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Audit F24 — storage reservations and inventory (TDR-0085)
+
+Added bucket/object ledger reservations under the workspace plan transaction across
+uploads, assets, snapshots, previews and renders. Count held/stored bytes before
+writes, keep retained/archived content counted and release after confirmed deletion.
+Server-upload reconciliation uses delayed HEAD and reservation-token checks. Signed
+PUT reservations deliberately retain missing holds because URL expiry cannot stop
+an already-running upload. Billing exposes actual known/unknown accounting and the
+enforcement state. Expanded tenant-scope audit includes quota/deletion repositories.
+
+Read-only production inventory: 10 workspaces, 177 attributable objects, 25,320,983
+bytes, zero unattributed/unrelated objects, no changes. Read-only index dry-run finds
+only two new storage indexes missing, no conflicts. Contracts regenerated. Backend
+Ruff/full mypy (208 files), affected mypy (31), script mypy and scope audit (22) pass.
+Frontend 12/12 passed before final copy refinement; final web checks/rollout are in
+progress. Tracking deploy precedes inventory import and enforcement. No production
+upload/deletion/provider call or suite run. See
+[TDR-0085](../tdr/0085-storage-byte-reservations.md) for remaining manual acceptance.
+
+Final affected web lint/typecheck/build passes 3/3 after copy refinement (full graph
+12/12). Backend Ruff/mypy/scope/script checks and diff checks pass. Existing chunk
+advisory remains. Rollout still needs tracking deployment, inventory import and
+enforcement enablement; none is inferred from compilation.
+
 ## 2026-10-20: PDF/image upload response recovery (TDR-0084)
 
 ID-backed asset uploads validate byte/name/type/project/creator replay before checking

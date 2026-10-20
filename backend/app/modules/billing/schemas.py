@@ -77,6 +77,8 @@ class UsageMetricsOut(BaseModel):
     # AI credits are counted per calendar month (UTC) and reset at this instant.
     ai_credits_reset_at: datetime
     storage_gb_limit: int
+    storage_bytes_used: int | None = None
+    storage_quota_enforced: bool = False
 
 
 AiAction = Literal["summarize", "suggest_reply", "analyze_project"]

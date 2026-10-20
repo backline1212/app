@@ -131,6 +131,12 @@ export function CurrentPlanBanner({
           limit={usage.ai_credits_limit}
           note={`Resets ${formatDate(usage.ai_credits_reset_at)}`}
         />
+        {usage.storage_bytes_used != null ? <UsageMeter
+          label="Storage (GB)"
+          used={Number((usage.storage_bytes_used / 1_000_000_000).toFixed(3))}
+          limit={usage.storage_gb_limit}
+          note={`Includes uploads in progress, retained files and archived content. Unused direct-upload links reserve their declared size until project deletion.${usage.storage_quota_enforced ? "" : " Storage enforcement is being prepared."}`}
+        /> : <div className="bl-usage"><p><span>Storage</span><b>{usage.storage_gb_limit} GB allowance</b></p><small>Storage inventory is being prepared. Usage is unavailable until accounting is ready.</small></div>}
       </div>
 
       {confirmDowngrade && (

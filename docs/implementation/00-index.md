@@ -87,6 +87,9 @@ frozen form recovery. File-upload acknowledgement recovery remains separate.
 [TDR-0084](../tdr/0084-file-upload-replay.md) implements that remaining PDF/image
 upload replay and retained-batch recovery in source; actual storage/browser failure
 acceptance remains pending and F24 storage quotas are still separate.
+[TDR-0085](../tdr/0085-storage-byte-reservations.md) implements F24's storage ledger,
+transactional reservations across all writes, inventory and staged enforcement.
+Unused signed grants retain conservative holds; rollout/manual acceptance is tracked.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

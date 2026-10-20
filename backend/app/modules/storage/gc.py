@@ -3,6 +3,7 @@ from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.modules.storage.quota_repository import StorageQuotaRepository
 from app.modules.storage.r2_client import delete_object
 from app.modules.storage.repository import ObjectGcRepository
 
@@ -25,6 +26,7 @@ async def run_object_gc(
     ):
         try:
             await delete_object(tombstone["key"])
+            await StorageQuotaRepository(db).release_deleted(workspace_id, tombstone["key"])
         except Exception as exc:
             await repo.mark_failed(
                 tombstone["workspace_id"],

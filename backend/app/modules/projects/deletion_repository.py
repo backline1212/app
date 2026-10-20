@@ -107,6 +107,17 @@ class ProjectDeletionRepository:
 
         referenced_keys = {str(doc["snapshot_key"]) for doc in revisions if doc.get("snapshot_key")}
         referenced_keys.update(str(doc["key"]) for doc in assets if doc.get("key"))
+        # Issued uploads count against quota even if no object is visible yet.
+        # Include their keys so the normal confirmed deletion can release the ledger.
+        quota_objects = await self.db.storage_objects.find(
+            {
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "state": {"$in": ["reserved", "stored"]},
+            },
+            {"key": 1},
+        ).to_list(length=None)
+        referenced_keys.update(str(doc["key"]) for doc in quota_objects)
         referenced_keys.update(
             str(doc["screenshot_key"]) for doc in browser_renders if doc.get("screenshot_key")
         )

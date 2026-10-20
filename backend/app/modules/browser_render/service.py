@@ -1,6 +1,7 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -191,7 +192,7 @@ async def run_render(
     # checkout that hasn't run `uv sync` yet.
     from playwright.async_api import async_playwright
 
-    from app.modules.storage.r2_client import upload_bytes
+    from app.modules.storage.quota import store_bytes
 
     repo = BrowserRenderRepository(db)
     doc = await repo.find(
@@ -240,7 +241,18 @@ async def run_render(
 
     key = (
         f"renders/{workspace_id}/{project_id}/{page_id}/"
-        f"{browser}-{render_width}x{render_height}-{orientation}-{int(datetime.now(UTC).timestamp())}.png"
+        f"{browser}-{render_width}x{render_height}-{orientation}-{uuid4().hex}.png"
     )
-    await upload_bytes(key, screenshot_bytes, "image/png")
+    try:
+        await store_bytes(
+            db,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            key=key,
+            data=screenshot_bytes,
+            content_type="image/png",
+        )
+    except Exception as exc:
+        await repo.mark_failed(doc_id=doc["_id"], error=str(exc)[:500])
+        return
     await repo.mark_ready(doc_id=doc["_id"], screenshot_key=key)

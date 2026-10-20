@@ -18,6 +18,12 @@ class AdditiveIndex:
 
 REVIEW_PERSISTENCE_INDEXES: tuple[AdditiveIndex, ...] = (
     AdditiveIndex(
+        "storage_objects", (("workspace_id", 1), ("state", 1)), "storage_objects_workspace_state"
+    ),
+    AdditiveIndex(
+        "storage_objects", (("state", 1), ("verify_after", 1)), "storage_objects_verification_due"
+    ),
+    AdditiveIndex(
         "notifications",
         (("email_state", 1), ("email_after", 1)),
         "notifications_email_due",

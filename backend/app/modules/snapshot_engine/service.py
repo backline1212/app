@@ -21,7 +21,7 @@ from app.modules.snapshot_engine.schemas import (
     RevisionOut,
     RevisionRecoverySummary,
 )
-from app.modules.storage.r2_client import upload_bytes
+from app.modules.storage.quota import store_bytes
 
 logger = logging.getLogger("backline.snapshots")
 
@@ -114,7 +114,14 @@ async def submit_snapshot(
     if not (
         observed and observed["full_page_hash"] == full_page_hash and observed.get("snapshot_key")
     ):
-        await upload_bytes(snapshot_key, compressed, "application/gzip")
+        await store_bytes(
+            db,
+            workspace_id=page["workspace_id"],
+            project_id=page["project_id"],
+            key=snapshot_key,
+            data=compressed,
+            content_type="application/gzip",
+        )
     actor_type, actor_id = actor_identity(actor)
 
     async def commit(session: AsyncIOMotorClientSession) -> tuple[dict[str, Any], bool]:

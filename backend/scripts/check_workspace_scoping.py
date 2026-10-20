@@ -128,7 +128,7 @@ def check_file(path: Path) -> list[tuple[int, str]]:
 
 
 def main() -> int:
-    repository_files = sorted(MODULES_DIR.glob("*/repository.py"))
+    repository_files = sorted(MODULES_DIR.glob("*/*repository.py"))
     total_violations = 0
     for path in repository_files:
         for lineno, message in check_file(path):

@@ -106,6 +106,13 @@ legacy flows require explicit migration and must not silently change destination
 
 ### Existing negative journeys
 
+F24 acceptance (TDR-0085): race final-byte reservations across every write path;
+verify retained/archived content and pending grants count, same-key retry does not
+double-charge, failed server writes release only after HEAD absence, renewed holds
+survive stale checks, and confirmed deletion frees bytes. Unused signed PUT grants
+keep conservative holds. Existing inventory/readiness and enforcement state must
+match billing. No destructive fixtures or production near-quota stress in this task.
+
 File-upload acceptance (TDR-0084): lose the response for the only PDF / final image
 slot, retry the same batch and recover the same page/file; confirm acknowledged
 files are skipped. Race equal IDs, reject differing actor/body/project reuse, and
