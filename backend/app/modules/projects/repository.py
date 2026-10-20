@@ -50,6 +50,8 @@ class ProjectRepository:
         is_sample: bool = False,
         session: AsyncIOMotorClientSession | None = None,
         start_url: str | None = None,
+        client_request_id: str | None = None,
+        request_fingerprint: str | None = None,
     ) -> dict[str, Any]:
         now = datetime.now(UTC)
         doc: dict[str, Any] = {
@@ -60,6 +62,8 @@ class ProjectRepository:
             "client_id": client_id,
             "target_origin": target_origin,
             "start_url": start_url,
+            "client_request_id": client_request_id,
+            "request_fingerprint": request_fingerprint,
             "created_by": created_by,
             "hero_url": hero_url,
             # TDR-0056: who can open this project and with what role. Absent on
@@ -98,6 +102,13 @@ class ProjectRepository:
         # caller checks doc["workspace_id"] against the caller's workspace immediately
         # after (e.g. get_project in projects/service.py).
         return await self.db.projects.find_one({"_id": oid}, session=session)
+
+    async def find_by_request(
+        self, workspace_id: str, request_id: str, *, session: AsyncIOMotorClientSession
+    ) -> dict[str, Any] | None:
+        return await self.db.projects.find_one(
+            {"workspace_id": workspace_id, "client_request_id": request_id}, session=session
+        )
 
     async def list_for_workspace(
         self,
@@ -224,7 +235,13 @@ class ProjectRepository:
             {"$pull": {"access.members": {"user_id": user_id}}},
         )
 
-    async def find_by_origin(self, workspace_id: str, target_origin: str) -> dict[str, Any] | None:
+    async def find_by_origin(
+        self,
+        workspace_id: str,
+        target_origin: str,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> dict[str, Any] | None:
         """Used by the extension's "auto-detect current site" flow (find-or-create by
         origin) - archived projects don't match, so revisiting a site whose project was
         archived creates a fresh one rather than silently resurrecting the old one."""
@@ -239,7 +256,8 @@ class ProjectRepository:
                 "workspace_id": workspace_id,
                 "target_origin": {"$regex": pattern, "$options": "i"},
                 "archived_at": None,
-            }
+            },
+            session=session,
         )
 
     async def update_metadata(

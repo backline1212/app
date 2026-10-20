@@ -1,5 +1,33 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Audit F30 — atomic project/client creation (TDR-0083)
+
+Project + optional new client + default review link + their audit events now commit
+together. Project/client request IDs and fingerprints return only the same live
+creator/body/workspace record; project replay checks visibility. Resolve-by-origin
+rechecks in the transaction. Settings can create/assign a client in their metadata
+transaction. Both forms freeze original details after uncertain responses, retain
+IDs, guard concurrent saves and offer copy/close recovery. A confirmed project is
+retained before file uploads; lost file-upload responses remain a separate gap.
+
+Pydantic/codegen updated. Production read-only index dry-run reports both new
+partial unique indexes missing, no duplicates/conflicts and no business data
+modified. Backend Ruff/full mypy (205 files), affected follow-up mypy (25 files)
+and scope check (20 repositories) pass. Frontend initially passed 12/12; final web
+checks after standalone-client/form refinements and rollout are in progress. No suite,
+production client/project creation or shared comment. Live transactional rollback,
+response-loss retry, client settings and form acceptance remain pending.
+See [TDR-0083](../tdr/0083-atomic-project-and-client-creation.md).
+
+Final affected web lint/typecheck/build passes 3/3 after the form refinements;
+the full frontend graph passed 12/12. Backend Ruff/full mypy (205 files), follow-up
+mypy/scope checks, codegen, index dry-run and diff checks pass. Existing chunk-size
+advisory remains. No live create/rollback/upload/notification acceptance is claimed.
+
+The preceding URL commit 401b29466fbeef0dad635ce4a90b9be0627bbbf4 reports
+SUCCESS on Railway API/worker/cloud-login. Public OpenAPI exposes start_url on
+project and guest review models. This confirms contract rollout, not browser acceptance.
+
 ## 2026-10-20: Audit F16 — website origin and starting address (TDR-0082)
 
 Website writes now store canonical target_origin and full start_url separately.

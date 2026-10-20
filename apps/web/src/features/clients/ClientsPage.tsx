@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type { Schemas } from "@backline/types";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { Dialog } from "../../components/Dialog";
 import { LoadingScreen } from "../../components/LoadingScreen";
@@ -7,6 +8,7 @@ import { useToast } from "../../components/Toast";
 import { PlusIcon, SearchIcon } from "../../components/icons";
 import { EmptyArt } from "../../components/illustrations";
 import { qk } from "../../lib/query-keys";
+import { ApiError } from "../../lib/api-client";
 import { timeAgo } from "../../lib/time";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { listProjects } from "../projects/api";
@@ -234,35 +236,54 @@ function ClientForm({ workspaceId, client, onClose }: { workspaceId: string; cli
   const [name, setName] = useState(client?.name ?? "");
   const [contact, setContact] = useState(client?.contact_name ?? "");
   const [email, setEmail] = useState(client?.email ?? "");
+  const prepared = useRef<Schemas["ClientCreate"] | null>(null);
+  const submitting = useRef(false);
+  const ambiguous = useRef(false);
+  const [retryLocked, setRetryLocked] = useState(false);
+  const close = () => { if (!submitting.current) onClose(); };
 
   const save = useMutation({
-    mutationFn: () => client ?
-      api.updateClient(workspaceId, client.id, { name: name.trim(), contact_name: contact.trim(), email: email.trim() || null }) :
-      api.createClient(workspaceId, { name: name.trim(), contact_name: contact.trim(), email: email.trim() || null }),
+    mutationFn: async () => {
+      if (submitting.current) throw new Error("A save is already in progress.");
+      submitting.current = true;
+      prepared.current ??= { name: name.trim(), contact_name: contact.trim(), email: email.trim() || null, ...(client ? {} : { client_request_id: crypto.randomUUID() }) };
+      return client ? api.updateClient(workspaceId, client.id, prepared.current) : api.createClient(workspaceId, prepared.current);
+    },
+    onError: (error) => {
+      if (!ambiguous.current && error instanceof ApiError && [400, 402, 403, 404, 413, 422].includes(error.status)) {
+        prepared.current = null;
+        setRetryLocked(false);
+      } else {
+        ambiguous.current = true;
+        setRetryLocked(true);
+      }
+    },
+    onSettled: () => { submitting.current = false; },
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: qk.clients(workspaceId) });
       onClose();
     }
   });
 
-  return <Dialog title={client ? "Edit client" : "Add a client"} onClose={onClose}>
-    <form className="bl-compact-form" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+  return <Dialog title={client ? "Edit client" : "Add a client"} onClose={close}>
+    <form className="bl-compact-form" onSubmit={(e) => { e.preventDefault(); if (!submitting.current) save.mutate(); }}>
       <label>
         <span>Client name <span className="bl-required">Required</span></span>
-        <input className="bl-input" autoFocus required maxLength={200} value={name} onChange={(e) => setName(e.target.value)} placeholder="E.g. Acme Corp" />
+        <input className="bl-input" autoFocus required maxLength={200} disabled={save.isPending || retryLocked} value={name} onChange={(e) => setName(e.target.value)} placeholder="E.g. Acme Corp" />
       </label>
       <label>Main contact
-        <input className="bl-input" maxLength={200} value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Name of the person you work with" />
+        <input className="bl-input" maxLength={200} disabled={save.isPending || retryLocked} value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Name of the person you work with" />
       </label>
       <label>Email
-        <input className="bl-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@client.com" />
+        <input className="bl-input" type="email" disabled={save.isPending || retryLocked} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@client.com" />
         <small>Kept private to team members only.</small>
       </label>
       {save.error && <p role="alert" className="bl-error">{save.error.message}</p>}
+      {retryLocked && <div role="status"><p>Saving is unconfirmed. Retry sends the original details. Check Clients before adding another client if you close this window.</p><textarea className="bl-input" readOnly aria-label="Client details to copy" value={[name, contact, email].filter(Boolean).join("\n")} onFocus={(event) => event.target.select()} /></div>}
       <footer className="bl-dialog-actions">
-        <button type="button" className="bl-quiet" onClick={onClose}>Cancel</button>
+        <button type="button" className="bl-quiet" disabled={save.isPending} onClick={close}>{retryLocked ? "Close" : "Cancel"}</button>
         <button className="bl-button mint" disabled={save.isPending || !name.trim()}>
-          {save.isPending ? "Saving…" : "Save client"}
+          {save.isPending ? "Saving…" : retryLocked ? "Retry save" : "Save client"}
         </button>
       </footer>
     </form>

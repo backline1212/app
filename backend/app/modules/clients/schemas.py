@@ -7,6 +7,7 @@ class ClientCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     contact_name: str = Field(default="", max_length=200)
     email: EmailStr | None = None
+    client_request_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class ClientUpdate(BaseModel):

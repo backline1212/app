@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
+from app.core.creation_idempotency import request_fingerprint, require_creation_replay
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
 from app.core.permissions import ProjectRole
@@ -24,6 +25,7 @@ from app.core.server_browser import require_server_browser
 from app.core.session import Session
 from app.modules.billing.limits import require_within_plan_limit, run_plan_change
 from app.modules.clients.repository import ClientRepository
+from app.modules.clients.schemas import ClientCreate
 from app.modules.pages.repository import PageRepository
 from app.modules.projects import events as project_events
 from app.modules.projects import preview_service
@@ -105,6 +107,7 @@ async def _validated_access_members(
     creator_user_id: str,
     added_at: datetime,
     strict: bool = True,
+    session: AsyncIOMotorClientSession | None = None,
 ) -> list[dict[str, Any]]:
     """The access entries a new project starts with: the creator as manager, then
     everyone requested who is a member of this workspace. Owners and admins already
@@ -115,7 +118,7 @@ async def _validated_access_members(
 
     memberships = {
         m["user_id"]: m["role"]
-        for m in await MembershipRepository(db).list_for_workspace(workspace_id)
+        for m in await MembershipRepository(db).list_for_workspace(workspace_id, session=session)
     }
     entries = [
         {
@@ -180,11 +183,15 @@ async def create_project(
     members: list[ProjectAccessMemberIn] | None = None,
     viewer: Session | None = None,
     strict_members: bool = True,
+    new_client: ClientCreate | None = None,
+    client_request_id: str | None = None,
+    resolve_existing_origin: bool = False,
 ) -> ProjectOut:
     # Deferred import: share_links.service itself imports this module (to check a
     # project exists before creating/listing links for it), so importing it at module
     # scope here would be a circular import. Breaking it this way, rather than
     # duplicating share-link creation logic, keeps "one way to create a share link."
+    from app.modules.clients.service import create_client
     from app.modules.share_links import service as share_link_service
 
     if viewer is not None:
@@ -199,69 +206,101 @@ async def create_project(
     target_origin = review_origin(start_url) if start_url else ""
 
     repo = ProjectRepository(db)
-    if client_id and not await ClientRepository(db).find(workspace_id, client_id):
-        raise ValidationError("Client must belong to this workspace and be active.")
-    now = datetime.now(UTC)
-    access: dict[str, Any] = {
-        "visibility": visibility,
-        "default_role": default_role,
-        "members": await _validated_access_members(
-            db,
-            workspace_id,
-            members or [],
-            creator_user_id=actor_user_id,
-            added_at=now,
-            strict=strict_members,
-        ),
-    }
+    if client_id and new_client:
+        raise ValidationError("Choose an existing client or create a new one.")
+    fingerprint = request_fingerprint(
+        {
+            "name": name,
+            "start_url": start_url,
+            "project_type": project_type,
+            "environment": environment,
+            "client_id": client_id,
+            "hero_url": hero_url,
+            "visibility": visibility,
+            "default_role": default_role,
+            "members": [m.model_dump(mode="json") for m in members or []],
+            "new_client": new_client.model_dump(mode="json") if new_client else None,
+        }
+    )
 
-    async def create(session: AsyncIOMotorClientSession) -> dict[str, Any]:
+    async def create(session: AsyncIOMotorClientSession) -> tuple[dict[str, Any], bool]:
+        if resolve_existing_origin:
+            existing = await repo.find_by_origin(workspace_id, target_origin, session=session)
+            if existing is not None:
+                if viewer is not None:
+                    check_project_action(existing, viewer, "project:view")
+                return existing, False
+        if client_request_id:
+            existing = await repo.find_by_request(workspace_id, client_request_id, session=session)
+            if existing is not None:
+                require_creation_replay(existing, actor_id=actor_user_id, fingerprint=fingerprint)
+                if viewer is not None:
+                    check_project_action(existing, viewer, "project:view")
+                return existing, False
         await require_within_plan_limit(db, workspace_id, "projects", session=session)
-        return await repo.create(
+        if client_id and not await ClientRepository(db).find(
+            workspace_id, client_id, session=session
+        ):
+            raise ValidationError("Client must belong to this workspace and be active.")
+        access: dict[str, Any] = {
+            "visibility": visibility,
+            "default_role": default_role,
+            "members": await _validated_access_members(
+                db,
+                workspace_id,
+                members or [],
+                creator_user_id=actor_user_id,
+                added_at=datetime.now(UTC),
+                strict=strict_members,
+                session=session,
+            ),
+        }
+        selected_client_id = client_id
+        if new_client is not None:
+            selected_client_id = (
+                await create_client(db, workspace_id, actor_user_id, new_client, session=session)
+            ).id
+        doc = await repo.create(
             workspace_id=workspace_id,
             name=name,
             target_origin=target_origin,
             created_by=actor_user_id,
             project_type=project_type,
             environment=environment,
-            client_id=client_id,
+            client_id=selected_client_id,
             hero_url=hero_url,
             access=access,
             start_url=start_url,
+            client_request_id=client_request_id,
+            request_fingerprint=fingerprint,
             session=session,
         )
+        await append_event(
+            db,
+            workspace_id=workspace_id,
+            type=project_events.PROJECT_CREATED,
+            actor_type="member",
+            actor_id=actor_user_id,
+            payload={
+                "project_id": str(doc["_id"]),
+                "name": name,
+                "target_origin": target_origin,
+                "visibility": visibility,
+            },
+            session=session,
+        )
+        await share_link_service.create_initial_link(
+            db,
+            project_id=str(doc["_id"]),
+            workspace_id=workspace_id,
+            actor_user_id=actor_user_id,
+            session=session,
+        )
+        return doc, True
 
-    doc = await run_plan_change(db, workspace_id, create)
-    await append_event(
-        db,
-        workspace_id=workspace_id,
-        type=project_events.PROJECT_CREATED,
-        actor_type="member",
-        actor_id=actor_user_id,
-        payload={
-            "project_id": str(doc["_id"]),
-            "name": name,
-            "target_origin": target_origin,
-            "visibility": visibility,
-        },
-    )
-
-    # Onboarding tightening (20-Build-Plan.md Milestone 9): "install-free path first"
-    # (F7/03-System-Architecture.md §3.3) means a brand-new project is shareable the
-    # instant it exists, in proxy mode by default - no separate trip to the Share Links
-    # screen before a PM can send something to a client.
+    doc, was_created = await run_plan_change(db, workspace_id, create)
     project_id = str(doc["_id"])
-    await share_link_service.create_share_link(
-        db,
-        project_id=project_id,
-        workspace_id=workspace_id,
-        actor_user_id=actor_user_id,
-        mode="proxy",
-        passcode=None,
-        expires_at=None,
-    )
-
-    for entry in access["members"]:
+    for entry in doc["access"]["members"] if was_created else []:
         if entry["user_id"] != actor_user_id:
             await _notify_access_granted(
                 db,
@@ -271,7 +310,7 @@ async def create_project(
                 role=entry["role"],
                 actor_user_id=actor_user_id,
             )
-    if visibility == VISIBILITY_PRIVATE:
+    if was_created and visibility == VISIBILITY_PRIVATE:
         await _publish_access_changed(workspace_id, project_id)
 
     return (await preview_service.with_previews(db, [doc], [_project_out(doc, viewer)]))[0]
@@ -309,6 +348,7 @@ async def find_or_create_project_for_origin(
         name=default_name,
         target_origin=target_origin,
         viewer=viewer,
+        resolve_existing_origin=True,
     )
 
 
@@ -387,6 +427,8 @@ async def update_project(
     changes: ProjectUpdate | None = None,
     viewer: Session | None = None,
 ) -> ProjectOut:
+    from app.modules.clients.service import create_client
+
     repo = ProjectRepository(db)
     existing = await repo.find_by_id(project_id)
     if existing is None or existing["workspace_id"] != workspace_id:
@@ -407,6 +449,7 @@ async def update_project(
     if "target_origin" in patch:
         patch["start_url"] = normalize_origin(patch["target_origin"])
         patch["target_origin"] = review_origin(patch["start_url"])
+    new_client = patch.pop("new_client", None)
     if patch.get("client_id") and not await ClientRepository(db).find(
         workspace_id, patch["client_id"]
     ):
@@ -430,26 +473,41 @@ async def update_project(
             and not is_untouched_sample(next_state)
         ):
             await require_within_plan_limit(db, workspace_id, "projects", session=session)
+        transaction_patch = {**patch}
+        if new_client is not None:
+            transaction_patch["client_id"] = (
+                await create_client(
+                    db,
+                    workspace_id,
+                    actor_user_id,
+                    ClientCreate.model_validate(new_client),
+                    session=session,
+                )
+            ).id
         await repo.update_metadata(
             workspace_id,
             project_id,
-            {**patch, **{f"settings_json.{key}": value for key, value in settings_patch.items()}},
+            {
+                **transaction_patch,
+                **{f"settings_json.{key}": value for key, value in settings_patch.items()},
+            },
+            session=session,
+        )
+        await append_event(
+            db,
+            workspace_id=workspace_id,
+            type=project_events.PROJECT_UPDATED,
+            actor_type="member",
+            actor_id=actor_user_id,
+            payload={
+                "project_id": project_id,
+                **transaction_patch,
+                **({"settings": settings_patch} if settings_patch else {}),
+            },
             session=session,
         )
 
     await run_plan_change(db, workspace_id, update)
-    await append_event(
-        db,
-        workspace_id=workspace_id,
-        type=project_events.PROJECT_UPDATED,
-        actor_type="member",
-        actor_id=actor_user_id,
-        payload={
-            "project_id": project_id,
-            **patch,
-            **({"settings": settings_patch} if settings_patch else {}),
-        },
-    )
 
     # Deferred import: integrations/service.py imports ProjectRepository from this
     # module's sibling (projects/repository.py), not from here, so this isn't a true

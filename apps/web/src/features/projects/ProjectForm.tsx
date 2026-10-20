@@ -1,14 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Schemas } from "@backline/types";
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Dialog } from "../../components/Dialog";
+import { ApiError } from "../../lib/api-client";
 import { type ProjectRole, type ProjectVisibility, roleLabel } from "../../lib/project-roles";
 import { invalidateProjectMutation, qk } from "../../lib/query-keys";
 import { useAuth } from "../auth/AuthContext";
 import { uploadAsset } from "../assets/api";
 import { planLimitUpgrade } from "../billing/api";
-import { createClient, listClients } from "../clients/api";
+import { listClients } from "../clients/api";
 import { listShareLinks } from "../share-links/api";
 import { reviewLinkState } from "../share-links/link-state";
 import { listMembers } from "../workspaces/api";
@@ -113,6 +115,12 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [fileError, setFileError] = useState("");
   const [dragging, setDragging] = useState(false);
   const [created, setCreated] = useState<api.ProjectOut | null>(null);
+  const createdRef = useRef<api.ProjectOut | null>(null);
+  const preparedCreate = useRef<Schemas["ProjectCreate"] | null>(null);
+  const preparedUpdate = useRef<Schemas["ProjectUpdate"] | null>(null);
+  const ambiguous = useRef(false);
+  const [retryLocked, setRetryLocked] = useState(false);
+  const [draftCopy, setDraftCopy] = useState("");
   const [uploaded, setUploaded] = useState<string[]>([]);
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
@@ -150,13 +158,8 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
       if (submitting.current) throw new Error("A save is already in progress.");
       submitting.current = true;
       setPhase("saving");
-      let clientId = client;
-      if (client === "new") {
-        const newClient = await createClient(workspace.id, { name: newClientName.trim(), contact_name: newClientContact.trim(), email: newClientEmail.trim() || null });
-        clientId = newClient.id;
-        setClient(newClient.id);
-        await cache.invalidateQueries({ queryKey: qk.clients(workspace.id) });
-      }
+      const newClient = client === "new" ? { name: newClientName.trim(), contact_name: newClientContact.trim(), email: newClientEmail.trim() || null, client_request_id: crypto.randomUUID() } : null;
+      const clientId = client === "new" ? null : client || null;
       if (project) {
         const settings = {
           capture_device_details: captureDeviceDetails,
@@ -164,11 +167,20 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           show_board_to_client: showBoardToClient,
           enable_cross_browser_render: enableCrossBrowserRender,
         };
-        return api.updateProject(project.id, { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId || null, settings });
+        preparedUpdate.current ??= { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId, new_client: newClient, settings };
+        return api.updateProject(project.id, preparedUpdate.current);
       }
       const members = Object.entries(grants).map(([user_id, role]) => ({ user_id, role }));
-      const current = created ?? await api.createProject(workspace.id, name.trim(), type === "website" ? url.trim() : "", { project_type: type, environment, client_id: clientId || null, visibility, default_role: defaultRole, members });
+      preparedCreate.current ??= { name: name.trim(), target_origin: type === "website" ? url.trim() : "", project_type: type, environment, client_id: clientId, new_client: newClient, visibility, default_role: defaultRole, members, client_request_id: crypto.randomUUID() };
+      const request = preparedCreate.current;
+      const current = createdRef.current ?? await api.createProject(workspace.id, request.name, request.target_origin ?? "", request);
+      createdRef.current = current;
       setCreated(current);
+      setRetryLocked(false);
+      if (current.client_id) {
+        setClient(current.client_id);
+        void cache.invalidateQueries({ queryKey: qk.clients(workspace.id) });
+      }
       for (const file of files) {
         const key = `${file.name}:${file.size}:${file.lastModified}`;
         if (!uploaded.includes(key)) { await uploadAsset(current.id, file); setUploaded((old) => [...old, key]); }
@@ -178,10 +190,23 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
       setLink(active ? `${window.location.origin}/review/${active.token}` : "");
       return current;
     },
-    onError: () => setPhase("retry"),
+    onError: (error) => {
+      if (!createdRef.current) {
+        if (!ambiguous.current && error instanceof ApiError && [400, 402, 403, 404, 413, 422].includes(error.status)) {
+          preparedCreate.current = null;
+          preparedUpdate.current = null;
+          setRetryLocked(false);
+        } else {
+          ambiguous.current = true;
+          setRetryLocked(true);
+        }
+      }
+      setPhase("retry");
+    },
     onSettled: () => { submitting.current = false; },
     onSuccess: async () => {
       await invalidateProjectMutation(cache, workspace.id);
+      await cache.invalidateQueries({ queryKey: qk.clients(workspace.id) });
       if (project) { await cache.invalidateQueries({ queryKey: qk.project(project.id) }); onClose(); }
       else setPhase("complete");
     },
@@ -250,7 +275,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
 
   let validUrl = type !== "website";
   if (type === "website") {
-    try { const parsed = new URL(url.includes("://") ? url.trim() : `https://${url.trim()}`); validUrl = ["http:", "https:"].includes(parsed.protocol) && !!parsed.hostname && !parsed.username && !parsed.password; } catch { validUrl = false; }
+    try { const parsed = new URL(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url.trim()) ? url.trim() : `https://${url.trim()}`); validUrl = ["http:", "https:"].includes(parsed.protocol) && !!parsed.hostname && !parsed.username && !parsed.password; } catch { validUrl = false; }
   }
   const canSubmit = validUrl && Boolean(name.trim() && (client !== "new" || newClientName.trim()) && (type === "website" ? url.trim() : project || files.length > 0) && !fileError);
 
@@ -259,7 +284,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
       {!project && <div className="bl-dialog-progress" aria-label="Step 2 of 3"><i className="is-on" /><i className="is-on" /><i /></div>}
       <div className="bl-dialog-intro"><p>{project ? project.name : `${typeLabel} project`}</p></div>
       <form className="bl-project-form" onSubmit={(event) => { event.preventDefault(); if (canSubmit && !submitting.current) save.mutate(); }}>
-        <fieldset disabled={phase === "saving"} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        <fieldset disabled={phase === "saving" || retryLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <div className="bl-form-section">
           <label htmlFor="project-client">Client</label>
           {clients.isLoading ? <div className="bl-input bl-input-loading" role="status">Loading clients…</div> : clients.isError ? <div className="bl-inline-error" role="alert"><span>Clients could not load.</span><button type="button" onClick={() => clients.refetch()}>Try again</button></div> : (
@@ -319,7 +344,12 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         </fieldset>
         {phase === "saving" && <p role="status">{files.length ? `${uploaded.length} of ${files.length} files uploaded. Processing remaining files…` : "Saving project…"}</p>}
         {save.error && <p role="alert" className="bl-error">{save.error.message}{created && " The project was saved. Retry to finish the remaining uploads, or open it from Projects."}{upgradePlan && <> <Link to={`/w/${workspace.slug}/billing?upgrade=${upgradePlan}`} onClick={onClose}>See plans</Link></>}</p>}
-        <footer className="bl-dialog-actions bl-dialog-actions-in-form"><button type="button" className="bl-quiet" disabled={save.isPending || Boolean(created)} onClick={project ? close : () => setPhase("type")}>{project ? "Cancel" : "Back"}</button><button className="bl-button mint" disabled={save.isPending || !canSubmit}>{save.isPending ? (uploaded.length ? `Uploading ${uploaded.length + 1} of ${files.length}…` : "Saving…") : project ? "Save changes" : created ? "Finish uploads" : "Create project"}</button></footer>
+        {retryLocked && <div role="status"><p>Saving is unconfirmed. Retry sends the original details. Check Projects before starting another project if you close this window.</p><button type="button" className="bl-quiet" onClick={() => {
+          const draft = [name, type === "website" ? url : typeLabel, client === "new" ? newClientName : selectedClient?.name ?? ""].filter(Boolean).join("\n");
+          if (!navigator.clipboard) { setDraftCopy("Select the details below to copy them manually."); return; }
+          void navigator.clipboard.writeText(draft).then(() => setDraftCopy("Details copied.")).catch(() => setDraftCopy("Select the details below to copy them manually."));
+        }}>Copy details</button><textarea className="bl-input" readOnly aria-label="Project details to copy" value={[name, type === "website" ? url : typeLabel, client === "new" ? newClientName : selectedClient?.name ?? ""].filter(Boolean).join("\n")} onFocus={(event) => event.target.select()} />{draftCopy && <p>{draftCopy}</p>}</div>}
+        <footer className="bl-dialog-actions bl-dialog-actions-in-form"><button type="button" className="bl-quiet" disabled={save.isPending || Boolean(created)} onClick={retryLocked || project ? close : () => setPhase("type")}>{retryLocked ? "Close" : project ? "Cancel" : "Back"}</button><button className="bl-button mint" disabled={save.isPending || (!retryLocked && !canSubmit)}>{save.isPending ? (uploaded.length ? `Uploading ${uploaded.length + 1} of ${files.length}…` : "Saving…") : retryLocked ? "Retry save" : project ? "Save changes" : created ? "Finish uploads" : "Create project"}</button></footer>
       </form>
     </Dialog>
   );

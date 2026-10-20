@@ -1,15 +1,11 @@
 """Authorize a retry before returning a stored comment, including insert races."""
 
-import hashlib
-import json
 from typing import Any
 
+from app.core.creation_idempotency import request_fingerprint
 from app.core.errors import ConflictError
 
-
-def request_fingerprint(payload: dict[str, Any]) -> str:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    return hashlib.sha256(encoded.encode()).hexdigest()
+__all__ = ["request_fingerprint", "require_matching_replay"]
 
 
 def require_matching_replay(existing: dict[str, Any], requested: dict[str, Any]) -> None:

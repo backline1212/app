@@ -166,8 +166,10 @@ class MembershipRepository:
             return None
         return await self.db.memberships.find_one({"workspace_id": workspace_id, "_id": oid})
 
-    async def list_for_workspace(self, workspace_id: str) -> list[dict[str, Any]]:
-        cursor = self.db.memberships.find({"workspace_id": workspace_id})
+    async def list_for_workspace(
+        self, workspace_id: str, *, session: AsyncIOMotorClientSession | None = None
+    ) -> list[dict[str, Any]]:
+        cursor = self.db.memberships.find({"workspace_id": workspace_id}, session=session)
         return [doc async for doc in cursor]
 
     async def list_for_user(self, user_id: str) -> list[dict[str, Any]]:

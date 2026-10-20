@@ -35,6 +35,17 @@ REVIEW_PERSISTENCE_INDEXES: tuple[AdditiveIndex, ...] = (
 )
 
 
+CREATION_REQUEST_INDEXES: tuple[AdditiveIndex, ...] = tuple(
+    AdditiveIndex(
+        collection,
+        (("workspace_id", 1), ("client_request_id", 1)),
+        f"{collection}_workspace_create_request_strings",
+        {"unique": True, "partialFilterExpression": {"client_request_id": {"$type": "string"}}},
+    )
+    for collection in ("projects", "clients")
+)
+
+
 # Audit batch 02 / M-07. These definitions are intentionally separate from the
 # historical startup indexes below so the dry-run migration can report exactly what
 # this additive change will create. Existing indexes are never dropped or renamed.
@@ -466,3 +477,4 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
     await ensure_additive_indexes(db, BILLING_INDEXES)
     await ensure_additive_indexes(db, ORG_ACCESS_INDEXES, tolerate_duplicates=True)
     await ensure_additive_indexes(db, REVIEW_PERSISTENCE_INDEXES)
+    await ensure_additive_indexes(db, CREATION_REQUEST_INDEXES)

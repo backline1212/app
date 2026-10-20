@@ -81,6 +81,9 @@ inbox receipt, role/preference changes and worker retry acceptance remain pendin
 [TDR-0082](../tdr/0082-review-origin-and-start-url.md) repairs F16 by storing an
 origin and starting address separately, reading legacy records and preserving page
 paths/queries/hash at launch. Browser/page-identity acceptance remains pending.
+[TDR-0083](../tdr/0083-atomic-project-and-client-creation.md) repairs F30's project/
+client/link partial saves with atomic creation, actor-bound request replay and
+frozen form recovery. File-upload acknowledgement recovery remains separate.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

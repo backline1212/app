@@ -2703,6 +2703,8 @@ export interface components {
             contact_name: string;
             /** Email */
             email?: string | null;
+            /** Client Request Id */
+            client_request_id?: string | null;
         };
         /** ClientOut */
         ClientOut: {
@@ -4107,6 +4109,9 @@ export interface components {
             environment: "live" | "staging";
             /** Client Id */
             client_id?: string | null;
+            new_client?: components["schemas"]["ClientCreate"] | null;
+            /** Client Request Id */
+            client_request_id?: string | null;
             /** Hero Url */
             hero_url?: string | null;
             /**
@@ -4440,6 +4445,7 @@ export interface components {
             environment?: ("live" | "staging") | null;
             /** Client Id */
             client_id?: string | null;
+            new_client?: components["schemas"]["ClientCreate"] | null;
             /** Hero Url */
             hero_url?: string | null;
             settings?: components["schemas"]["ProjectSettingsUpdate"] | null;

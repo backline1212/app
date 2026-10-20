@@ -106,6 +106,13 @@ legacy flows require explicit migration and must not silently change destination
 
 ### Existing negative journeys
 
+F30 acceptance (TDR-0083): fail client/project/default-link/audit insertion and verify
+atomic rollback; lose a create response and retry at full quota to recover the same
+record/link; race extension origin resolution; reject changed-body/actor request-ID
+reuse; save a new client through project settings; verify pending/close/copy recovery.
+No guest client/contact exposure. Separate file-upload acknowledgement and generic
+project-update conflict/audit replay remain open; static checks do not close these.
+
 F16 acceptance (TDR-0082): create/edit/duplicate a website URL containing `/app/`,
 query and hash; reopen it through portal preview, guest review and native extension.
 Legacy path-bearing targets must not duplicate the path in proxy requests, headers

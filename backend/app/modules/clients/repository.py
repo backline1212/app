@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
 from app.core.mongo_utils import to_object_id
 
@@ -151,9 +151,16 @@ class ClientRepository:
         ]
         return await self.db.clients.aggregate(pipeline).to_list(length=None)
 
-    async def find(self, workspace_id: str, client_id: str) -> dict[str, Any] | None:
+    async def find(
+        self,
+        workspace_id: str,
+        client_id: str,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> dict[str, Any] | None:
         return await self.db.clients.find_one(
-            {"workspace_id": workspace_id, "_id": to_object_id(client_id), "archived_at": None}
+            {"workspace_id": workspace_id, "_id": to_object_id(client_id), "archived_at": None},
+            session=session,
         )
 
     async def find_archived(self, workspace_id: str, client_id: str) -> dict[str, Any] | None:
@@ -175,7 +182,20 @@ class ClientRepository:
             {"$set": {"archived_at": None, "updated_at": datetime.now(UTC)}},
         )
 
-    async def create(self, workspace_id: str, fields: dict[str, Any]) -> dict[str, Any]:
+    async def find_by_request(
+        self, workspace_id: str, request_id: str, *, session: AsyncIOMotorClientSession
+    ) -> dict[str, Any] | None:
+        return await self.db.clients.find_one(
+            {"workspace_id": workspace_id, "client_request_id": request_id}, session=session
+        )
+
+    async def create(
+        self,
+        workspace_id: str,
+        fields: dict[str, Any],
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> dict[str, Any]:
         now = datetime.now(UTC)
         doc = {
             **fields,
@@ -184,7 +204,7 @@ class ClientRepository:
             "updated_at": now,
             "archived_at": None,
         }
-        result = await self.db.clients.insert_one(doc)
+        result = await self.db.clients.insert_one(doc, session=session)
         doc["_id"] = result.inserted_id
         return doc
 

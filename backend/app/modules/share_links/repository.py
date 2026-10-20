@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
 from app.core.mongo_utils import to_object_id
 
@@ -36,6 +36,7 @@ class ShareLinkRepository:
         domain_restrictions: list[str] | None = None,
         comment_export_permission: bool = False,
         purpose: str | None = None,
+        session: AsyncIOMotorClientSession | None = None,
     ) -> dict[str, Any]:
         doc: dict[str, Any] = {
             "project_id": project_id,
@@ -53,7 +54,7 @@ class ShareLinkRepository:
         }
         if purpose is not None:
             doc["purpose"] = purpose
-        result = await self.db.share_links.insert_one(doc)
+        result = await self.db.share_links.insert_one(doc, session=session)
         doc["_id"] = result.inserted_id
         return doc
 

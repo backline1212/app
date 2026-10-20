@@ -4,7 +4,7 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
 from app.core.actor_access import resolve_actor_project_access
@@ -104,6 +104,36 @@ def _ensure_active(link: dict[str, Any]) -> None:
         raise ConflictError("This review link has been revoked.")
     if link["expires_at"] is not None and link["expires_at"] <= datetime.now(UTC):
         raise ConflictError("This review link has expired.")
+
+
+async def create_initial_link(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    project_id: str,
+    workspace_id: str,
+    actor_user_id: str,
+    session: AsyncIOMotorClientSession,
+) -> None:
+    """Internal creation boundary: caller inserts its new project in this transaction."""
+    await ShareLinkRepository(db).create(
+        project_id=project_id,
+        workspace_id=workspace_id,
+        created_by=actor_user_id,
+        token=generate_share_token(),
+        mode="proxy",
+        passcode_hash=None,
+        expires_at=None,
+        session=session,
+    )
+    await append_event(
+        db,
+        workspace_id=workspace_id,
+        type=share_link_events.SHARE_LINK_CREATED,
+        actor_type="member",
+        actor_id=actor_user_id,
+        payload={"project_id": project_id, "mode": "proxy"},
+        session=session,
+    )
 
 
 async def create_share_link(

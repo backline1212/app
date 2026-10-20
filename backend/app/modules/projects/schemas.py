@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.core.review_url import review_origin
 from app.core.ssrf_guard import is_public_hostname_literal
 from app.core.text import Trimmed
+from app.modules.clients.schemas import ClientCreate
 
 ProjectType = Literal["website", "image", "pdf"]
 PreviewStatus = Literal["queued", "ready", "failed"]
@@ -113,6 +114,8 @@ class ProjectCreate(BaseModel):
     project_type: ProjectType = "website"
     environment: Environment = "live"
     client_id: str | None = None
+    new_client: ClientCreate | None = None
+    client_request_id: str | None = Field(default=None, min_length=1, max_length=64)
     hero_url: str | None = None
     # Who gets in (TDR-0056). The creator is always added as a manager.
     visibility: ProjectVisibility = "workspace"
@@ -126,6 +129,8 @@ class ProjectCreate(BaseModel):
 
     @model_validator(mode="after")
     def website_requires_origin(self) -> "ProjectCreate":
+        if self.client_id and self.new_client:
+            raise ValueError("Choose an existing client or create a new one.")
         if self.project_type == "website" and not self.target_origin:
             raise ValueError("A website project requires a review URL.")
         if self.project_type != "website":
@@ -164,6 +169,7 @@ class ProjectUpdate(BaseModel):
     target_origin: str | None = Field(default=None, min_length=1, max_length=500)
     environment: Environment | None = None
     client_id: str | None = None
+    new_client: ClientCreate | None = None
     hero_url: str | None = None
     settings: "ProjectSettingsUpdate | None" = None
 
@@ -171,6 +177,12 @@ class ProjectUpdate(BaseModel):
     @classmethod
     def clean_origin(cls, value: str | None) -> str | None:
         return normalize_origin(value) if value is not None else None
+
+    @model_validator(mode="after")
+    def exclusive_client(self) -> "ProjectUpdate":
+        if self.client_id and self.new_client:
+            raise ValueError("Choose an existing client or create a new one.")
+        return self
 
 
 class ProjectSettingsOut(BaseModel):

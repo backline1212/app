@@ -3,12 +3,14 @@ import io
 from datetime import UTC, datetime
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
+from app.core.creation_idempotency import request_fingerprint, require_creation_replay
 from app.core.errors import NotFoundError, ValidationError
 from app.core.events import append_event
 from app.core.project_access import session_hidden_project_ids
 from app.core.session import Session
+from app.modules.billing.limits import run_plan_change
 from app.modules.clients.repository import ClientRepository
 from app.modules.clients.schemas import ClientCreate, ClientOut, ClientUpdate
 
@@ -36,20 +38,45 @@ async def list_clients(
 
 
 async def create_client(
-    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, actor_id: str, body: ClientCreate
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    actor_id: str,
+    body: ClientCreate,
+    *,
+    session: AsyncIOMotorClientSession | None = None,
 ) -> ClientOut:
     if not body.name.strip():
         raise ValidationError("Client name is required.")
     fields = body.model_dump()
     fields.update(name=body.name.strip(), created_by=actor_id)
-    doc = await ClientRepository(db).create(workspace_id, fields)
-    await append_event(
-        db,
-        workspace_id=workspace_id,
-        type="client.created",
-        actor_type="member",
-        actor_id=actor_id,
-        payload={"client_id": str(doc["_id"]), "name": doc["name"]},
+    fingerprint = request_fingerprint(body.model_dump(mode="json", exclude={"client_request_id"}))
+    fields["request_fingerprint"] = fingerprint
+
+    async def create(active_session: AsyncIOMotorClientSession) -> dict[str, Any]:
+        repo = ClientRepository(db)
+        if body.client_request_id:
+            existing = await repo.find_by_request(
+                workspace_id, body.client_request_id, session=active_session
+            )
+            if existing is not None:
+                require_creation_replay(existing, actor_id=actor_id, fingerprint=fingerprint)
+                return existing
+        doc = await repo.create(workspace_id, fields, session=active_session)
+        await append_event(
+            db,
+            workspace_id=workspace_id,
+            type="client.created",
+            actor_type="member",
+            actor_id=actor_id,
+            payload={"client_id": str(doc["_id"]), "name": doc["name"]},
+            session=active_session,
+        )
+        return doc
+
+    doc = (
+        await create(session)
+        if session is not None
+        else await run_plan_change(db, workspace_id, create)
     )
     return client_out(doc)
 

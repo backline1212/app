@@ -9270,6 +9270,19 @@
               }
             ],
             "title": "Email"
+          },
+          "client_request_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Request Id"
           }
         },
         "type": "object",
@@ -13035,6 +13048,29 @@
             ],
             "title": "Client Id"
           },
+          "new_client": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClientCreate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "client_request_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Request Id"
+          },
           "hero_url": {
             "anyOf": [
               {
@@ -13837,6 +13873,16 @@
               }
             ],
             "title": "Client Id"
+          },
+          "new_client": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClientCreate"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "hero_url": {
             "anyOf": [
