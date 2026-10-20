@@ -28,7 +28,7 @@ export function realPageUrl(shareToken: string, targetOrigin: string): string {
   search.delete("blMode");
   search.delete("blBrowser");
   const qs = search.toString();
-  return targetOrigin.replace(/\/+$/, "") + pathname + (qs ? `?${qs}` : "");
+  return new URL(targetOrigin).origin + pathname + (qs ? `?${qs}` : "");
 }
 
 export async function registerCurrentPage(

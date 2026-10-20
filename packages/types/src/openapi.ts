@@ -4264,6 +4264,8 @@ export interface components {
             name: string;
             /** Target Origin */
             target_origin: string;
+            /** Start Url */
+            start_url?: string | null;
             /** Created By */
             created_by: string | null;
             settings: components["schemas"]["ProjectSettingsOut"];
@@ -4563,6 +4565,8 @@ export interface components {
             requires_passcode: boolean;
             /** Target Origin */
             target_origin: string;
+            /** Start Url */
+            start_url?: string | null;
             /**
              * Ask Reviewer Name
              * @default true

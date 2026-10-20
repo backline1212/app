@@ -15,6 +15,7 @@ from app.core.permissions import project_role_allows
 from app.core.project_access import check_project_action
 from app.core.rate_limit import RateLimitedError
 from app.core.redis_client import get_redis
+from app.core.review_url import project_start_url, review_origin
 from app.core.security import create_guest_token, generate_share_token, hash_secret
 from app.core.session import GuestSession, Session
 from app.core.verified_identity import require_verified_identity
@@ -207,7 +208,8 @@ async def resolve_share_link(
         project_type=project.get("project_type", "website"),
         mode=link["mode"],
         requires_passcode=link["passcode_hash"] is not None,
-        target_origin=project["target_origin"],
+        target_origin=review_origin(project["target_origin"]),
+        start_url=project_start_url(project) or None,
         ask_reviewer_name=link.get("ask_reviewer_name", True),
         show_board_to_client=project.get("settings_json", {}).get("show_board_to_client", False),
         preview_origin=_preview_origin(link),

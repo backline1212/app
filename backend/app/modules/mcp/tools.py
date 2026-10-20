@@ -67,7 +67,7 @@ async def list_projects(db: AsyncIOMotorDatabase[dict[str, Any]], actor: McpActo
         counts = f"{row.open} open / {row.total} total" if row else "no tickets"
         lines.append(
             f"- **{project.name}** (project_id: `{project.id}`) · {project.project_type} · "
-            f"{project.target_origin or 'no URL'} · {counts}"
+            f"{project.start_url or project.target_origin or 'no URL'} · {counts}"
         )
     lines.extend(["", "Pass a project_id to list_tickets to see one project's tickets."])
     return "\n".join(lines)

@@ -19,6 +19,7 @@ from app.core.project_access import (
     session_hidden_project_ids,
     session_project_role,
 )
+from app.core.review_url import project_start_url, review_origin
 from app.core.server_browser import require_server_browser
 from app.core.session import Session
 from app.modules.billing.limits import require_within_plan_limit, run_plan_change
@@ -37,6 +38,7 @@ from app.modules.projects.schemas import (
     ProjectSettingsOut,
     ProjectSettingsUpdate,
     ProjectUpdate,
+    normalize_origin,
 )
 
 
@@ -81,7 +83,8 @@ def _project_out(doc: dict[str, Any], viewer: Session | None = None) -> ProjectO
         duplicated_from_project_id=doc.get("duplicated_from_project_id"),
         access=_access_out(doc),
         my_role=_role_name(session_project_role(doc, viewer)) if viewer is not None else None,
-        target_origin=doc["target_origin"],
+        target_origin=review_origin(doc["target_origin"]),
+        start_url=project_start_url(doc) or None,
         hero_url=doc.get("hero_url"),
         # .get(), not [] - projects created before this field existed have none, and
         # backfilling every prior row isn't worth it at this scale (no migration tooling
@@ -187,6 +190,14 @@ async def create_project(
     if viewer is not None:
         await require_can_create_projects(db, workspace_id, viewer.role)
 
+    try:
+        start_url = normalize_origin(target_origin) if project_type == "website" else None
+    except ValueError as exc:
+        # Internal duplication/resolve callers can read legacy URLs that predate
+        # current request validation. Give them a correctable error, not a 500.
+        raise ValidationError(str(exc)) from exc
+    target_origin = review_origin(start_url) if start_url else ""
+
     repo = ProjectRepository(db)
     if client_id and not await ClientRepository(db).find(workspace_id, client_id):
         raise ValidationError("Client must belong to this workspace and be active.")
@@ -216,6 +227,7 @@ async def create_project(
             client_id=client_id,
             hero_url=hero_url,
             access=access,
+            start_url=start_url,
             session=session,
         )
 
@@ -392,6 +404,9 @@ async def update_project(
             raise ValidationError(f"{key} cannot be empty.")
     if "name" in patch:
         patch["name"] = patch["name"].strip()
+    if "target_origin" in patch:
+        patch["start_url"] = normalize_origin(patch["target_origin"])
+        patch["target_origin"] = review_origin(patch["start_url"])
     if patch.get("client_id") and not await ClientRepository(db).find(
         workspace_id, patch["client_id"]
     ):
@@ -555,7 +570,7 @@ async def duplicate_project(
         workspace_id=workspace_id,
         actor_user_id=actor_user_id,
         name=original.name + " (Copy)",
-        target_origin=original.target_origin,
+        target_origin=original.start_url or original.target_origin,
         project_type=original.project_type,
         environment=original.environment,
         client_id=original.client_id,

@@ -15,6 +15,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.config import get_settings
 from app.core.errors import ConflictError, ExternalServiceError, NotFoundError
+from app.core.review_url import review_origin
 from app.core.ssrf_guard import MAX_REDIRECTS, assert_safe_to_fetch
 from app.modules.projects.repository import ProjectRepository
 from app.modules.proxy.interceptor import build_interceptor_script
@@ -492,7 +493,7 @@ async def fetch_proxied_resource(
     project = await ProjectRepository(db).find_by_id(link["project_id"])
     if project is None or project.get("archived_at"):
         raise NotFoundError("Project not found.")
-    target_origin = project["target_origin"].rstrip("/")
+    target_origin = review_origin(project["target_origin"])
 
     upstream_url = f"{target_origin}/{path.lstrip('/')}"
     if query_string:

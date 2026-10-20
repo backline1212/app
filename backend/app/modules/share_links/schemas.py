@@ -48,6 +48,7 @@ class ReviewResolveOut(BaseModel):
     # (snippet mode) or Backline's own proxy route (proxy mode) after creating their
     # guest session - it needs the target site's origin to build either destination.
     target_origin: str
+    start_url: str | None = None
     # M-02: server-computed policy the entry form uses only for its own UX convenience
     # (show/hide + required attribute on the name field) - the actual requirement is
     # re-enforced server-side in create_guest_session regardless of what the client

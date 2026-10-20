@@ -22,6 +22,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.config import get_settings
 from app.core.errors import BacklineError, NotFoundError, ValidationError
+from app.core.review_url import project_start_url
 from app.modules.cloud_login.schemas import CloudLoginSessionOut
 from app.modules.projects.repository import ProjectRepository
 from app.modules.proxy.preview_host import preview_domain
@@ -81,7 +82,7 @@ async def create_session_ticket(
         {
             "workspace_id": workspace_id,
             "project_id": project_id,
-            "target_origin": project["target_origin"],
+            "target_origin": project_start_url(project),
         }
     )
     await redis_client.set(_redis_key(ticket), payload, ex=_TICKET_TTL_SECONDS)

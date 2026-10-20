@@ -13299,6 +13299,17 @@
             "type": "string",
             "title": "Target Origin"
           },
+          "start_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Url"
+          },
           "created_by": {
             "anyOf": [
               {
@@ -14144,6 +14155,17 @@
           "target_origin": {
             "type": "string",
             "title": "Target Origin"
+          },
+          "start_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Url"
           },
           "ask_reviewer_name": {
             "type": "boolean",

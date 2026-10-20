@@ -1,10 +1,13 @@
+import re
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
 from app.core.mongo_utils import to_object_id
+from app.core.review_url import project_start_url, review_origin
 
 # The "Example Project" every new workspace is seeded with (workspaces/onboarding.py).
 # It doesn't use up the plan's project allowance while it still reviews the sample
@@ -12,12 +15,18 @@ from app.core.mongo_utils import to_object_id
 # site, it is a real project and counts like any other.
 SAMPLE_PROJECT_ORIGIN = "https://example.com"
 EXCLUDE_UNTOUCHED_SAMPLE: dict[str, Any] = {
-    "$nor": [{"is_sample": True, "target_origin": SAMPLE_PROJECT_ORIGIN}]
+    "$nor": [
+        {
+            "is_sample": True,
+            "target_origin": SAMPLE_PROJECT_ORIGIN,
+            "start_url": {"$in": [None, SAMPLE_PROJECT_ORIGIN]},
+        }
+    ]
 }
 
 
 def is_untouched_sample(project: dict[str, Any]) -> bool:
-    return bool(project.get("is_sample")) and project.get("target_origin") == SAMPLE_PROJECT_ORIGIN
+    return bool(project.get("is_sample")) and project_start_url(project) == SAMPLE_PROJECT_ORIGIN
 
 
 class ProjectRepository:
@@ -40,6 +49,7 @@ class ProjectRepository:
         access: dict[str, Any] | None = None,
         is_sample: bool = False,
         session: AsyncIOMotorClientSession | None = None,
+        start_url: str | None = None,
     ) -> dict[str, Any]:
         now = datetime.now(UTC)
         doc: dict[str, Any] = {
@@ -49,6 +59,7 @@ class ProjectRepository:
             "environment": environment,
             "client_id": client_id,
             "target_origin": target_origin,
+            "start_url": start_url,
             "created_by": created_by,
             "hero_url": hero_url,
             # TDR-0056: who can open this project and with what role. Absent on
@@ -217,10 +228,16 @@ class ProjectRepository:
         """Used by the extension's "auto-detect current site" flow (find-or-create by
         origin) - archived projects don't match, so revisiting a site whose project was
         archived creates a fresh one rather than silently resurrecting the old one."""
+        origin = review_origin(target_origin)
+        default_port = ":443" if origin.startswith("https://") else ":80"
+        optional_port = f"(?:{default_port})?" if urlsplit(origin).port is None else ""
+        # Match legacy full-address rows at a URL boundary, never a hostname suffix.
+        # Default explicit ports were previously retained by normalize_origin.
+        pattern = f"^{re.escape(origin)}{optional_port}(?:[/?#]|$)"
         return await self.db.projects.find_one(
             {
                 "workspace_id": workspace_id,
-                "target_origin": target_origin,
+                "target_origin": {"$regex": pattern, "$options": "i"},
                 "archived_at": None,
             }
         )

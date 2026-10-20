@@ -3,6 +3,11 @@
 Date: 2026-10-19 (Asia/Calcutta). Baseline: `main`, commit `2daf5a7`.
 Scope decision: [TDR-0059](../tdr/0059-site-gap-audit.md).
 
+F16 source follow-up: [TDR-0082](../tdr/0082-review-origin-and-start-url.md) adds
+canonical origin/full starting URL separation and legacy reads, fixes proxy/widget
+origin concatenation and retains initial path/query/hash at launch. Browser,
+legacy-record and page-identity acceptance remain pending.
+
 F26 source follow-up: [TDR-0080](../tdr/0080-atomic-plan-capacity.md) serializes
 project/member capacity with writes and reserves AI credits before provider work.
 The baseline below remains audit evidence; live contention/rollback/lease/month

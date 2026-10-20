@@ -154,6 +154,7 @@ export function ProjectOverviewPage() {
   const widgetReady = useRef(false);
   const [widgetConnected, setWidgetConnected] = useState(false);
   const [proxyUnconfirmed, setProxyUnconfirmed] = useState(false);
+  const lastCanvasSource = useRef<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const canvasRef = useRef<HTMLIFrameElement>(null);
   const nativeReviewTrigger = useRef<HTMLButtonElement>(null);
@@ -222,6 +223,7 @@ export function ProjectOverviewPage() {
     enabled: !!projectId,
   });
   const projectQuery = useProject(projectId);
+  const reviewSourceKey = `${projectId}|${projectQuery.data?.target_origin ?? ""}|${projectQuery.data?.start_url ?? ""}`;
   // A viewer's canvas (TDR-0056) shows the pins and opens their cards but never a
   // composer: "view" stands in for Comment and Draw. The API enforces the same thing -
   // the widget's session acts for this member (TDR-0057) - this just doesn't offer it.
@@ -239,6 +241,7 @@ export function ProjectOverviewPage() {
     staleTime: Infinity,
   });
   const canvasSession = canvasSessionQuery.data ?? null;
+  const canvasSourceKey = `${reviewSourceKey}|${canvasSession?.token ?? ""}|${browser.name}`;
   // Client review links, for "Open review" - only for those allowed to see them.
   const shareLinksQuery = useQuery({
     queryKey: qk.shareLinks(projectId ?? ""),
@@ -259,10 +262,15 @@ export function ProjectOverviewPage() {
   // render, loading/error states included. None of these actually need the narrowed
   // `project` const those guards produce, only the raw queries, so they're safe here.
   const sortedPages = [...(pagesQuery.data ?? [])].sort((a, b) => a.sort_order - b.sort_order);
+  // Opening the project starts at its configured URL. Only an explicit selection
+  // or the running frame selects a saved page; an old first page may name a prior site.
   const activePage =
     sortedPages.find((page) => page.id === activePageIdParam) ??
-    sortedPages.find((page) => page.id === currentPageId) ??
-    sortedPages[0] ??
+    sortedPages.find((page) => {
+      if (page.id !== currentPageId || !projectQuery.data?.target_origin) return false;
+      try { return new URL(page.url_normalized).origin === new URL(projectQuery.data.target_origin).origin; }
+      catch { return false; }
+    }) ??
     null;
   const visibleWidth = viewport
     ? orientation === "portrait"
@@ -584,9 +592,11 @@ export function ProjectOverviewPage() {
   // sit there until the timeout below called it an error.
   useEffect(() => {
     if (!hasProxyCandidate) return;
+    const sourceChanged = lastCanvasSource.current !== canvasSourceKey;
+    lastCanvasSource.current = canvasSourceKey;
     // The frame reported this page itself, so it's already loaded - a "loading" state
     // here would have no load event coming to clear it and would time out as an error.
-    if (activePageIdParam !== null && activePageIdParam === frameDrivenPageRef.current) return;
+    if (!sourceChanged && activePageIdParam !== null && activePageIdParam === frameDrivenPageRef.current) return;
     setIframeStatus("loading");
     widgetReady.current = false;
     setWidgetConnected(false);
@@ -597,7 +607,7 @@ export function ProjectOverviewPage() {
       if (!widgetReady.current) setProxyUnconfirmed(true);
     }, 15000);
     return () => window.clearTimeout(timer);
-  }, [activePageIdParam, hasProxyCandidate, projectId, retryCount]);
+  }, [activePageIdParam, hasProxyCandidate, projectId, retryCount, canvasSourceKey]);
 
   function updateViewParams(values: Record<string, string | null>) {
     updateSearchParams((next) => {
@@ -778,13 +788,12 @@ export function ProjectOverviewPage() {
     : null;
   const canvasUrl = canvasBase ? `${canvasBase}/` : null;
 
-  function proxyRequestFor(page: PageOut | null): { path: string; search: URLSearchParams } | null {
-    if (!page) return { path: "", search: new URLSearchParams() };
+  function proxyRequestFor(page: PageOut | null): { path: string; search: URLSearchParams; hash: string } | null {
     try {
-      const pageUrl = new URL(page.url_normalized);
+      const pageUrl = new URL(page?.url_normalized ?? project.start_url ?? project.target_origin);
       const targetUrl = new URL(project.target_origin);
-      if (pageUrl.host !== targetUrl.host) return null;
-      return { path: pageUrl.pathname.replace(/^\//, ""), search: new URLSearchParams(pageUrl.search) };
+      if (pageUrl.origin !== targetUrl.origin) return null;
+      return { path: pageUrl.pathname.replace(/^\//, ""), search: new URLSearchParams(pageUrl.search), hash: pageUrl.hash };
     } catch {
       return null;
     }
@@ -796,7 +805,7 @@ export function ProjectOverviewPage() {
   // comment created from this canvas - see the widget's blBrowser handling in index.ts.
   iframeSearch.set("blBrowser", browser.name);
   const canvasTarget = canvasUrl && activePageRequest
-    ? `${canvasBase}/${activePageRequest.path}?${iframeSearch.toString()}`
+    ? `${canvasBase}/${activePageRequest.path}?${iframeSearch.toString()}${activePageRequest.hash}`
     : null;
   // blMode is the mode the canvas is *loaded* with, so it's only rebuilt when the
   // target itself changes (a different page, a different browser, a revoked link).
@@ -806,8 +815,8 @@ export function ProjectOverviewPage() {
   // handed to the iframe, not state - nothing renders off it but the iframe itself.
   // Everything but the page: a different link or browser still reloads the canvas, even
   // on a page the frame navigated to by itself.
-  const frameKey = canvasSession ? `${canvasSession.token}|${browser.name}` : null;
-  if (frameSrcRef.current.target !== canvasTarget) {
+  const frameKey = canvasSession ? canvasSourceKey : null;
+  if (frameSrcRef.current.target !== canvasTarget || frameSrcRef.current.frameKey !== frameKey) {
     const keepFrame =
       canvasTarget !== null &&
       frameSrcRef.current.src !== null &&
@@ -817,11 +826,15 @@ export function ProjectOverviewPage() {
     frameSrcRef.current = {
       target: canvasTarget,
       frameKey,
-      src: keepFrame ? frameSrcRef.current.src : canvasTarget ? `${canvasTarget}&blMode=${mode}` : null,
+      src: keepFrame ? frameSrcRef.current.src : canvasTarget ? (() => {
+        const url = new URL(canvasTarget);
+        url.searchParams.set("blMode", mode);
+        return url.href;
+      })() : null,
     };
   }
   const iframeSrc = frameSrcRef.current.src;
-  const displayUrl = activePage?.url_normalized || project.target_origin;
+  const displayUrl = activePage?.url_normalized || project.start_url || project.target_origin;
   const topLevelComments = (commentsQuery.data ?? []).filter((comment) => !comment.parent_id);
   // The same "#14" the drawer, board and pins print - not the comment's position in
   // this project's list, which matched none of them.
@@ -885,7 +898,7 @@ export function ProjectOverviewPage() {
 
         <div className="bl-review-header-tools">
           {/* Browser review exists to leave comments, which the API refuses a viewer. */}
-          {user && canComment && <NativeReviewButton triggerRef={nativeReviewTrigger} projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
+          {user && canComment && activePageRequest && <NativeReviewButton triggerRef={nativeReviewTrigger} projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
           <div className="bl-review-mode" aria-label="Canvas mode">
             <button type="button" aria-pressed={mode === "browse"} disabled={!canvasToolsReady} title={canvasToolsReady ? undefined : toolsUnavailableReason} onClick={() => setMode("browse")}>
               <PointerIcon width={13} height={13} />
@@ -957,7 +970,7 @@ export function ProjectOverviewPage() {
           <p>{previewFailed ? "Your saved feedback is still available in Comments. Open the website with the extension to review it using your normal login, or retry the preview." : "If the preview or website sign-in doesn't work, Open with extension uses the real website. Your saved feedback stays in Backline."}</p>
           {widgetError && <details><summary>Connection details</summary><p>{widgetError}</p></details>}
         </div>
-        {user && canComment && <button type="button" className="bl-button" onClick={() => nativeReviewTrigger.current?.click()}>Open with extension</button>}
+        {user && canComment && activePageRequest && <button type="button" className="bl-button" onClick={() => nativeReviewTrigger.current?.click()}>Open with extension</button>}
         {previewFailed && <button type="button" className="bl-quiet" onClick={reloadPreview}>Retry preview</button>}
       </div>
 
@@ -983,7 +996,7 @@ export function ProjectOverviewPage() {
               type="button"
               role="tab"
               data-page-tab
-              tabIndex={activePage?.id === page.id ? 0 : -1}
+              tabIndex={activePage ? activePage.id === page.id ? 0 : -1 : index === 0 ? 0 : -1}
               aria-selected={activePage?.id === page.id}
               onClick={() => goToPage(page.id)}
               onKeyDown={(event) => onPageTabKeyDown(event, index, pageIds)}
@@ -1020,9 +1033,10 @@ export function ProjectOverviewPage() {
             <div className="bl-review-empty-canvas" role="alert">
               <span className="bl-review-state-icon is-warning"><GlobeIcon /></span>
               <strong>This saved page is outside the project URL</strong>
-              <p>Backline will not proxy a page from a different host. Update the page or project URL before reviewing it here.</p>
+              <p>The saved page has a different website origin from this project. Its feedback is still available. Open the current website, or ask a project manager to correct the URL.</p>
               <div className="bl-review-empty-actions">
-                <button type="button" className="bl-button" onClick={() => setShowPages(true)}>Manage pages</button>
+                <button type="button" className="bl-button" onClick={() => goToPage("")}>Open current website</button>
+                <button type="button" className="bl-quiet" onClick={() => setShowPages(true)}>Manage pages</button>
                 {canManageProject ? <button type="button" className="bl-quiet" onClick={() => setShowSettings(true)}>Check project URL</button> : <p>Ask a project manager to check the project URL.</p>}
               </div>
             </div>
@@ -1107,7 +1121,7 @@ export function ProjectOverviewPage() {
               </div>
               <div className="bl-live-frame-canvas">
                 <iframe
-                  key={`${retryCount}-${iframeSrc}`}
+                  key={`${retryCount}-${frameKey}-${iframeSrc}`}
                   ref={canvasRef}
                   src={iframeSrc}
                   title={`${project.name} preview`}

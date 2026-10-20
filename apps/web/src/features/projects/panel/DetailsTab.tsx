@@ -100,7 +100,7 @@ export function DetailsTab({
               <div>
                 <dt>URL</dt>
                 <dd>
-                  <a href={project.target_origin} target="_blank" rel="noreferrer" className="bl-text-link">
+                  <a href={project.start_url ?? project.target_origin} target="_blank" rel="noreferrer" className="bl-text-link">
                     Open ↗
                   </a>
                 </dd>

@@ -20,6 +20,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.arq_pool import get_arq_pool
 from app.core.config import get_settings
+from app.core.review_url import project_start_url
 from app.core.server_browser import UNAVAILABLE_MESSAGE, require_server_browser
 from app.core.ssrf_guard import assert_safe_to_fetch
 from app.modules.projects.repository import ProjectRepository
@@ -77,7 +78,7 @@ def _capture_due(doc: dict[str, Any], now: datetime, *, force: bool = False) -> 
     if status == "queued":
         # Even a forced refresh waits for the capture already on its way.
         return requested_at is None or now - requested_at > QUEUED_TIMEOUT
-    if force or status is None or preview.get("origin") != doc["target_origin"]:
+    if force or status is None or preview.get("origin") != project_start_url(doc):
         return True
     if status == "failed":
         return requested_at is None or now - requested_at > RETRY_FAILED_AFTER
@@ -102,7 +103,7 @@ async def queue_capture(
         project_id,
         previous_token=(doc.get("preview") or {}).get("token"),
         token=token,
-        origin=doc["target_origin"],
+        origin=project_start_url(doc),
         requested_at=now,
     )
     if not claimed:
@@ -148,7 +149,7 @@ async def with_previews(
     keys: dict[str, str] = {}
     for doc in docs:
         preview = doc.get("preview") or {}
-        if preview.get("key") and preview.get("key_origin") == doc.get("target_origin"):
+        if preview.get("key") and preview.get("key_origin") == project_start_url(doc):
             keys[str(doc["_id"])] = preview["key"]
     try:
         urls = await generate_presigned_gets(list(keys.values()), expires_in=URL_TTL_SECONDS)
@@ -241,7 +242,7 @@ async def run_capture(
     if not get_settings().server_browser_enabled:
         await repo.fail_preview(workspace_id, project_id, token=token, error=UNAVAILABLE_MESSAGE)
         return
-    origin = preview.get("origin") or doc["target_origin"]
+    origin = preview.get("origin") or project_start_url(doc)
 
     try:
         await asyncio.to_thread(assert_safe_to_fetch, origin)

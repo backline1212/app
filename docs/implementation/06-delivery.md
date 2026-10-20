@@ -1,5 +1,34 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Audit F16 — website origin and starting address (TDR-0082)
+
+Website writes now store canonical target_origin and full start_url separately.
+Legacy rows derive them on read; no rewrite/backfill. Proxy and widget use actual
+origins; portal/guest/native launch, edits, cards/search/details, previews and MCP
+retain the starting address. Default-port/host normalization and strict new-write
+validation avoid malformed bases; sample conversion still checks quota. Canvas
+parameters stay before fragments. Initial hash launch does not implement separate
+hash-route page/comment identities.
+
+Contracts regenerated. Final checks/rollout are in progress. No production project,
+page or feedback write. Browser/path/query/hash, proxy referer/page identity, native
+launch and legacy acceptance remain pending. See
+[TDR-0082](../tdr/0082-review-origin-and-start-url.md).
+
+Final source checks pass: frontend lint/typecheck/build (12/12, then affected web
+checks/build after flow refinements), backend Ruff/full mypy (204 files) and
+affected-module follow-ups, scope audit (20 repositories), regenerated contracts
+and diff checks. Existing chunk advisory remains. No suite written/run. Opening a
+project defaults to its configured starting address; older explicit page links get
+an origin-mismatch explanation and Open current website. Source changes reset
+readiness and remount the frame. Browser acceptance remains pending.
+
+Preceding notification commit ebfc8b1eb23e5d30c1906d2078606ccbe752f73f reports
+SUCCESS on Railway API/worker/cloud-login and Vercel
+`https://vercel.com/devbackline-7169/app-web/5sig9Fgy6WKki9n2akaNdCUGkekU`.
+Public health is status/mongo/redis ok, and OpenAPI exposes email_notifications
+default false. This confirms rollout/contract only, not actual inbox delivery.
+
 ## 2026-10-20: Audit F28 — feedback email and honest settings (TDR-0081)
 
 Existing feedback switches now describe notifications accurately. A separate,

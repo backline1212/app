@@ -106,6 +106,13 @@ legacy flows require explicit migration and must not silently change destination
 
 ### Existing negative journeys
 
+F16 acceptance (TDR-0082): create/edit/duplicate a website URL containing `/app/`,
+query and hash; reopen it through portal preview, guest review and native extension.
+Legacy path-bearing targets must not duplicate the path in proxy requests, headers
+or registered page URLs. Cover host casing/default ports, invalid new ports, sample
+conversion at capacity and asset projects. Initial hash navigation does not imply
+distinct hash-route comment identities. Source checks cannot close browser acceptance.
+
 F28 acceptance (TDR-0081): enable/disable feedback email independently of the daily
 digest, trigger each enabled event, verify correct thread links and actual inbox
 receipt, then retry after queue/provider failure or worker restart. Queued messages

@@ -113,7 +113,7 @@ export function ProjectsPage() {
   const summary = useQuery({ queryKey: qk.dashboard(workspace.id), queryFn: () => getDashboard(workspace.id) });
   const attention = useQuery({ queryKey: qk.ticketsAttention(workspace.id), queryFn: () => listTickets(workspace.id, new URLSearchParams({ view: "reply", limit: "3" })) });
   const stats = useMemo(() => new Map(summary.data?.project_stats.map((s) => [s.project_id, s]) ?? []), [summary.data]);
-  const visible = useMemo(() => (projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (type === "all" || (p.project_type ?? "website") === type) && (!params.get("client") || p.client_id === params.get("client")) && `${p.name} ${p.target_origin}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "open" ? (stats.get(b.id)?.open ?? 0) - (stats.get(a.id)?.open ?? 0) : sort === "added" ? b.created_at.localeCompare(a.created_at) : (stats.get(b.id)?.last_activity_at ?? b.updated_at).localeCompare(stats.get(a.id)?.last_activity_at ?? a.updated_at)), [projects.data, archived, type, params, search, sort, stats]);
+  const visible = useMemo(() => (projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (type === "all" || (p.project_type ?? "website") === type) && (!params.get("client") || p.client_id === params.get("client")) && `${p.name} ${p.target_origin} ${p.start_url ?? ""}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "open" ? (stats.get(b.id)?.open ?? 0) - (stats.get(a.id)?.open ?? 0) : sort === "added" ? b.created_at.localeCompare(a.created_at) : (stats.get(b.id)?.last_activity_at ?? b.updated_at).localeCompare(stats.get(a.id)?.last_activity_at ?? a.updated_at)), [projects.data, archived, type, params, search, sort, stats]);
 
   // The landing state only (no search/type/archived filter active) gets the live
   // greeting; once someone is filtering or searching, a plain, functional heading
@@ -130,7 +130,7 @@ export function ProjectsPage() {
     const total = s?.total ?? 0, open = s?.open ?? 0, resolved = s?.resolved ?? 0;
     const isWebsite = (p.project_type ?? "website") === "website";
     const destination = `/w/${workspace.slug}/p/${p.id}`;
-    const displayUrl = isWebsite ? p.target_origin.replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
+    const displayUrl = isWebsite ? (p.start_url ?? p.target_origin).replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
     // The two preview layouts put the menu in the card's top-right corner, over the
     // artwork; the row layouts (list/table) have no corner to speak of and keep it in
     // the actions column at the end of the row.
@@ -193,7 +193,7 @@ export function ProjectsPage() {
     const s = stats.get(p.id);
     const isWebsite = (p.project_type ?? "website") === "website";
     const destination = `/w/${workspace.slug}/p/${p.id}`;
-    const displayUrl = isWebsite ? p.target_origin.replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
+    const displayUrl = isWebsite ? (p.start_url ?? p.target_origin).replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
     const count = (value: number) => <td className={`bl-col-num${value > 0 ? " has-value" : ""}`}>{value}</td>;
     return <tr key={p.id} className={p.archived_at ? "is-archived" : ""}>
       <td>{p.archived_at

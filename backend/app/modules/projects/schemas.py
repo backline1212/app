@@ -1,9 +1,11 @@
+import re
 from datetime import datetime
 from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.core.review_url import review_origin
 from app.core.ssrf_guard import is_public_hostname_literal
 from app.core.text import Trimmed
 
@@ -69,8 +71,11 @@ class ProjectAccessDetailOut(BaseModel):
 
 
 def normalize_origin(value: str) -> str:
+    """Validate the request's full review URL; services persist its origin separately."""
     value = value.strip()
-    if "://" not in value:
+    if "\\" in value or any(ord(char) < 32 or ord(char) == 127 for char in value):
+        raise ValueError("Use a review URL without backslashes or control characters.")
+    if not re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", value):
         value = "https://" + value
     parsed = urlsplit(value)
     if (
@@ -82,7 +87,24 @@ def normalize_origin(value: str) -> str:
         raise ValueError("Use a valid HTTP or HTTPS review URL without credentials.")
     if not is_public_hostname_literal(parsed.hostname):
         raise ValueError("This URL points to a private or internal address, which isn't allowed.")
-    return value.rstrip("/")
+    # Reject invalid port syntax/ranges on new writes; legacy reads remain possible.
+    _ = parsed.port
+    if any(char.isspace() for char in parsed.hostname):
+        raise ValueError("Use a website hostname without spaces.")
+    try:
+        parsed.hostname.encode("idna")
+    except UnicodeError as exc:
+        raise ValueError("Use a valid website hostname.") from exc
+    origin = review_origin(value)
+    suffix = parsed.path
+    if suffix == "/" and not parsed.query and not parsed.fragment:
+        suffix = ""
+    return (
+        origin
+        + suffix
+        + (f"?{parsed.query}" if parsed.query else "")
+        + (f"#{parsed.fragment}" if parsed.fragment else "")
+    )
 
 
 class ProjectCreate(BaseModel):
@@ -191,6 +213,8 @@ class ProjectOut(BaseModel):
     workspace_id: str
     name: str
     target_origin: str
+    # Full initial URL, including a path/query/hash. Legacy rows derive it on read.
+    start_url: str | None = None
     created_by: str | None
     settings: ProjectSettingsOut
     archived_at: datetime | None

@@ -98,7 +98,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [type, setType] = useState<ProjectType>(project?.project_type ?? initialType ?? "website");
   const [typeChosen, setTypeChosen] = useState(Boolean(project || initialType));
   const [name, setName] = useState(project?.name ?? "");
-  const [url, setUrl] = useState(project?.target_origin ?? "");
+  const [url, setUrl] = useState(project?.start_url ?? project?.target_origin ?? "");
   const [client, setClient] = useState(project?.client_id ?? initialClientId ?? "");
   const [environment, setEnvironment] = useState<"live" | "staging">(project?.environment ?? "live");
   const [environmentEdited, setEnvironmentEdited] = useState(Boolean(project));

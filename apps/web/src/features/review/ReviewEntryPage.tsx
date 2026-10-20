@@ -104,7 +104,10 @@ export function ReviewEntryPage() {
         return;
       }
       const proxyBase = resolved.preview_origin ?? `${API_BASE_URL}/proxy/${shareToken}`;
-      const destination = new URL(resolved.mode === "proxy" ? `${proxyBase}/` : resolved.target_origin);
+      const initial = new URL(resolved.start_url ?? resolved.target_origin);
+      const destination = resolved.mode === "proxy"
+        ? new URL(`${proxyBase}${initial.pathname}${initial.search}${initial.hash}`)
+        : initial;
       destination.searchParams.set("backline_guest", session.guestSessionToken);
       destination.searchParams.set("backline_name", session.displayName);
       // Every website reviewer can choose native browser review before being sent
@@ -259,11 +262,11 @@ export function ReviewEntryPage() {
             {!online && <p role="status">You're offline. Reconnect to start or rejoin a review.</p>}
           </div>
           <div className="bl-gate-foot" style={{ flexDirection: "column" }}>
-            {siteNeedsLogin === "yes" && <NativeReviewButton projectId={resolved.project_id} url={resolved.target_origin}
+            {siteNeedsLogin === "yes" && <NativeReviewButton projectId={resolved.project_id} url={resolved.start_url ?? resolved.target_origin}
               guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} />}
             {siteNeedsLogin === "no" && <>
               <a className="bl-button" href={pendingHandoff.destination} target="_blank" rel="noopener noreferrer">Open website review ↗</a>
-              <details><summary>Page doesn't load or asks for sign-in?</summary><p>Open the real website with the extension to keep its normal login.</p><NativeReviewButton projectId={resolved.project_id} url={resolved.target_origin} guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} /></details>
+              <details><summary>Page doesn't load or asks for sign-in?</summary><p>Open the real website with the extension to keep its normal login.</p><NativeReviewButton projectId={resolved.project_id} url={resolved.start_url ?? resolved.target_origin} guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} /></details>
             </>}
             {resolved.show_board_to_client && <button className="bl-quiet" style={{ width: "100%" }} onClick={() => setShowBoard(true)}>
               View the board
