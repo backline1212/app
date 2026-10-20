@@ -26,7 +26,7 @@ const PROJECT_TYPES: Array<{
 }> = [
   { id: "website", label: "Website", description: "Public or staging websites, including sign-in pages. Use browser review when needed.", available: true },
   { id: "image", label: "Images", description: "PNG, JPG, WebP or GIF. Comments pin to the artwork itself.", available: true },
-  { id: "pdf", label: "PDF", description: "Comments attach to the page and survive a re-export.", available: true },
+  { id: "pdf", label: "PDF", description: "Pin comments to pages in an uploaded PDF document.", available: true },
   { id: "webapp", label: "Web App", description: "Application state and diagnostics. Use Website for signed-in review today.", available: false },
   { id: "mobile", label: "Mobile App", description: "Comment on a TestFlight or APK build from a real device.", available: false },
 ];

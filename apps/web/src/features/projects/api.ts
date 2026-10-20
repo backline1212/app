@@ -94,6 +94,16 @@ export function removePage(pageId: string) {
   return apiFetch<void>(`/api/v1/pages/${pageId}`, { method: "DELETE" });
 }
 
+export function getPageApproval(pageId: string) {
+  return apiFetch<Schemas["PageApprovalOut"]>(`/api/v1/pages/${pageId}/approval`);
+}
+
+export function updatePageApproval(pageId: string, body: Schemas["PageApprovalUpdate"]) {
+  return apiFetch<Schemas["PageApprovalOut"]>(`/api/v1/pages/${pageId}/approval`, {
+    method: "PATCH", body: JSON.stringify(body),
+  });
+}
+
 export function listRevisions(projectId: string, signal?: AbortSignal) {
   return apiFetch<RevisionHistoryOut[]>(`/api/v1/projects/${projectId}/revisions`, { signal });
 }

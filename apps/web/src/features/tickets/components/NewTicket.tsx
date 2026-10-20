@@ -9,6 +9,7 @@ import { listPages, listProjects } from "../../projects/api";
 import type { WorkspaceOut, MemberOut } from "../../workspaces/api";
 import * as api from "../api";
 import { DatePicker } from "./DatePicker";
+import { projectCan } from "../../../lib/project-roles";
 
 type Shot = Schemas["AttachmentIn"] & { preview: string };
 
@@ -23,13 +24,20 @@ function pageLabel(page: { title: string | null; url_normalized: string }) {
   return page.title || page.url_normalized;
 }
 
-export function NewTicket({ workspace, members, onClose }: { workspace: WorkspaceOut; members: MemberOut[]; onClose: () => void }) {
+export function NewTicket({ workspace, members, onClose, initialProjectId = "", initialPageId = "", teamNote = false }: { workspace: WorkspaceOut; members: MemberOut[]; onClose: () => void; initialProjectId?: string; initialPageId?: string; teamNote?: boolean }) {
   const cache = useQueryClient();
   const projects = useQuery({ queryKey: qk.projects(workspace.id), queryFn: () => listProjects(workspace.id, true) });
-  const active = useMemo(() => projects.data?.filter((p) => !p.archived_at) ?? [], [projects.data]);
-  const [projectId, setProjectId] = useState("");
+  const active = useMemo(() => projects.data?.filter((p) => !p.archived_at && projectCan(p, "edit")) ?? [], [projects.data]);
+  const [projectId, setProjectId] = useState(initialProjectId);
   const pages = useQuery({ queryKey: qk.projectPages(projectId), queryFn: ({ signal }) => listPages(projectId, signal), enabled: Boolean(projectId) });
-  const [pageId, setPageId] = useState("");
+  const [pageId, setPageId] = useState(initialPageId);
+  const busy = useRef(false);
+  const uploadBusy = useRef(false);
+  const prepared = useRef<{ projectId: string; payload: Schemas["TicketCreate"] } | null>(null);
+  const [retryLocked, setRetryLocked] = useState(false);
+  const ambiguous = useRef(false);
+  const [copyStatus, setCopyStatus] = useState("");
+  const requestId = useRef(crypto.randomUUID());
   const [body, setBody] = useState("");
   const [assignee, setAssignee] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
@@ -45,13 +53,14 @@ export function NewTicket({ workspace, members, onClose }: { workspace: Workspac
     if (!projectId && active[0]) setProjectId(active[0].id);
   }, [projectId, active]);
   useEffect(() => {
-    setPageId(pages.data?.[0]?.id ?? "");
+    if (pages.data) setPageId(current => !current || pages.data.some(page => page.id === current) ? current : pages.data[0]?.id ?? "");
   }, [pages.data]);
   const shotsRef = useRef(shots);
   shotsRef.current = shots;
   useEffect(() => () => shotsRef.current.forEach((s) => URL.revokeObjectURL(s.preview)), []);
 
   function changeProject(id: string) {
+    if (busy.current || uploadBusy.current || retryLocked) return;
     setProjectId(id);
     setPageId("");
     // Uploads are keyed to a project, so they can't follow the ticket to another one.
@@ -60,7 +69,8 @@ export function NewTicket({ workspace, members, onClose }: { workspace: Workspac
   }
 
   async function addShots(files: FileList | null) {
-    if (!files?.length || !projectId) return;
+    if (!files?.length || !projectId || busy.current || uploadBusy.current || retryLocked) return;
+    uploadBusy.current = true;
     setUploading(true);
     setUploadError("");
     // Kept even if a later file fails, so the screenshots that did upload stay attached.
@@ -78,13 +88,16 @@ export function NewTicket({ workspace, members, onClose }: { workspace: Workspac
     } finally {
       setShots((prev) => [...prev, ...added].slice(0, 10));
       setUploading(false);
+      uploadBusy.current = false;
       if (fileRef.current) fileRef.current.value = "";
     }
   }
 
   const save = useMutation({
-    mutationFn: () =>
-      api.createTicket(projectId, {
+    mutationFn: async () => {
+      if (busy.current || uploadBusy.current) throw new Error("A save or upload is already in progress.");
+      busy.current = true;
+      const submission = prepared.current ?? { projectId, payload: {
         body,
         status: "todo",
         priority,
@@ -93,7 +106,23 @@ export function NewTicket({ workspace, members, onClose }: { workspace: Workspac
         tags: tag ? [tag] : [],
         page_id: pageId || null,
         attachments: shots.map(({ key, filename, content_type }) => ({ key, filename, content_type })),
-      }),
+        client_request_id: requestId.current,
+      } };
+      prepared.current = submission;
+      try { return await api.createTicket(submission.projectId, submission.payload); }
+      catch (error) {
+        const status = error instanceof Error && "status" in error ? Number(error.status) : 0;
+        if (!ambiguous.current && [400, 403, 404, 413, 422].includes(status)) {
+          prepared.current = null;
+          setRetryLocked(false);
+        } else {
+          ambiguous.current = true;
+          setRetryLocked(true);
+        }
+        throw error;
+      }
+    },
+    onSettled: () => { busy.current = false; },
     onSuccess: async () => {
       await invalidateTicketsAndDashboard(cache, workspace.id);
       await cache.invalidateQueries({ queryKey: qk.projectComments(projectId) });
@@ -102,15 +131,16 @@ export function NewTicket({ workspace, members, onClose }: { workspace: Workspac
   });
 
   return (
-    <Dialog title="New ticket" onClose={onClose}>
-      <p className="bl-nt-sub">Raise work that is not tied to a comment yet — pin it on a page later</p>
+    <Dialog title={teamNote ? "New team note" : "New ticket"} onClose={() => { if (!busy.current && !uploadBusy.current) onClose(); }}>
+      <p className="bl-nt-sub">{teamNote ? "A team-only note for this page. It stays in Backline and is hidden from guest reviewers." : "Create a team-only ticket, with an optional page and screenshots."}</p>
       <form
         className="bl-nt"
         onSubmit={(e) => {
           e.preventDefault();
-          save.mutate();
+          if (!busy.current && !uploadBusy.current && body.trim()) save.mutate();
         }}
       >
+        <fieldset disabled={save.isPending || uploading || retryLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <label className="bl-nt-field">
           <span>What needs doing</span>
           <textarea className="bl-nt-ta" required autoFocus rows={3} maxLength={10000} placeholder="Check the analytics event fires on the pricing CTA" value={body} onChange={(e) => setBody(e.target.value)} />
@@ -205,17 +235,24 @@ export function NewTicket({ workspace, members, onClose }: { workspace: Workspac
           </div>
           <small>Whoever picks this up sees them on the ticket.</small>
         </div>
+        </fieldset>
+        {projects.error && <p role="alert" className="bl-error">{projects.error.message} <button type="button" onClick={() => void projects.refetch()}>Retry loading projects</button></p>}
+        {pages.error && <p role="alert" className="bl-error">{pages.error.message} <button type="button" onClick={() => void pages.refetch()}>Retry loading pages</button></p>}
         {(save.error || uploadError) && (
           <p role="alert" className="bl-error">
             {save.error?.message ?? uploadError}
           </p>
         )}
+        {retryLocked && <p role="status">Saving is unconfirmed. Retry sends the same ticket. Check Backline before starting another one.</p>}
+        {body.trim() && <button type="button" className="bl-quiet" disabled={save.isPending} onClick={() => { if (navigator.clipboard) void navigator.clipboard.writeText(body).then(() => setCopyStatus("Text copied.")).catch(() => setCopyStatus("Select your original text below and copy it manually.")); else setCopyStatus("Select your original text below and copy it manually."); }}>Copy text</button>}
+        {copyStatus && <p role="status">{copyStatus}</p>}
+        {copyStatus.startsWith("Select") && <textarea className="bl-input" readOnly aria-label="Original ticket text to copy" value={body} onFocus={event => event.target.select()} />}
         <div className="bl-form-actions">
-          <button type="button" className="bl-quiet" onClick={onClose}>
-            Cancel
+          <button type="button" className="bl-quiet" disabled={save.isPending || uploading} onClick={onClose}>
+            {retryLocked ? "Close" : "Cancel"}
           </button>
-          <button className="bl-button" disabled={save.isPending || uploading || !projectId || !body.trim()}>
-            {save.isPending ? "Creating…" : "Create ticket"}
+          <button className="bl-button" disabled={save.isPending || uploading || !active.some(project => project.id === projectId) || !body.trim()}>
+            {save.isPending ? "Saving…" : retryLocked ? "Retry save" : teamNote ? "Save team note" : "Create ticket"}
           </button>
         </div>
       </form>

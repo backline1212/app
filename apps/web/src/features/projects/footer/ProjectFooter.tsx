@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 
 import type { ProjectOut } from "../api";
 import {
-  CheckCircleIcon,
   LandscapeIcon,
   LockIcon,
   PortraitIcon,
@@ -17,6 +16,7 @@ import { ViewportMenu, type ViewportOption } from "./ViewportMenu";
 import { BrowserMenu } from "./BrowserMenu";
 import type { BrowserOption } from "./browsers";
 import { VersionMenu } from "./VersionMenu";
+import { PageApprovalButton } from "./PageApprovalButton";
 
 // "view" is the canvas for someone whose project role can't comment (TDR-0056).
 export type CanvasMode = "browse" | "comment" | "draw" | "view";
@@ -28,6 +28,9 @@ interface ProjectFooterProps {
   workspaceName: string;
   totalComments: number;
   commentsUnavailable?: boolean;
+  unresolvedCount: number | null;
+  onTeamNote: () => void;
+  canAddTeamNote: boolean;
   currentPageId: string | null;
   onSelectPage: (pageId: string) => void;
   viewport: ViewportOption | null;
@@ -50,6 +53,9 @@ export function ProjectFooter({
   workspaceName,
   totalComments,
   commentsUnavailable = false,
+  unresolvedCount,
+  onTeamNote,
+  canAddTeamNote,
   currentPageId,
   onSelectPage,
   viewport,
@@ -168,15 +174,10 @@ export function ProjectFooter({
           <span>Deploy sync</span>
           <em>Coming soon</em>
         </button>
-        <button type="button" className="bl-review-control bl-review-optional-control" disabled title="Page approval is coming soon">
-          <CheckCircleIcon width={13} height={13} />
-          <span>Approve</span>
-          <em>Coming soon</em>
-        </button>
-        <button type="button" className="bl-review-control bl-review-optional-control" disabled title="Private comment mode is coming soon">
+        <PageApprovalButton key={currentPageId} project={project} pageId={currentPageId} unresolvedCount={unresolvedCount} />
+        <button type="button" className="bl-review-control bl-review-optional-control" disabled={!canAddTeamNote} onClick={onTeamNote} title="Create a team-only note for this page in Backline">
           <LockIcon width={13} height={13} />
-          <span>Private</span>
-          <em>Coming soon</em>
+          <span>Team note</span>
         </button>
         <Link className="bl-review-control bl-review-optional-control" to={`/w/${workspaceSlug}/billing`}>
           Plans

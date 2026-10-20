@@ -17,6 +17,20 @@ class AssetOut(BaseModel):
     height: int | None
     url: str
     created_at: datetime
+    archived_at: datetime | None = None
+
+
+class AssetUpdate(BaseModel):
+    filename: str | None = Field(default=None, min_length=1, max_length=255)
+    archived: bool | None = None
+
+    @model_validator(mode="after")
+    def valid_name(self) -> "AssetUpdate":
+        if self.filename is not None:
+            self.filename = self.filename.strip()
+            if not self.filename or "/" in self.filename or "\\" in self.filename:
+                raise ValueError("Use a file display name without folder separators.")
+        return self
 
 
 class Region(BaseModel):
@@ -38,3 +52,4 @@ class AssetCommentCreate(BaseModel):
     region: Region
     layer: Layer = "client"
     tags: list[Tag] = Field(default_factory=list, max_length=6)
+    client_request_id: str | None = Field(default=None, min_length=1, max_length=64)

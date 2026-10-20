@@ -44,6 +44,17 @@ F21 now has a shared composer rejection/synchronous-throw recovery repair in
 the updated real extension. The ledger also records 0.4.1 draft/cancel/return and
 existing-login YouTube launch; complete capture/persistence acceptance remains open.
 
+2026-10-20 follow-up: [TDR-0075](../tdr/0075-comment-retry-and-sign-in-continuity.md)
+fixes immutable composer retries and sign-in continuity. F31 now has additive
+actor/resource/payload replay for image/PDF comments in
+[TDR-0076](../tdr/0076-files-approval-and-team-notes.md), alongside real file
+management, team notes and captured-version approval. Its new file-specific pin
+movement and stable private PDF/image preview follow
+[TDR-0077](../tdr/0077-reliable-pdf-image-review.md). These are source repairs;
+browser/write/guest/concurrency acceptance remains open. F25's disabled cloud-login
+pricing claim is corrected, while other entitlement/limit work remains open.
+The baseline rows below remain preserved evidence, not current completion claims.
+
 ## Result and evidence boundary
 
 This audit records **35 findings and 8 capability limits**. Eleven findings are P1,

@@ -11,6 +11,7 @@ from app.core.project_access import can_view_project, session_hidden_project_ids
 from app.core.session import Session
 from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
+from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.service import _broadcast_comment_event, _comment_out
 from app.modules.dashboard.repository import DashboardRepository, page_title_match, root_pipeline
@@ -359,38 +360,61 @@ async def create_ticket(
             key=attachment.key,
             content_type=attachment.content_type,
         )
-    doc = await CommentRepository(db).create(
-        {
-            "workspace_id": workspace_id,
-            "project_id": project_id,
-            "page_id": str(page["_id"]),
-            "parent_id": None,
-            "author_type": "member",
-            "author_member_id": actor.user_id,
-            "author_guest_id": None,
-            "layer": "team",
-            "body": body.body.strip(),
-            "status": body.status,
-            "priority": body.priority,
-            "tags": list(dict.fromkeys(body.tags)),
-            "due_at": body.due_at,
-            "assignee_ids": assignees,
-            "assignee_id": next(iter(assignees), None),
-            "waiting_on_ids": [],
-            "waiting_on_client": False,
-            "is_standalone": True,
-            "anchor": {},
-            "recovery_status": "ok",
-            "context_json": {},
-            "screenshot_key": None,
-            "capture_status": "ok",
-            "attachments": [a.model_dump() for a in body.attachments],
-            "created_at": datetime.now(UTC),
-            "edited_at": None,
-            "deleted_at": None,
-            "ticket_number": await CommentRepository(db).next_ticket_number(workspace_id),
-        }
-    )
+    candidate: dict[str, Any] = {
+        "workspace_id": workspace_id,
+        "project_id": project_id,
+        "page_id": str(page["_id"]),
+        "parent_id": None,
+        "author_type": "member",
+        "author_member_id": actor.user_id,
+        "author_guest_id": None,
+        "layer": "team",
+        "body": body.body.strip(),
+        "status": body.status,
+        "priority": body.priority,
+        "tags": list(dict.fromkeys(body.tags)),
+        "due_at": body.due_at,
+        "assignee_ids": assignees,
+        "assignee_id": next(iter(assignees), None),
+        "waiting_on_ids": [],
+        "waiting_on_client": False,
+        "is_standalone": True,
+        "anchor": {},
+        "recovery_status": "ok",
+        "context_json": {},
+        "screenshot_key": None,
+        "capture_status": "ok",
+        "attachments": [a.model_dump() for a in body.attachments],
+        "created_at": datetime.now(UTC),
+        "edited_at": None,
+        "deleted_at": None,
+        "client_request_id": body.client_request_id,
+        "request_fingerprint": request_fingerprint(
+            body.model_dump(mode="json", exclude={"client_request_id"})
+        ),
+    }
+
+    async def ticket_out(doc: dict[str, Any]) -> TicketOut:
+        comment = await _comment_out(db, doc)
+        return TicketOut(
+            **comment.model_dump(),
+            project_id=project_id,
+            project_name=project.name,
+            page_title=page.get("title") or page["url_normalized"],
+            page_path=_page_path(page["url_normalized"]) if body.page_id else None,
+        )
+
+    if body.client_request_id:
+        existing = await CommentRepository(db).find_by_client_request_id(
+            workspace_id, body.client_request_id
+        )
+        if existing is not None:
+            require_matching_replay(existing, candidate)
+            return await ticket_out(existing)
+    candidate["ticket_number"] = await CommentRepository(db).next_ticket_number(workspace_id)
+    doc = await CommentRepository(db).create(candidate)
+    if doc is not candidate:
+        return await ticket_out(doc)
     comment = await _comment_out(db, doc)
     await append_event(
         db,

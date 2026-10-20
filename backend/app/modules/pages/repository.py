@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 
 from app.core.mongo_utils import to_object_id
 
@@ -11,6 +12,25 @@ class PageRepository:
 
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
+
+    async def set_approval(
+        self,
+        workspace_id: str,
+        page_id: str,
+        revision_id: str | None,
+        expected_updated_at: datetime | None,
+        approval: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        return await self.db.pages.find_one_and_update(
+            {
+                "workspace_id": workspace_id,
+                "_id": to_object_id(page_id),
+                "latest_revision_id": revision_id,
+                "approval.updated_at": expected_updated_at,
+            },
+            {"$set": {"approval": approval}},
+            return_document=ReturnDocument.AFTER,
+        )
 
     async def find_by_normalized_url(
         self, workspace_id: str, project_id: str, url_normalized: str
@@ -102,12 +122,20 @@ class PageRepository:
 
             raise NotFoundError("Page no longer exists.")
 
-    async def update(self, workspace_id: str, page_id: str, patch: dict[str, Any]) -> None:
+    async def update(
+        self,
+        workspace_id: str,
+        page_id: str,
+        patch: dict[str, Any],
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> None:
         if not patch:
             return
         await self.db.pages.update_one(
             {"_id": to_object_id(page_id), "workspace_id": workspace_id},
             {"$set": patch},
+            session=session,
         )
 
     async def reorder(self, workspace_id: str, project_id: str, page_ids: list[str]) -> None:

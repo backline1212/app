@@ -68,6 +68,7 @@ class TicketCreate(BaseModel):
     page_id: str | None = None
     # Screenshots uploaded beforehand via POST /uploads for this same project.
     attachments: list[AttachmentIn] = Field(default_factory=list, max_length=10)
+    client_request_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class ProjectStatsOut(BaseModel):

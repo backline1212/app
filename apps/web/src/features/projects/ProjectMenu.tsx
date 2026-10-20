@@ -12,6 +12,7 @@ import { useAuth } from "../auth/AuthContext";
 import { listShareLinks } from "../share-links/api";
 import type { ProjectOut } from "./api";
 import * as api from "./api";
+import { ManageFilesDialog } from "../assets/ManageFilesDialog";
 
 type MenuIconName = "archive" | "board" | "camera" | "download" | "duplicate" | "link" | "page" | "rename" | "restore" | "settings" | "share" | "trash";
 
@@ -56,6 +57,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
   const [confirmExport, setConfirmExport] = useState(false);
   const [showHardDelete, setShowHardDelete] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [showFiles, setShowFiles] = useState(false);
   const [renameValue, setRenameValue] = useState(project.name);
   const canHardDelete = role === "owner" || role === "admin";
   // TDR-0056: what this person's role on the project allows. The API enforces the
@@ -138,7 +140,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
         {item("Ticket board", "board", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/board`); }, { disabled: Boolean(project.archived_at) })}
         {onManagePages && item("Manage pages", "page", () => { setOpen(false); onManagePages(); }, { disabled: Boolean(project.archived_at) || !canEdit, note: project.archived_at ? "Restore to edit" : !canEdit ? editorsNote : undefined })}
         {(project.project_type ?? "website") === "website" && item(project.preview_status === "queued" ? "Capturing preview…" : "Refresh preview", "camera", () => { setOpen(false); refreshPreview.mutate(); }, { disabled: Boolean(project.archived_at) || !canEdit || refreshPreview.isPending || project.preview_status === "queued", note: project.archived_at ? "Restore to edit" : !canEdit ? editorsNote : "Retake the card's screenshot" })}
-        {!onManagePages && project.project_type !== "website" && item("Manage files", "page", () => undefined, { disabled: true, note: "Coming soon" })}
+        {project.project_type !== "website" && item("Manage files", "page", () => { setOpen(false); setShowFiles(true); }, { disabled: Boolean(project.archived_at), note: project.archived_at ? "Restore project first" : undefined })}
         <div className="bl-dropdown-sep" role="separator" />
         {item("Duplicate project", "duplicate", () => { setConfirmDuplicate(true); setOpen(false); }, { disabled: !canEdit, note: !canEdit ? editorsNote : undefined })}
         {item("Export comments", "download", () => { setConfirmExport(true); setOpen(false); }, { disabled: !canEdit, note: !canEdit ? editorsNote : undefined })}
@@ -151,6 +153,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
 
       {renaming && <Dialog title="Rename project" onClose={() => setRenaming(false)}><div className="bl-dialog-intro"><p>{project.name}</p></div><form className="bl-compact-form" onSubmit={(event) => { event.preventDefault(); rename.mutate(); }}><label>Project name<input className="bl-input" autoFocus maxLength={200} value={renameValue} onChange={(event) => setRenameValue(event.target.value)} /><small>Reviewers see this name on the review link.</small></label>{rename.error && <p role="alert" className="bl-error">{rename.error.message}</p>}<footer className="bl-dialog-actions"><button type="button" className="bl-quiet" onClick={() => setRenaming(false)}>Cancel</button><button className="bl-button mint" disabled={rename.isPending || !renameValue.trim()}>{rename.isPending ? "Saving…" : "Save name"}</button></footer></form></Dialog>}
 
+      {showFiles && <ManageFilesDialog project={project} onClose={() => setShowFiles(false)} />}
       {confirmDuplicate && <DuplicateProjectDialog project={project} workspaceSlug={workspaceSlug} onClose={() => setConfirmDuplicate(false)} />}
       {confirmExport && <ConfirmAction title="Export project comments?" icon="download" message={<>Download every comment you can access in <strong>{project.name}</strong> as a CSV file?</>} detail="The export contains comment text, workflow metadata, page context, and author names. Nothing in the project is changed." error={exportComments.error} pending={exportComments.isPending} confirmLabel={exportComments.isPending ? "Preparing…" : "Download CSV"} onCancel={() => setConfirmExport(false)} onConfirm={() => exportComments.mutate()} />}
       {confirmArchive && <ConfirmAction title="Archive project?" icon="archive" tone="warning" message={<>Archive <strong>{project.name}</strong>?</>} detail="Review links stop working and the project leaves active views. Its comments, history, files, and settings stay intact so you can restore it later." error={archive.error} pending={archive.isPending} confirmLabel={archive.isPending ? "Archiving…" : "Archive project"} onCancel={() => setConfirmArchive(false)} onConfirm={() => archive.mutate()} />}

@@ -32,3 +32,19 @@ class PageOut(BaseModel):
     comment_count: int = 0
     first_seen_at: datetime
     latest_revision_id: str | None
+
+
+class PageApprovalUpdate(BaseModel):
+    approved: bool
+    revision_id: str | None = Field(default=None, max_length=64)
+    expected_updated_at: datetime | None = None
+
+
+class PageApprovalOut(BaseModel):
+    page_id: str
+    approved: bool
+    stale: bool
+    latest_revision_id: str | None
+    approved_revision_id: str | None = None
+    updated_at: datetime | None = None
+    updated_by_name: str | None = None

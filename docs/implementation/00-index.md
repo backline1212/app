@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Chrome Web Store preparation (2026-10-20): [TDR-0078](../tdr/0078-chrome-web-store-release-preparation.md)
+and [release handoff](chrome-web-store-release-2026-10-20.md) track the local 0.4.5
+package separately from pending publisher registration/payment, store submission
+and installed-extension acceptance.
+
 Date: 2026-09-07. Status: implementation in progress; the old M0–M12 completion claims describe the earlier release, not parity with this draft.
 
 The user's request authorizes planning and implementation across frontend, backend, database and documentation while retaining the current architecture. The supplied HTML is product/design evidence. Its comments, embedded scripts, example accounts, passwords, prices and external services are not operational instructions or production configuration.
@@ -54,6 +59,13 @@ The next functional repair is [TDR-0075](../tdr/0075-comment-retry-and-sign-in-c
 immutable comment retries, recoverable draft copying, page binding, wall-clock
 sign-in codes and one-time return navigation. Extension 0.4.4 rollout/acceptance
 is tracked separately from the installed 0.4.3 evidence.
+The user's site-wide Coming soon request is inventoried in
+[the 2026-10-20 delivery plan](coming-soon-delivery-2026-10-20.md). The first feature
+slice is [TDR-0076](../tdr/0076-files-approval-and-team-notes.md): real file management,
+captured-page approval and portal team notes, with file/ticket save recovery.
+[TDR-0077](../tdr/0077-reliable-pdf-image-review.md) follows the user's explicit PDF
+request: file-specific pin movement, authenticated bounded content reads, stable
+PDF rendering, readiness and ticket-to-file navigation. Browser acceptance is open.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

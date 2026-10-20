@@ -7,9 +7,40 @@ from app.core.rate_limit import actor_rate_limit_key, check_rate_limit
 from app.core.redis_client import get_redis
 from app.core.session import Actor, Session, get_current_actor, require_workspace_context
 from app.modules.pages import service as page_service
-from app.modules.pages.schemas import PageCreate, PageOut, PageRegister, PageReorder, PageUpdate
+from app.modules.pages.schemas import (
+    PageApprovalOut,
+    PageApprovalUpdate,
+    PageCreate,
+    PageOut,
+    PageRegister,
+    PageReorder,
+    PageUpdate,
+)
 
 router = APIRouter(tags=["pages"])
+
+
+@router.get("/pages/{page_id}/approval", response_model=PageApprovalOut)
+async def get_page_approval(
+    page_id: str,
+    session: Session = Depends(require_project_permission("project:view")),
+) -> PageApprovalOut:
+    return await page_service.get_approval(get_db(), require_workspace_context(session), page_id)
+
+
+@router.patch("/pages/{page_id}/approval", response_model=PageApprovalOut)
+async def update_page_approval(
+    page_id: str,
+    body: PageApprovalUpdate,
+    session: Session = Depends(require_project_permission("page:manage")),
+) -> PageApprovalOut:
+    return await page_service.update_approval(
+        get_db(),
+        require_workspace_context(session),
+        page_id,
+        session.user_id,
+        body,
+    )
 
 
 @router.get("/projects/{project_id}/pages", response_model=list[PageOut])

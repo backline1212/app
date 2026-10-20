@@ -167,6 +167,32 @@ async def download_bytes(key: str) -> bytes:
     return await asyncio.to_thread(_download)
 
 
+async def download_bytes_limited(key: str, max_bytes: int) -> bytes:
+    """Bound private review-file reads before allocation; always release the body."""
+    from app.core.errors import ExternalServiceError
+
+    settings = get_settings()
+
+    def _download() -> bytes:
+        response = _make_client().get_object(Bucket=settings.r2_bucket_name, Key=key)
+        body = response["Body"]
+        try:
+            size = int(response["ContentLength"])
+            if size < 1 or size > max_bytes:
+                raise ExternalServiceError("This file exceeds the review download limit.")
+            data: bytes = body.read(max_bytes + 1)
+            if len(data) != size or len(data) > max_bytes:
+                raise ExternalServiceError("The file download was incomplete. Try again.")
+            return data
+        finally:
+            body.close()
+
+    try:
+        return await asyncio.to_thread(_download)
+    except ClientError as exc:
+        raise ExternalServiceError("The file could not be loaded from storage. Try again.") from exc
+
+
 async def list_object_keys(prefixes: list[str]) -> list[str]:
     """Enumerate private objects under already-authorized project prefixes."""
     settings = get_settings()

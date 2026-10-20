@@ -90,7 +90,7 @@ PLANS: dict[str, dict[str, Any]] = {
             _feature("15 team members"),
             _feature("1,000 AI review credits / month (BugHunt AI)"),
             _feature("Slack, Jira, ClickUp, Asana & Trello integrations"),
-            _feature("Cloud login browser sessions"),
+            _feature("Cloud login browser sessions", coming_soon=True),
             _feature("Custom branding & domains", coming_soon=True),
             _feature("100 GB storage"),
         ],
@@ -160,7 +160,7 @@ COMPARISON_CATEGORIES: list[dict[str, Any]] = [
             _row("Team members", "2", "5", "15", "100"),
             _row("Slack, Jira, ClickUp, Asana & Trello", _NO, _NO, _YES, _YES),
             _row("MCP server for AI agents", _NO, _NO, _YES, _YES),
-            _row("Cloud login browser sessions", _NO, _NO, _YES, _YES),
+            _row("Cloud login browser sessions", _NO, _NO, _SOON, _SOON),
         ],
     },
     {

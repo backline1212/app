@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -7,9 +8,16 @@ from app.core.actor_access import resolve_actor_project_access
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.events import append_event
 from app.core.session import Actor, actor_identity
+from app.modules.auth.repository import UserRepository
 from app.modules.pages import events as page_events
 from app.modules.pages.repository import PageRepository
-from app.modules.pages.schemas import PageOut, PageReorder, PageUpdate
+from app.modules.pages.schemas import (
+    PageApprovalOut,
+    PageApprovalUpdate,
+    PageOut,
+    PageReorder,
+    PageUpdate,
+)
 from app.modules.pages.url_normalize import normalize_url
 from app.modules.projects.repository import ProjectRepository
 
@@ -36,6 +44,80 @@ def _page_out(doc: dict[str, Any], *, comment_count: int = 0) -> PageOut:
         first_seen_at=doc["first_seen_at"],
         latest_revision_id=doc.get("latest_revision_id"),
     )
+
+
+def _approval_out(doc: dict[str, Any]) -> PageApprovalOut:
+    approval = doc.get("approval") or {}
+    matches = bool(approval.get("revision_id")) and approval.get("revision_id") == doc.get(
+        "latest_revision_id"
+    )
+    return PageApprovalOut(
+        page_id=str(doc["_id"]),
+        approved=bool(approval.get("approved")) and matches,
+        stale=bool(approval.get("approved")) and not matches,
+        latest_revision_id=doc.get("latest_revision_id"),
+        approved_revision_id=approval.get("revision_id"),
+        updated_at=approval.get("updated_at"),
+        updated_by_name=approval.get("actor_name"),
+    )
+
+
+async def get_approval(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    page_id: str,
+) -> PageApprovalOut:
+    doc = await PageRepository(db).find_by_id(page_id)
+    if doc is None or doc["workspace_id"] != workspace_id or not _is_site_page(doc):
+        raise NotFoundError("Page not found.")
+    return _approval_out(doc)
+
+
+async def update_approval(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    page_id: str,
+    actor_user_id: str,
+    body: PageApprovalUpdate,
+) -> PageApprovalOut:
+    repo = PageRepository(db)
+    doc = await repo.find_by_id(page_id)
+    if doc is None or doc["workspace_id"] != workspace_id or not _is_site_page(doc):
+        raise NotFoundError("Page not found.")
+    project = await ProjectRepository(db).find_by_id(doc["project_id"])
+    if project is None or project["workspace_id"] != workspace_id or project.get("archived_at"):
+        raise NotFoundError("Active project not found.")
+    if body.approved and not body.revision_id:
+        raise ValidationError("Capture a page version through website review before approving it.")
+    actor = await UserRepository(db).find_by_id(actor_user_id)
+    updated = await repo.set_approval(
+        workspace_id,
+        page_id,
+        body.revision_id,
+        body.expected_updated_at,
+        {
+            "approved": body.approved,
+            "revision_id": body.revision_id,
+            "updated_at": datetime.now(UTC),
+            "actor_id": actor_user_id,
+            "actor_name": actor.get("name", "Team member") if actor else "Team member",
+        },
+    )
+    if updated is None:
+        raise ConflictError("The page version or approval changed. Refresh and review it again.")
+    await append_event(
+        db,
+        workspace_id=workspace_id,
+        type="page.approved" if body.approved else "page.approval_revoked",
+        actor_type="member",
+        actor_id=actor_user_id,
+        payload={
+            "project_id": doc["project_id"],
+            "page_id": page_id,
+            "revision_id": body.revision_id,
+        },
+    )
+    return _approval_out(updated)
 
 
 async def register_page(

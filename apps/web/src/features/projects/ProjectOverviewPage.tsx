@@ -13,6 +13,8 @@ import { useSearchParamsUpdater } from "../../lib/use-search-params-updater";
 import { ticketRef } from "../../lib/ticket-ref";
 import { WORKFLOW_STATUSES } from "../../lib/workflow";
 import { AssetReview } from "../assets/AssetReview";
+import { NewTicket } from "../tickets/components/NewTicket";
+import { listMembers } from "../workspaces/api";
 import { useAuth } from "../auth/AuthContext";
 import * as boardApi from "../board/api";
 import type { CommentOut, CommentStatus } from "../board/api";
@@ -133,6 +135,8 @@ export function ProjectOverviewPage() {
   const [showShare, setShowShare] = useState(false);
   const [showPages, setShowPages] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTeamNote, setShowTeamNote] = useState(false);
+  const membersQuery = useQuery({ queryKey: qk.members(workspace.id), queryFn: () => listMembers(workspace.id), enabled: showTeamNote });
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
@@ -762,7 +766,7 @@ export function ProjectOverviewPage() {
   }
 
   if (project.project_type && project.project_type !== "website") {
-    return <AssetReview projectId={project.id} title={project.name} workspaceSlug={workspace.slug} />;
+    return <AssetReview projectId={project.id} project={project} title={project.name} workspaceSlug={workspace.slug} requestedComment={commentsQuery.data?.find(comment => comment.id === (searchParams.get("thread") ?? searchParams.get("comment")))} />;
   }
 
   const activeLinks = (shareLinksQuery.data ?? []).filter((link) => reviewLinkState(link, linkNow) === "active");
@@ -1183,6 +1187,9 @@ export function ProjectOverviewPage() {
         workspaceName={workspace.name}
         totalComments={topLevelComments.length}
         commentsUnavailable={Boolean(commentsQuery.error)}
+        unresolvedCount={commentsQuery.data ? commentsQuery.data.filter(comment => comment.page_id === activePage?.id && !comment.parent_id && !["resolved", "wont_fix"].includes(comment.status)).length : null}
+        onTeamNote={() => setShowTeamNote(true)}
+        canAddTeamNote={canTriage}
         currentPageId={activePage?.id ?? null}
         onSelectPage={goToPage}
         viewport={viewport}
@@ -1216,6 +1223,7 @@ export function ProjectOverviewPage() {
       )}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
       {showSettings && canManageProject && <ProjectForm workspace={workspace} project={project} onClose={() => setShowSettings(false)} />}
+      {showTeamNote && canTriage && <NewTicket workspace={workspace} members={membersQuery.data ?? []} initialProjectId={project.id} initialPageId={activePage?.id ?? ""} teamNote onClose={() => setShowTeamNote(false)} />}
     </main>
   );
 }

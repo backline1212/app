@@ -1343,6 +1343,9 @@ async def reanchor(
     ):
         raise NotFoundError("Comment not found.")
 
+    if existing.get("anchor", {}).get("kind") == "asset":
+        raise ValidationError("Use the file review controls to move this file comment.")
+
     await repo.update(
         comment_id,
         {

@@ -1000,6 +1000,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/assets/{asset_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Content */
+        get: operations["read_content_api_v1_projects__project_id__assets__asset_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/assets/{asset_id}/comments/{comment_id}/region": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Move Comment */
+        patch: operations["move_comment_api_v1_projects__project_id__assets__asset_id__comments__comment_id__region_patch"];
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/assets": {
         parameters: {
             query?: never;
@@ -1016,6 +1050,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/assets/{asset_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Asset */
+        patch: operations["update_asset_api_v1_projects__project_id__assets__asset_id__patch"];
         trace?: never;
     };
     "/api/v1/projects/{project_id}/assets/{asset_id}/comments": {
@@ -1158,6 +1209,24 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pages/{page_id}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Page Approval */
+        get: operations["get_page_approval_api_v1_pages__page_id__approval_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Page Approval */
+        patch: operations["update_page_approval_api_v1_pages__page_id__approval_patch"];
         trace?: never;
     };
     "/api/v1/projects/{project_id}/pages": {
@@ -2407,6 +2476,8 @@ export interface components {
             layer: "client" | "team";
             /** Tags */
             tags?: ("Bug" | "Copy" | "Design" | "Responsive" | "Content" | "Accessibility")[];
+            /** Client Request Id */
+            client_request_id?: string | null;
         };
         /** AssetOut */
         AssetOut: {
@@ -2435,6 +2506,15 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Archived At */
+            archived_at?: string | null;
+        };
+        /** AssetUpdate */
+        AssetUpdate: {
+            /** Filename */
+            filename?: string | null;
+            /** Archived */
+            archived?: boolean | null;
         };
         /**
          * AttachmentIn
@@ -3743,6 +3823,32 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** PageApprovalOut */
+        PageApprovalOut: {
+            /** Page Id */
+            page_id: string;
+            /** Approved */
+            approved: boolean;
+            /** Stale */
+            stale: boolean;
+            /** Latest Revision Id */
+            latest_revision_id: string | null;
+            /** Approved Revision Id */
+            approved_revision_id?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+            /** Updated By Name */
+            updated_by_name?: string | null;
+        };
+        /** PageApprovalUpdate */
+        PageApprovalUpdate: {
+            /** Approved */
+            approved: boolean;
+            /** Revision Id */
+            revision_id?: string | null;
+            /** Expected Updated At */
+            expected_updated_at?: string | null;
+        };
         /** PageCreate */
         PageCreate: {
             /** Url */
@@ -4906,6 +5012,8 @@ export interface components {
             page_id?: string | null;
             /** Attachments */
             attachments?: components["schemas"]["AttachmentIn"][];
+            /** Client Request Id */
+            client_request_id?: string | null;
         };
         /** TicketListOut */
         TicketListOut: {
@@ -7373,9 +7481,82 @@ export interface operations {
             };
         };
     };
-    list_assets_api_v1_projects__project_id__assets_get: {
+    read_content_api_v1_projects__project_id__assets__asset_id__content_get: {
         parameters: {
             query?: never;
+            header?: {
+                "x-guest-session"?: string | null;
+            };
+            path: {
+                project_id: string;
+                asset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_comment_api_v1_projects__project_id__assets__asset_id__comments__comment_id__region_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                asset_id: string;
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Region"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_assets_api_v1_projects__project_id__assets_get: {
+        parameters: {
+            query?: {
+                include_archived?: boolean;
+            };
             header?: {
                 "x-guest-session"?: string | null;
             };
@@ -7423,6 +7604,42 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_asset_api_v1_projects__project_id__assets__asset_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                asset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7716,6 +7933,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GuestSessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_page_approval_api_v1_pages__page_id__approval_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageApprovalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_page_approval_api_v1_pages__page_id__approval_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageApprovalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageApprovalOut"];
                 };
             };
             /** @description Validation Error */

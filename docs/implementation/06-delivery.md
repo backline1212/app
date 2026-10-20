@@ -1,5 +1,94 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Chrome Web Store release preparation (TDR-0078)
+
+The user requested publishing Backline's extension and the one-time developer
+registration. Prepared extension 0.4.5 with 16/32/48/128-pixel icons from the
+existing favicon, toolbar icons, a Chrome 110 minimum matching the bundle target,
+and icon inclusion in the upload ZIP. No permissions/API behavior change. Existing
+unrelated working-tree changes are preserved.
+
+[TDR-0078](../tdr/0078-chrome-web-store-release-preparation.md) and the
+[release handoff](chrome-web-store-release-2026-10-20.md) record source-backed store
+copy, permission/data disclosures and missing policy/account/screenshot inputs.
+Chrome settings visibly report installed extension 0.4.3. Existing-tab reads work;
+creating the developer-dashboard tab returns `Not allowed`. Asked the user to open
+it. No account registration, payment, upload, store submission, production rollout
+or installed-0.4.5 browser acceptance has occurred. Static verification is in
+progress; no suite written/run.
+
+## 2026-10-20: PDF/image commenting and preview repairs (TDR-0077)
+
+Continued the user's PDF/image and audit-gap request. Added a typed file-region
+endpoint preserving the asset/page anchor instead of sending regions through the
+website-anchor contract. The older website endpoint rejects file anchors. Added
+authenticated/rate-limited/bounded private file reads with closed storage bodies,
+no-store/nosniff headers and escaped filenames. Frontend preview loads stable file
+bytes through React Query and renders PDF pages from one document with a bounded
+canvas, actual readiness and loading/error/retry states. Signed metadata polling
+no longer resets the PDF document. Requested tickets resolve to their asset/page;
+drafts are retained across navigation and pin location changes report failures.
+
+See [TDR-0077](../tdr/0077-reliable-pdf-image-review.md). Regenerate API declarations
+and finish affected static checks before publishing. Browser work is blocked by
+Work browser-use settings, so no PDF/image upload, comment or pin movement has been
+submitted to production in this pass. Real rendering/storage, guest/role, duplicate
+retry, page changes, replacement-version mapping and mobile acceptance remain open.
+Do not infer working PDF journeys solely from compile checks.
+
+TDR-0075's Vercel rollout 6366103 reports SUCCESS at
+`https://vercel.com/devbackline-7169/app-web/9T1AVxgBU7J2CpcTzLHTiVS212BK`.
+Downloaded public extension ZIP reports 0.4.4; all five normalized text entries
+match the local build (background/content script/manifest/popup HTML/popup JS).
+This proves the served artifact, not installation or browser acceptance. The
+latest backend Ruff/mypy (201 files) and workspace scoping (20 repositories) pass
+after the PDF content/region additions. Final frontend checks remain in progress.
+
+**Final source checks:** frontend lint/typecheck/build passes 12/12 after all PDF
+and file-reply changes. The existing large-chunk advisory remains. Backend Ruff,
+strict mypy (201 source files), scope audit (20 repositories), formatting and diff
+checks pass. No suite written/run. Public API `/health` reports status/mongo/redis
+all ok. These results permit a source rollout; browser/storage write/concurrency
+acceptance remains open and is not replaced by the health check.
+
+## 2026-10-20: Site-wide roadmap work, first feature slice (TDR-0076)
+
+The full source inventory and remaining implementation boundaries live in
+[Coming soon delivery](coming-soon-delivery-2026-10-20.md). This continuation
+implements active/archived file management with upload/rename/archive/restore,
+transactional file capacity, latest-captured-version page approval/reopen with
+stale/conflict handling, and a current-project/page Team note entry backed by
+member-only team tickets. It also adds request IDs/fingerprint replay to standalone
+tickets and image/PDF comments, pending edit locks and draft recovery. Private DOM
+pinning, deploy capture coordination, native mobile execution, console/network
+recording, video/audio and custom/white-label domains remain open, not shipped.
+
+Pydantic contracts are additive and packages/types are regenerated. No destructive
+migration or shared fixture. Verification/rollout is in progress; do not claim
+actual save/concurrency/role/guest acceptance until recorded. Earlier intermediate
+frontend graph passed 12/12; backend Ruff/mypy passed before the latest ticket/file
+replay changes. Final checks and browser evidence will follow; no suite written/run.
+
+TDR-0075 source 6366103 is pushed. Railway API deployment
+9edb37c6-d3ed-426b-8c43-6de1bbef7a38 and worker deployment
+520b276d-ffd4-485d-8cf8-949ab04c263d both report SUCCESS on that exact commit.
+Extension 0.4.4 is built/published there, but installed Chrome remains 0.4.3 and
+updated-extension retry/copy/failure acceptance is still pending. Cloud-login
+remains on 960c32a; shared server browser isolation is not enabled.
+
+**Verification before final review:** full frontend graph passes 12/12. Backend
+Ruff, strict mypy (201 files) and workspace scoping (20 repository files) pass.
+No suite written/run. A subsequent review adds file-reply IDs/draft locks, refuses
+silent fallback to a different file after archive, and retains API status codes for
+guest safe-rejection recovery; affected frontend checks are repeated before release.
+Chrome manual acceptance is currently blocked: the browser tool reports local
+browser use disabled in Work settings. No browser-setting workaround, new shared
+comment, approval, file upload/archive or account change was performed. Keep actual
+write/concurrency/guest-negative and installed-0.4.4 acceptance open.
+
+Pricing also now marks cloud login sessions unshipped, matching the retained server
+browser isolation gate rather than selling disabled infrastructure as available.
+
 ## 2026-10-19: Comment retry and sign-in continuity (TDR-0075)
 
 Point/region callbacks now share one serialized in-memory CommentCreate submission
