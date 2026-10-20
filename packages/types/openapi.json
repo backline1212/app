@@ -12968,6 +12968,20 @@
           "analyzed_comment_count": {
             "type": "integer",
             "title": "Analyzed Comment Count"
+          },
+          "updated_comment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Updated Comment Ids"
+          },
+          "skipped_comment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skipped Comment Ids"
           }
         },
         "type": "object",

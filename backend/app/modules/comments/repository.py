@@ -244,6 +244,31 @@ class CommentRepository:
         # re-filter by it.
         await self.db.comments.update_one({"_id": to_object_id(comment_id)}, {"$set": patch})
 
+    async def apply_ai_priority(
+        self,
+        workspace_id: str,
+        page_id: str,
+        comment_id: str,
+        expected: dict[str, Any],
+        priority: str,
+    ) -> dict[str, Any] | None:
+        previous = expected.get("priority", "medium")
+        return await self.db.comments.find_one_and_update(
+            {
+                "workspace_id": workspace_id,
+                "page_id": page_id,
+                "_id": to_object_id(comment_id),
+                "parent_id": None,
+                "deleted_at": None,
+                "status": {"$nin": ["resolved", "wont_fix"]},
+                "body": expected["body"],
+                "edited_at": expected.get("edited_at"),
+                "priority": {"$in": [None, "medium"]} if previous == "medium" else previous,
+            },
+            {"$set": {"priority": priority, "edited_at": datetime.now(UTC)}},
+            return_document=ReturnDocument.AFTER,
+        )
+
     async def list_recoverable_for_page(
         self, workspace_id: str, page_id: str
     ) -> list[dict[str, Any]]:

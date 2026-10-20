@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -10,7 +11,7 @@ from app.core.arq_pool import get_arq_pool
 from app.core.errors import NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
 from app.core.project_access import can_view_project
-from app.core.session import Actor, GuestSession, Session, actor_identity
+from app.core.session import Actor, GuestSession, Session, actor_identity, validate_member_session
 from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
 from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
@@ -1096,6 +1097,69 @@ async def update_comment(
         if status == "resolved" and updated["author_type"] == "guest":
             await _notify_guest_comment_resolved(db, updated)
     return comment_out
+
+
+async def apply_ai_priority(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    project_id: str,
+    actor: Session,
+    expected: dict[str, Any],
+    priority: str,
+) -> CommentOut | None:
+    """Apply a suggestion only while the analyzed comment and access still match."""
+    from app.modules.workspaces.repository import MembershipRepository
+
+    if actor.workspace_id != workspace_id:
+        raise NotFoundError("Project not found.")
+    if actor.sid:
+        await validate_member_session(actor)
+    membership = await MembershipRepository(db).find(
+        workspace_id=workspace_id, user_id=actor.user_id
+    )
+    if membership is None:
+        raise PermissionDeniedError("Workspace access changed. Reopen the workspace.")
+    await resolve_actor_project_access(
+        db,
+        replace(actor, role=membership["role"]),
+        project_id,
+        "comment:update_status",
+    )
+    page = await PageRepository(db).find_by_id(expected["page_id"])
+    if page is None or page["workspace_id"] != workspace_id or page["project_id"] != project_id:
+        return None
+    comment_id = str(expected["_id"])
+    updated = await CommentRepository(db).apply_ai_priority(
+        workspace_id,
+        expected["page_id"],
+        comment_id,
+        expected,
+        priority,
+    )
+    if updated is None:
+        return None
+    await append_event(
+        db,
+        workspace_id=workspace_id,
+        type=comment_events.COMMENT_UPDATED,
+        actor_type="member",
+        actor_id=actor.user_id,
+        payload={
+            "comment_id": comment_id,
+            "project_id": project_id,
+            "priority": priority,
+            "source": "ai",
+        },
+    )
+    comment = await _comment_out(db, updated)
+    await _broadcast_comment_event(
+        event_type="comment.updated",
+        workspace_id=workspace_id,
+        project_id=project_id,
+        comment=comment,
+    )
+    return comment
 
 
 async def _notify_guest_comment_resolved(

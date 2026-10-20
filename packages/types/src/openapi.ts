@@ -4079,6 +4079,10 @@ export interface components {
             possible_duplicates?: components["schemas"]["DuplicatePair"][];
             /** Analyzed Comment Count */
             analyzed_comment_count: number;
+            /** Updated Comment Ids */
+            updated_comment_ids?: string[];
+            /** Skipped Comment Ids */
+            skipped_comment_ids?: string[];
         };
         /** ProjectCreate */
         ProjectCreate: {

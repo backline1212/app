@@ -5,9 +5,11 @@ from typing import Any
 import httpx
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.core.actor_access import resolve_actor_project_access
 from app.core.config import get_settings
-from app.core.errors import ExternalServiceError, NotFoundError
+from app.core.errors import BacklineError, ExternalServiceError, NotFoundError
 from app.core.redis_client import get_redis
+from app.core.session import Session, validate_member_session
 from app.modules.ai.key_pool import (
     AIServiceBusyError,
     acquire_key,
@@ -25,8 +27,15 @@ from app.modules.ai.schemas import (
 )
 from app.modules.billing.limits import record_ai_credit, require_within_plan_limit
 from app.modules.comments.repository import CommentRepository
+from app.modules.comments.service import apply_ai_priority
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.repository import ProjectRepository
+
+
+class AIUnavailableError(BacklineError):
+    code = "AI_UNAVAILABLE"
+    status_code = 503
+
 
 GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 
@@ -162,16 +171,17 @@ async def summarize_thread(
 
     settings = get_settings()
     if not settings.groq_api_keys:
-        return SummarizeResult(
-            summary="[AI Disabled] Configure GROQ_API_KEYS to see real summaries. "
-            "The thread context is ready."
+        raise AIUnavailableError(
+            "AI is not configured for this deployment. Ask an administrator to enable it."
         )
 
     await require_within_plan_limit(db, workspace_id, "ai_credits")
     prompt = f"Summarize the following feedback thread in one concise paragraph:\n\n{context}"
     text = await _complete(prompt)
     await record_ai_credit(db, workspace_id, action="summarize", user_id=user_id)
-    return SummarizeResult(summary=text.strip() or "Could not generate summary.")
+    if not text.strip():
+        raise ExternalServiceError("AI returned an empty summary. Try again.")
+    return SummarizeResult(summary=text.strip())
 
 
 async def suggest_reply(
@@ -185,8 +195,8 @@ async def suggest_reply(
 
     settings = get_settings()
     if not settings.groq_api_keys:
-        return SuggestReplyResult(
-            suggestions=["[AI] I agree.", "[AI] Can you clarify?", "[AI] Will fix."]
+        raise AIUnavailableError(
+            "AI is not configured for this deployment. Ask an administrator to enable it."
         )
 
     await require_within_plan_limit(db, workspace_id, "ai_credits")
@@ -201,7 +211,7 @@ async def suggest_reply(
         line.strip("- *").strip() for line in text.split("\n") if line.strip().startswith("-")
     ]
     if not suggestions:
-        suggestions = ["I agree.", "Looking into it.", "Fixed!"]
+        raise ExternalServiceError("AI returned no usable reply suggestions. Try again.")
 
     return SuggestReplyResult(suggestions=suggestions[:3])
 
@@ -211,13 +221,14 @@ async def analyze_project(
     workspace_id: str,
     project_id: str,
     *,
-    user_id: str | None = None,
+    actor: Session,
 ) -> ProjectAnalysisResult:
     """BugHunt AI (docs/tdr/0043): reads a bounded recent set of open root comments,
     asks Groq to prioritize by severity and flag likely duplicate threads, and writes
     the resulting severity straight into each comment's existing `priority` field -
     the same field/vocabulary `comment:update_status` callers already write manually,
     so this needs no new schema, migration, or permission."""
+    user_id = actor.user_id
     project = await ProjectRepository(db).find_by_id(project_id)
     if project is None or project["workspace_id"] != workspace_id:
         raise NotFoundError("Project not found.")
@@ -238,9 +249,8 @@ async def analyze_project(
 
     settings = get_settings()
     if not settings.groq_api_keys:
-        return ProjectAnalysisResult(
-            summary="[AI Disabled] Configure GROQ_API_KEYS to analyze this project.",
-            analyzed_comment_count=0,
+        raise AIUnavailableError(
+            "AI is not configured for this deployment. Ask an administrator to enable it."
         )
 
     if not candidates:
@@ -267,6 +277,9 @@ async def analyze_project(
 
     text = await _complete(prompt, json_mode=True)
     await record_ai_credit(db, workspace_id, action="analyze_project", user_id=user_id)
+    if actor.sid:
+        await validate_member_session(actor)
+    await resolve_actor_project_access(db, actor, project_id, "comment:update_status")
 
     # A malformed or unexpectedly-shaped model response (not JSON, a JSON array/scalar
     # instead of an object, a `findings`/`possible_duplicates` entry that isn't an
@@ -320,15 +333,30 @@ async def analyze_project(
 
     # Only ever writes what survived the block above - a parsing failure leaves
     # `findings` empty, so nothing gets written when the model's output was unusable.
-    repo = CommentRepository(db)
+    updated_ids: list[str] = []
+    skipped_ids: list[str] = []
+    seen: set[str] = set()
     for finding in findings:
+        if finding.comment_id in seen:
+            continue
+        seen.add(finding.comment_id)
         current: Severity = by_id[finding.comment_id].get("priority", "medium")
         if finding.severity != current:
-            await repo.update(finding.comment_id, {"priority": finding.severity})
+            changed = await apply_ai_priority(
+                db,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                actor=actor,
+                expected=by_id[finding.comment_id],
+                priority=finding.severity,
+            )
+            (updated_ids if changed else skipped_ids).append(finding.comment_id)
 
     return ProjectAnalysisResult(
         summary=summary,
         findings=findings,
         possible_duplicates=duplicates,
         analyzed_comment_count=len(candidates),
+        updated_comment_ids=updated_ids,
+        skipped_comment_ids=skipped_ids,
     )

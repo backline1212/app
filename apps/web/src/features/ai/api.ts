@@ -33,7 +33,7 @@ export function aiErrorMessage(error: unknown, fallback: string): string {
   }
   // The month's AI credits are used up: the server's message names the plan's
   // allowance and when it resets, which a generic failure line would hide.
-  if (error instanceof ApiError && error.code === "PLAN_LIMIT_EXCEEDED") {
+  if (error instanceof ApiError && ["PLAN_LIMIT_EXCEEDED", "AI_UNAVAILABLE"].includes(error.code)) {
     return error.message;
   }
   return fallback;

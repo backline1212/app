@@ -1,5 +1,26 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Audit F29 — preserve concurrent priority edits (TDR-0079)
+
+BugHunt now passes its actor through the comments mutation service, rechecks
+authorization after the provider request and applies a priority only while the
+analyzed body/priority/edited_at/open/live/root/page/workspace snapshot still matches.
+Actual writes emit the normal activity and realtime update. Responses report
+updated/skipped IDs; the UI invalidates project/ticket/dashboard/activity data and
+guards simultaneous Analyze actions. No live AI request/credit was consumed here.
+The same source pass removes fabricated suggestion fallbacks: unconfigured AI is
+explicitly unavailable, and empty/unusable summary/suggestion output fails clearly.
+
+Source verification/codegen/rollout is in progress. Provider/human-edit/role-loss/
+realtime acceptance remains pending, as do F24 storage quotas and F26 capacity
+reservations. Unrelated extension manifest/build/icons and Chrome Web Store draft
+documents appeared concurrently and are preserved; this slice excludes extension files.
+
+Final source checks pass: web lint/typecheck/build (3/3, existing large-chunk
+advisory), backend Ruff across app, mypy on affected AI/comments modules (12 files),
+workspace scoping (20 repositories), regenerated contracts and diff checks. No suite
+written/run. Live provider/concurrent-edit acceptance remains pending.
+
 ## 2026-10-20: Audit continuation — proxy bounds, logout cookies and claims (TDR-0078)
 
 F23 now reads incoming forms within the 2 MiB cap and upstream responses within
@@ -21,6 +42,11 @@ Final checks pass: backend Ruff across app, mypy on affected proxy/billing/AI mo
 (20 files), workspace scoping (20 repositories), web lint/typecheck/build (3/3) and
 diff checks. Existing large-chunk advisory remains. No suite written/run. Docker
 argument behavior is source-reviewed; a custom-address image build remains pending.
+
+TDR-0078 source 217f9afde101860cd3b038b50f73e3e007cfc3d1 succeeds on all three
+Railway services and Vercel
+`https://vercel.com/devbackline-7169/app-web/EEhgSK71fL3rKMHHPKAVkzjmqetQ`.
+Runtime cookie/compression acceptance remains open; deployment is not that evidence.
 
 ## 2026-10-20: Chrome Web Store release preparation (TDR-0078)
 

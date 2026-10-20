@@ -1,8 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { aiErrorMessage, analyzeProject, type ProjectAnalysisResult } from "../../ai/api";
-import { qk } from "../../../lib/query-keys";
+import { invalidateTicketsAndDashboard, qk } from "../../../lib/query-keys";
 import { ticketRef } from "../../../lib/ticket-ref";
 import { PRIORITY_META } from "./comments/types";
 import { SparkleIcon } from "./icons";
@@ -29,20 +29,28 @@ export function AiTab({ workspaceId, projectId, onViewComment }: AiTabProps) {
   const [result, setResult] = useState<ProjectAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pending = useRef(false);
 
   async function handleAnalyze() {
+    if (pending.current) return;
+    pending.current = true;
     setIsAnalyzing(true);
     setError(null);
     try {
       const res = await analyzeProject(workspaceId, projectId);
       setResult(res);
       if ((res.findings ?? []).length > 0) {
-        queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId) });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId) }),
+          queryClient.invalidateQueries({ queryKey: qk.activity(workspaceId) }),
+          invalidateTicketsAndDashboard(queryClient, workspaceId),
+        ]);
       }
     } catch (err) {
       setError(aiErrorMessage(err, "Could not analyze this project right now."));
     } finally {
       setIsAnalyzing(false);
+      pending.current = false;
     }
   }
 
@@ -106,6 +114,7 @@ export function AiTab({ workspaceId, projectId, onViewComment }: AiTabProps) {
 
       {result && !disabled && (
         <div className="flex flex-col gap-5 text-left">
+          <p role="status">Reviewed {result.analyzed_comment_count} comments. Updated {(result.updated_comment_ids ?? []).length} priorities.{(result.skipped_comment_ids ?? []).length > 0 ? ` Left ${(result.skipped_comment_ids ?? []).length} changed comments untouched; review those suggestions manually.` : ""}</p>
           <div className="bl-attention" style={{ padding: 10, borderRadius: 4 }}>
             <strong>✨ Summary:</strong>
             <p style={{ marginTop: 4 }}>{result.summary}</p>

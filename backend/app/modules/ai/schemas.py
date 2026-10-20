@@ -37,3 +37,5 @@ class ProjectAnalysisResult(BaseModel):
     findings: list[BugHuntFinding] = Field(default_factory=list)
     possible_duplicates: list[DuplicatePair] = Field(default_factory=list)
     analyzed_comment_count: int
+    updated_comment_ids: list[str] = Field(default_factory=list)
+    skipped_comment_ids: list[str] = Field(default_factory=list)

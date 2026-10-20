@@ -58,6 +58,9 @@ F19/F23 source follow-ups are recorded in
 [TDR-0078](../tdr/0078-proxy-bounds-cookie-deletion-and-claims.md), together with
 F17 Docker inputs and F25/F35 claim reconciliation. Compression/logout/custom-build
 and provider acceptance remains open; F24/F26/F29 are still pending source work.
+F29 now has conditional authorized mutation/event/cache repairs in
+[TDR-0079](../tdr/0079-conditional-ai-priority-updates.md). Provider/concurrency
+acceptance is still open; F24/F26 remain pending implementation.
 
 ## Result and evidence boundary
 

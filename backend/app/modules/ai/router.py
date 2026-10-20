@@ -60,5 +60,5 @@ async def analyze_project(
     session: Session = Depends(require_project_permission("comment:update_status")),
 ) -> ProjectAnalysisResult:
     return await service.analyze_project(
-        db, require_workspace_context(session), project_id, user_id=session.user_id
+        db, require_workspace_context(session), project_id, actor=session
     )

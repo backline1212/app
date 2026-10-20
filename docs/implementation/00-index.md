@@ -69,6 +69,9 @@ PDF rendering, readiness and ticket-to-file navigation. Browser acceptance is op
 [TDR-0078](../tdr/0078-proxy-bounds-cookie-deletion-and-claims.md) continues the audit
 with F19/F23 proxy repairs, extension Docker endpoint inputs and truthful F25/F35
 plan/AI/acceptance claims; live acceptance remains distinct from source completion.
+[TDR-0079](../tdr/0079-conditional-ai-priority-updates.md) addresses F29 with
+conditional authorized priority writes, normal events and explicit applied/skipped
+results; provider/concurrency acceptance remains open.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)
