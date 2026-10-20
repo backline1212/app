@@ -96,6 +96,9 @@ Google readiness and login/signup checking, retry and email fallback states.
 Deploy sync placeholder with signed project CI notifications, credential lifecycle,
 paginated history, member-review snapshot association and read-only MCP history.
 Receipt/capture is not commit verification; background capture remains gated.
+[TDR-0088](../tdr/0088-file-review-navigation-and-draft-guards.md) repairs PDF/image
+file/page/thread URL state, draft navigation guards, page selection and unavailable
+content recovery. Browser acceptance remains separate from source checks.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

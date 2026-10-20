@@ -1,5 +1,24 @@
 # Delivery and verification ledger
 
+## 2026-10-20: PDF/image links and draft navigation (TDR-0088)
+
+File/page/thread view now follows URL parameters, with bounded PDF page picker,
+legacy link resolution, explicit unavailable-file/thread states and read retries.
+Current drafts, replies and uncertain saves retain original context; data-router
+leave/stay/discard and native unload guards prevent accidental navigation loss.
+Reply text remains recoverable if its thread disappears; clipboard fallback and
+project-keyed state avoid copy/navigation dead ends. New-comment cache uses the
+actual confirmed API response. Retry continues to use the original asset/request.
+
+Affected web lint/typecheck/build passes 3/3 before final picker/reply refinement;
+final verification and deployment are in progress. No suite, backend contract or
+production file/comment/screenshot write. Browser member/guest navigation,
+concurrency, failure and role/session acceptance remain pending in the TDR/matrix.
+
+Final affected web lint/typecheck/build passes 3/3 after the PDF picker/reply recovery
+changes, and diff checks pass. Existing large-chunk advisory remains. No suite was
+written or run; browser journeys remain pending.
+
 ## 2026-10-20: Deploy sync and guarded dialog close (TDR-0087)
 
 Replaced the disabled footer control with manager credential create/replay/rotate/
@@ -32,6 +51,14 @@ the full frontend graph passed 12/12. Backend Ruff/full mypy and affected MCP/de
 snapshot follow-up checks, scope audit, contract generation and diff checks pass.
 Existing large-chunk advisory remains. Deployment is the next step; none of these
 checks establishes a live CI or browser journey.
+
+Deploy sync rollout confirmed: 7b25ac3948023ff213320f24af50c51a2e9b4d8a reports
+SUCCESS on Railway API/worker/cloud-login and Vercel
+`https://vercel.com/devbackline-7169/app-web/2s7WSaQDmpioEmy9cZ6316tkXQLC`.
+Public OpenAPI exposes deploy settings/hooks. Public CI sender returns HTTP 200 and
+contains signature handling. Read-only index dry-run finds deployments_project_history
+present, no missing indexes/conflicts and no data modified. No live credential,
+deployment notification or browser capture was created for acceptance.
 
 ## 2026-10-20: Google readiness and storage accounting rollout (TDR-0086/0085)
 

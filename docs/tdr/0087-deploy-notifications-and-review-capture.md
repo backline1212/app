@@ -67,3 +67,9 @@ secret replay/rotation/revoke, stale/invalid/oversize signatures, concurrent del
 retries/order, matching/stale/in-flight snapshots, unchanged revisions, outbox
 recovery and project hard-deletion. Browser use is currently unavailable. Source
 checks, deployment success and contract presence do not close these journeys.
+
+Rollout: 7b25ac3948023ff213320f24af50c51a2e9b4d8a reports SUCCESS on all three
+Railway services and Vercel. Public OpenAPI includes settings/hooks, sender download
+returns HTTP 200, and read-only index inspection finds the deployment history index
+present with no missing/conflicting definitions. No credential/CI notification/
+browser capture was created for these checks.

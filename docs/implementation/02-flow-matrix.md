@@ -1,5 +1,12 @@
 # Flow inventory and acceptance criteria
 
+FD-05/09/20/21 file follow-up (TDR-0088): verify member/guest asset + filePage +
+comment links, legacy page/thread links, correct asset/region resolution, reply
+parent selection, PDF page limits/picker, reload, Back/Forward and cross-project
+state reset. Draft/saving/unconfirmed transitions must offer stay/discard, protect
+active writes and keep original retry context. Test Escape/native unload, removed
+files/threads, read retries, reply text recovery and permission/session loss.
+
 FD-08/09 deploy follow-up (TDR-0087): verify manager setup/rotation/revoke, immutable
 response-loss retries, stale signatures/body reuse, cross-project/guest/issuer-role
 negatives, deployment ordering, pagination and project metadata cancellation. Only

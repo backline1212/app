@@ -776,7 +776,7 @@ export function ProjectOverviewPage() {
   }
 
   if (project.project_type && project.project_type !== "website") {
-    return <AssetReview projectId={project.id} project={project} title={project.name} workspaceSlug={workspace.slug} requestedComment={commentsQuery.data?.find(comment => comment.id === (searchParams.get("thread") ?? searchParams.get("comment")))} />;
+    return <AssetReview key={project.id} projectId={project.id} project={project} title={project.name} workspaceSlug={workspace.slug} requestedComment={commentsQuery.data?.find(comment => comment.id === (searchParams.get("thread") ?? searchParams.get("comment")))} />;
   }
 
   const activeLinks = (shareLinksQuery.data ?? []).filter((link) => reviewLinkState(link, linkNow) === "active");
