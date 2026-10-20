@@ -1,5 +1,12 @@
 # Flow inventory and acceptance criteria
 
+FD-08/09/18 recovery follow-up (TDR-0092): verify one effective-readiness recovery
+surface, direct saved-feedback access during loading/failure/origin mismatch,
+panel URL reload/close/reopen, retained page/thread/filter choices and one-time
+pin/AI-open requests. Do not count document onLoad as working comment tools. Live
+baseline observation confirms saved feedback remains accessible during fallback;
+the final web change needs its own post-deploy acceptance.
+
 FD-08/09 snapshot follow-up (TDR-0091): verify visible/hidden-node, depth, text,
 serialized-byte and elapsed-work limits without partial versions; overlapping
 capture IDs; navigation during registration/capture; generation-aware failure,

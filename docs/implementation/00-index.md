@@ -109,6 +109,9 @@ rollout of TDR-0089 is still pending; compilation and push do not establish it.
 work, isolates capture counters and document identity, and exposes independent
 version-capture retry/waiting notices. Release/deployment and browser acceptance
 remain separate from source verification.
+[TDR-0092](../tdr/0092-preview-recovery-and-feedback-navigation.md) records resumed
+read-only browser checks and consolidates failed-preview recovery with direct saved
+feedback and URL-owned panel selection. The preview network cause remains unproven.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

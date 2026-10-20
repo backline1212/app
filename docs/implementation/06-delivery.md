@@ -1,5 +1,22 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Live flow pass and preview recovery (TDR-0092)
+
+Browser use resumed through a fresh Chrome tab. Baseline observations: extension
+0.4.3 ready, PDF creation type/form/required-file gate and cancellation, existing
+example.com fallback with three saved comments/prior approved screenshot accessible,
+Deploy sync off/setup/empty history/close. No new project/file/comment/credential/CI
+notification saved. CDP network inspection was unavailable during a paused document
+response; no preview network root cause or broad-site success is inferred.
+
+Consolidated duplicate fallback banners into one effective-readiness recovery surface,
+with direct View saved feedback during loading/failure/origin mismatch. Panel choice
+is URL state, preserving page/thread/filters and handling pin-open nonces once.
+Affected web lint/typecheck/build passes 3/3 (supported ES2020 ownership check),
+existing chunk advisory remains. No suite or backend contract. Rollout and final
+browser acceptance remain pending. A second exact-commit Railway dispatch for
+48e6d3e was rejected with the same temporary pause; no deployment ID accepted.
+
 ## 2026-10-20: Bounded page-version capture (TDR-0091)
 
 Capture now has per-invocation counters, scan/node/depth/text/size/elapsed bounds,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import type { ProjectOut } from "../api";
@@ -74,15 +74,21 @@ export function ProjectSidePanel({
   onRevealComment,
   openCommentRequest,
 }: ProjectSidePanelProps) {
-  // A shared `?thread=<id>` link (Comments tab's own URL-owned state, see
-  // useCommentFilters.ts) must reopen this drawer on a fresh load - otherwise the id
-  // survives in the URL but CommentsTab never mounts to read it, and the deep link
-  // silently does nothing. Only checked once, at mount: after that, opening/closing
-  // the drawer is the user's own choice and shouldn't be fought on every re-render.
-  const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<TabId | null>(() =>
-    searchParams.get("thread") ? "comments" : null,
-  );
+  // Persist panel choice without replacing the page/thread/filter parameters.
+  // Legacy thread/comment links open Comments when no explicit panel was chosen.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedPanel = searchParams.get("panel");
+  const activeTab: TabId | null = requestedPanel === "closed" ? null
+    : requestedPanel && Object.prototype.hasOwnProperty.call(TAB_TITLES, requestedPanel) ? requestedPanel as TabId
+    : searchParams.get("thread") || searchParams.get("comment") ? "comments" : null;
+  const setActiveTab = useCallback((id: TabId | null) => {
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.set("panel", id ?? "closed");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const openedRequest = useRef<number | null>(null);
 
   // BugHunt AI's "view" on a finding opens that comment's detail the same way a pin
   // click does; whichever asked last wins.
@@ -98,11 +104,14 @@ export function ProjectSidePanel({
 
   // Whatever tab (if any) was open before, a pin click brings up Comments.
   useEffect(() => {
-    if (openCommentRequest) setActiveTab("comments");
-  }, [openCommentRequest]);
+    if (openCommentRequest && openCommentRequest.nonce !== openedRequest.current) {
+      openedRequest.current = openCommentRequest.nonce;
+      setActiveTab("comments");
+    }
+  }, [openCommentRequest, setActiveTab]);
 
   function toggleTab(id: TabId) {
-    setActiveTab((current) => (current === id ? null : id));
+    setActiveTab(activeTab === id ? null : id);
   }
 
   useEffect(() => {
@@ -112,7 +121,7 @@ export function ProjectSidePanel({
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [activeTab]);
+  }, [activeTab, setActiveTab]);
 
   return (
     <div className="bl-review-sidepanel">

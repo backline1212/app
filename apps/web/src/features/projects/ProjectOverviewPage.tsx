@@ -962,17 +962,13 @@ export function ProjectOverviewPage() {
         </div>
       </header>
 
-      <div className="bl-review-browser-help" role={previewFailed ? "alert" : undefined}>
+      {!previewFailed && !widgetConnected && <div className="bl-review-browser-help">
         <div>
-          <strong>{previewFailed
-            ? "This website isn't ready for review inside Backline."
-            : "Trouble loading this site or signing in?"}</strong>
-          <p>{previewFailed ? "Your saved feedback is still available in Comments. Open the website with the extension to review it using your normal login, or retry the preview." : "If the preview or website sign-in doesn't work, Open with extension uses the real website. Your saved feedback stays in Backline."}</p>
-          {widgetError && <details><summary>Connection details</summary><p>{widgetError}</p></details>}
+          <strong>Trouble loading this site or signing in?</strong>
+          <p>If the preview or website sign-in doesn't work, Open with extension uses the real website. Your saved feedback stays in Backline.</p>
         </div>
         {user && canComment && activePageRequest && <button type="button" className="bl-button" onClick={() => nativeReviewTrigger.current?.click()}>Open with extension</button>}
-        {previewFailed && <button type="button" className="bl-quiet" onClick={reloadPreview}>Retry preview</button>}
-      </div>
+      </div>}
 
       <div className="bl-review-pagebar">
         <div className="bl-review-page-tabs" ref={pageTabsRef} role={sortedPages.length > 0 ? "tablist" : undefined} aria-label={sortedPages.length > 0 ? "Project pages" : undefined}>
@@ -1028,6 +1024,7 @@ export function ProjectOverviewPage() {
               <strong>Couldn’t open the review canvas</strong>
               <p>{canvasSessionQuery.error.message}</p>
               <button type="button" className="bl-button" onClick={() => void canvasSessionQuery.refetch()}>Try again</button>
+              <button type="button" className="bl-quiet" onClick={() => updateViewParams({ panel: "comments" })}>View saved feedback</button>
             </div>
           ) : canvasSession && !activePageRequest ? (
             <div className="bl-review-empty-canvas" role="alert">
@@ -1036,6 +1033,7 @@ export function ProjectOverviewPage() {
               <p>The saved page has a different website origin from this project. Its feedback is still available. Open the current website, or ask a project manager to correct the URL.</p>
               <div className="bl-review-empty-actions">
                 <button type="button" className="bl-button" onClick={() => goToPage("")}>Open current website</button>
+                <button type="button" className="bl-quiet" onClick={() => updateViewParams({ panel: "comments" })}>View saved feedback</button>
                 <button type="button" className="bl-quiet" onClick={() => setShowPages(true)}>Manage pages</button>
                 {canManageProject ? <button type="button" className="bl-quiet" onClick={() => setShowSettings(true)}>Check project URL</button> : <p>Ask a project manager to check the project URL.</p>}
               </div>
@@ -1128,25 +1126,28 @@ export function ProjectOverviewPage() {
                   onLoad={() => setIframeStatus("loaded")}
                   onError={() => setIframeStatus("error")}
                 />
-                {iframeStatus === "loading" && (
+                {effectiveFrameStatus === "loading" && (
                   <div className="bl-iframe-state is-loading" role="status">
                     <span className="bl-review-loader" aria-hidden="true" />
                     <strong>Loading {displayUrl.replace(/^https?:\/\//, "")}</strong>
                     <span className="bl-iframe-steps" aria-hidden="true"><i /><i /><i /></span>
                     <p>Wait for the comment tools to connect. If this website needs its normal browser login, use Open with extension.</p>
+                    <button type="button" className="bl-quiet" onClick={() => updateViewParams({ panel: "comments" })}>View saved feedback</button>
                   </div>
                 )}
-                {iframeStatus === "error" && (
+                {previewFailed && (
                   <div className="bl-iframe-state is-error" role="alert">
                     <span className="bl-review-state-icon is-warning"><GlobeIcon /></span>
                     <strong>This website couldn't open in the preview</strong>
                     <p>Your saved feedback is still available. Open with extension uses the real website and your normal login.</p>
                     <div>
                       {user && canComment && <button type="button" className="bl-button" onClick={() => nativeReviewTrigger.current?.click()}>Open with extension</button>}
+                      <button type="button" className="bl-button" onClick={() => updateViewParams({ panel: "comments" })}>View saved feedback</button>
                       <button type="button" className="bl-quiet" onClick={reloadPreview}>Retry preview</button>
                       <a className="bl-quiet" href={displayUrl} target="_blank" rel="noreferrer">Open live page</a>
                       {canManageProject ? <button type="button" className="bl-quiet" onClick={() => setShowSettings(true)}>Check URL</button> : <p>Ask a project manager if the project URL needs changing.</p>}
                     </div>
+                    {widgetError && <details><summary>Connection details</summary><p>{widgetError}</p></details>}
                   </div>
                 )}
               </div>
