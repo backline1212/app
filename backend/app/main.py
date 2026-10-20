@@ -16,6 +16,7 @@ from app.core.db import close_client, get_client, get_db
 from app.core.errors import register_exception_handlers
 from app.core.indexes import ensure_indexes
 from app.core.redis_client import close_redis, get_redis
+from app.core.snapshot_body_limit import SnapshotBodyLimitMiddleware
 from app.modules.ai.router import router as ai_router
 from app.modules.assets.router import router as assets_router
 from app.modules.auth.router import router as auth_router
@@ -87,6 +88,7 @@ if settings.sentry_dsn:
     )
 
 app = FastAPI(title="Backline API", version="0.1.0", lifespan=lifespan)
+app.add_middleware(SnapshotBodyLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allow_origins,

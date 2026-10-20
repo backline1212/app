@@ -1,5 +1,26 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Bounded page-version capture (TDR-0091)
+
+Capture now has per-invocation counters, scan/node/depth/text/size/elapsed bounds,
+periodic yielding, own-UI exclusion and registered-document URL checks. Failed
+complete capture is explicit; no truncated snapshot enters recovery. Optional
+retry/dismiss/waiting notices stay independent from feedback and suppress stale
+page/generation outcomes. Widget and extension share the behavior (0.4.6 source).
+Raw HTTP snapshot bodies are bounded before parsing; Pydantic validates bounded
+viewport/hash/index and complete tree identity. Legacy revision reads stay intact.
+
+Initial widget/extension checks pass 6/6 before final refinements. Backend Ruff
+passes; final checks/contracts are in progress. No suite, production snapshot or
+shared feedback write. Deployment remains subject to the Railway pause in TDR-0090;
+installed-extension/browser/resource-limit acceptance remains open.
+
+Final source checks pass: frontend lint/typecheck/build 12/12, backend Ruff/full
+mypy (214 files), affected mypy (9), scope audit (23 repositories), codegen and
+diff checks. Earlier widget/extension checks passed 6/6. Only the 0.4.6 version hunk
+is staged from the manifest; unrelated local icon/store preparation is preserved.
+Deployment and installed-extension acceptance remain pending.
+
 ## 2026-10-20: Railway dispatch pause (TDR-0090)
 
 93acf9f is pushed to origin/main, but no automatic backend deployment was observed.

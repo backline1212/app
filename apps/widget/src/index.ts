@@ -5,7 +5,7 @@ import { uploadAttachment, uploadScreenshot } from "./attachment-upload";
 import { connectDashboardStatusBridge } from "./dashboard-bridge";
 import { clearStoredGuestSession, ensureGuestSession, requestDashboardCanvasSession, requestDashboardDisplayName } from "./guest-session";
 import { showSessionNotice } from "./session-notice";
-import { registerCurrentPage, realPageUrl, submitPageSnapshot } from "./page-registration";
+import { registerCurrentPage, realPageUrl, capturePageVersion } from "./page-registration";
 import { wireRealtimeUpdates } from "./realtime";
 import { captureScreenshot } from "./screenshot";
 import { createThreadManager } from "./thread-manager";
@@ -182,10 +182,10 @@ async function init(config: BacklineConfig): Promise<void> {
   // without a reload - see the route follower at the end of init.
   let pageId = await withRetry(() => registerCurrentPage(api, projectId, pageUrl));
   // Only feeds deploy re-anchoring, never needed to leave a comment - so it runs in the
-  // background and a failure (rate limit, a page too large to store) is ignored, the
-  // same as the route follower below. Awaited, one failed snapshot aborted init before
-  // the click handler existed and commenting silently never switched on.
-  void submitPageSnapshot(api, pageId).catch(() => undefined);
+  // background and a failure gets a separate notice/retry. Awaited, one failed
+  // snapshot aborted init before the click handler existed and commenting silently
+  // never switched on.
+  capturePageVersion(api, pageId, shadow, registeredDocumentUrl);
 
   // Never invites a comment that clicking wouldn't actually accept - and it's shown
   // again each time the reviewer switches back into comment mode, so what the composer
@@ -528,7 +528,7 @@ async function init(config: BacklineConfig): Promise<void> {
     if (nextUrl !== followedUrl) return;
     // After the pins, for the same reason as the first page-registered above.
     window.parent.postMessage({ type: "backline:page-registered", pageId }, "*");
-    await submitPageSnapshot(api, pageId).catch(() => undefined);
+    capturePageVersion(api, pageId, shadow, nextDocumentUrl);
   };
   const routePoll = window.setInterval(() => {
     if (ended) return;

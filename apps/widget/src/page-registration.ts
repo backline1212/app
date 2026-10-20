@@ -1,5 +1,6 @@
 import type { ApiClient } from "./api-client";
 import { captureSnapshot } from "./dom-snapshot";
+import { WidgetApiError } from "./api-client";
 
 interface RegisterPageResponse {
   id: string;
@@ -50,10 +51,65 @@ export async function registerCurrentPage(
 export async function submitPageSnapshot(
   api: ApiClient,
   pageId: string,
+  expectedDocumentUrl = location.href,
 ): Promise<void> {
+  if (location.href !== expectedDocumentUrl) throw new Error("The page changed. Reopen review on the current page before capturing a version.");
   const snapshot = await captureSnapshot();
+  if (location.href !== expectedDocumentUrl) throw new Error("The page changed during version capture. Reopen review on the current page.");
   await api.request(`/api/v1/pages/${pageId}/snapshots`, {
     method: "POST",
     body: JSON.stringify(snapshot),
   });
+}
+
+const captureGeneration = new WeakMap<ShadowRoot, number>();
+
+/** Version capture stays independent of commenting, with visible failure/retry. */
+export function capturePageVersion(api: ApiClient, pageId: string, shadow: ShadowRoot, expectedDocumentUrl: string): void {
+  const generation = (captureGeneration.get(shadow) ?? 0) + 1;
+  captureGeneration.set(shadow, generation);
+  shadow.querySelector("[data-backline-capture-notice]")?.remove();
+  let running = false;
+  const current = () => shadow.host.isConnected && captureGeneration.get(shadow) === generation && location.href === expectedDocumentUrl;
+  function notice(message: string, pending: boolean) {
+    if (!current()) return;
+    shadow.querySelector("[data-backline-capture-notice]")?.remove();
+    const panel = document.createElement("div");
+    panel.setAttribute("data-backline-capture-notice", "true");
+    panel.setAttribute("role", "status");
+    panel.style.cssText = "position:fixed;right:16px;bottom:100px;z-index:2147483646;width:min(320px,calc(100vw - 32px));max-height:180px;overflow:auto;box-sizing:border-box;padding:12px;background:#fff;color:#20231e;border:1px solid #ccd2c8;border-radius:6px;font:12px/1.5 system-ui;box-shadow:0 4px 20px #0002;pointer-events:auto";
+    const text = document.createElement("p");
+    text.style.margin = "0 0 8px";
+    text.textContent = message;
+    panel.appendChild(text);
+    if (!pending) {
+      const retry = document.createElement("button");
+      retry.type = "button"; retry.textContent = "Retry version capture";
+      retry.addEventListener("click", () => {
+        if (location.href !== expectedDocumentUrl) { text.textContent = "The page changed. Reopen review on the current page before capturing its version."; retry.disabled = true; return; }
+        if (!running) void run();
+      });
+      panel.appendChild(retry);
+    }
+    const close = document.createElement("button");
+    close.type = "button"; close.textContent = "Dismiss"; close.style.marginLeft = "8px";
+    close.addEventListener("click", () => panel.remove()); panel.appendChild(close);
+    shadow.appendChild(panel);
+  }
+  async function run() {
+    if (running || !current()) return;
+    running = true;
+    shadow.querySelector("[data-backline-capture-notice]")?.remove();
+    const slow = window.setTimeout(() => notice("Page version capture is still awaiting a response. Feedback can still be saved.", true), 20_000);
+    try {
+      await submitPageSnapshot(api, pageId, expectedDocumentUrl);
+      if (current()) shadow.querySelector("[data-backline-capture-notice]")?.remove();
+    } catch (error) {
+      // Account/session recovery owns auth failures, not this optional capture UI.
+      if (!(error instanceof WidgetApiError && [401, 403].includes(error.status))) {
+        notice(`Page version could not be captured. Feedback can still be saved. ${error instanceof Error ? error.message : "Try again when the page settles."}`, false);
+      }
+    } finally { window.clearTimeout(slow); running = false; }
+  }
+  void run();
 }

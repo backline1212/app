@@ -12,7 +12,7 @@ import {
   openComposer,
   parseUserAgent,
   registerCurrentPage,
-  submitPageSnapshot,
+  capturePageVersion,
   renderPin,
   setupRegionDrawer,
   showTooltip,
@@ -80,8 +80,8 @@ async function buildFreshContext(): Promise<AnnotationContext | null> {
   const pageId = await registerCurrentPage(api, project.id, pageUrl);
   const existingComments = await api.request<CommentRecord[]>(`/api/v1/pages/${pageId}/comments`);
   if (generation !== contextGeneration || location.href !== pageUrl) throw new Error("The page changed. Choose Comment again when it finishes loading.");
-  void submitPageSnapshot(api, pageId).catch(() => undefined);
   const shadow = createShadowRoot();
+  capturePageVersion(api, pageId, shadow, pageUrl);
 
   // Connected with a member token, so unlike the guest widget this can change a
   // comment's status itself - the same member-only PATCH the dashboard uses.

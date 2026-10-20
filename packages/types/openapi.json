@@ -15524,6 +15524,8 @@
               "type": "integer"
             },
             "type": "object",
+            "maxProperties": 2,
+            "minProperties": 2,
             "title": "Viewport"
           },
           "node_tree": {
@@ -15532,10 +15534,13 @@
           },
           "nodes_index": {
             "type": "object",
+            "maxProperties": 5000,
+            "minProperties": 1,
             "title": "Nodes Index"
           },
           "full_page_hash": {
             "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
             "title": "Full Page Hash"
           }
         },

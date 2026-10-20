@@ -105,6 +105,10 @@ recovery for settings and rename. Legacy unversioned callers remain compatible.
 [TDR-0090](../tdr/0090-exact-commit-deployment-recovery.md) records Railway's
 temporary deploy pause and the exact pushed-commit recovery command. Backend
 rollout of TDR-0089 is still pending; compilation and push do not establish it.
+[TDR-0091](../tdr/0091-bounded-page-version-capture.md) bounds DOM/HTTP snapshot
+work, isolates capture counters and document identity, and exposes independent
+version-capture retry/waiting notices. Release/deployment and browser acceptance
+remain separate from source verification.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

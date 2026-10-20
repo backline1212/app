@@ -1,5 +1,12 @@
 # Flow inventory and acceptance criteria
 
+FD-08/09 snapshot follow-up (TDR-0091): verify visible/hidden-node, depth, text,
+serialized-byte and elapsed-work limits without partial versions; overlapping
+capture IDs; navigation during registration/capture; generation-aware failure,
+retry/dismiss and waiting responses while commenting remains independent. Check
+bounded/chunked/slow/disconnected HTTP, CORS-visible errors, malformed tree/index,
+guest/current-role negatives and recovery on a valid complete small snapshot.
+
 FD-04/07 edit follow-up (TDR-0089): race settings/rename against another metadata
 save, direct settings and archive; stale forms must conflict. Lose the response,
 retry the exact actor/body/version/ID and verify one mutation/audit/dispatch. Replace
