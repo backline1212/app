@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClientSession
+from pymongo.errors import OperationFailure
 
 from app.core.config import get_settings
 from app.core.db import close_client, get_db
@@ -81,10 +82,9 @@ async def run(*, apply: bool) -> dict[str, Any]:
                 async def commit(
                     session: AsyncIOMotorClientSession, target_workspace: str = workspace_id
                 ) -> None:
-                    for project_id, key, size in grouped[target_workspace]:
-                        await StorageQuotaRepository(db).import_existing(
-                            target_workspace, project_id, key, size, session=session
-                        )
+                    await StorageQuotaRepository(db).import_existing_many(
+                        target_workspace, grouped[target_workspace], session=session
+                    )
                     await db.workspaces.update_one(
                         {"_id": to_object_id(target_workspace)},
                         {
@@ -118,6 +118,9 @@ if __name__ == "__main__":
     parser.add_argument("--apply", action="store_true")
     try:
         print(json.dumps(asyncio.run(run(apply=parser.parse_args().apply)), indent=2))
+    except OperationFailure as exc:
+        print(f"Storage inventory unavailable (database error code {exc.code}).")
+        raise SystemExit(1) from None
     except Exception as exc:
         print(f"Storage inventory unavailable ({type(exc).__name__}).")
         raise SystemExit(1) from None

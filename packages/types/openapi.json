@@ -5,6 +5,27 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/auth/capabilities": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Capabilities",
+        "operationId": "capabilities_api_v1_auth_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthCapabilitiesOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/google/start": {
       "post": {
         "tags": [
@@ -8895,6 +8916,19 @@
           "content_type"
         ],
         "title": "AttachmentOut"
+      },
+      "AuthCapabilitiesOut": {
+        "properties": {
+          "google_sign_in": {
+            "type": "boolean",
+            "title": "Google Sign In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "google_sign_in"
+        ],
+        "title": "AuthCapabilitiesOut"
       },
       "Body_create_direct_upload_api_v1_uploads_direct_post": {
         "properties": {

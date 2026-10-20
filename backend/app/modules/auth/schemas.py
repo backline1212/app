@@ -15,6 +15,10 @@ class GoogleAuthorizationOut(BaseModel):
     authorization_url: str
 
 
+class AuthCapabilitiesOut(BaseModel):
+    google_sign_in: bool
+
+
 class SignupRequest(BaseModel):
     """Signup draft, validated before sending a code; grants no account/session.
     The password remains in the tab and is submitted again with the inbox proof."""

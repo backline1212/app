@@ -57,3 +57,22 @@ Pending manual checks: concurrent near-limit grants/server uploads, retries, fai
 storage/reconciliation renewal race, all storage paths, downgrade/overage behavior,
 confirmed deletion and billing UX. Browser use remains unavailable. Deployment and
 inventory success are not evidence that these write-path journeys passed.
+
+## 2026-10-20 rollout follow-up
+
+Tracking commit 64639a7b107a4656654533dbdf721eb7d00b369f reached SUCCESS on
+Railway API, worker and cloud-login. Repeated read-only inventory matched the
+baseline. The initial sequential import stopped with OperationFailure; a separate
+read-only report showed two ready workspaces and enforcement remained false. The
+import now reads existing holds once and bulk-writes per workspace under the same
+plan lock, preserving larger live holds and renewal tokens. This reduces database
+round trips within the transaction; the original exception did not establish a
+specific database error code. No objects or business records were deleted.
+
+After Ruff/mypy/scope checks, another dry-run matched and the batched --apply
+completed: 10 workspaces, 177 objects, 25,320,983 bytes, zero unattributed objects.
+Read-only accounting report confirms all ten ready, exactly those held bytes,
+zero recent untracked uploads and enforcement false. Read-only index inspection
+finds both storage indexes present and no conflicts. The bounded report emits
+aggregate totals only and can be rerun before future enforcement/bucket changes.
+Enforcement configuration/deployment verification follows in the delivery ledger.

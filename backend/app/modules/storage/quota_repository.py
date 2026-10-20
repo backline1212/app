@@ -6,7 +6,7 @@ from typing import Any
 from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
-from pymongo import ReturnDocument
+from pymongo import ReturnDocument, UpdateOne
 
 from app.core.config import get_settings
 
@@ -130,34 +130,53 @@ class StorageQuotaRepository:
             return_document=ReturnDocument.AFTER,
         )
 
-    async def import_existing(
+    async def import_existing_many(
         self,
         workspace_id: str,
-        project_id: str,
-        key: str,
-        size: int,
+        objects: list[tuple[str, str, int]],
         *,
         session: AsyncIOMotorClientSession,
     ) -> None:
-        existing = await self.find(workspace_id, key, session=session)
-        if existing and existing["state"] in ("reserved", "stored"):
-            # Never reduce a live hold from an inventory collected before the lock.
-            await self.db.storage_objects.update_one(
-                {"_id": existing["_id"], "workspace_id": workspace_id},
-                {"$max": {"byte_size": size}},
+        if not objects:
+            return
+        # Read once and bulk-write once under the same workspace lock. Sequential
+        # round trips for every object can exceed Mongo's transaction lifetime.
+        active = {
+            doc["_id"]
+            async for doc in self.db.storage_objects.find(
+                {
+                    "workspace_id": workspace_id,
+                    "_id": {"$in": [object_id(key) for _, key, _ in objects]},
+                    "state": {"$in": ["reserved", "stored"]},
+                },
+                {"_id": 1},
                 session=session,
             )
-            return
-        await self.reserve(
-            workspace_id=workspace_id,
-            project_id=project_id,
-            key=key,
-            size=size,
-            verify_after=datetime.now(UTC),
-            session=session,
-        )
-        await self.db.storage_objects.update_one(
-            {"_id": object_id(key), "workspace_id": workspace_id},
-            {"$set": {"state": "stored"}, "$unset": {"verify_after": ""}},
-            session=session,
-        )
+        }
+        operations: list[UpdateOne] = []
+        for project_id, key, size in objects:
+            oid = object_id(key)
+            query = {"_id": oid, "workspace_id": workspace_id}
+            if oid in active:
+                # Never reduce a concurrent reservation or reset its renewal token.
+                operations.append(UpdateOne(query, {"$max": {"byte_size": size}}))
+            else:
+                operations.append(
+                    UpdateOne(
+                        query,
+                        {
+                            "$set": {
+                                "workspace_id": workspace_id,
+                                "project_id": project_id,
+                                "key": key,
+                                "bucket": get_settings().r2_bucket_name,
+                                "byte_size": size,
+                                "state": "stored",
+                                "updated_at": datetime.now(UTC),
+                            },
+                            "$unset": {"verify_after": ""},
+                        },
+                        upsert=True,
+                    )
+                )
+        await self.db.storage_objects.bulk_write(operations, session=session)

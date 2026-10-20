@@ -8,6 +8,10 @@ export type TokenPairOut = Schemas["TokenPairOut"];
 export type AccessTokenOut = Schemas["AccessTokenOut"];
 export type SignupChallengeOut = Schemas["SignupChallengeOut"];
 
+export function getAuthCapabilities(): Promise<Schemas["AuthCapabilitiesOut"]> {
+  return apiFetch<Schemas["AuthCapabilitiesOut"]>("/api/v1/auth/capabilities");
+}
+
 export function requestOtp(email: string): Promise<void> {
   return apiFetch<void>("/api/v1/auth/otp/request", {
     method: "POST",

@@ -90,6 +90,8 @@ acceptance remains pending and F24 storage quotas are still separate.
 [TDR-0085](../tdr/0085-storage-byte-reservations.md) implements F24's storage ledger,
 transactional reservations across all writes, inventory and staged enforcement.
 Unused signed grants retain conservative holds; rollout/manual acceptance is tracked.
+[TDR-0086](../tdr/0086-google-sign-in-readiness.md) adds F18's server-validated
+Google readiness and login/signup checking, retry and email fallback states.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

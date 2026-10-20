@@ -1,5 +1,24 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Google readiness and storage accounting rollout (TDR-0086/0085)
+
+Login/signup now query a no-store capability boolean before offering Google. Both
+credentials and a single allowed dashboard callback must be configured; the start
+endpoint repeats this check. Checking/unavailable/failure/retry states keep email
+available. Contracts regenerated. Auth Ruff/mypy (7 files), full backend mypy (208),
+affected web lint/typecheck/build (3/3) and diff checks pass. Actual browser/provider
+acceptance is pending; no account/OTP/provider request or shared feedback write.
+
+Storage tracking 64639a7 reached SUCCESS on all three Railway services. Sequential
+accounting import stopped with OperationFailure; enforcement stayed false. Replaced
+per-object round trips with a workspace-locked bulk import. Storage/script mypy
+(11 files), Ruff and scope audit (22 repositories) pass. Repeated dry-run matched;
+batched apply imported accounting for 10 workspaces / 177 objects / 25,320,983 bytes,
+zero unattributed objects. No objects deleted/business records changed. Read-only
+report confirms all ten ready, matching object/byte totals, zero recent untracked
+uploads. Index dry-run finds both storage indexes present, no conflicts/missing.
+Enforcement enablement and final deployment/public contract verification follow.
+
 ## 2026-10-20: Audit F24 — storage reservations and inventory (TDR-0085)
 
 Added bucket/object ledger reservations under the workspace plan transaction across

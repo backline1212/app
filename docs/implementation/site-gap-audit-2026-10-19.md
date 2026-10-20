@@ -3,6 +3,11 @@
 Date: 2026-10-19 (Asia/Calcutta). Baseline: `main`, commit `2daf5a7`.
 Scope decision: [TDR-0059](../tdr/0059-site-gap-audit.md).
 
+F18 source follow-up: [TDR-0086](../tdr/0086-google-sign-in-readiness.md) checks
+Google configuration and the single dashboard callback before offering sign-in.
+Login/signup checking, error retry and email fallback states are implemented;
+actual configured provider/cookie acceptance remains pending.
+
 F24 source follow-up: [TDR-0085](../tdr/0085-storage-byte-reservations.md) adds
 transactional byte reservations across object writes, additive legacy inventory,
 confirmed-deletion release and honest billing state. Staged enforcement rollout

@@ -1,5 +1,10 @@
 # Flow inventory and acceptance criteria
 
+FD-25 follow-up (TDR-0086): Google readiness checks both credentials and the single
+allowed dashboard callback. Verify checking/unconfigured/error/retry states in
+login and signup, email fallback and actual configured callback completion. A
+capability response is configuration evidence, not successful provider acceptance.
+
 2026-10-19 follow-up: TDR-0070 adds a product-level sign-in question, guided
 extension setup/connection/return, recover/rejoin and real guest exit, expiry-aware
 sharing and one-write metadata/settings edits (FD-04/07/08/16/17/19). New links

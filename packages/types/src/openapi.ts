@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/auth/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Capabilities */
+        get: operations["capabilities_api_v1_auth_capabilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/google/start": {
         parameters: {
             query?: never;
@@ -2541,6 +2558,11 @@ export interface components {
             url: string;
             /** Content Type */
             content_type: string;
+        };
+        /** AuthCapabilitiesOut */
+        AuthCapabilitiesOut: {
+            /** Google Sign In */
+            google_sign_in: boolean;
         };
         /** Body_create_direct_upload_api_v1_uploads_direct_post */
         Body_create_direct_upload_api_v1_uploads_direct_post: {
@@ -5394,6 +5416,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    capabilities_api_v1_auth_capabilities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthCapabilitiesOut"];
+                };
+            };
+        };
+    };
     google_start_api_v1_auth_google_start_post: {
         parameters: {
             query?: never;

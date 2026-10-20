@@ -11,10 +11,12 @@ from app.modules.auth import service as auth_service
 from app.modules.auth.oauth_state import (
     STATE_TTL_SECONDS,
     consume_google_state,
+    google_sign_in_available,
     start_google_sign_in,
 )
 from app.modules.auth.schemas import (
     AccessTokenOut,
+    AuthCapabilitiesOut,
     EmailChangeConfirm,
     EmailChangeRequest,
     GoogleAuthorizationOut,
@@ -53,6 +55,12 @@ def _set_refresh_cookie(response: Response, raw_refresh_token: str) -> None:
         samesite="lax" if settings.environment == "local" else "none",
         path=REFRESH_COOKIE_PATH,
     )
+
+
+@router.get("/capabilities", response_model=AuthCapabilitiesOut)
+async def capabilities(response: Response) -> AuthCapabilitiesOut:
+    response.headers["Cache-Control"] = "no-store"
+    return AuthCapabilitiesOut(google_sign_in=google_sign_in_available())
 
 
 @router.post("/google/start", response_model=GoogleAuthorizationOut)
