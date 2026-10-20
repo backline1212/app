@@ -102,6 +102,9 @@ content recovery. Browser acceptance remains separate from source checks.
 [TDR-0089](../tdr/0089-project-edit-concurrency-and-replay.md) adds project edit
 metadata versions, bounded actor/body replay and explicit latest-details conflict
 recovery for settings and rename. Legacy unversioned callers remain compatible.
+[TDR-0090](../tdr/0090-exact-commit-deployment-recovery.md) records Railway's
+temporary deploy pause and the exact pushed-commit recovery command. Backend
+rollout of TDR-0089 is still pending; compilation and push do not establish it.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

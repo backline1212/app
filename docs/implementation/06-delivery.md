@@ -1,5 +1,15 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Railway dispatch pause (TDR-0090)
+
+93acf9f is pushed to origin/main, but no automatic backend deployment was observed.
+Read-only config confirms expected repo/main and matching watch paths. Dry-run of
+the exact-commit deployment command passes for all three services. First API dispatch
+was rejected with `Deploys have been paused temporarily`; no deployment ID returned,
+other services not dispatched. Backend remains on 7b25ac3, so TDR-0089's version
+guards are not counted live. No config/billing/business data changed. Continue source
+work; retry rollout after the provider pause ends and verify actual SHA/health/contracts.
+
 ## 2026-10-20: Project settings/rename concurrency (TDR-0089)
 
 Added legacy-zero metadata version and paired expected-version/request-ID updates.
