@@ -4437,6 +4437,11 @@ export interface components {
         };
         /** ProjectOut */
         ProjectOut: {
+            /**
+             * Metadata Version
+             * @default 0
+             */
+            metadata_version: number;
             /** Id */
             id: string;
             /** Workspace Id */
@@ -4613,6 +4618,10 @@ export interface components {
         };
         /** ProjectUpdate */
         ProjectUpdate: {
+            /** Expected Metadata Version */
+            expected_metadata_version?: number | null;
+            /** Client Request Id */
+            client_request_id?: string | null;
             /** Name */
             name?: string | null;
             /** Target Origin */

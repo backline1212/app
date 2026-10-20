@@ -99,6 +99,9 @@ Receipt/capture is not commit verification; background capture remains gated.
 [TDR-0088](../tdr/0088-file-review-navigation-and-draft-guards.md) repairs PDF/image
 file/page/thread URL state, draft navigation guards, page selection and unavailable
 content recovery. Browser acceptance remains separate from source checks.
+[TDR-0089](../tdr/0089-project-edit-concurrency-and-replay.md) adds project edit
+metadata versions, bounded actor/body replay and explicit latest-details conflict
+recovery for settings and rename. Legacy unversioned callers remain compatible.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

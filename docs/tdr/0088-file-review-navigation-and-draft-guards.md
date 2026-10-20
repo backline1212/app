@@ -42,3 +42,7 @@ establish these interactions or durable drafts after deliberately leaving/reload
 Final affected web lint/typecheck/build passes 3/3 after picker/reply recovery,
 and diff checks pass. No test suite or production data write. Rollout follows in
 the delivery ledger; browser acceptance remains open.
+
+Web rollout: 5db789c reports Vercel success. This slice changes no backend source;
+backend services remain on the verified 7b25ac3 deployment. Interaction acceptance
+is still pending, including browser history and in-flight save navigation.

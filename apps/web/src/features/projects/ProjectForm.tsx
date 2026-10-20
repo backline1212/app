@@ -107,7 +107,10 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [captureDeviceDetails, setCaptureDeviceDetails] = useState(project?.settings.capture_device_details ?? false);
   const [reviewerCanResolve, setReviewerCanResolve] = useState(project?.settings.reviewer_can_resolve ?? false);
   const [showBoardToClient, setShowBoardToClient] = useState(project?.settings.show_board_to_client ?? false);
-  const enableCrossBrowserRender = project?.settings.enable_cross_browser_render ?? false;
+  const [enableCrossBrowserRender, setEnableCrossBrowserRender] = useState(project?.settings.enable_cross_browser_render ?? false);
+  const expectedVersion = useRef(project?.metadata_version ?? 0);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  const [latestError, setLatestError] = useState("");
   const [newClientName, setNewClientName] = useState("");
   const [newClientContact, setNewClientContact] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
@@ -167,7 +170,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           show_board_to_client: showBoardToClient,
           enable_cross_browser_render: enableCrossBrowserRender,
         };
-        preparedUpdate.current ??= { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId, new_client: newClient, settings };
+        preparedUpdate.current ??= { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId, new_client: newClient, settings, expected_metadata_version: expectedVersion.current, client_request_id: crypto.randomUUID() };
         return api.updateProject(project.id, preparedUpdate.current);
       }
       const members = Object.entries(grants).map(([user_id, role]) => ({ user_id, role }));
@@ -212,6 +215,28 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
     },
   });
   const upgradePlan = planLimitUpgrade(save.error);
+  function projectDraftText() {
+    return JSON.stringify({
+      name, project_type: type, ...(type === "website" ? { url, environment } : {}),
+      client: client === "new" ? { name: newClientName, contact: newClientContact, email: newClientEmail } : selectedClient?.name ?? client,
+      ...(project ? { settings: { capture_device_details: captureDeviceDetails, reviewer_can_resolve: reviewerCanResolve, show_board_to_client: showBoardToClient, enable_cross_browser_render: enableCrossBrowserRender } } : {}),
+    }, null, 2);
+  }
+  const updateConflict = Boolean(project && save.error instanceof ApiError && save.error.status === 409);
+  async function loadLatestDetails() {
+    if (!project || submitting.current) return;
+    submitting.current = true; setLoadingLatest(true); setLatestError("");
+    try {
+      const latest = await api.getProject(project.id);
+      expectedVersion.current = latest.metadata_version ?? 0;
+      setName(latest.name); setUrl(latest.start_url ?? latest.target_origin); setClient(latest.client_id ?? ""); setEnvironment(latest.environment); setEnvironmentEdited(true);
+      setCaptureDeviceDetails(latest.settings.capture_device_details); setReviewerCanResolve(latest.settings.reviewer_can_resolve); setShowBoardToClient(latest.settings.show_board_to_client); setEnableCrossBrowserRender(latest.settings.enable_cross_browser_render);
+      setNewClientName(""); setNewClientContact(""); setNewClientEmail("");
+      preparedUpdate.current = null; ambiguous.current = false; setRetryLocked(false); setDraftCopy(""); setPhase("details"); save.reset();
+      cache.setQueryData(qk.project(latest.id), latest);
+    } catch (error) { setLatestError(error instanceof Error ? error.message : "Latest details could not be loaded."); }
+    finally { submitting.current = false; setLoadingLatest(false); }
+  }
 
   if (phase === "complete" && created) {
     return (
@@ -284,7 +309,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
       {!project && <div className="bl-dialog-progress" aria-label="Step 2 of 3"><i className="is-on" /><i className="is-on" /><i /></div>}
       <div className="bl-dialog-intro"><p>{project ? project.name : `${typeLabel} project`}</p></div>
       <form className="bl-project-form" onSubmit={(event) => { event.preventDefault(); if (canSubmit && !submitting.current) save.mutate(); }}>
-        <fieldset disabled={phase === "saving" || retryLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        <fieldset disabled={phase === "saving" || retryLocked || loadingLatest} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <div className="bl-form-section">
           <label htmlFor="project-client">Client</label>
           {clients.isLoading ? <div className="bl-input bl-input-loading" role="status">Loading clients…</div> : clients.isError ? <div className="bl-inline-error" role="alert"><span>Clients could not load.</span><button type="button" onClick={() => clients.refetch()}>Try again</button></div> : (
@@ -344,12 +369,14 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         </fieldset>
         {phase === "saving" && <p role="status">{files.length ? `${uploaded.length} of ${files.length} files uploaded. Processing remaining files…` : "Saving project…"}</p>}
         {save.error && <p role="alert" className="bl-error">{save.error.message}{created && " The project was saved. Retry to finish the remaining uploads, or open it from Projects."}{upgradePlan && <> <Link to={`/w/${workspace.slug}/billing?upgrade=${upgradePlan}`} onClick={onClose}>See plans</Link></>}</p>}
-        {retryLocked && <div role="status"><p>Saving is unconfirmed. Retry sends the original details. Check Projects before starting another project if you close this window.</p><button type="button" className="bl-quiet" onClick={() => {
-          const draft = [name, type === "website" ? url : typeLabel, client === "new" ? newClientName : selectedClient?.name ?? ""].filter(Boolean).join("\n");
+        {updateConflict && <div className="bl-file-confirm"><p>Copy any details you want to keep below. Loading latest replaces this form with the saved project, so you can review and reapply your changes.</p><button type="button" className="bl-button" disabled={loadingLatest || save.isPending} onClick={() => void loadLatestDetails()}>{loadingLatest ? "Loading latest…" : "Load latest project details"}</button></div>}
+        {latestError && <p role="alert" className="bl-error">{latestError}</p>}
+        {retryLocked && <div role="status"><p>{updateConflict ? "This save cannot overwrite newer project details. Copy your draft before loading the latest version." : "Saving is unconfirmed. Retry sends the original details. Check Projects before starting another project if you close this window."}</p><button type="button" className="bl-quiet" onClick={() => {
+          const draft = projectDraftText();
           if (!navigator.clipboard) { setDraftCopy("Select the details below to copy them manually."); return; }
           void navigator.clipboard.writeText(draft).then(() => setDraftCopy("Details copied.")).catch(() => setDraftCopy("Select the details below to copy them manually."));
-        }}>Copy details</button><textarea className="bl-input" readOnly aria-label="Project details to copy" value={[name, type === "website" ? url : typeLabel, client === "new" ? newClientName : selectedClient?.name ?? ""].filter(Boolean).join("\n")} onFocus={(event) => event.target.select()} />{draftCopy && <p>{draftCopy}</p>}</div>}
-        <footer className="bl-dialog-actions bl-dialog-actions-in-form"><button type="button" className="bl-quiet" disabled={save.isPending || Boolean(created)} onClick={retryLocked || project ? close : () => setPhase("type")}>{retryLocked ? "Close" : project ? "Cancel" : "Back"}</button><button className="bl-button mint" disabled={save.isPending || (!retryLocked && !canSubmit)}>{save.isPending ? (uploaded.length ? `Uploading ${uploaded.length + 1} of ${files.length}…` : "Saving…") : retryLocked ? "Retry save" : project ? "Save changes" : created ? "Finish uploads" : "Create project"}</button></footer>
+        }}>Copy details</button><textarea className="bl-input" readOnly aria-label="Project details to copy" value={projectDraftText()} onFocus={(event) => event.target.select()} />{draftCopy && <p>{draftCopy}</p>}</div>}
+        <footer className="bl-dialog-actions bl-dialog-actions-in-form"><button type="button" className="bl-quiet" disabled={save.isPending || loadingLatest || Boolean(created)} onClick={retryLocked || project ? close : () => setPhase("type")}>{retryLocked ? "Close" : project ? "Cancel" : "Back"}</button><button className="bl-button mint" disabled={save.isPending || loadingLatest || updateConflict || (!retryLocked && !canSubmit)}>{save.isPending ? (uploaded.length ? `Uploading ${uploaded.length + 1} of ${files.length}…` : "Saving…") : retryLocked ? "Retry save" : project ? "Save changes" : created ? "Finish uploads" : "Create project"}</button></footer>
       </form>
     </Dialog>
   );

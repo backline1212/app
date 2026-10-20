@@ -1,5 +1,12 @@
 # Flow inventory and acceptance criteria
 
+FD-04/07 edit follow-up (TDR-0089): race settings/rename against another metadata
+save, direct settings and archive; stale forms must conflict. Lose the response,
+retry the exact actor/body/version/ID and verify one mutation/audit/dispatch. Replace
+the last marker and verify older retries cannot overwrite. Check copied draft,
+explicit latest reload, failed reload, current permission and pending/Escape close.
+Legacy unversioned requests are compatible without a CAS guarantee.
+
 FD-05/09/20/21 file follow-up (TDR-0088): verify member/guest asset + filePage +
 comment links, legacy page/thread links, correct asset/region resolution, reply
 parent selection, PDF page limits/picker, reload, Back/Forward and cross-project

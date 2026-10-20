@@ -270,7 +270,7 @@ class ProjectRepository:
     ) -> None:
         await self.db.projects.update_one(
             {"workspace_id": workspace_id, "_id": to_object_id(project_id)},
-            {"$set": {**patch, "updated_at": datetime.now(UTC)}},
+            {"$set": {**patch, "updated_at": datetime.now(UTC)}, "$inc": {"metadata_version": 1}},
             session=session,
         )
 
@@ -284,7 +284,7 @@ class ProjectRepository:
         set_ops = {f"settings_json.{k}": v for k, v in settings_patch.items()}
         await self.db.projects.update_one(
             {"workspace_id": workspace_id, "_id": to_object_id(project_id)},
-            {"$set": {**set_ops, "updated_at": datetime.now(UTC)}},
+            {"$set": {**set_ops, "updated_at": datetime.now(UTC)}, "$inc": {"metadata_version": 1}},
         )
 
     async def update(
@@ -304,14 +304,20 @@ class ProjectRepository:
             patch["hero_url"] = hero_url
         # workspace-scope-exempt: update_project (projects/service.py) already verified
         # doc["workspace_id"] == workspace_id via find_by_id before calling this.
-        await self.db.projects.update_one({"_id": to_object_id(project_id)}, {"$set": patch})
+        await self.db.projects.update_one(
+            {"_id": to_object_id(project_id)},
+            {"$set": patch, "$inc": {"metadata_version": 1}},
+        )
 
     async def archive(self, project_id: str) -> None:
         # workspace-scope-exempt: archive_project already verified ownership via
         # find_by_id before calling this, same as update() above.
         await self.db.projects.update_one(
             {"_id": to_object_id(project_id)},
-            {"$set": {"archived_at": datetime.now(UTC), "updated_at": datetime.now(UTC)}},
+            {
+                "$set": {"archived_at": datetime.now(UTC), "updated_at": datetime.now(UTC)},
+                "$inc": {"metadata_version": 1},
+            },
         )
 
     # Card previews (TDR-0058). These never touch `updated_at`: the projects grid sorts

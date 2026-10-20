@@ -165,6 +165,8 @@ class ProjectResolve(BaseModel):
 
 
 class ProjectUpdate(BaseModel):
+    expected_metadata_version: int | None = Field(default=None, ge=0)
+    client_request_id: str | None = Field(default=None, min_length=1, max_length=64)
     name: str | None = Field(default=None, min_length=1, max_length=200)
     target_origin: str | None = Field(default=None, min_length=1, max_length=500)
     environment: Environment | None = None
@@ -180,6 +182,8 @@ class ProjectUpdate(BaseModel):
 
     @model_validator(mode="after")
     def exclusive_client(self) -> "ProjectUpdate":
+        if (self.expected_metadata_version is None) != (self.client_request_id is None):
+            raise ValueError("Versioned updates require both a metadata version and request ID.")
         if self.client_id and self.new_client:
             raise ValueError("Choose an existing client or create a new one.")
         return self
@@ -221,6 +225,7 @@ class ProjectSettingsUpdate(BaseModel):
 
 
 class ProjectOut(BaseModel):
+    metadata_version: int = 0
     id: str
     workspace_id: str
     name: str

@@ -3,6 +3,11 @@
 Date: 2026-10-19 (Asia/Calcutta). Baseline: `main`, commit `2daf5a7`.
 Scope decision: [TDR-0059](../tdr/0059-site-gap-audit.md).
 
+F30 edit follow-up: [TDR-0089](../tdr/0089-project-edit-concurrency-and-replay.md)
+adds versioned project saves, bounded actor/body replay and settings/rename conflict
+recovery. Actual concurrency/browser verification and post-commit integration
+durability remain open; legacy unversioned callers do not gain a CAS guarantee.
+
 L06 source follow-up: [TDR-0087](../tdr/0087-deploy-notifications-and-review-capture.md)
 implements signed deploy notifications, project credential lifecycle, review
 snapshot association, history/setup and read-only MCP history. Browser/live CI

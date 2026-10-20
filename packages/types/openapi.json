@@ -13927,6 +13927,11 @@
       },
       "ProjectOut": {
         "properties": {
+          "metadata_version": {
+            "type": "integer",
+            "title": "Metadata Version",
+            "default": 0
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -14430,6 +14435,31 @@
       },
       "ProjectUpdate": {
         "properties": {
+          "expected_metadata_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Metadata Version"
+          },
+          "client_request_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Request Id"
+          },
           "name": {
             "anyOf": [
               {

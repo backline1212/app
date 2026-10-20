@@ -1,5 +1,26 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Project settings/rename concurrency (TDR-0089)
+
+Added legacy-zero metadata version and paired expected-version/request-ID updates.
+Current project reload/permission, actor/body replay, stale-version rejection,
+metadata/settings/client mutation, replay marker and audit share the transaction.
+Applied retries skip another mutation/audit/integration dispatch. Direct metadata,
+settings and archive writes increment the version; previews/deploy/file activity do
+not. Legacy unversioned callers retain compatibility without a CAS guarantee.
+
+Project settings and rename retain their initial base version and immutable retry
+request. Conflicts expose draft copy and explicit latest reload/review; failed reload
+retains the draft. Rename also guards pending close/concurrent saves. Source checks
+and rollout are in progress. No production metadata/client save, integration send or
+suite run. Actual concurrent/lost-response/browser acceptance remains pending.
+
+Final checks pass: frontend lint/typecheck/build 12/12, affected final web 3/3 after
+copy refinements, backend Ruff/full mypy (213 files), final affected mypy (9 files)
+after current-membership validation and scope audit (23 repositories). Contracts
+regenerated, diff checks pass. Existing large-chunk advisory remains. No suite or
+production metadata/client mutation. Deployment/contract verification follows.
+
 ## 2026-10-20: PDF/image links and draft navigation (TDR-0088)
 
 File/page/thread view now follows URL parameters, with bounded PDF page picker,
@@ -18,6 +39,11 @@ concurrency, failure and role/session acceptance remain pending in the TDR/matri
 Final affected web lint/typecheck/build passes 3/3 after the PDF picker/reply recovery
 changes, and diff checks pass. Existing large-chunk advisory remains. No suite was
 written or run; browser journeys remain pending.
+
+PDF/image web rollout: 5db789c reports Vercel success
+`https://vercel.com/devbackline-7169/app-web/5q457n4v9cXitajEc5RM8R2zbis9`.
+Backend services remain on the preceding 7b25ac3 because this slice has no backend
+source change. Browser navigation/draft/write acceptance remains pending.
 
 ## 2026-10-20: Deploy sync and guarded dialog close (TDR-0087)
 

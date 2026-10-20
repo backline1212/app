@@ -1,6 +1,7 @@
 import { type ReactNode, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Schemas } from "@backline/types";
 
 import { Dialog } from "../../components/Dialog";
 import { reviewLinkState } from "../share-links/link-state";
@@ -13,6 +14,7 @@ import { listShareLinks } from "../share-links/api";
 import type { ProjectOut } from "./api";
 import * as api from "./api";
 import { ManageFilesDialog } from "../assets/ManageFilesDialog";
+import { ApiError } from "../../lib/api-client";
 
 type MenuIconName = "archive" | "board" | "camera" | "download" | "duplicate" | "link" | "page" | "rename" | "restore" | "settings" | "share" | "trash";
 
@@ -59,6 +61,10 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
   const [renaming, setRenaming] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
   const [renameValue, setRenameValue] = useState(project.name);
+  const renameVersion = useRef(project.metadata_version ?? 0);
+  const renameRequest = useRef<Schemas["ProjectUpdate"] | null>(null);
+  const renameBusy = useRef(false);
+  const [renameLocked, setRenameLocked] = useState(false);
   const canHardDelete = role === "owner" || role === "admin";
   // TDR-0056: what this person's role on the project allows. The API enforces the
   // same split; these only keep the menu honest about it.
@@ -73,7 +79,31 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
     return invalidateProjectMutation(cache, project.workspace_id);
   }
 
-  const rename = useMutation({ mutationFn: () => api.updateProject(project.id, { name: renameValue.trim() }), onSuccess: async () => { await refreshWorkspace(); setRenaming(false); toast("Project renamed."); } });
+  const rename = useMutation({
+    mutationFn: async () => {
+      if (renameBusy.current) throw new Error("A rename is already in progress.");
+      renameBusy.current = true;
+      renameRequest.current ??= { name: renameValue.trim(), expected_metadata_version: renameVersion.current, client_request_id: crypto.randomUUID() };
+      try { return await api.updateProject(project.id, renameRequest.current); }
+      catch (error) {
+        if (!renameLocked && error instanceof ApiError && [400, 403, 404, 409, 422].includes(error.status)) renameRequest.current = null;
+        else setRenameLocked(true);
+        throw error;
+      }
+    },
+    onSuccess: async () => { renameRequest.current = null; setRenameLocked(false); await refreshWorkspace(); setRenaming(false); toast("Project renamed."); },
+    onSettled: () => { renameBusy.current = false; },
+  });
+  const reloadRename = useMutation({
+    mutationFn: async () => {
+      if (renameBusy.current) throw new Error("Wait for the current save first.");
+      renameBusy.current = true;
+      return api.getProject(project.id);
+    },
+    onSuccess: latest => { renameVersion.current = latest.metadata_version ?? 0; setRenameValue(latest.name); renameRequest.current = null; setRenameLocked(false); rename.reset(); cache.setQueryData(qk.project(latest.id), latest); },
+    onSettled: () => { renameBusy.current = false; },
+  });
+  const renameConflict = rename.error instanceof ApiError && rename.error.status === 409;
   const copyLink = useMutation({
     mutationFn: () => listShareLinks(project.id),
     onSuccess: (links) => {
@@ -136,7 +166,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
         {onShare && item(canManage ? "Share & access" : "Who has access", "share", () => { setOpen(false); onShare(); }, { disabled: Boolean(project.archived_at) })}
         {item(copyLink.isPending ? "Copying…" : "Copy review link", "link", () => { setOpen(false); copyLink.mutate(); }, { disabled: Boolean(project.archived_at) || copyLink.isPending || !canEdit, note: !canEdit ? editorsNote : undefined })}
         {item("Manage share links", "link", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/share-links`); }, { disabled: Boolean(project.archived_at) || !canEdit, note: !canEdit ? editorsNote : undefined })}
-        {item("Rename project", "rename", () => { setRenameValue(project.name); setRenaming(true); setOpen(false); }, { disabled: !canManage, note: !canManage ? managersNote : undefined })}
+        {item("Rename project", "rename", () => { renameVersion.current = project.metadata_version ?? 0; renameRequest.current = null; setRenameLocked(false); rename.reset(); reloadRename.reset(); setRenameValue(project.name); setRenaming(true); setOpen(false); }, { disabled: !canManage, note: !canManage ? managersNote : undefined })}
         {item("Ticket board", "board", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/board`); }, { disabled: Boolean(project.archived_at) })}
         {onManagePages && item("Manage pages", "page", () => { setOpen(false); onManagePages(); }, { disabled: Boolean(project.archived_at) || !canEdit, note: project.archived_at ? "Restore to edit" : !canEdit ? editorsNote : undefined })}
         {(project.project_type ?? "website") === "website" && item(project.preview_status === "queued" ? "Capturing preview…" : "Refresh preview", "camera", () => { setOpen(false); refreshPreview.mutate(); }, { disabled: Boolean(project.archived_at) || !canEdit || refreshPreview.isPending || project.preview_status === "queued", note: project.archived_at ? "Restore to edit" : !canEdit ? editorsNote : "Retake the card's screenshot" })}
@@ -151,7 +181,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
         {item("Delete project", "trash", () => { setShowHardDelete(true); setOpen(false); }, { danger: true, disabled: !canHardDelete, note: !canHardDelete ? "Owners and admins only" : "Permanent" })}
       </div>}
 
-      {renaming && <Dialog title="Rename project" onClose={() => setRenaming(false)}><div className="bl-dialog-intro"><p>{project.name}</p></div><form className="bl-compact-form" onSubmit={(event) => { event.preventDefault(); rename.mutate(); }}><label>Project name<input className="bl-input" autoFocus maxLength={200} value={renameValue} onChange={(event) => setRenameValue(event.target.value)} /><small>Reviewers see this name on the review link.</small></label>{rename.error && <p role="alert" className="bl-error">{rename.error.message}</p>}<footer className="bl-dialog-actions"><button type="button" className="bl-quiet" onClick={() => setRenaming(false)}>Cancel</button><button className="bl-button mint" disabled={rename.isPending || !renameValue.trim()}>{rename.isPending ? "Saving…" : "Save name"}</button></footer></form></Dialog>}
+      {renaming && <Dialog title="Rename project" onClose={() => { if (!renameBusy.current) setRenaming(false); }}><div className="bl-dialog-intro"><p>{project.name}</p></div><form className="bl-compact-form" onSubmit={(event) => { event.preventDefault(); if (!renameBusy.current && !renameConflict) rename.mutate(); }}><label>Project name<input className="bl-input" autoFocus maxLength={200} readOnly={rename.isPending || reloadRename.isPending || renameLocked || renameConflict} value={renameValue} onChange={(event) => setRenameValue(event.target.value)} onFocus={event => event.target.select()} /><small>Reviewers see this name on the review link.</small></label>{rename.error && <p role="alert" className="bl-error">{rename.error.message}</p>}{renameLocked && <p role="status">Saving was not confirmed. Retry sends the same name and request. Select and copy the name before closing, then check the saved project.</p>}{renameConflict && <div className="bl-file-confirm"><p>Copy the name above if you want to keep it. Loading latest replaces it with the saved name.</p><button type="button" className="bl-button" disabled={reloadRename.isPending || rename.isPending} onClick={() => reloadRename.mutate()}>{reloadRename.isPending ? "Loading…" : "Load latest name"}</button></div>}{reloadRename.error && <p role="alert" className="bl-error">{reloadRename.error.message}</p>}<footer className="bl-dialog-actions"><button type="button" className="bl-quiet" disabled={rename.isPending || reloadRename.isPending} onClick={() => setRenaming(false)}>{renameLocked ? "Close" : "Cancel"}</button><button className="bl-button mint" disabled={rename.isPending || reloadRename.isPending || renameConflict || !renameValue.trim()}>{rename.isPending ? "Saving…" : renameLocked ? "Retry save" : "Save name"}</button></footer></form></Dialog>}
 
       {showFiles && <ManageFilesDialog project={project} onClose={() => setShowFiles(false)} />}
       {confirmDuplicate && <DuplicateProjectDialog project={project} workspaceSlug={workspaceSlug} onClose={() => setConfirmDuplicate(false)} />}

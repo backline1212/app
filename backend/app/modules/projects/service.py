@@ -42,6 +42,7 @@ from app.modules.projects.schemas import (
     ProjectUpdate,
     normalize_origin,
 )
+from app.modules.workspaces.repository import MembershipRepository
 
 
 def _access_out(doc: dict[str, Any]) -> ProjectAccessOut:
@@ -76,6 +77,7 @@ def _project_out(doc: dict[str, Any], viewer: Session | None = None) -> ProjectO
     settings_merged = {**settings_defaults, **settings_json}
 
     return ProjectOut(
+        metadata_version=int(doc.get("metadata_version", 0)),
         id=str(doc["_id"]),
         workspace_id=doc["workspace_id"],
         name=doc["name"],
@@ -442,6 +444,9 @@ async def update_project(
             k: v for k, v in {"name": name, "target_origin": target_origin}.items() if v is not None
         }
     )
+    expected_version = patch.pop("expected_metadata_version", None)
+    request_id = patch.pop("client_request_id", None)
+    fingerprint = request_fingerprint(patch)
     for key in ("name", "target_origin", "environment"):
         if key in patch and (patch[key] is None or not str(patch[key]).strip()):
             raise ValidationError(f"{key} cannot be empty.")
@@ -451,10 +456,6 @@ async def update_project(
         patch["start_url"] = normalize_origin(patch["target_origin"])
         patch["target_origin"] = review_origin(patch["start_url"])
     new_client = patch.pop("new_client", None)
-    if patch.get("client_id") and not await ClientRepository(db).find(
-        workspace_id, patch["client_id"]
-    ):
-        raise ValidationError("Client must belong to this workspace and be active.")
     settings_patch = {
         key: value
         for key, value in (patch.pop("settings", None) or {}).items()
@@ -463,11 +464,39 @@ async def update_project(
 
     # One document mutation: invalid metadata/client never leaves settings partly
     # saved. Dot paths preserve unrelated settings during concurrent changes.
-    async def update(session: AsyncIOMotorClientSession) -> None:
+    async def update(session: AsyncIOMotorClientSession) -> bool:
         current = await repo.find_by_id(project_id, session=session)
         if current is None or current["workspace_id"] != workspace_id:
             raise NotFoundError("Project not found.")
+        if viewer is not None:
+            membership = await MembershipRepository(db).find(
+                workspace_id=workspace_id, user_id=viewer.user_id, session=session
+            )
+            if membership is None or membership["role"] != viewer.role:
+                raise PermissionDeniedError("Workspace access changed. Reopen the workspace.")
+            check_project_action(current, viewer, "project:update")
+        previous_request = current.get("last_metadata_request") or {}
+        if request_id and previous_request.get("id") == request_id:
+            if (
+                previous_request.get("actor_id") != actor_user_id
+                or previous_request.get("fingerprint") != fingerprint
+                or previous_request.get("expected_version") != expected_version
+            ):
+                raise ConflictError("This save request already names different project changes.")
+            return False
+        if (
+            expected_version is not None
+            and int(current.get("metadata_version", 0)) != expected_version
+        ):
+            raise ConflictError(
+                "Project details changed while this form was open. Copy your draft, "
+                "then load the latest details before saving again."
+            )
         next_state = {**current, **patch}
+        if patch.get("client_id") and not await ClientRepository(db).find(
+            workspace_id, patch["client_id"], session=session
+        ):
+            raise ValidationError("Client must belong to this workspace and be active.")
         if (
             current.get("archived_at") is None
             and is_untouched_sample(current)
@@ -491,6 +520,18 @@ async def update_project(
             {
                 **transaction_patch,
                 **{f"settings_json.{key}": value for key, value in settings_patch.items()},
+                **(
+                    {
+                        "last_metadata_request": {
+                            "id": request_id,
+                            "actor_id": actor_user_id,
+                            "fingerprint": fingerprint,
+                            "expected_version": expected_version,
+                        }
+                    }
+                    if request_id
+                    else {}
+                ),
             },
             session=session,
         )
@@ -508,8 +549,9 @@ async def update_project(
             },
             session=session,
         )
+        return True
 
-    await run_plan_change(db, workspace_id, update)
+    changed = await run_plan_change(db, workspace_id, update)
 
     # Deferred import: integrations/service.py imports ProjectRepository from this
     # module's sibling (projects/repository.py), not from here, so this isn't a true
@@ -518,7 +560,8 @@ async def update_project(
     # (comments/service.py's _dispatch_integration_event).
     from app.modules.integrations.service import dispatch_project_updated_event
 
-    await dispatch_project_updated_event(db, workspace_id=workspace_id, project_id=project_id)
+    if changed:
+        await dispatch_project_updated_event(db, workspace_id=workspace_id, project_id=project_id)
 
     updated = await repo.find_by_id(project_id)
     assert updated is not None
