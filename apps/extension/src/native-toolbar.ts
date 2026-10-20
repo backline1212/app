@@ -27,9 +27,13 @@ export function createNativeToolbar(info: NativeReviewInfo, onMode: (mode: Revie
   bar.appendChild(title);
   const buttons = new Map<ReviewMode, HTMLButtonElement>();
   const status = document.createElement("div");
+  let accessEnded = false;
+  let removed = false;
+  let changingMode = false;
   status.className = "native-status";
   status.setAttribute("role", "status");
   function setMode(mode: ReviewMode) {
+    if (accessEnded || removed) return;
     buttons.forEach((button, key) => button.setAttribute("aria-pressed", String(key === mode)));
     status.textContent = mode === "browse" ? "Browse and sign in normally. Choose Comment when you're ready."
       : mode === "point" ? "Click an element to leave a comment." : "Drag over an area to leave a comment.";
@@ -37,7 +41,17 @@ export function createNativeToolbar(info: NativeReviewInfo, onMode: (mode: Revie
   for (const [mode, label] of [["browse", "Browse"], ["point", "Comment"], ["region", "Draw"]] as const) {
     const button = document.createElement("button");
     button.textContent = label;
-    button.onclick = () => { void onMode(mode).then(() => setMode(mode), error => { status.textContent = error.message; }); };
+    button.onclick = () => {
+      if (changingMode || accessEnded || removed) return;
+      changingMode = true;
+      buttons.forEach(item => { item.disabled = true; });
+      void onMode(mode).then(() => setMode(mode), error => {
+        if (!accessEnded && !removed) status.textContent = error.message;
+      }).finally(() => {
+        changingMode = false;
+        if (!accessEnded && !removed) buttons.forEach(item => { item.disabled = false; });
+      });
+    };
     buttons.set(mode, button);
     bar.appendChild(button);
   }
@@ -62,9 +76,19 @@ export function createNativeToolbar(info: NativeReviewInfo, onMode: (mode: Revie
   observer.observe(bar);
   reserveToolbarSpace();
   function remove(): void {
+    if (removed) return;
+    removed = true;
     observer.disconnect();
     shadow.host.remove();
     setCardBottomInset(12);
   }
-  return { setMode, remove, error: (message: string) => { status.textContent = message; } };
+  return {
+    setMode, remove, error: (message: string) => { if (!accessEnded && !removed) status.textContent = message; },
+    endAccess: (message: string) => {
+      accessEnded = true;
+      title.textContent = "Backline";
+      buttons.forEach(button => { button.disabled = true; button.setAttribute("aria-pressed", "false"); });
+      status.textContent = message;
+    },
+  };
 }

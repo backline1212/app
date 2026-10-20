@@ -127,6 +127,12 @@ export function cancelEmptyComposer(): void {
   if (activeComposer && !activeComposer.hasDraft()) activeComposer.cancel();
 }
 
+/** Session teardown overrides ordinary draft guards. An in-flight HTTP write may
+ * still have committed; this only clears the local editor and its retained text. */
+export function discardComposerForTeardown(): void {
+  activeComposer?.cancel();
+}
+
 /** Draws the reviewer back to the composer they left unfinished. */
 export function nudgeComposer(): void {
   if (activeComposer?.hasDraft()) activeComposer.nudge();
@@ -275,15 +281,18 @@ export function openComposer(
   }
 
   function removeComposer(): void {
+    if (closed) return;
     closed = true;
     if (activeComposer === handle) activeComposer = null;
     stopPlacement();
     stopAutoGrow();
     removeOutsideClickListener();
+    textarea.value = "";
     composer.remove();
   }
 
   function cancel(): void {
+    if (closed) return;
     removeComposer();
     if (!submitted) onCancel();
   }

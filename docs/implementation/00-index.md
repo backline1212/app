@@ -119,6 +119,10 @@ mutation parity and installed-extension acceptance remain open.
 [TDR-0094](../tdr/0094-batched-comment-read-enrichment.md) batches comment/ticket
 page, author, parent and evidence enrichment in one workspace request. F32's cursor
 pagination, polling deltas and measured large-project acceptance remain open.
+[TDR-0095](../tdr/0095-native-access-revalidation-and-cleanup.md) adds native access
+probes independent of drafts, ended-review cleanup, serialized Chrome session
+updates and mode/close race guards. Extension 0.4.8 rollout and live revocation/
+failure acceptance remain distinct from source checks.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

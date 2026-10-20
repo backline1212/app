@@ -9,6 +9,7 @@ import {
   captureScreenshot,
   composerHasDraft,
   cancelEmptyComposer,
+  discardComposerForTeardown,
   nudgeComposer,
   openComposer,
   parseUserAgent,
@@ -26,7 +27,7 @@ import {
 import { API_BASE_URL } from "./lib/config";
 import type { AnnotationMode, ExtensionMessage } from "./lib/messages";
 import { getConnection } from "./lib/storage";
-import { captureNativeScreenshot, createNativeApi, installDashboardBridge, nativeMessage, uploadNativeAttachment, uploadNativeScreenshot } from "./native-client";
+import { captureNativeScreenshot, createNativeApi, installDashboardBridge, nativeMessage, reviewAccessEnded, uploadNativeAttachment, uploadNativeScreenshot } from "./native-client";
 import { createNativeToolbar } from "./native-toolbar";
 
 // Content scripts have direct chrome.storage access once the extension is granted the
@@ -57,6 +58,14 @@ let toolbar: ReturnType<typeof createNativeToolbar> | null = null;
 let nativeInfo: NativeReviewInfo | null = null;
 let currentMode: AnnotationMode | null = null;
 let deactivateCurrentMode: (() => void) | null = null;
+let nativeAccessClosed = false;
+
+function endNativeAccess(): void {
+  nativeAccessClosed = true;
+  clearContext();
+  nativeInfo = null;
+  toolbar?.endAccess("Review access ended. Loaded feedback and drafts have been cleared. Return to Backline to sign in or reopen an available review.");
+}
 
 async function buildContext(): Promise<AnnotationContext | null> {
   if (context) return context;
@@ -225,10 +234,14 @@ function activatePointMode(ctx: AnnotationContext): () => void {
 }
 
 async function activate(mode: AnnotationMode): Promise<void> {
+  if (nativeAccessClosed) throw new Error("Review access ended. Return to Backline and open the review again.");
   if (currentMode === mode) return;
 
   const ctx = await buildContext();
   if (!ctx) return;
+  if ((!ctx.native || nativeInfo?.member) && !["commenter", "editor", "manager"].includes(ctx.project.my_role ?? "")) {
+    throw new Error("This project is read-only for your account. Return to Backline to view its feedback.");
+  }
 
   // Switching modes (e.g. "Add comment" then, on the same page load, "Draw region")
   // tears down the previous mode's listeners first rather than layering a second set
@@ -270,6 +283,7 @@ function browse(): void {
 
 function clearContext(): void {
   contextGeneration += 1;
+  discardComposerForTeardown();
   browse();
   context?.threadManager.clearPage();
   context?.tooltip.dismiss();
@@ -283,13 +297,17 @@ async function startNativeReview(): Promise<void> {
   if (composerHasDraft()) throw new Error("Finish or cancel your current comment first.");
   clearContext();
   toolbar?.remove();
+  nativeAccessClosed = false;
   nativeInfo = info;
   toolbar = createNativeToolbar(info, async mode => {
+    if (nativeInfo !== info) throw new Error("This review changed. Open it again from Backline.");
     if (composerHasDraft()) throw new Error("Finish or cancel your current comment first.");
     if (mode === "browse") browse(); else await activate(mode);
   }, async () => {
     if (composerHasDraft()) throw new Error("Finish or cancel your current comment first.");
-    await nativeMessage("native-review-end");
+    const closingToolbar = toolbar;
+    await nativeMessage("native-review-end", { launchId: info.launchId });
+    if (toolbar !== closingToolbar) return;
     clearContext();
     nativeInfo = null;
     toolbar = null;
@@ -335,9 +353,11 @@ if (!isolatedWindow.__backlineExtensionLoaded && window.top === window) {
       toolbar?.setMode("browse");
     }
   }, 500);
+  let commentsLoading = false;
   setInterval(() => {
     const ctx = context;
-    if (!ctx || !ctx.native || document.hidden || composerHasDraft() || location.href !== ctx.pageUrl) return;
+    if (commentsLoading || !ctx || !ctx.native || document.hidden || composerHasDraft() || location.href !== ctx.pageUrl) return;
+    commentsLoading = true;
     void ctx.api.request<CommentRecord[]>(`/api/v1/pages/${ctx.pageId}/comments`).then(comments => {
       if (context !== ctx) return;
       const ids = new Set(comments.map(comment => comment.id));
@@ -348,6 +368,37 @@ if (!isolatedWindow.__backlineExtensionLoaded && window.top === window) {
         ctx.threadManager.handleCommentCreated(comment, ctx.pageId);
         ctx.threadManager.handleCommentUpdated(comment);
       }
-    }).catch(error => toolbar?.error(error.message));
+    }).catch(error => {
+      if (context !== ctx) return;
+      if (reviewAccessEnded(error)) endNativeAccess();
+      else toolbar?.error(error.message);
+    }).finally(() => { commentsLoading = false; });
   }, 10000);
+  let checkingAccess = false;
+  async function checkNativeAccess(): Promise<void> {
+    const info = nativeInfo;
+    if (checkingAccess || !info || nativeAccessClosed || document.hidden) return;
+    checkingAccess = true;
+    try {
+      const result = await nativeMessage<{ launchId: string; project: NativeReviewInfo["project"] }>("native-review-check-access");
+      if (nativeInfo !== info || result.launchId !== info.launchId) return;
+      const previousRole = info.project.my_role;
+      info.project = result.project;
+      if (context?.native) context.project = { ...context.project, ...result.project };
+      // Reset held callbacks after a project-role change. Re-open tools against the
+      // new role; a pending mutation is still authorized independently on the API.
+      if (previousRole !== result.project.my_role && context?.native) {
+        clearContext();
+        toolbar?.setMode("browse");
+        toolbar?.error("Your project role changed. Loaded feedback and drafts were cleared. Check Backline for any save that was in progress, then reopen tools with your current access.");
+      }
+    } catch (error) {
+      if (nativeInfo !== info) return;
+      if (reviewAccessEnded(error)) endNativeAccess();
+      else toolbar?.error("Could not confirm review access. Check your connection; access will be checked again.");
+    } finally { checkingAccess = false; }
+  }
+  setInterval(() => { void checkNativeAccess(); }, 30_000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) void checkNativeAccess(); });
+  window.addEventListener("focus", () => { void checkNativeAccess(); });
 }

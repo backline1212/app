@@ -11,7 +11,7 @@ export { createCommentSubmission } from "./comment-submission";
 export { postThreadReply } from "./thread-reply";
 
 export { createShadowRoot, openComposer, renderPin, showTooltip } from "./ui";
-export { composerHasDraft, nudgeComposer, cancelEmptyComposer } from "./ui-composer";
+export { composerHasDraft, nudgeComposer, cancelEmptyComposer, discardComposerForTeardown } from "./ui-composer";
 export { setCardBottomInset } from "./ui-card";
 export type { ComposerDetails, ComposerResult } from "./ui";
 

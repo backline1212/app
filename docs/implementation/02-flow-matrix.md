@@ -1,5 +1,13 @@
 # Flow inventory and acceptance criteria
 
+FD-08/09/16/17/25 native access follow-up (TDR-0095): verify guest/member expiry,
+revoked link/membership/project, archive/origin/role changes, drafts/pending saves,
+hidden/foreground and offline/5xx/timeouts. An authoritative denial clears local
+feedback/drafts/credentials and leaves return/close usable. Race late poll/probe/
+launch/close/tab removal/connection-clear responses against cleanup; no ended session
+may revive. Check a fresh launch and viewer activation gates. This is observed
+cleanup with interval/network bounds, not instantaneous offline revocation.
+
 FD-09/10/11/12/18 read follow-up (TDR-0094): compare page/project/ticket fields and
 order for repeated/missing authors, parents/pages, legacy replies and standalone
 tickets. Verify tenant/project/layer/evidence boundaries and measure bounded query

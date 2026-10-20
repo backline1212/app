@@ -19,7 +19,7 @@ import {
   type ComposerDetails,
 } from "./ui";
 import { setCardBottomInset } from "./ui-card";
-import { composerHasDraft, nudgeComposer } from "./ui-composer";
+import { composerHasDraft, nudgeComposer, discardComposerForTeardown } from "./ui-composer";
 import { postThreadReply } from "./thread-reply";
 import { parseUserAgent } from "./user-agent";
 import { setupRegionDrawer } from "./region-drawer";
@@ -70,6 +70,7 @@ async function init(config: BacklineConfig): Promise<void> {
     clearStoredGuestSession(config.shareToken);
     api.close();
     listenerLifetime.abort();
+    discardComposerForTeardown();
     cleanup.forEach((stop) => stop());
     showSessionNotice(shadow, "Your review session ended. Rejoin in Backline to continue.", reviewUrl);
   }

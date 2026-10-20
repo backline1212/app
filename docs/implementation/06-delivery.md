@@ -1,5 +1,24 @@
 # Delivery and verification ledger
 
+## 2026-10-21: Native access cleanup and lifecycle races (TDR-0095)
+
+Native access checks continue independently of drafts, every 30 seconds while
+visible and on foreground return, with a 12-second probe bound. Authoritative
+denials clear feedback/drafts/credentials/known IDs and disable modes while return/
+close stays usable. Transient errors retain drafts and explain uncertainty. Role
+changes reset held callbacks; viewer activation is blocked. Session writes are
+serialized per tab with launch/ended-state checks and a connection-clear epoch,
+preventing late responses from restoring cleared authority. Comment polls do not
+overlap and their HTTP wait is bounded. Composer teardown releases its global
+handle and text, including standalone widget auth loss. Toolbar pending-mode/close
+races preserve the current review and ended notices. No request rollback is claimed.
+
+Final affected widget/extension checks pass 6/6 after launch-waiter cleanup;
+diff checks pass. No suite, production access/role change, extra shared feedback
+or upload. No HTTP schema/migration/permission expansion. Extension 0.4.8 source
+still needs deployment and installed acceptance; Chrome remains 0.4.3. Railway's
+temporary pause is tracked separately and no live backend/extension update is claimed.
+
 ## 2026-10-21: Batched comment-list enrichment (TDR-0094)
 
 Page/project comment lists and ticket lists use workspace-bound request-local
