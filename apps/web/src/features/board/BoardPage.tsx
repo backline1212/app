@@ -356,6 +356,7 @@ export function BoardPage() {
 
       {openThreadComment && (
         <CommentThreadPanel
+          key={openThreadComment.id}
           comment={openThreadComment}
           replies={repliesByParent.get(openThreadComment.id) ?? []}
           projectId={projectId}

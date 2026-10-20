@@ -2,13 +2,13 @@ import { LayerBadge, RecoveryBadge } from "@backline/ui";
 import { roleLabel } from "../../lib/project-roles";
 import { useProjectRole } from "../projects/use-project";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import type { Schemas } from "@backline/types";
 import { Dialog } from "../../components/Dialog";
 import { PaperclipIcon } from "../../components/icons";
-import { patchProjectComment, upsertProjectComment } from "../../lib/comment-cache";
+import { patchProjectComment } from "../../lib/comment-cache";
 import { renderWithMentions } from "../../lib/mentions";
 import { qk } from "../../lib/query-keys";
 import { isClosed, STATUS_LABELS, WORKFLOW_STATUSES } from "../../lib/workflow";
@@ -20,6 +20,9 @@ import * as workspaceApi from "../workspaces/api";
 import * as boardApi from "./api";
 import type { CommentLayer, CommentOut } from "./api";
 import { aiErrorMessage, summarizeThread, suggestReply } from "../ai/api";
+import { usePreparedReply } from "../comments/use-prepared-reply";
+import { useReviewDraftGuard } from "../comments/use-review-draft-guard";
+import { uploadReplyFiles } from "../comments/reply-uploads";
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -73,10 +76,12 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
   const { canComment, canEdit, role } = useProjectRole(projectId);
   const { workspaceSlug } = useParams();
   const [body, setBody] = useState("");
-  const [layer, setLayer] = useState<CommentLayer>("client");
+  const [layer, setLayer] = useState<CommentLayer>(comment.layer);
   const [attachments, setAttachments] = useState<Schemas["AttachmentIn"][]>([]);
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const uploading = useRef(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [suggestedReplies, setSuggestedReplies] = useState<string[]>([]);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -101,10 +106,10 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
   });
   const members = membersQuery.data ?? [];
 
-  const replyMutation = useMutation({
-    mutationFn: () =>
-      boardApi.createReply(comment.id, body.trim(), layer, attachments, mentionedUserIds),
-    onSuccess: (created) => {
+  const replyMutation = usePreparedReply({
+    commentId: comment.id, projectId,
+    draft: () => ({ body, layer: comment.layer === "team" ? "team" : layer, attachments, mentioned_user_ids: mentionedUserIds }),
+    onSaved: () => {
       setBody("");
       setAttachments([]);
       setMentionedUserIds([]);
@@ -114,7 +119,6 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
       // the author themselves just posted appears immediately, not after a round trip.
       // Upsert by id, not a blind append: if the WS event already landed first, this
       // would otherwise add a second, duplicate copy of the same reply.
-      upsertProjectComment(queryClient, projectId, created);
       // A summary/suggestions generated before this reply describe a thread state that
       // no longer exists - leaving them up would read as if they still apply to the
       // (now longer) thread.
@@ -122,6 +126,11 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
       setSuggestedReplies([]);
       setSuggestError(null);
     },
+  });
+  const guard = useReviewDraftGuard({
+    dirty: Boolean(body.trim() || attachments.length || suggestedReplies.length), pending: replyMutation.isPending || isUploading || isSuggesting,
+    unconfirmed: replyMutation.locked,
+    discard: () => { replyMutation.reset(); setBody(""); setAttachments([]); setMentionedUserIds([]); setSuggestedReplies([]); },
   });
 
   const updateMutation = useMutation({
@@ -133,35 +142,21 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || uploading.current || replyMutation.isFrozen()) return;
+    uploading.current = true;
     setIsUploading(true);
     try {
-      const newAttachments: Schemas["AttachmentIn"][] = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const uploadInfo = await boardApi.createUpload(projectId, file.type, file.size);
-        await fetch(uploadInfo.upload_url, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
-        });
-        newAttachments.push({
-          key: uploadInfo.key,
-          filename: file.name,
-          content_type: file.type,
-        });
-      }
-      setAttachments((prev) => [...prev, ...newAttachments]);
-    } catch (err) {
-      console.error("Failed to upload attachment", err);
+      setUploadError(await uploadReplyFiles(projectId, Array.from(files), 10 - attachments.length, value => setAttachments(current => [...current, value])));
     } finally {
+      uploading.current = false;
       setIsUploading(false);
+      event.target.value = "";
     }
   }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!body.trim()) return;
+    if ((!body.trim() && !replyMutation.locked) || uploading.current || isSuggesting) return;
     replyMutation.mutate();
   }
 
@@ -197,7 +192,8 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
   const orphaned = comment.recovery_status !== "ok";
 
   return (
-    <Dialog title="Thread" onClose={onClose}>
+    <Dialog title="Thread" onClose={() => guard.requestLeave(onClose)}>
+      {guard.dialog}
       <div className="bl-form">
         <div className="bl-chip-row">
           <LayerBadge layer={comment.layer} />
@@ -334,13 +330,13 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
         ))}
 
         {!canComment ? (
-          <p className="bl-inline-note">You can read this thread but not reply. Ask a project manager for commenter access.</p>
+          <div className="bl-form"><p className="bl-inline-note">You can read this thread but not reply. Ask a project manager for commenter access.</p>{(body.trim() || replyMutation.locked) && <><textarea className="bl-input" aria-label="Retained reply draft" value={body} readOnly /><button type="button" className="bl-quiet" onClick={() => void replyMutation.copyText()}>Copy reply text</button>{replyMutation.copyStatus && <p role="status">{replyMutation.copyStatus}</p>}</>}</div>
         ) : (
         <form onSubmit={handleSubmit} className="bl-form bl-flush">
           <label>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               Reply
-              <button type="button" className="bl-quiet" onClick={handleSuggestReply} disabled={isSuggesting}>
+              <button type="button" className="bl-quiet" onClick={handleSuggestReply} disabled={isSuggesting || replyMutation.locked || replyMutation.isPending}>
                 {isSuggesting ? "Suggesting..." : "✨ Suggest Replies"}
               </button>
             </div>
@@ -351,6 +347,8 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
             )}
             <MentionsInput
               value={body}
+              readOnly={replyMutation.locked || replyMutation.isPending}
+              maxLength={10_000}
               onChange={(event) => setBody(event.target.value)}
               onMentionedIdsChange={setMentionedUserIds}
               rows={3}
@@ -366,7 +364,8 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
                   key={idx}
                   type="button"
                   className="bl-chip bl-quiet"
-                  onClick={() => setBody(reply)}
+                  onClick={() => { setBody(reply); setMentionedUserIds([]); }}
+                  disabled={replyMutation.locked || replyMutation.isPending}
                 >
                   {reply}
                 </button>
@@ -383,6 +382,7 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
                     type="button"
                     onClick={() => setAttachments((prev) => prev.filter((a) => a.key !== att.key))}
                     aria-label={`Remove ${att.filename}`}
+                    disabled={isUploading || replyMutation.locked || replyMutation.isPending}
                     style={{ background: "none", border: 0, color: "inherit", cursor: "pointer" }}
                   >
                     ×
@@ -394,7 +394,8 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
 
           <div className="bl-form-actions">
             <select
-              value={layer}
+              value={comment.layer === "team" ? "team" : layer}
+              disabled={comment.layer === "team" || replyMutation.locked || replyMutation.isPending}
               onChange={(event) => setLayer(event.target.value as CommentLayer)}
               aria-label="Reply visibility"
               className="bl-select"
@@ -411,17 +412,21 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
                   <PaperclipIcon width="14" height="14" /> Attach
                 </>
               )}
-              <input type="file" multiple onChange={handleFileChange} className="hidden" disabled={isUploading} />
+              <input type="file" multiple onChange={handleFileChange} className="hidden" disabled={isUploading || replyMutation.locked || replyMutation.isPending} />
             </label>
-            <button className="bl-button" disabled={replyMutation.isPending || !body.trim()}>
-              {replyMutation.isPending ? "Posting…" : "Post reply"}
+            <button className="bl-button" disabled={replyMutation.isPending || isUploading || isSuggesting || !body.trim()}>
+              {replyMutation.isPending ? "Posting…" : replyMutation.locked ? "Retry reply save" : "Post reply"}
             </button>
           </div>
           {replyMutation.isError && (
             <p role="alert" className="bl-error">
-              Could not post your reply.
+              {replyMutation.error?.message} {replyMutation.locked && "Saving is unconfirmed. Retry sends the original reply; check Backline before posting it again."}
             </p>
           )}
+          {uploadError && <p role="alert" className="bl-error">{uploadError}</p>}
+          {(body.trim() || replyMutation.locked) && <button type="button" className="bl-quiet" onClick={() => void replyMutation.copyText()}>Copy reply text</button>}
+          {replyMutation.copyStatus && <p role="status">{replyMutation.copyStatus}</p>}
+          {replyMutation.completionWarning && <p role="status">{replyMutation.completionWarning}</p>}
         </form>
         )}
       </div>

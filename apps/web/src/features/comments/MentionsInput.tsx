@@ -108,7 +108,7 @@ export function MentionsInput({ onMentionedIdsChange, ...props }: MentionsInputP
   }
 
   function insertMention(member: workspaceApi.MemberOut) {
-    if (!mentionState || !textareaRef.current) return;
+    if (!mentionState || !textareaRef.current || props.readOnly || props.disabled) return;
     
     const before = props.value.slice(0, mentionState.startIndex);
     const after = props.value.slice(textareaRef.current.selectionStart);
@@ -146,7 +146,7 @@ export function MentionsInput({ onMentionedIdsChange, ...props }: MentionsInputP
         }}
       />
       
-      {mentionState && filteredMembers.length > 0 && (
+      {!props.readOnly && !props.disabled && mentionState && filteredMembers.length > 0 && (
         <div
           className="bl-comment-popover"
           role="listbox"

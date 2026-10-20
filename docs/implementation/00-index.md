@@ -127,6 +127,10 @@ failure acceptance remain distinct from source checks.
 identities, retains legacy history, rebinds ordinary-anchor capture URLs, exposes
 route context in labels and adds capability-gated hash-route deploy capture.
 Other fragment formats and live/installed acceptance remain open.
+[TDR-0097](../tdr/0097-portal-reply-replay-and-draft-guards.md) unifies portal reply
+idempotent retries, immutable save payloads, copy/leave guards, retained partial
+uploads and explicit AI suggestion application across project/board/ticket forms.
+Ticket metadata lifecycle/role gating and live failure acceptance remain separate.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

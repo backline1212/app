@@ -178,6 +178,7 @@ export function CommentsTab({
   if (openThreadComment) {
     return (
       <CommentDetail
+        key={openThreadComment.id}
         comment={openThreadComment}
         replies={repliesByParent.get(openThreadComment.id) ?? []}
         projectId={projectId}

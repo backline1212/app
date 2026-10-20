@@ -1,5 +1,26 @@
 # Delivery and verification ledger
 
+## 2026-10-21: Portal reply replay and draft UX (TDR-0097)
+
+Project comments, board threads and ticket replies use an immutable typed
+parent/project/body/evidence/layer/mentions/request-ID save with synchronous double-
+submit protection, 30-second bounded wait, explicit original retry and text recovery.
+Confirmed API rows update the actual cache; post-save refresh failures remain saved.
+Context-changing URL navigation, unload, modal close and ticket-delete entry protect
+unsent/unconfirmed replies and refuse active-write/upload discard. Same-thread canvas
+view changes stay usable. Partial uploads retain confirmed files and report failures;
+board upload now checks PUT outcomes through the existing fallback. AI suggestions
+require explicit application and cannot replace a frozen request. Read-only mentions
+and dynamically disabled/nested-dialog focus are handled. No backend schema change.
+
+Affected web checks repeatedly pass 3/3 through final submission/AI/navigation
+refinement and the final focus changes; diff checks pass. No suite, shared reply/upload/permission
+change or AI provider request. Live web flow checks follow deployment. Ticket metadata
+dirty-state/CAS and role gating remain identified next work. The e476c76 exact Railway
+dispatch again failed with the temporary pause; API/worker/cloud-login were still
+7b25ac3 at the latest read-only check, with health/Mongo/Redis ok. Do not count later
+source pushes or frontend rollout as the backend/extension rollout.
+
 ## 2026-10-21: Hash-route review identity (TDR-0096)
 
 Recognized #/ and #!/ routes retain distinct canonical page URLs. Widget/native

@@ -16,9 +16,12 @@ import {
 import { createPortal } from "react-dom";
 
 import { ConfirmDialog } from "../../../../components/ConfirmDialog";
-import { patchProjectComment, upsertProjectComment } from "../../../../lib/comment-cache";
+import { patchProjectComment } from "../../../../lib/comment-cache";
 import { qk } from "../../../../lib/query-keys";
 import { reviewPagePath } from "../../../../lib/review-page-path";
+import { usePreparedReply } from "../../../comments/use-prepared-reply";
+import { useReviewDraftGuard } from "../../../comments/use-review-draft-guard";
+import { uploadReplyFiles } from "../../../comments/reply-uploads";
 import { renderWithMentions } from "../../../../lib/mentions";
 import { ticketRef } from "../../../../lib/ticket-ref";
 import { timeAgo } from "../../../../lib/time";
@@ -351,9 +354,11 @@ export function CommentDetail({
   const [attachments, setAttachments] = useState<Schemas["AttachmentIn"][]>([]);
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const uploading = useRef(false);
   const [devTask, setDevTask] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [replySuggestion, setReplySuggestion] = useState<string | null>(null);
 
   const backRef = useRef<HTMLButtonElement>(null);
   const statusRef = useRef<HTMLButtonElement>(null);
@@ -408,15 +413,16 @@ export function CommentDetail({
     onError: () => setConfirmLayer(false),
   });
 
-  const reply = useMutation({
-    mutationFn: () => boardApi.createReply(comment.id, body.trim(), layer, attachments, mentionedUserIds),
-    onSuccess: (created) => {
+  const reply = usePreparedReply({
+    commentId: comment.id, projectId,
+    draft: () => ({ body, layer, attachments, mentioned_user_ids: mentionedUserIds }),
+    onSaved: () => {
       setBody("");
       setAttachments([]);
       setMentionedUserIds([]);
+      setReplySuggestion(null);
       // Upsert, not append: the comment.created broadcast for this same reply may
       // land first.
-      upsertProjectComment(queryClient, projectId, created);
       setScrollToEnd((count) => count + 1);
     },
   });
@@ -456,8 +462,13 @@ export function CommentDetail({
   const draft = useMutation({
     mutationFn: () => suggestReply(workspaceId, projectId, comment.id),
     onSuccess: (result) => {
-      if (result.suggestions[0]) setBody(result.suggestions[0]);
+      if (!reply.isFrozen()) setReplySuggestion(result.suggestions[0] ?? null);
     },
+  });
+  const guard = useReviewDraftGuard({
+    dirty: Boolean(body.trim() || attachments.length || replySuggestion), pending: reply.isPending || isUploading || draft.isPending,
+    unconfirmed: reply.locked,
+    discard: () => { reply.reset(); setBody(""); setAttachments([]); setMentionedUserIds([]); setReplySuggestion(null); },
   });
 
   // A different comment (another row, or a pin clicked in the canvas) starts clean:
@@ -468,9 +479,10 @@ export function CommentDetail({
     setAttachments([]);
     setMentionedUserIds([]);
     setDevTask(null);
+    setReplySuggestion(null);
     setLayer(comment.layer);
     setConfirmLayer(false);
-    setUploadError(false);
+    setUploadError(null);
     scrollRef.current?.scrollTo({ top: 0 });
     // None of these mutations are recreated by this comment change - useMutation keeps
     // its isError/error from whichever comment last used it, so without this an "AI is
@@ -513,22 +525,21 @@ export function CommentDetail({
   }
 
   async function onFilesPicked(files: FileList | null) {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || uploading.current || reply.isFrozen()) return;
+    uploading.current = true;
     setIsUploading(true);
-    setUploadError(false);
+    setUploadError(null);
     try {
-      const uploaded = await Promise.all(Array.from(files).map((file) => boardApi.uploadAttachment(projectId, file)));
-      setAttachments((current) => [...current, ...uploaded]);
-    } catch {
-      setUploadError(true);
+      setUploadError(await uploadReplyFiles(projectId, Array.from(files), 10 - attachments.length, value => setAttachments(current => [...current, value])));
     } finally {
+      uploading.current = false;
       setIsUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
   }
 
   function submitReply() {
-    if (!body.trim() || reply.isPending || isUploading) return;
+    if ((!body.trim() && !reply.locked) || reply.isPending || uploading.current || draft.isPending) return;
     reply.mutate();
   }
 
@@ -560,6 +571,7 @@ export function CommentDetail({
 
   return (
     <div className="bl-cd">
+      {guard.dialog}
       <div className="bl-cd-head">
         <button ref={backRef} type="button" className="bl-cd-back" onClick={onBack}>
           <BackIcon />
@@ -871,6 +883,7 @@ export function CommentDetail({
             You can read this thread but not reply - you're a {roleLabel(role).toLowerCase()} on this project. Ask a
             project manager for commenter access.
           </p>
+          {(body.trim() || reply.locked) && <><textarea className="bl-input" aria-label="Retained reply draft" value={body} readOnly /><button type="button" className="bl-quiet" onClick={() => void reply.copyText()}>Copy reply text</button>{reply.copyStatus && <p role="status">{reply.copyStatus}</p>}</>}
         </div>
       ) : (
       <form
@@ -885,7 +898,7 @@ export function CommentDetail({
             type="button"
             className="bl-cd-tool"
             aria-busy={draft.isPending}
-            disabled={draft.isPending || !workspaceId}
+            disabled={draft.isPending || !workspaceId || reply.locked || reply.isPending}
             onClick={() => draft.mutate()}
           >
             <SparkleIcon />
@@ -946,8 +959,11 @@ export function CommentDetail({
             {aiErrorMessage(draft.error, "Could not draft a reply right now.")}
           </p>
         )}
+        {replySuggestion && <div className="bl-form"><p>{replySuggestion}</p><div className="bl-chip-row"><button type="button" className="bl-quiet" disabled={reply.locked || reply.isPending} onClick={() => { setBody(replySuggestion); setMentionedUserIds([]); setReplySuggestion(null); }}>{body.trim() ? "Replace reply with suggestion" : "Use suggested reply"}</button><button type="button" className="bl-quiet" onClick={() => setReplySuggestion(null)}>Dismiss suggestion</button></div></div>}
         <MentionsInput
           value={body}
+          readOnly={reply.locked || reply.isPending}
+          maxLength={10_000}
           onChange={(event) => setBody(event.target.value)}
           onMentionedIdsChange={setMentionedUserIds}
           placeholder={`Reply to ${firstName(comment.author_name)}…`}
@@ -970,6 +986,7 @@ export function CommentDetail({
                 className="bl-cd-chip-x"
                 onClick={() => setAttachments((current) => current.filter((a) => a.key !== attachment.key))}
                 aria-label={`Remove ${attachment.filename}`}
+                disabled={reply.locked || reply.isPending || isUploading}
               >
                 ×
               </button>
@@ -979,7 +996,7 @@ export function CommentDetail({
             type="button"
             className="bl-cd-shot-add"
             onClick={() => fileRef.current?.click()}
-            disabled={isUploading}
+            disabled={isUploading || reply.locked || reply.isPending}
           >
             <ImageIcon />
             {isUploading ? "Uploading…" : "Attach a screenshot"}
@@ -997,12 +1014,12 @@ export function CommentDetail({
         </div>
         {uploadError && (
           <p role="alert" className="bl-error">
-            Could not upload that screenshot.
+            {uploadError}
           </p>
         )}
         <div className="bl-cd-actions">
-          <button type="submit" className="bl-button" disabled={reply.isPending || isUploading || !body.trim()}>
-            {reply.isPending ? "Posting…" : "Post reply"}
+          <button type="submit" className="bl-button" disabled={reply.isPending || isUploading || draft.isPending || !body.trim()}>
+            {reply.isPending ? "Posting…" : reply.locked ? "Retry reply save" : "Post reply"}
           </button>
           {canEdit && (
             <button
@@ -1019,7 +1036,7 @@ export function CommentDetail({
             onChange={(event) => setLayer(event.target.value as CommentLayer)}
             aria-label="Reply visibility"
             className="bl-select bl-cd-layer"
-            disabled={comment.layer === "team"}
+            disabled={comment.layer === "team" || reply.locked || reply.isPending}
             title={comment.layer === "team" ? "Replies on a team-only thread are team-only" : undefined}
           >
             <option value="client" disabled={comment.layer === "team"}>Client visible</option>
@@ -1028,9 +1045,12 @@ export function CommentDetail({
         </div>
         {reply.isError && (
           <p role="alert" className="bl-error">
-            Could not post your reply.
+            {reply.error?.message} {reply.locked && "Saving is unconfirmed. Retry sends the original reply; check Backline before posting it again."}
           </p>
         )}
+        {(body.trim() || reply.locked) && <button type="button" className="bl-quiet" onClick={() => void reply.copyText()}>Copy reply text</button>}
+        {reply.copyStatus && <p role="status" className="bl-inline-note">{reply.copyStatus}</p>}
+        {reply.completionWarning && <p role="status" className="bl-inline-note">{reply.completionWarning}</p>}
       </form>
       )}
 

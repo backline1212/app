@@ -32,14 +32,13 @@ export function setCommentLayer(commentId: string, layer: CommentLayer): Promise
 
 export function createReply(
   commentId: string,
-  body: string,
-  layer: CommentLayer,
-  attachments?: Schemas["AttachmentIn"][],
-  mentionedUserIds?: string[],
+  request: Schemas["ReplyCreate"] & { client_request_id: string },
+  signal?: AbortSignal,
 ): Promise<CommentOut> {
   return apiFetch<CommentOut>(`/api/v1/comments/${commentId}/replies`, {
     method: "POST",
-    body: JSON.stringify({ body, layer, attachments, mentioned_user_ids: mentionedUserIds }),
+    body: JSON.stringify(request),
+    signal,
   });
 }
 
