@@ -104,6 +104,19 @@ class GuestSessionRepository:
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
 
+    async def display_names_in_workspace(
+        self, workspace_id: str, guest_session_ids: list[str]
+    ) -> dict[str, str]:
+        """Comment labels only: tenant-scoped and never loads guest contact fields."""
+        oids = [oid for value in guest_session_ids if (oid := to_object_id(value)) is not None]
+        if not oids:
+            return {}
+        cursor = self.db.guest_sessions.find(
+            {"workspace_id": workspace_id, "_id": {"$in": oids}},
+            {"display_name": 1},
+        )
+        return {str(doc["_id"]): str(doc.get("display_name") or "Guest") async for doc in cursor}
+
     async def create(
         self,
         *,

@@ -116,6 +116,9 @@ feedback and URL-owned panel selection. The preview network cause remains unprov
 draft protection to native and standalone guest website threads, with role-aware
 controls. Embedded member replies still use the signed-in portal; other pin-card
 mutation parity and installed-extension acceptance remain open.
+[TDR-0094](../tdr/0094-batched-comment-read-enrichment.md) batches comment/ticket
+page, author, parent and evidence enrichment in one workspace request. F32's cursor
+pagination, polling deltas and measured large-project acceptance remain open.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

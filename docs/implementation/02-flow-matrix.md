@@ -1,5 +1,11 @@
 # Flow inventory and acceptance criteria
 
+FD-09/10/11/12/18 read follow-up (TDR-0094): compare page/project/ticket fields and
+order for repeated/missing authors, parents/pages, legacy replies and standalone
+tickets. Verify tenant/project/layer/evidence boundaries and measure bounded query
+and signer work on large results. F32 remains open for true cursor pagination,
+native polling deltas/removal semantics and measured payload/memory/latency limits.
+
 FD-08/09/21 website reply follow-up (TDR-0093): verify member/guest and project-role
 controls, preserved team visibility, original request/body retry after timeout or
 lost acknowledgement, one confirmed reply in pin/portal, polling without draft loss,

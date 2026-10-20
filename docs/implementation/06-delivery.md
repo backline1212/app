@@ -1,5 +1,22 @@
 # Delivery and verification ledger
 
+## 2026-10-21: Batched comment-list enrichment (TDR-0094)
+
+Page/project comment lists and ticket lists use workspace-bound request-local
+caches and batches of 100 for page references, member/guest labels, parent fallback
+and private evidence signing. Missing references are cached too; guest queries load
+only scoped display names. Existing access/layer and upload-key validation precede
+serialization/signing, output order and legacy fields remain, and row batches yield
+without unbounded per-comment task fan-out. No HTTP schema or migration changed.
+This is a partial F32 repair: collection pagination/native deltas and measured load
+acceptance remain open rather than silently truncating historical feedback.
+
+Final Ruff app/scripts, full strict mypy app (214 files), scope check (23 repositories)
+pass. No suite, shared feedback write or performance benchmark run. Frontend source
+is unchanged since TDR-0093's successful 12/12 checks. Deployment remains pending.
+The exact 44602d7 Railway dispatch was again rejected before any deployment ID;
+continue backing off while the provider pause persists.
+
 ## 2026-10-21: Website-thread replies (TDR-0093)
 
 Added native and standalone guest text replies through existing authorized/idempotent

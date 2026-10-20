@@ -9,11 +9,10 @@ from app.core.errors import ValidationError
 from app.core.events import append_event
 from app.core.project_access import can_view_project, session_hidden_project_ids
 from app.core.session import Session
-from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
 from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
 from app.modules.comments.repository import CommentRepository
-from app.modules.comments.service import _broadcast_comment_event, _comment_out
+from app.modules.comments.service import _broadcast_comment_event, _comment_out, serialize_comments
 from app.modules.dashboard.repository import DashboardRepository, page_title_match, root_pipeline
 from app.modules.dashboard.schemas import (
     ActivityListOut,
@@ -148,20 +147,9 @@ async def list_tickets(
         workspace_id, user_id, filters, await _hidden(db, viewer)
     )
 
-    # Batch-resolve author names instead of one UserRepository lookup per ticket
-    # (_comment_out's default behavior) - a ticket page can be up to `filters.limit`
-    # rows, and this was previously a sequential DB round-trip per row.
-    member_ids = list(
-        {doc["author_member_id"] for doc in result["items"] if doc["author_type"] == "member"}
-    )
-    member_docs = await UserRepository(db).find_many_by_ids(member_ids)
-    member_name_cache = {
-        uid: (member_docs[uid]["name"] if uid in member_docs else "Unknown") for uid in member_ids
-    }
-
+    comments = await serialize_comments(db, workspace_id=workspace_id, docs=result["items"])
     items = []
-    for doc in result["items"]:
-        comment = await _comment_out(db, doc, member_name_cache=member_name_cache)
+    for doc, comment in zip(result["items"], comments, strict=True):
         items.append(
             TicketOut(
                 **comment.model_dump(),

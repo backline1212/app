@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -32,7 +32,7 @@ from app.modules.notifications import service as notification_service
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.repository import ProjectRepository
 from app.modules.realtime.pubsub import publish as publish_realtime_event
-from app.modules.storage.r2_client import generate_presigned_get
+from app.modules.storage.r2_client import generate_presigned_get, generate_presigned_gets
 from app.modules.storage.service import (
     is_project_upload,
     require_project_upload,
@@ -40,6 +40,18 @@ from app.modules.storage.service import (
 )
 
 logger = logging.getLogger("backline.comments")
+
+
+@dataclass
+class _CommentReadContext:
+    """Only lives for one already-authorized workspace listing, never shared cache."""
+
+    workspace_id: str
+    pages: dict[str, str | None] = field(default_factory=dict)
+    members: dict[str, str] = field(default_factory=dict)
+    guests: dict[str, str] = field(default_factory=dict)
+    parents: dict[str, dict[str, Any] | None] = field(default_factory=dict)
+    evidence: dict[str, str] = field(default_factory=dict)
 
 
 async def _page_for_broadcast(
@@ -145,6 +157,7 @@ async def _resolve_author_name(
     doc: dict[str, Any],
     *,
     member_name_cache: dict[str, str] | None = None,
+    read_context: _CommentReadContext | None = None,
 ) -> str:
     """CommentOut's author_name - resolved live from the users/guest_sessions
     collections rather than persisted on the comment doc at creation time, so a later
@@ -158,6 +171,8 @@ async def _resolve_author_name(
     skips the per-comment user lookup entirely instead of doing one query per row."""
     if doc["author_type"] == "member":
         member_id = doc["author_member_id"]
+        if read_context is not None:
+            return read_context.members.get(member_id, "Unknown")
         if member_name_cache is not None and member_id in member_name_cache:
             return member_name_cache[member_id]
         user = await UserRepository(db).find_by_id(member_id)
@@ -168,11 +183,17 @@ async def _resolve_author_name(
     # documents for share_links elsewhere in this file.
     from app.modules.share_links.repository import GuestSessionRepository
 
+    if read_context is not None:
+        return read_context.guests.get(doc["author_guest_id"], "Guest")
     guest = await GuestSessionRepository(db).find_by_id(doc["author_guest_id"])
-    return guest["display_name"] if guest else "Guest"
+    return (
+        guest["display_name"] if guest and guest["workspace_id"] == doc["workspace_id"] else "Guest"
+    )
 
 
-async def _resolve_attachments(doc: dict[str, Any], project_id: str | None) -> list[AttachmentOut]:
+async def _resolve_attachments(
+    doc: dict[str, Any], project_id: str | None, signed_urls: dict[str, str] | None = None
+) -> list[AttachmentOut]:
     # Signed GET per attachment, same as screenshot_url below - attachments are never
     # served from a public bucket either (18-Storage-Deployment.md §18.2's reasoning
     # applies just as much to a comment's own uploaded file as to its screenshot).
@@ -180,7 +201,9 @@ async def _resolve_attachments(doc: dict[str, Any], project_id: str | None) -> l
         AttachmentOut(
             filename=attachment["filename"],
             content_type=attachment["content_type"],
-            url=await generate_presigned_get(attachment["key"]),
+            url=signed_urls[attachment["key"]]
+            if signed_urls is not None
+            else await generate_presigned_get(attachment["key"]),
         )
         for attachment in doc.get("attachments", [])
         if project_id and is_project_upload(attachment["key"], doc["workspace_id"], project_id)
@@ -192,20 +215,34 @@ async def _comment_out(
     doc: dict[str, Any],
     *,
     member_name_cache: dict[str, str] | None = None,
+    read_context: _CommentReadContext | None = None,
 ) -> CommentOut:
-    page = await PageRepository(db).find_by_id(doc["page_id"]) if doc.get("page_id") else None
+    if read_context is not None and doc["workspace_id"] != read_context.workspace_id:
+        raise NotFoundError("Comment not found.")
     project_id = doc.get("project_id")
-    if page is not None and page["workspace_id"] == doc["workspace_id"]:
-        project_id = page["project_id"]
+    if read_context is not None:
+        project_id = read_context.pages.get(doc.get("page_id") or "") or project_id
+    else:
+        page = await PageRepository(db).find_by_id(doc["page_id"]) if doc.get("page_id") else None
+        if page is not None and page["workspace_id"] == doc["workspace_id"]:
+            project_id = page["project_id"]
     screenshot_url = None
     if (
         doc.get("screenshot_key")
         and project_id
         and is_project_upload(doc["screenshot_key"], doc["workspace_id"], project_id)
     ):
-        screenshot_url = await generate_presigned_get(doc["screenshot_key"])
-    attachments = await _resolve_attachments(doc, project_id)
-    author_name = await _resolve_author_name(db, doc, member_name_cache=member_name_cache)
+        screenshot_url = (
+            read_context.evidence[doc["screenshot_key"]]
+            if read_context is not None
+            else await generate_presigned_get(doc["screenshot_key"])
+        )
+    attachments = await _resolve_attachments(
+        doc, project_id, read_context.evidence if read_context is not None else None
+    )
+    author_name = await _resolve_author_name(
+        db, doc, member_name_cache=member_name_cache, read_context=read_context
+    )
 
     # DB-02: a reply created after the anchor/context_json de-duplication (see
     # create_reply) has none of its own - it's the same visual pin as its parent, so
@@ -216,7 +253,11 @@ async def _comment_out(
     context_json = doc.get("context_json")
     recovery_status = doc.get("recovery_status")
     if doc.get("parent_id") and (anchor is None or context_json is None or recovery_status is None):
-        parent = await CommentRepository(db).find_by_id(doc["parent_id"])
+        parent = (
+            read_context.parents.get(doc["parent_id"])
+            if read_context is not None
+            else await CommentRepository(db).find_by_id(doc["parent_id"])
+        )
         if (
             parent is not None
             and parent["workspace_id"] == doc["workspace_id"]
@@ -870,22 +911,106 @@ async def delete_thread_moderated(
             )
 
 
-async def _build_member_name_cache(
-    db: AsyncIOMotorDatabase[dict[str, Any]], docs: list[dict[str, Any]]
-) -> dict[str, str]:
-    """One batched $in query for every distinct member author across a whole list,
-    instead of _resolve_author_name's per-comment find_by_id (still deduped by the
-    cache dict itself once populated, but with no cache handed in, asyncio.gather still
-    fires one query per comment concurrently rather than one query total) - same fix
-    as D3 (dashboard/service.py's list_tickets)."""
-    member_ids = {doc["author_member_id"] for doc in docs if doc["author_type"] == "member"}
-    if not member_ids:
-        return {}
-    users_by_id = await UserRepository(db).find_many_by_ids(list(member_ids))
-    return {
-        user_id: (users_by_id[user_id]["name"] if user_id in users_by_id else "Unknown")
-        for user_id in member_ids
-    }
+async def serialize_comments(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    docs: list[dict[str, Any]],
+) -> list[CommentOut]:
+    """Enrich an authorized list in bounded batches rather than per-row fan-out.
+
+    This is not an authorization or pagination API: callers must obtain the rows
+    through the existing current-access/layer filters. No fields/ordering are lost.
+    Positive and missing references are cached only for this one workspace request.
+    """
+    from app.modules.share_links.repository import GuestSessionRepository
+
+    if any(doc["workspace_id"] != workspace_id for doc in docs):
+        raise NotFoundError("Comment not found.")
+    context = _CommentReadContext(workspace_id)
+    output: list[CommentOut] = []
+    for offset in range(0, len(docs), 100):
+        batch = docs[offset : offset + 100]
+        page_ids = {
+            doc["page_id"]
+            for doc in batch
+            if doc.get("page_id") and doc["page_id"] not in context.pages
+        }
+        if page_ids:
+            found_pages = await PageRepository(db).project_ids_for(workspace_id, list(page_ids))
+            context.pages.update({page_id: found_pages.get(page_id) for page_id in page_ids})
+
+        for doc in batch:
+            if doc.get("parent_id") is None:
+                context.parents[str(doc["_id"])] = doc
+        parent_ids = {
+            doc["parent_id"]
+            for doc in batch
+            if doc.get("parent_id") and doc["parent_id"] not in context.parents
+        }
+        if parent_ids:
+            found_parents = await CommentRepository(db).find_many_in_workspace(
+                workspace_id,
+                list(parent_ids),
+                {
+                    "workspace_id": 1,
+                    "page_id": 1,
+                    "anchor": 1,
+                    "context_json": 1,
+                    "recovery_status": 1,
+                },
+            )
+            context.parents.update(dict.fromkeys(parent_ids))
+            context.parents.update({str(doc["_id"]): doc for doc in found_parents})
+
+        member_ids = {
+            doc["author_member_id"]
+            for doc in batch
+            if doc["author_type"] == "member" and doc["author_member_id"] not in context.members
+        }
+        if member_ids:
+            users = await UserRepository(db).find_many_by_ids(list(member_ids))
+            context.members.update(
+                {
+                    uid: str(users[uid].get("name") or "Unknown") if uid in users else "Unknown"
+                    for uid in member_ids
+                }
+            )
+        guest_ids = {
+            doc["author_guest_id"]
+            for doc in batch
+            if doc["author_type"] == "guest" and doc["author_guest_id"] not in context.guests
+        }
+        if guest_ids:
+            guests = await GuestSessionRepository(db).display_names_in_workspace(
+                workspace_id, list(guest_ids)
+            )
+            context.guests.update({gid: guests.get(gid, "Guest") for gid in guest_ids})
+
+        evidence_keys: set[str] = set()
+        for doc in batch:
+            project_id = context.pages.get(doc.get("page_id") or "") or doc.get("project_id")
+            if not project_id:
+                continue
+            keys = [attachment["key"] for attachment in doc.get("attachments", [])]
+            if doc.get("screenshot_key"):
+                keys.append(doc["screenshot_key"])
+            evidence_keys.update(
+                key
+                for key in keys
+                if key not in context.evidence and is_project_upload(key, workspace_id, project_id)
+            )
+        keys_to_sign = sorted(evidence_keys)
+        for key_offset in range(0, len(keys_to_sign), 100):
+            context.evidence.update(
+                await generate_presigned_gets(keys_to_sign[key_offset : key_offset + 100])
+            )
+        for doc in batch:
+            output.append(await _comment_out(db, doc, read_context=context))
+        # Serialization of a large already-materialized legacy list must yield;
+        # avoid thousands of concurrent DB/signing tasks through asyncio.gather.
+        await asyncio.sleep(0)
+    return output
 
 
 async def list_comments(
@@ -903,10 +1028,7 @@ async def list_comments(
     else:
         docs = await repo.list_for_member(page["workspace_id"], page_id, since=since)
 
-    member_name_cache = await _build_member_name_cache(db, docs)
-    return await asyncio.gather(
-        *(_comment_out(db, doc, member_name_cache=member_name_cache) for doc in docs)
-    )
+    return await serialize_comments(db, workspace_id=page["workspace_id"], docs=docs)
 
 
 async def list_comments_for_project(
@@ -924,10 +1046,7 @@ async def list_comments_for_project(
         return []
 
     docs = await CommentRepository(db).list_for_project(workspace_id, page_ids)
-    member_name_cache = await _build_member_name_cache(db, docs)
-    return await asyncio.gather(
-        *(_comment_out(db, doc, member_name_cache=member_name_cache) for doc in docs)
-    )
+    return await serialize_comments(db, workspace_id=workspace_id, docs=docs)
 
 
 async def update_comment(
