@@ -25,6 +25,7 @@ from app.modules.clients.router import router as clients_router
 from app.modules.cloud_login.router import router as cloud_login_router
 from app.modules.comments.router import router as comments_router
 from app.modules.dashboard.router import router as dashboard_router
+from app.modules.deploy_sync.router import router as deploy_sync_router
 from app.modules.extension_tokens.router import router as extension_tokens_router
 from app.modules.integrations.router import router as integrations_router
 from app.modules.mcp.router import router as mcp_router
@@ -113,6 +114,7 @@ app.include_router(workspaces_router, prefix="/api/v1")
 app.include_router(projects_router, prefix="/api/v1")
 app.include_router(clients_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
+app.include_router(deploy_sync_router, prefix="/api/v1")
 app.include_router(assets_router, prefix="/api/v1")
 app.include_router(share_links_router, prefix="/api/v1")
 app.include_router(pages_router, prefix="/api/v1")

@@ -17,6 +17,7 @@ import { BrowserMenu } from "./BrowserMenu";
 import type { BrowserOption } from "./browsers";
 import { VersionMenu } from "./VersionMenu";
 import { PageApprovalButton } from "./PageApprovalButton";
+import { DeploySyncDialog } from "./DeploySyncDialog";
 
 // "view" is the canvas for someone whose project role can't comment (TDR-0056).
 export type CanvasMode = "browse" | "comment" | "draw" | "view";
@@ -70,6 +71,7 @@ export function ProjectFooter({
   iframeStatus,
 }: ProjectFooterProps) {
   const [showCollaborators, setShowCollaborators] = useState(false);
+  const [showDeploySync, setShowDeploySync] = useState(false);
   const width = viewport
     ? orientation === "portrait"
       ? viewport.width
@@ -166,13 +168,12 @@ export function ProjectFooter({
         </button>
         <button
           type="button"
-          className="bl-review-control bl-review-coming-soon"
-          disabled
-          title="Deploy-triggered capture is coming soon"
+          className="bl-review-control"
+          onClick={() => setShowDeploySync(true)}
+          title="Deployment notifications and review capture"
         >
           <RocketIcon width={13} height={13} />
           <span>Deploy sync</span>
-          <em>Coming soon</em>
         </button>
         <PageApprovalButton key={currentPageId} project={project} pageId={currentPageId} unresolvedCount={unresolvedCount} />
         <button type="button" className="bl-review-control bl-review-optional-control" disabled={!canAddTeamNote} onClick={onTeamNote} title="Create a team-only note for this page in Backline">
@@ -192,6 +193,7 @@ export function ProjectFooter({
           onClose={() => setShowCollaborators(false)}
         />
       )}
+      {showDeploySync && <DeploySyncDialog project={project} onClose={() => setShowDeploySync(false)} onSelectPage={onSelectPage} />}
     </footer>
   );
 }

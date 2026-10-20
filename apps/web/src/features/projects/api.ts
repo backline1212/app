@@ -6,6 +6,23 @@ export type ProjectOut = Schemas["ProjectOut"];
 export type PageOut = Schemas["PageOut"];
 export type RevisionHistoryOut = Schemas["RevisionHistoryOut"];
 
+export function getDeploySync(projectId: string): Promise<Schemas["DeploySyncOut"]> {
+  return apiFetch<Schemas["DeploySyncOut"]>(`/api/v1/projects/${projectId}/deploy-sync`);
+}
+
+export function createDeployCredential(projectId: string, request: Schemas["DeployCredentialRequest"]): Promise<Schemas["DeployCredentialOut"]> {
+  return apiFetch<Schemas["DeployCredentialOut"]>(`/api/v1/projects/${projectId}/deploy-sync/credential`, { method: "POST", body: JSON.stringify(request) });
+}
+
+export function revokeDeployCredential(projectId: string, expectedVersion: number): Promise<void> {
+  return apiFetch<void>(`/api/v1/projects/${projectId}/deploy-sync/credential`, { method: "DELETE", body: JSON.stringify({ expected_version: expectedVersion }) });
+}
+
+export function listDeployments(projectId: string, cursor: string | null = null): Promise<Schemas["DeploymentListOut"]> {
+  const params = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return apiFetch<Schemas["DeploymentListOut"]>(`/api/v1/projects/${projectId}/deploy-sync/deployments${params}`);
+}
+
 export function listProjects(workspaceId: string, includeArchived = false): Promise<ProjectOut[]> {
   return apiFetch<ProjectOut[]>(`/api/v1/workspaces/${workspaceId}/projects?include_archived=${includeArchived}`);
 }

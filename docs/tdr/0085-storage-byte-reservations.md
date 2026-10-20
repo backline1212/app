@@ -76,3 +76,10 @@ zero recent untracked uploads and enforcement false. Read-only index inspection
 finds both storage indexes present and no conflicts. The bounded report emits
 aggregate totals only and can be rerun before future enforcement/bucket changes.
 Enforcement configuration/deployment verification follows in the delivery ledger.
+
+Rollout: 1aa9a2e2346818d756f6aefd9f21de89bdcaf0fd reached SUCCESS on all three
+Railway services and Vercel. Enforcement configuration is true for API, worker and
+cloud-login; read-only accounting remains ten ready / 177 objects / 25,320,983 bytes
+with zero recent untracked uploads. Public health is status/mongo/redis ok. Actual
+quota writes, near-limit races/reconciliation and billing browser acceptance remain
+pending; no files were uploaded or deleted for this verification.

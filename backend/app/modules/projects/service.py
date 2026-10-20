@@ -428,6 +428,7 @@ async def update_project(
     viewer: Session | None = None,
 ) -> ProjectOut:
     from app.modules.clients.service import create_client
+    from app.modules.deploy_sync.service import cancel_for_project_change
 
     repo = ProjectRepository(db)
     existing = await repo.find_by_id(project_id)
@@ -493,6 +494,7 @@ async def update_project(
             },
             session=session,
         )
+        await cancel_for_project_change(db, current, next_state, session=session)
         await append_event(
             db,
             workspace_id=workspace_id,

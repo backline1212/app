@@ -18,6 +18,7 @@ from app.modules.comments import service as comment_service
 from app.modules.comments.schemas import CommentOut, CommentUpdate, Priority, Status
 from app.modules.dashboard import service as dashboard_service
 from app.modules.dashboard.schemas import TicketFilters
+from app.modules.deploy_sync import service as deploy_sync_service
 from app.modules.integrations import service as integration_service
 from app.modules.mcp.service import (
     McpActor,
@@ -113,6 +114,38 @@ async def list_tickets(
     if end < result.total:
         lines.extend(["", f"More available: call again with offset={end}."])
     lines.extend(["", 'Use get_ticket with a ticket number (e.g. "#12") for the full thread.'])
+    return "\n".join(lines)
+
+
+async def list_project_deployments(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    actor: McpActor,
+    project_id: str,
+    cursor: str | None,
+) -> str:
+    result = await deploy_sync_service.history(db, actor.session, project_id, cursor)
+    lines = [
+        "# Deployment notifications",
+        "",
+        "Capture records submitted review state after a notification; it does not "
+        "verify a commit or resolve feedback. Inspect ticket recovery separately.",
+        "",
+    ]
+    if not result.items:
+        lines.append("No deployment notifications yet.")
+    for row in result.items:
+        lines.append(
+            f"- `{row.delivery_id}` · {row.status} · deployed {row.deployed_at.isoformat()}"
+            + (f" · commit `{row.commit_ref}`" if row.commit_ref else "")
+            + (f" · page `{row.page_id}` · revision `{row.revision_id}`" if row.revision_id else "")
+            + (
+                f" · version delivery {row.recovery_delivery_state}"
+                if row.recovery_delivery_state
+                else ""
+            )
+        )
+    if result.next_cursor:
+        lines.extend(["", f"For older deployments call again with cursor `{result.next_cursor}`."])
     return "\n".join(lines)
 
 

@@ -1,6 +1,7 @@
 import gzip
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from bson import ObjectId
@@ -9,7 +10,8 @@ from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from app.core.actor_access import resolve_actor_project_access
 from app.core.arq_pool import get_arq_pool
 from app.core.errors import NotFoundError
-from app.core.session import Actor, actor_identity
+from app.core.session import Actor, Session, actor_identity
+from app.modules.deploy_sync.service import attach_snapshot
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.repository import ProjectRepository
 from app.modules.recovery_engine.repository import RecoveryLogRepository
@@ -87,6 +89,7 @@ async def submit_snapshot(
     nodes_index: dict[str, Any],
     full_page_hash: str,
 ) -> RevisionOut:
+    started_at = datetime.now(UTC)
     page_repo = PageRepository(db)
     page = await page_repo.find_by_id(page_id)
     if page is None:
@@ -123,6 +126,9 @@ async def submit_snapshot(
             content_type="application/gzip",
         )
     actor_type, actor_id = actor_identity(actor)
+    # Storage can take time; recheck current review/session access before linking
+    # the snapshot to a deployment or changing the page pointer.
+    await resolve_actor_project_access(db, actor, page["project_id"])
 
     async def commit(session: AsyncIOMotorClientSession) -> tuple[dict[str, Any], bool]:
         current = await revision_repo.find_current(page["workspace_id"], page_id, session=session)
@@ -157,6 +163,12 @@ async def submit_snapshot(
             str(saved["_id"]),
             session=session,
         )
+        # External guests may submit ordinary snapshots but cannot complete a
+        # team's deployment capture. The dashboard's member-backed guest can.
+        if isinstance(actor, Session) or actor.member_user_id:
+            await attach_snapshot(
+                db, page=page, revision_id=str(saved["_id"]), started_at=started_at, session=session
+            )
         return saved, created
 
     async with await db.client.start_session() as session:

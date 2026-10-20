@@ -27,3 +27,8 @@ verification is pending. Browser use is unavailable; configured/unconfigured,
 failed capability retry, actual provider redirect/callback and email fallback
 acceptance remain open. No account, OTP, provider request or shared feedback was
 created for this slice.
+
+Rollout: 1aa9a2e2346818d756f6aefd9f21de89bdcaf0fd is SUCCESS on all three
+Railway services and Vercel. Public GET capabilities returns google_sign_in true
+and Cache-Control no-store; public health reports status/mongo/redis ok. This
+confirms configuration readiness and rollout, not provider/browser completion.

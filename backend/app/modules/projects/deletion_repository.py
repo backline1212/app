@@ -133,7 +133,11 @@ class ProjectDeletionRepository:
         retained_events = await self.db.events.count_documents(
             {"workspace_id": workspace_id, "payload_json.project_id": project_id}
         )
+        deployments = await self.db.deployments.find(
+            {"workspace_id": workspace_id, "project_id": project_id}, {"_id": 1}
+        ).to_list(length=None)
         ids = {
+            "deployments": sorted(str(doc["_id"]) for doc in deployments),
             "uploads": sorted(str(doc["_id"]) for doc in uploads),
             "pages": sorted(page_ids),
             "project_assets": sorted(str(doc["_id"]) for doc in assets),
@@ -258,6 +262,10 @@ class ProjectDeletionRepository:
         # Upload registry IDs are object-key strings, not Mongo ObjectIds. Objects
         # themselves already belong to the project's enumerated upload prefixes.
         await self.db.uploads.delete_many({"workspace_id": workspace_id, "project_id": project_id})
+        # Deployment IDs are deterministic SHA256 strings rather than ObjectIds.
+        await self.db.deployments.delete_many(
+            {"workspace_id": workspace_id, "project_id": project_id}
+        )
 
         async def delete_ids(collection: str) -> None:
             object_ids = [to_object_id(value) for value in ids[collection]]

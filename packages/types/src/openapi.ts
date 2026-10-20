@@ -1017,6 +1017,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/deploy-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Settings */
+        get: operations["settings_api_v1_projects__project_id__deploy_sync_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/deploy-sync/credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Credential */
+        post: operations["create_credential_api_v1_projects__project_id__deploy_sync_credential_post"];
+        /** Revoke Credential */
+        delete: operations["revoke_credential_api_v1_projects__project_id__deploy_sync_credential_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/deploy-sync/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** History */
+        get: operations["history_api_v1_projects__project_id__deploy_sync_deployments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deploy-hooks/{workspace_id}/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Notify */
+        post: operations["notify_api_v1_deploy_hooks__workspace_id___project_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/assets/{asset_id}/content": {
         parameters: {
             query?: never;
@@ -3054,6 +3123,89 @@ export interface components {
             };
             /** Project Stats */
             project_stats: components["schemas"]["ProjectStatsOut"][];
+        };
+        /** DeployCredentialOut */
+        DeployCredentialOut: {
+            /** Version */
+            version: number;
+            /** Signing Secret */
+            signing_secret: string;
+        };
+        /** DeployCredentialRequest */
+        DeployCredentialRequest: {
+            /** Expected Version */
+            expected_version: number;
+            /** Client Request Id */
+            client_request_id: string;
+        };
+        /** DeployCredentialRevoke */
+        DeployCredentialRevoke: {
+            /** Expected Version */
+            expected_version: number;
+        };
+        /** DeploySyncOut */
+        DeploySyncOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Credential Usable */
+            credential_usable: boolean;
+            /** Unavailable Reason */
+            unavailable_reason?: ("inactive_project" | "fragment_route" | "issuer_access") | null;
+            /** Version */
+            version: number;
+            /** Hook Url */
+            hook_url: string;
+            /** Start Url */
+            start_url: string;
+            /** Environment */
+            environment: string;
+            /** Rotated At */
+            rotated_at?: string | null;
+        };
+        /** DeploymentListOut */
+        DeploymentListOut: {
+            /** Items */
+            items: components["schemas"]["DeploymentOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** DeploymentOut */
+        DeploymentOut: {
+            /** Id */
+            id: string;
+            /** Delivery Id */
+            delivery_id: string;
+            /** Url */
+            url: string;
+            /** Environment */
+            environment: string;
+            /**
+             * Deployed At
+             * Format: date-time
+             */
+            deployed_at: string;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /** Commit Ref */
+            commit_ref?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "awaiting_review" | "captured" | "superseded" | "cancelled";
+            /** Cancel Reason */
+            cancel_reason?: ("credential_changed" | "project_changed") | null;
+            /** Page Id */
+            page_id?: string | null;
+            /** Revision Id */
+            revision_id?: string | null;
+            /** Captured At */
+            captured_at?: string | null;
+            /** Recovery Delivery State */
+            recovery_delivery_state?: string | null;
         };
         /** DestinationOut */
         DestinationOut: {
@@ -7539,6 +7691,173 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TicketOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    settings_api_v1_projects__project_id__deploy_sync_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploySyncOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_credential_api_v1_projects__project_id__deploy_sync_credential_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeployCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeployCredentialOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_credential_api_v1_projects__project_id__deploy_sync_credential_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeployCredentialRevoke"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    history_api_v1_projects__project_id__deploy_sync_deployments_get: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    notify_api_v1_deploy_hooks__workspace_id___project_id__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Backline-Timestamp"?: string;
+                "X-Backline-Signature"?: string;
+            };
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentOut"];
                 };
             };
             /** @description Validation Error */

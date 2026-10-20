@@ -1,5 +1,38 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Deploy sync and guarded dialog close (TDR-0087)
+
+Replaced the disabled footer control with manager credential create/replay/rotate/
+revoke, no-store settings, signed bounded CI notifications, durable ordered records
+and cursor history. Current issuer access, project/environment/start-page scope,
+archive/deletion, stale signatures and mismatched body replay are enforced. Metadata
+changes cancel pending captures. Member-backed snapshot submission associates the
+current waiting delivery atomically with its revision; existing durable revision
+delivery drives recovery. External guests cannot read settings/history/secrets or
+complete the team capture. CI sender uses fixed bytes, bounded retries and no secret
+logging; MCP exposes only scoped read history. Hard-delete includes delivery rows.
+
+Dialog keeps immutable credential/revoke versions after uncertain responses, offers
+copy fallback, explicit rotation/revoke confirmation and unsaved-secret close guard.
+The shared Dialog now prevents native Escape close before consulting the caller's
+guard. Starting-page navigation explains reload/reopen capture. Google readiness
+copy/disabled styling is refined. Fragment-route and isolated background deploy
+capture remain explicitly unavailable; receipt/capture cannot prove a commit/fix.
+
+Contracts regenerated. Backend Ruff/full mypy (213 files), affected follow-up mypy
+(20 files), scope audit (23 repositories), CI sender syntax and full frontend
+lint/typecheck/build (12/12) pass before final navigation copy. Production read-only
+index dry-run finds only deployments_project_history missing, no conflicts; no data
+modified. Final affected checks/rollout are in progress. No suite or production
+credential/CI event/upload/comment/deletion was run. Browser/live CI and negative/
+failure acceptance remain pending; see the TDR and flow matrix.
+
+Final affected web lint/typecheck/build passes 3/3 after navigation and close copy;
+the full frontend graph passed 12/12. Backend Ruff/full mypy and affected MCP/deploy/
+snapshot follow-up checks, scope audit, contract generation and diff checks pass.
+Existing large-chunk advisory remains. Deployment is the next step; none of these
+checks establishes a live CI or browser journey.
+
 ## 2026-10-20: Google readiness and storage accounting rollout (TDR-0086/0085)
 
 Login/signup now query a no-store capability boolean before offering Google. Both
@@ -18,6 +51,15 @@ zero unattributed objects. No objects deleted/business records changed. Read-onl
 report confirms all ten ready, matching object/byte totals, zero recent untracked
 uploads. Index dry-run finds both storage indexes present, no conflicts/missing.
 Enforcement enablement and final deployment/public contract verification follow.
+
+Rollout confirmed: commit 1aa9a2e2346818d756f6aefd9f21de89bdcaf0fd reports
+SUCCESS on Railway API, worker and cloud-login and Vercel
+`https://vercel.com/devbackline-7169/app-web/F5s51hYtoZs1myG94kLBjoPDmd8e`.
+Storage enforcement configuration is true for all three services. Read-only report
+still confirms ten ready / 177 objects / 25,320,983 held bytes / zero recent untracked
+uploads. Public health is status/mongo/redis ok. GET auth/capabilities returns
+google_sign_in true with Cache-Control no-store. Configuration/contract rollout is
+confirmed; actual Google/browser and quota write-path acceptance remain open.
 
 ## 2026-10-20: Audit F24 — storage reservations and inventory (TDR-0085)
 

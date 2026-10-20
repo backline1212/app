@@ -4,6 +4,8 @@ import type { QueryClient } from "@tanstack/react-query";
 // as endpoints land - never construct ad-hoc key arrays in components.
 export const qk = {
   authCapabilities: () => ["auth", "capabilities"] as const,
+  deploySync: (projectId: string) => ["deploy-sync", projectId] as const,
+  deployments: (projectId: string) => ["deployments", projectId] as const,
   health: () => ["health"] as const,
   workspaces: () => ["workspaces"] as const,
   workspace: (id: string) => ["workspace", id] as const,

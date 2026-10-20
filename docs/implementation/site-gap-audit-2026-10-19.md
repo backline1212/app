@@ -3,6 +3,12 @@
 Date: 2026-10-19 (Asia/Calcutta). Baseline: `main`, commit `2daf5a7`.
 Scope decision: [TDR-0059](../tdr/0059-site-gap-audit.md).
 
+L06 source follow-up: [TDR-0087](../tdr/0087-deploy-notifications-and-review-capture.md)
+implements signed deploy notifications, project credential lifecycle, review
+snapshot association, history/setup and read-only MCP history. Browser/live CI
+acceptance, fragment-route deploy capture and isolated background capture remain
+open. The remaining Coming soon inventory is still tracked separately.
+
 F18 source follow-up: [TDR-0086](../tdr/0086-google-sign-in-readiness.md) checks
 Google configuration and the single dashboard callback before offering sign-in.
 Login/signup checking, error retry and email fallback states are implemented;

@@ -40,6 +40,8 @@ Typical flow for fixing feedback in this codebase:
 4. reply_to_ticket with what changed (visibility "team" by default; "client" is seen by \
 the client), then update_ticket status "in_review" - or "resolved" if the team asked.
 
+After deploying, list_project_deployments shows signed CI notifications and later \
+member-review capture state. This is not proof that a commit is live or a fix verified. \
 Tickets can also be filed in a connected tracker (Jira, Linear, GitHub...) with \
 send_ticket_to_tracker. Write tools need a read & write token."""
 
@@ -156,6 +158,19 @@ async def list_tickets(
             offset=offset,
         )
     )
+
+
+@mcp.tool(title="List project deployments", annotations=_READ)
+async def list_project_deployments(
+    project_id: Annotated[str, Field(description="A project id from list_projects.")],
+    cursor: Annotated[
+        str | None, Field(min_length=64, max_length=64, pattern=r"^[a-f0-9]+$")
+    ] = None,
+) -> str:
+    """Paginated signed deploy notification and review capture history. No secrets;
+    a capture does not prove a commit is live or automatically close tickets."""
+    actor = await _actor()
+    return await _run(tools.list_project_deployments(get_db(), actor, project_id, cursor))
 
 
 @mcp.tool(title="Get ticket", annotations=_READ)

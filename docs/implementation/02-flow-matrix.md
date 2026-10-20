@@ -1,5 +1,14 @@
 # Flow inventory and acceptance criteria
 
+FD-08/09 deploy follow-up (TDR-0087): verify manager setup/rotation/revoke, immutable
+response-loss retries, stale signatures/body reuse, cross-project/guest/issuer-role
+negatives, deployment ordering, pagination and project metadata cancellation. Only
+member-backed snapshot requests begun after the notification may link its current
+starting-page revision. Verify in-flight requests, unchanged versions, recovery
+outbox, MCP read access and hard-delete enumeration. Capture does not attest a
+commit/cache state; fragment-route deploy capture and isolated background capture
+remain unavailable. Browser and live CI/write acceptance are separately pending.
+
 FD-25 follow-up (TDR-0086): Google readiness checks both credentials and the single
 allowed dashboard callback. Verify checking/unconfigured/error/retry states in
 login and signup, email fallback and actual configured callback completion. A
