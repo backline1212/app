@@ -3161,6 +3161,11 @@ export interface components {
             environment: string;
             /** Rotated At */
             rotated_at?: string | null;
+            /**
+             * Hash Routes Supported
+             * @default false
+             */
+            hash_routes_supported: boolean;
         };
         /** DeploymentListOut */
         DeploymentListOut: {

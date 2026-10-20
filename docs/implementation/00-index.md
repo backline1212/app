@@ -123,6 +123,10 @@ pagination, polling deltas and measured large-project acceptance remain open.
 probes independent of drafts, ended-review cleanup, serialized Chrome session
 updates and mode/close race guards. Extension 0.4.8 rollout and live revocation/
 failure acceptance remain distinct from source checks.
+[TDR-0096](../tdr/0096-hash-route-page-identity.md) separates #/ and #!/ page
+identities, retains legacy history, rebinds ordinary-anchor capture URLs, exposes
+route context in labels and adds capability-gated hash-route deploy capture.
+Other fragment formats and live/installed acceptance remain open.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

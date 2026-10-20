@@ -4,6 +4,7 @@ import { WidgetApiError } from "./api-client";
 
 interface RegisterPageResponse {
   id: string;
+  url_normalized?: string;
 }
 
 // On a share link's own preview origin (docs/tdr/0040) the pathname is already the real
@@ -29,7 +30,9 @@ export function realPageUrl(shareToken: string, targetOrigin: string): string {
   search.delete("blMode");
   search.delete("blBrowser");
   const qs = search.toString();
-  return new URL(targetOrigin).origin + pathname + (qs ? `?${qs}` : "");
+  const hash = window.location.hash;
+  const route = hash.startsWith("#/") || hash.startsWith("#!/") ? hash : "";
+  return new URL(targetOrigin).origin + pathname + (qs ? `?${qs}` : "") + route;
 }
 
 export async function registerCurrentPage(
@@ -45,6 +48,14 @@ export async function registerCurrentPage(
       title: document.title || null,
     }),
   });
+  const address = new URL(url);
+  if (address.hash.startsWith("#/") || address.hash.startsWith("#!/")) {
+    let registeredHash = "";
+    try { registeredHash = new URL(page.url_normalized ?? "").hash; } catch { /* An older server may omit it. */ }
+    if (registeredHash !== address.hash) {
+      throw new Error("This Backline server could not register this route separately. Return to Backline and reopen review after the server is updated. Your existing feedback is still available there.");
+    }
+  }
   return page.id;
 }
 

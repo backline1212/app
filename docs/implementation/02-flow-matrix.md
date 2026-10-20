@@ -1,5 +1,12 @@
 # Flow inventory and acceptance criteria
 
+FD-08/09 hash-route follow-up (TDR-0096): verify #/ and #!/ route/query/case/encoding
+identity against root and ordinary anchors, legacy merged-history visibility, URL
+selection/return, per-route revisions/approval and draft/late-registration/debounce
+races. A new SDK must reject an old server's collapsed registration response. Deploy
+creation requires the reported hash capability and notifications/snapshots match only
+the exact supported canonical starting route. Other fragment routers remain open.
+
 FD-08/09/16/17/25 native access follow-up (TDR-0095): verify guest/member expiry,
 revoked link/membership/project, archive/origin/role changes, drafts/pending saves,
 hidden/foreground and offline/5xx/timeouts. An authoritative denial clears local

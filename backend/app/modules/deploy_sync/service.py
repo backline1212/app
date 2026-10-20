@@ -35,7 +35,7 @@ from app.modules.deploy_sync.schemas import (
     DeploySyncOut,
     DeployUnavailableReason,
 )
-from app.modules.pages.url_normalize import normalize_url
+from app.modules.pages.url_normalize import has_routing_fragment, normalize_url
 from app.modules.workspaces.repository import MembershipRepository
 
 
@@ -44,9 +44,11 @@ def _active(project: dict[str, Any]) -> bool:
 
 
 def _address(url: str) -> str:
-    # Page identities currently omit fragments. Avoid claiming route-specific
-    # deployment capture for hash routers until page identities support them.
     return normalize_url(url)
+
+
+def _unsupported_fragment(url: str) -> bool:
+    return bool(urlsplit(url).fragment) and not has_routing_fragment(url)
 
 
 async def _issuer_allowed(
@@ -96,7 +98,7 @@ async def settings(
     if enabled:
         if not _active(project) or project.get("project_type", "website") != "website":
             unavailable_reason = "inactive_project"
-        elif urlsplit(project_start_url(project)).fragment:
+        elif _unsupported_fragment(project_start_url(project)):
             unavailable_reason = "fragment_route"
         elif not await _issuer_allowed(db, project, config["issued_by"]):
             unavailable_reason = "issuer_access"
@@ -109,6 +111,7 @@ async def settings(
         start_url=project_start_url(project),
         environment=project.get("environment", "live"),
         rotated_at=config.get("rotated_at"),
+        hash_routes_supported=True,
     )
 
 
@@ -127,9 +130,9 @@ async def create_credential(
         project = await _member_project(db, actor, project_id, "project:update", session=session)
         if not _active(project) or project.get("project_type", "website") != "website":
             raise ValidationError("Deploy sync requires an active website project.")
-        if urlsplit(project_start_url(project)).fragment:
+        if _unsupported_fragment(project_start_url(project)):
             raise ValidationError(
-                "Deploy sync cannot distinguish fragment routes yet. "
+                "Deploy capture supports path routes and #/ or #!/ routes. "
                 "Website review remains available."
             )
         config = project.get("deploy_sync") or {}
@@ -308,7 +311,7 @@ async def notify(
         if (
             body.environment != project.get("environment", "live")
             or _address(body.url) != _address(project_start_url(project))
-            or urlsplit(body.url).fragment
+            or _unsupported_fragment(body.url)
         ):
             raise ValidationError(
                 "The deployment must name this project's configured starting URL and environment."

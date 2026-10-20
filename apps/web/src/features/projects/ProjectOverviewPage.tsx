@@ -8,6 +8,7 @@ import { API_BASE_URL, apiFetch } from "../../lib/api-client";
 import { removeProjectComment, upsertProjectComment } from "../../lib/comment-cache";
 import { projectCan } from "../../lib/project-roles";
 import { qk } from "../../lib/query-keys";
+import { reviewPageLabel } from "../../lib/review-page-path";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { useSearchParamsUpdater } from "../../lib/use-search-params-updater";
 import { ticketRef } from "../../lib/ticket-ref";
@@ -79,12 +80,7 @@ function reviewUrl(token: string) {
 }
 
 function pageLabel(page: PageOut) {
-  if (page.title) return page.title;
-  try {
-    return new URL(page.url_normalized).pathname || "/";
-  } catch {
-    return page.url_normalized;
-  }
+  return reviewPageLabel(page);
 }
 
 // Where the canvas is in showing the selected comment's pin - what the frame's status

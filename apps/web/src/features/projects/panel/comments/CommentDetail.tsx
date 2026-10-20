@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import { ConfirmDialog } from "../../../../components/ConfirmDialog";
 import { patchProjectComment, upsertProjectComment } from "../../../../lib/comment-cache";
 import { qk } from "../../../../lib/query-keys";
+import { reviewPagePath } from "../../../../lib/review-page-path";
 import { renderWithMentions } from "../../../../lib/mentions";
 import { ticketRef } from "../../../../lib/ticket-ref";
 import { timeAgo } from "../../../../lib/time";
@@ -134,11 +135,7 @@ function formatDue(iso: string): string {
 function pagePath(pages: PageOut[], pageId: string): string {
   const page = pages.find((p) => p.id === pageId);
   if (!page) return "Unknown page";
-  try {
-    return new URL(page.url_normalized).pathname || "/";
-  } catch {
-    return page.url_normalized;
-  }
+  return reviewPagePath(page.url_normalized);
 }
 
 // The widget's selector paths are exact but long (every ancestor, with

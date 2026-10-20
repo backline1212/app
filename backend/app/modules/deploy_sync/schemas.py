@@ -28,6 +28,7 @@ class DeploySyncOut(BaseModel):
     start_url: str
     environment: str
     rotated_at: datetime | None = None
+    hash_routes_supported: bool = False
 
 
 class DeployCredentialOut(BaseModel):

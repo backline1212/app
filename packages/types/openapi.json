@@ -10662,6 +10662,11 @@
               }
             ],
             "title": "Rotated At"
+          },
+          "hash_routes_supported": {
+            "type": "boolean",
+            "title": "Hash Routes Supported",
+            "default": false
           }
         },
         "type": "object",

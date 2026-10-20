@@ -7,6 +7,7 @@ import { formatDate } from "../../../lib/date-format";
 import { projectCan } from "../../../lib/project-roles";
 import { qk } from "../../../lib/query-keys";
 import * as api from "../api";
+import { hasReviewHashRoute } from "../../../lib/review-page-path";
 
 const STATUS: Record<Schemas["DeploymentOut"]["status"], string> = {
   awaiting_review: "Waiting for member review capture",
@@ -82,8 +83,10 @@ export function DeploySyncDialog({ project, onClose, onSelectPage }: {
   });
   const pending = rotate.isPending || revoke.isPending;
   const canManage = projectCan(project, "manage");
-  const fragmentRoute = Boolean(settings.data?.start_url.includes("#"));
-  const canCreate = canManage && !project.archived_at && !fragmentRoute && !settings.isError;
+  const startUrl = settings.data?.start_url ?? "";
+  const fragmentRoute = startUrl.includes("#")
+    && (!hasReviewHashRoute(startUrl) || settings.data?.hash_routes_supported !== true);
+  const canCreate = canManage && Boolean(settings.data) && !project.archived_at && !fragmentRoute && !settings.isError;
   const rows = history.data?.pages.flatMap(page => page.items) ?? [];
   const error = rotate.error ?? revoke.error;
   const tryClose = () => {
@@ -117,7 +120,7 @@ export function DeploySyncDialog({ project, onClose, onSelectPage }: {
       {settings.data && <>
         <p role="status"><strong>{settings.data.credential_usable ? "Ready for signed notifications" : settings.data.unavailable_reason === "inactive_project" ? "Unavailable for this inactive project" : settings.data.unavailable_reason === "fragment_route" ? "Unavailable for fragment routes" : settings.data.enabled ? "Credential needs a current project manager" : "Deploy sync is off"}</strong></p>
         {settings.data.version > 0 && <p>Credential version {settings.data.version}{settings.data.rotated_at ? ` · Changed ${formatDate(settings.data.rotated_at, { dateStyle: "medium", timeStyle: "short" })}` : ""}</p>}
-        {fragmentRoute && <p>Deploy sync cannot distinguish fragment routes yet. Website review still works.</p>}
+        {fragmentRoute && <p>Deployment capture is unavailable for this starting address. Website feedback remains available.</p>}
         {project.archived_at && <p>Restore this project before receiving deployment notifications.</p>}
         {!canManage && <p>A project manager can create, rotate or revoke the CI credential.</p>}
         <label>BACKLINE_HOOK_URL<input className="bl-input bl-mono" readOnly value={settings.data.hook_url} onFocus={event => event.target.select()} /></label>

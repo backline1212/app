@@ -179,6 +179,7 @@ async function init(config: BacklineConfig): Promise<void> {
   reviewUrl = currentSession.review_url;
 
   const pageUrl = realPageUrl(config.shareToken, resolved.target_origin);
+  let registeredPageUrl = pageUrl;
   let registeredDocumentUrl = location.href;
   // `let`: a single-page app's own route changes move this widget to another page
   // without a reload - see the route follower at the end of init.
@@ -205,7 +206,8 @@ async function init(config: BacklineConfig): Promise<void> {
   // reloading this widget.
   const currentPagePath = (): string => {
     try {
-      return new URL(realPageUrl(config.shareToken, resolved.target_origin)).pathname;
+      const address = new URL(registeredPageUrl);
+      return address.pathname + address.search + address.hash;
     } catch {
       // keep the proxied path if the target origin isn't a parseable URL
       return window.location.pathname;
@@ -508,16 +510,18 @@ async function init(config: BacklineConfig): Promise<void> {
   // exactly when a full load of that URL would be (backend pages/url_normalize.py).
   let followedUrl = pageUrl;
   let seenUrl = pageUrl;
+  let seenDocumentUrl = registeredDocumentUrl;
   let routeTimer: ReturnType<typeof setTimeout> | null = null;
   const followRoute = async (): Promise<void> => {
     if (composerHasDraft()) { seenUrl = ""; return; }
     const nextUrl = realPageUrl(config.shareToken, resolved.target_origin);
     const nextDocumentUrl = location.href;
-    if (nextUrl === followedUrl) return;
+    if (nextUrl === followedUrl && nextDocumentUrl === registeredDocumentUrl) return;
     const nextPageId = await registerCurrentPage(api, projectId, nextUrl);
     if (location.href !== nextDocumentUrl || realPageUrl(config.shareToken, resolved.target_origin) !== nextUrl) return;
     if (composerHasDraft()) { seenUrl = ""; return; }
     followedUrl = nextUrl;
+    registeredPageUrl = nextUrl;
     pageId = nextPageId;
     registeredDocumentUrl = nextDocumentUrl;
     threadManager.clearPage();
@@ -546,8 +550,9 @@ async function init(config: BacklineConfig): Promise<void> {
     // immutable request in place until they finish or explicitly discard it.
     if (composerHasDraft()) return;
     const now = realPageUrl(config.shareToken, resolved.target_origin);
-    if (now === seenUrl) return;
+    if (now === seenUrl && location.href === seenDocumentUrl) return;
     seenUrl = now;
+    seenDocumentUrl = location.href;
     if (routeTimer) clearTimeout(routeTimer);
     // Once the new route has had a moment to render, so its anchors exist to pin to.
     routeTimer = setTimeout(() => {

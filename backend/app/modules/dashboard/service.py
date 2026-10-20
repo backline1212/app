@@ -40,7 +40,12 @@ def _page_path(url_normalized: str | None) -> str | None:
     if not url_normalized:
         return None
     try:
-        return urlparse(url_normalized).path or "/"
+        parsed = urlparse(url_normalized)
+        return (
+            (parsed.path or "/")
+            + (f"?{parsed.query}" if parsed.query else "")
+            + (f"#{parsed.fragment}" if parsed.fragment else "")
+        )
     except ValueError:
         return None
 

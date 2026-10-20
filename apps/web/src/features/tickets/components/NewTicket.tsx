@@ -10,16 +10,13 @@ import type { WorkspaceOut, MemberOut } from "../../workspaces/api";
 import * as api from "../api";
 import { DatePicker } from "./DatePicker";
 import { projectCan } from "../../../lib/project-roles";
+import { reviewPagePath } from "../../../lib/review-page-path";
 
 type Shot = Schemas["AttachmentIn"] & { preview: string };
 
 function pageLabel(page: { title: string | null; url_normalized: string }) {
   if (/^https?:\/\//.test(page.url_normalized)) {
-    try {
-      return new URL(page.url_normalized).pathname || "/";
-    } catch {
-      /* fall through to the title */
-    }
+    return reviewPagePath(page.url_normalized);
   }
   return page.title || page.url_normalized;
 }

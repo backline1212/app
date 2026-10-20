@@ -2,6 +2,7 @@ import type { CommentOut } from "../../../board/api";
 import type { PageOut } from "../../../pages/api";
 import { CommentRow } from "./CommentRow";
 import type { MemberOut } from "../../../workspaces/api";
+import { reviewPageLabel } from "../../../../lib/review-page-path";
 
 export interface CommentsListProps {
   isLoading: boolean;
@@ -25,7 +26,7 @@ export interface CommentsListProps {
 
 function pageLabel(pages: PageOut[], pageId: string): string {
   const page = pages.find((p) => p.id === pageId);
-  return page?.title || page?.url_normalized || "Untitled page";
+  return page ? reviewPageLabel(page) : "Untitled page";
 }
 
 export function CommentsList({

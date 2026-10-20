@@ -1,5 +1,26 @@
 # Delivery and verification ledger
 
+## 2026-10-21: Hash-route review identity (TDR-0096)
+
+Recognized #/ and #!/ routes retain distinct canonical page URLs. Widget/native
+registration verifies the returned route before accepting a page ID from an old
+server. Standalone navigation tracks observed document URL separately, rebinding
+ordinary anchors without endlessly resetting its debounce, and retains draft/race
+guards. Registered-page card context stays stable while a draft holds a prior route.
+Portal labels/pickers/ticket paths include route/query context. Deploy matching uses
+the same identity and a server-reported capability gates hash credential creation.
+Other fragment formats stay unavailable. Existing merged legacy history is retained
+on its original page; no guessed reassignment, index change or migration.
+
+Backend Ruff app/scripts, full mypy (214 files) and scope (23 repositories) pass;
+Pydantic OpenAPI export and packages/types regeneration complete. Full frontend
+checks pass 12/12 after final guards; existing web chunk advisory remains and diff
+checks pass. No suite, shared route/comment/CI write
+or provider sign-in. Extension 0.4.9 source still requires served/installed rollout;
+Chrome remains 0.4.3. Read-only Railway status still reports all services on 7b25ac3,
+health/Mongo/Redis ok. Targeted read-only project/service schema inspection exposed
+no pause switch; the deploy rejection and its root cause remain unresolved.
+
 ## 2026-10-21: Native access cleanup and lifecycle races (TDR-0095)
 
 Native access checks continue independently of drafts, every 30 seconds while

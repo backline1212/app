@@ -95,8 +95,12 @@ async function buildFreshContext(): Promise<AnnotationContext | null> {
 
   // Connected with a member token, so unlike the guest widget this can change a
   // comment's status itself - the same member-only PATCH the dashboard uses.
+  const address = new URL(pageUrl);
+  const route = address.hash.startsWith("#/") || address.hash.startsWith("#!/") ? address.hash : "";
+  const pagePath = address.pathname + address.search + route;
   const threadManager = createThreadManager({
     shadow,
+    pagePath: () => pagePath,
     statusUpdater: () => (info && !info.member) || !["editor", "manager"].includes(project.my_role ?? "") ? null : async (commentId, status) => {
       const updated = await api.request<CommentRecord>(`/api/v1/comments/${commentId}`, {
         method: "PATCH",
@@ -127,7 +131,7 @@ async function buildFreshContext(): Promise<AnnotationContext | null> {
     // initials come from that.
     composerDetails: (regionSize) => ({
       authorName: info?.authorName ?? connection!.userEmail,
-      pagePath: window.location.pathname,
+      pagePath,
       browser: parseUserAgent(navigator.userAgent).browser,
       regionSize,
     }),
