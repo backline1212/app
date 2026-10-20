@@ -61,7 +61,11 @@ RUN pnpm install --frozen-lockfile --filter @backline/extension...
 COPY apps/extension ./apps/extension
 COPY apps/widget ./apps/widget
 COPY packages/types ./packages/types
-RUN pnpm --filter @backline/extension build
+ARG PUBLIC_API_BASE_URL=https://backlinewidget-production.up.railway.app
+ARG PUBLIC_DASHBOARD_BASE_URL=https://backline-qa.vercel.app
+RUN BACKLINE_API_BASE_URL="$PUBLIC_API_BASE_URL" \
+    BACKLINE_DASHBOARD_BASE_URL="$PUBLIC_DASHBOARD_BASE_URL" \
+    pnpm --filter @backline/extension build
 
 # --- Stage 2: the API ----------------------------------------------------------------
 # Pinned to Debian 12 (bookworm), not the floating `python:3.12-slim` tag - that tag has

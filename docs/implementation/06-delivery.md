@@ -1,5 +1,27 @@
 # Delivery and verification ledger
 
+## 2026-10-20: Audit continuation — proxy bounds, logout cookies and claims (TDR-0078)
+
+F23 now reads incoming forms within the 2 MiB cap and upstream responses within
+16 MiB wire/decoded caps and a total request deadline. Gzip/deflate decompression
+is output-bounded; unsupported compression/SSE/incomplete/oversized responses
+fail with native-review guidance. F19 relays raw namespaced cookie deletions and
+rotations across redirect hops, preserving expiry/Max-Age and cookie policy.
+F17's extension Docker stage accepts explicit API/dashboard build inputs. F25
+now explicitly preserves all-plan integrations/MCP access and aligns the comparison
+instead of introducing a surprise paywall; disabled cloud sessions remain unshipped.
+F35 states bounded BugHunt coverage and reconciles FD-22/23 with real provider paths.
+
+Source verification/rollout is in progress. No gzip/cookie/logout/oversize browser
+acceptance, custom-address Docker build or production mutation is claimed. The
+browser tool remains disabled in Work settings; no workaround or questions were
+used. Source work does not close F24 quotas, F26 reservations or F29 AI mutations.
+
+Final checks pass: backend Ruff across app, mypy on affected proxy/billing/AI modules
+(20 files), workspace scoping (20 repositories), web lint/typecheck/build (3/3) and
+diff checks. Existing large-chunk advisory remains. No suite written/run. Docker
+argument behavior is source-reviewed; a custom-address image build remains pending.
+
 ## 2026-10-20: Chrome Web Store release preparation (TDR-0078)
 
 The user requested publishing Backline's extension and the one-time developer
@@ -14,8 +36,11 @@ copy, permission/data disclosures and missing policy/account/screenshot inputs.
 Chrome settings visibly report installed extension 0.4.3. Existing-tab reads work;
 creating the developer-dashboard tab returns `Not allowed`. Asked the user to open
 it. No account registration, payment, upload, store submission, production rollout
-or installed-0.4.5 browser acceptance has occurred. Static verification is in
-progress; no suite written/run.
+or installed-0.4.5 browser acceptance has occurred. Extension/widget lint,
+typecheck and build passed (6/6 Turbo tasks); rebuilt after final icon rendering
+and inspected the ZIP for root manifest, scripts and all four icon sizes. Icons
+were visually inspected. No suite written/run. A subsequent Chrome inventory shows
+Google sign-in for the Web Store; asked the user to finish sign-in themselves.
 
 ## 2026-10-20: PDF/image commenting and preview repairs (TDR-0077)
 
@@ -88,6 +113,15 @@ write/concurrency/guest-negative and installed-0.4.4 acceptance open.
 
 Pricing also now marks cloud login sessions unshipped, matching the retained server
 browser isolation gate rather than selling disabled infrastructure as available.
+
+**TDR-0076/77 rollout:** commit b92e54ad88ceae35a0bd639b5148fc84851463d8
+succeeds on Railway API (55b03d03-9793-45a7-8db2-4ada726e774b), worker
+(d69626e2-ebf3-4e98-be6d-3085173dac33) and cloud-login
+(dd0c248f-7164-4c36-91a2-e89069d6f652), and Vercel
+`https://vercel.com/devbackline-7169/app-web/FkAAxm7hJpiCtkNCrjeqA1y8Rga1`.
+Public OpenAPI exposes file-content, file-region and page-approval endpoints;
+health reports status/mongo/redis all ok. No production data mutation or browser
+functional acceptance is inferred from route availability/deployment success.
 
 ## 2026-10-19: Comment retry and sign-in continuity (TDR-0075)
 

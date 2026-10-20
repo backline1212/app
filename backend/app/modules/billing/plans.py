@@ -158,8 +158,10 @@ COMPARISON_CATEGORIES: list[dict[str, Any]] = [
         "category": "Integrations & Team",
         "rows": [
             _row("Team members", "2", "5", "15", "100"),
-            _row("Slack, Jira, ClickUp, Asana & Trello", _NO, _NO, _YES, _YES),
-            _row("MCP server for AI agents", _NO, _NO, _YES, _YES),
+            # Existing routes are available to every plan. Preserve that compatibility
+            # instead of introducing a surprise paywall during the gap repair.
+            _all("Slack, Jira, ClickUp, Asana & Trello"),
+            _all("MCP server for AI agents"),
             _row("Cloud login browser sessions", _NO, _NO, _SOON, _SOON),
         ],
     },

@@ -54,6 +54,10 @@ movement and stable private PDF/image preview follow
 browser/write/guest/concurrency acceptance remains open. F25's disabled cloud-login
 pricing claim is corrected, while other entitlement/limit work remains open.
 The baseline rows below remain preserved evidence, not current completion claims.
+F19/F23 source follow-ups are recorded in
+[TDR-0078](../tdr/0078-proxy-bounds-cookie-deletion-and-claims.md), together with
+F17 Docker inputs and F25/F35 claim reconciliation. Compression/logout/custom-build
+and provider acceptance remains open; F24/F26/F29 are still pending source work.
 
 ## Result and evidence boundary
 

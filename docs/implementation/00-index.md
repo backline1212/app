@@ -66,6 +66,9 @@ captured-page approval and portal team notes, with file/ticket save recovery.
 [TDR-0077](../tdr/0077-reliable-pdf-image-review.md) follows the user's explicit PDF
 request: file-specific pin movement, authenticated bounded content reads, stable
 PDF rendering, readiness and ticket-to-file navigation. Browser acceptance is open.
+[TDR-0078](../tdr/0078-proxy-bounds-cookie-deletion-and-claims.md) continues the audit
+with F19/F23 proxy repairs, extension Docker endpoint inputs and truthful F25/F35
+plan/AI/acceptance claims; live acceptance remains distinct from source completion.
 
 1. [PRD and decisions](01-prd.md)
 2. [Flow and acceptance matrix](02-flow-matrix.md)

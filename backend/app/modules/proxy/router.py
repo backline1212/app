@@ -45,10 +45,12 @@ async def _read_body(request: Request) -> bytes:
                 raise ValidationError("That form submission is too large to proxy.")
         except ValueError:
             raise ValidationError("Malformed Content-Length.") from None
-    body = await request.body()
-    if len(body) > MAX_PROXY_BODY_BYTES:
-        raise ValidationError("That form submission is too large to proxy.")
-    return body
+    body = bytearray()
+    async for chunk in request.stream():
+        if len(body) + len(chunk) > MAX_PROXY_BODY_BYTES:
+            raise ValidationError("That form submission is too large to proxy.")
+        body.extend(chunk)
+    return bytes(body)
 
 
 async def _maybe_compress(request: Request, result: ProxiedResponse) -> tuple[bytes, bool]:

@@ -42,9 +42,9 @@ references and snapshot delivery. Static checks do not close live acceptance row
 Source line references point to the checked-in unmodified HTML. Every row is a requirement, not a completion claim. Delivery evidence lives in [06-delivery](06-delivery.md).
 
 The [2026-10-19 source audit](site-gap-audit-2026-10-19.md) maps current findings to
-these acceptance rows. Its findings remain open. FD-22/23 below retain their historical
-amendment wording; later TDRs implement real Groq AI and billing, so those rows require
-reconciliation (F35) and must not be read as a current capability inventory.
+these acceptance rows. Its findings remain open. FD-22/23 below now describe the real
+Groq/provider-backed billing paths; complete entitlement, quota, concurrency and
+provider acceptance remain open in the audit and delivery ledger.
 
 | ID | Source | User flow | Backend/data dependencies | Acceptance |
 |---|---|---|---|---|
@@ -69,8 +69,8 @@ reconciliation (F35) and must not be read as a current capability inventory.
 | FD-19 | L5947–5968 | Guest name gate | current guest sessions | No member privileges; archived/revoked/expired links fail |
 | FD-20 | L5969–end placement handlers | Point/region create, drag/resize, tags | region geometry anchored to page/version | Persist geometry; no overlapping accidental comments; cancel creates nothing |
 | FD-21 | L5355, L5916 | Attachments and mentions | upload scopes, member resolution, notifications | Attachment authorization; mention recipients belong to workspace |
-| FD-22 | L5484–5683 | AI summary/task/duplicates/tags/changelog/reply | none (intentional divergence) | Explicit non-functional placeholders; no fake results, credits, zero-usage telemetry or paywall |
-| FD-23 | L5684–5716 | Plans and checkout | none (intentional divergence) | Explicit non-functional placeholders; no simulated prices, entitlements, limits or checkout |
+| FD-22 | L5484–5683 | Thread summaries, suggested replies and bounded BugHunt triage | configured Groq provider, scoped comments, workspace credits | Real provider outcomes; explicit analysis coverage; permission-preserving mutations and normal events; no fake success |
+| FD-23 | L5684–5716 | Plans, checkout, invoices and renewal | configured payment provider, verified callbacks and persisted subscription state | Provider-confirmed state; idempotent callbacks, honest entitlements/quotas, retained legacy records; no fake checkout |
 | FD-24 | L5717–5819 | Profile and notifications | users/preferences/email jobs | Persistent settings reflected in delivery behavior |
 | FD-25 | L1590, L6430–end | Login/signup/reset/Google/2FA/sessions | actual authentication/security | Existing OTP/OAuth preserved; fake accounts and QR removed |
 | FD-26 | L3034–3052 | Undo/redo | inverse validated mutations | Does not overwrite others' changes; no local-only illusion of persistence |

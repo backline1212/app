@@ -213,7 +213,7 @@ async def analyze_project(
     *,
     user_id: str | None = None,
 ) -> ProjectAnalysisResult:
-    """BugHunt AI (docs/tdr/0043): reads every open, top-level comment in a project,
+    """BugHunt AI (docs/tdr/0043): reads a bounded recent set of open root comments,
     asks Groq to prioritize by severity and flag likely duplicate threads, and writes
     the resulting severity straight into each comment's existing `priority` field -
     the same field/vocabulary `comment:update_status` callers already write manually,

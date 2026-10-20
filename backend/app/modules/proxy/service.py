@@ -1,9 +1,11 @@
 import asyncio
 import http.cookiejar
+import zlib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import format_datetime
+from http.cookies import CookieError, SimpleCookie
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -28,6 +30,7 @@ from app.modules.share_links.repository import ShareLinkRepository
 
 # A review proxy needs to carry a login form, not act as a general upload relay.
 MAX_PROXY_BODY_BYTES = 2 * 1024 * 1024
+MAX_PROXY_RESPONSE_BYTES = 16 * 1024 * 1024
 
 _WIDGET_SDK_PATH = Path(__file__).resolve().parents[4] / "apps" / "widget" / "dist" / "sdk.js"
 
@@ -145,6 +148,93 @@ async def close_shared_transport() -> None:
     _transport_loop = None
 
 
+async def _bounded_request(
+    client: httpx.AsyncClient,
+    method: str,
+    url: str,
+    *,
+    content: bytes | None = None,
+) -> httpx.Response:
+    """Bound wire and decoded bytes before allocation, including gzip/deflate.
+    The proxy buffers rewritable responses; live streams belong in native review."""
+    upstream: httpx.Response | None = None
+    try:
+        async with asyncio.timeout(30):
+            request = client.build_request(
+                method,
+                url,
+                content=content,
+                headers={"accept-encoding": "identity"},
+            )
+            upstream = await client.send(request, stream=True)
+            headers = upstream.headers.copy()
+            # Redirects need their headers/cookies, never their potentially huge body.
+            empty = (
+                method == "HEAD"
+                or upstream.status_code in (204, 304)
+                or (upstream.is_redirect and bool(headers.get("location")))
+            )
+            payload = bytearray()
+            if not empty:
+                if "text/event-stream" in headers.get("content-type", "").lower():
+                    raise ExternalServiceError("Live streams require Open with extension.")
+                length = headers.get("content-length")
+                if length:
+                    try:
+                        if int(length) > MAX_PROXY_RESPONSE_BYTES:
+                            raise ExternalServiceError(
+                                "This response is too large for preview. Open with extension."
+                            )
+                    except ValueError as exc:
+                        raise ExternalServiceError(
+                            "The website returned an invalid response length."
+                        ) from exc
+                encoding = headers.get("content-encoding", "identity").lower().strip()
+                if encoding not in ("", "identity", "gzip", "deflate"):
+                    raise ExternalServiceError("This response format requires Open with extension.")
+                decoder = (
+                    zlib.decompressobj(
+                        16 + zlib.MAX_WBITS if encoding == "gzip" else zlib.MAX_WBITS
+                    )
+                    if encoding in ("gzip", "deflate")
+                    else None
+                )
+                wire_bytes = 0
+                async for raw in upstream.aiter_raw(chunk_size=65536):
+                    wire_bytes += len(raw)
+                    if wire_bytes > MAX_PROXY_RESPONSE_BYTES:
+                        raise ExternalServiceError(
+                            "This response is too large for preview. Open with extension."
+                        )
+                    remaining = MAX_PROXY_RESPONSE_BYTES - len(payload)
+                    decoded = decoder.decompress(raw, remaining + 1) if decoder else raw
+                    if len(decoded) > remaining or (decoder and decoder.unconsumed_tail):
+                        raise ExternalServiceError(
+                            "This response is too large for preview. Open with extension."
+                        )
+                    payload.extend(decoded)
+                if decoder and (not decoder.eof or decoder.unused_data):
+                    raise ExternalServiceError(
+                        "The compressed response could not be read safely. Open with extension."
+                    )
+            headers.pop("content-encoding", None)
+            headers.pop("content-length", None)
+            return httpx.Response(
+                upstream.status_code, headers=headers, content=bytes(payload), request=request
+            )
+    except TimeoutError as exc:
+        raise ExternalServiceError(
+            "The website took too long to respond. Open with extension."
+        ) from exc
+    except zlib.error as exc:
+        raise ExternalServiceError(
+            "The website returned invalid compressed content. Open with extension."
+        ) from exc
+    finally:
+        if upstream is not None:
+            await upstream.aclose()
+
+
 def _forwarded_headers(headers: Mapping[str, str]) -> dict[str, str]:
     forwarded: dict[str, str] = {}
     for name, value in headers.items():
@@ -202,6 +292,32 @@ def _session_cookie_headers(jar: http.cookiejar.CookieJar, share_token: str) -> 
         else:
             parts.append("SameSite=Lax")
         headers.append("; ".join(parts))
+    return tuple(headers)
+
+
+def _legacy_set_cookies(values: list[str], share_token: str) -> tuple[str, ...]:
+    """Keep raw deletion/rotation headers that no longer exist in httpx's jar."""
+    headers: list[str] = []
+    secure = get_settings().environment != "local"
+    for value in values:
+        parsed = SimpleCookie()
+        try:
+            parsed.load(value)
+        except CookieError:
+            continue
+        for name, cookie in parsed.items():
+            parts = [
+                f"{_cookie_prefix(share_token)}{name}={cookie.coded_value}",
+                f"Path=/proxy/{share_token}",
+            ]
+            if cookie["expires"]:
+                parts.append(f"Expires={cookie['expires']}")
+            if cookie["max-age"]:
+                parts.append(f"Max-Age={cookie['max-age']}")
+            if cookie["httponly"]:
+                parts.append("HttpOnly")
+            parts.extend(["Secure", "SameSite=None", "Partitioned"] if secure else ["SameSite=Lax"])
+            headers.append("; ".join(parts))
     return tuple(headers)
 
 
@@ -439,8 +555,8 @@ async def fetch_proxied_resource(
             # address bar - which the site's own router reads - always names the page
             # it's showing, and each hop's cookies land before the next request (which
             # is a fresh proxied request, SSRF guard included).
-            upstream = await client.request(
-                method, upstream_url, content=request.body if method != "GET" else None
+            upstream = await _bounded_request(
+                client, method, upstream_url, content=request.body if method != "GET" else None
             )
             set_cookies = _preview_set_cookies(upstream.headers.get_list("set-cookie"))
             location = upstream.headers.get("location")
@@ -455,7 +571,7 @@ async def fetch_proxied_resource(
                     ),
                 )
         else:
-            upstream, early = await _fetch_legacy(
+            upstream, early, cookie_events = await _fetch_legacy(
                 client,
                 method=method,
                 upstream_url=upstream_url,
@@ -466,7 +582,10 @@ async def fetch_proxied_resource(
             )
             if early is not None:
                 return early
-            set_cookies = _session_cookie_headers(client.cookies.jar, share_token)
+            set_cookies = (
+                *_session_cookie_headers(client.cookies.jar, share_token),
+                *cookie_events,
+            )
     except httpx.HTTPError as exc:
         raise ExternalServiceError(f"Could not reach the reviewed site: {exc}") from exc
     finally:
@@ -522,7 +641,7 @@ async def _fetch_legacy(
     cookie_header: str,
     share_token: str,
     target_origin: str,
-) -> tuple[httpx.Response, ProxiedResponse | None]:
+) -> tuple[httpx.Response, ProxiedResponse | None, tuple[str, ...]]:
     """The `/proxy/{token}/` path mode on the API origin, unchanged since docs/tdr/0035:
     a response to hand straight back (a redirect) or the upstream response to render."""
     # Seeded from the reviewer's browser so an established session keeps working
@@ -531,6 +650,7 @@ async def _fetch_legacy(
     upstream_host = httpx.URL(upstream_url).host
     for name, value in _cookies_for_upstream(cookie_header, share_token).items():
         client.cookies.set(name, value, domain=upstream_host)
+    cookie_events: list[str] = []
 
     if method != "GET":
         # A form submission is answered with the redirect itself rather than followed
@@ -538,39 +658,59 @@ async def _fetch_legacy(
         # the page it's actually showing (and the session cookie rides along on this
         # response). A script's fetch/XHR login that answers with JSON instead falls
         # through to the passthrough, Set-Cookie included.
-        upstream = await client.request(method, upstream_url, content=body)
+        upstream = await _bounded_request(client, method, upstream_url, content=body)
+        cookie_events.extend(
+            _legacy_set_cookies(upstream.headers.get_list("set-cookie"), share_token)
+        )
         location = upstream.headers.get("location")
         if upstream.status_code in (301, 302, 303, 307, 308) and location:
-            return upstream, ProxiedResponse(
-                status_code=303,
-                content_type="text/plain",
-                body=b"",
-                set_cookies=_session_cookie_headers(client.cookies.jar, share_token),
-                location=_location_for_browser(
-                    location,
-                    base_url=upstream_url,
-                    target_origin=target_origin,
-                    share_token=share_token,
+            return (
+                upstream,
+                ProxiedResponse(
+                    status_code=303,
+                    content_type="text/plain",
+                    body=b"",
+                    set_cookies=(
+                        *_session_cookie_headers(client.cookies.jar, share_token),
+                        *cookie_events,
+                    ),
+                    location=_location_for_browser(
+                        location,
+                        base_url=upstream_url,
+                        target_origin=target_origin,
+                        share_token=share_token,
+                    ),
                 ),
+                tuple(cookie_events),
             )
-        return upstream, None
+        return upstream, None, tuple(cookie_events)
 
     next_url = upstream_url
     for _ in range(MAX_REDIRECTS + 1):
-        upstream = await client.get(next_url)
+        upstream = await _bounded_request(client, "GET", next_url)
+        cookie_events.extend(
+            _legacy_set_cookies(upstream.headers.get_list("set-cookie"), share_token)
+        )
         if upstream.status_code not in (301, 302, 303, 307, 308):
-            return upstream, None
+            return upstream, None, tuple(cookie_events)
         location = upstream.headers.get("location")
         if not location:
-            return upstream, None
+            return upstream, None, tuple(cookie_events)
         next_url = str(httpx.URL(next_url).join(location))
         if not _same_reviewed_site(next_url, target_origin):
-            return upstream, ProxiedResponse(
-                status_code=303,
-                content_type="text/plain",
-                body=b"",
-                set_cookies=_session_cookie_headers(client.cookies.jar, share_token),
-                location=next_url,
+            return (
+                upstream,
+                ProxiedResponse(
+                    status_code=303,
+                    content_type="text/plain",
+                    body=b"",
+                    set_cookies=(
+                        *_session_cookie_headers(client.cookies.jar, share_token),
+                        *cookie_events,
+                    ),
+                    location=next_url,
+                ),
+                tuple(cookie_events),
             )
         try:
             await asyncio.to_thread(assert_safe_to_fetch, next_url)

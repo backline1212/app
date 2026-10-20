@@ -8,7 +8,7 @@ import { PRIORITY_META } from "./comments/types";
 import { SparkleIcon } from "./icons";
 
 const CHECKS = [
-  "Reads every open comment in this project",
+  "Reviews up to 40 recent open comments (400 characters each)",
   "Prioritises issues by severity",
   "Summarises page progress at a glance",
 ];
@@ -23,8 +23,7 @@ interface AiTabProps {
 
 // Backed by backend/app/modules/ai/service.py's analyze_project (docs/tdr/0043):
 // real Groq calls through the same key pool the thread Summarize/Suggest Replies
-// actions already use. No usage is metered or billed - same honesty contract those
-// two surfaces already follow.
+// actions already use, with the workspace's existing credit limit and usage records.
 export function AiTab({ workspaceId, projectId, onViewComment }: AiTabProps) {
   const queryClient = useQueryClient();
   const [result, setResult] = useState<ProjectAnalysisResult | null>(null);
