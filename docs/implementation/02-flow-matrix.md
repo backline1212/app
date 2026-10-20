@@ -1,11 +1,19 @@
 # Flow inventory and acceptance criteria
 
+FD-10/11/18 ticket detail follow-up (TDR-0098): verify viewer/commenter/editor
+controls, pending permission lookup, role loss with an open picker/delete dialog,
+metadata-only Stay/Discard/close/Back/unload, pending-write leave refusal, failed
+save retention, changed-field-only PATCH and confirmed-save/refresh-error separation.
+Same-field concurrent metadata edits still require server CAS. Browser acceptance
+remains pending while local browser use is disabled.
+
 FD-09/10/11/18/21 portal reply follow-up (TDR-0097): verify project, board and ticket
 draft Stay/Discard/Escape/close/Back, same-thread canvas changes, pending/upload
 leave refusal, immutable lost-response retry and one confirmed reply. Check partial
 file upload/limits/reselection, mentions, current access/parent/layer changes, explicit
 AI suggestion use and copy fallback. A failed refresh after POST must remain a
-confirmed save. Metadata drafts/CAS and ticket-detail role controls remain open work.
+confirmed save. Metadata drafts and ticket-detail roles continue in TDR-0098;
+metadata CAS remains open work.
 
 FD-08/09 hash-route follow-up (TDR-0096): verify #/ and #!/ route/query/case/encoding
 identity against root and ordinary anchors, legacy merged-history visibility, URL

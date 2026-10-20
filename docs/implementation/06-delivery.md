@@ -1,5 +1,25 @@
 # Delivery and verification ledger
 
+## 2026-10-21: Ticket detail permissions and draft protection (TDR-0098)
+
+Ticket details now gate reply/edit/delete by existing project roles. Read-only
+text stays copyable. Ticket body and metadata participate in draft protection;
+pending saves freeze controls and guard portaled picker callbacks. Saves capture
+only changed fields with a synchronous submit guard, then establish the confirmed
+response baseline. Refresh failure is separate from write failure. Metadata CAS
+and exactly-once metadata retry remain open backend work.
+
+Verification: final affected web lint/typecheck/build pass 3/3; diff checks pass.
+The existing web chunk-size advisory remains. Evidence is recorded locally in
+`.tools/verification/2026-10-21-0098-final-web-checks.log`.
+No suite, shared feedback/upload/delete or permission change. Browser use is now
+disabled in Work settings: an attempted unsent QA reply fill was rejected before
+typing, so TDR-0097 Stay/Discard acceptance remains pending. Its ffe6957 Vercel
+deployment succeeded and its new reply controls were visible before the block.
+At 20:29 UTC on October 20 (October 21 IST), exact-SHA Railway dispatch for ffe6957
+was again rejected as temporarily paused, without an accepted deployment ID.
+Later source pushes must not be counted as backend or extension rollout.
+
 ## 2026-10-21: Portal reply replay and draft UX (TDR-0097)
 
 Project comments, board threads and ticket replies use an immutable typed

@@ -1,5 +1,9 @@
 # Final Draft implementation index
 
+Ticket detail follow-up (2026-10-21): [TDR-0098](../tdr/0098-ticket-detail-permissions-and-drafts.md)
+adds project-role controls, protection for unsaved metadata and changed-field saves.
+Live acceptance and same-field concurrency remain separate gates.
+
 Chrome Web Store preparation (2026-10-20): [TDR-0078](../tdr/0078-chrome-web-store-release-preparation.md)
 and [release handoff](chrome-web-store-release-2026-10-20.md) track the local 0.4.5
 package separately from pending publisher registration/payment, store submission
