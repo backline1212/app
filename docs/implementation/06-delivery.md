@@ -1,5 +1,20 @@
 # Delivery and verification ledger
 
+## 2026-10-22: Categorized pending-work inventory
+
+Added [the current backlog](pending-backlog-2026-10-22.md), reconciling historical
+findings with later repairs and live acceptance. Read-only status again reports
+all three Railway application services on 7b25ac3 with health/Mongo/Redis ok.
+Public ZIP manifest is 0.4.4; source manifest is 0.4.9. Installed 0.4.3 is the
+last observation, not a fresh installed-version check.
+
+New source findings in `notifications/digest.py`: the checkpoint advances before
+delivery, risking skipped windows on failure; missing page/project mappings fall
+through to Unknown project instead of requiring positive project access before
+including comment text. Both remain open, without live email/reproduction claims.
+This slice changes documentation only; no deploy, shared mutation, migration,
+package installation or suite. Existing local icon/store edits are preserved.
+
 ## 2026-10-22: Deployed portal draft acceptance follow-up
 
 Vercel confirms successful web rollout of ad03bb4, including TDR-0098 through

@@ -1,0 +1,160 @@
+# Backline pending work — 2026-10-22
+
+This consolidates the current audit, implementation decisions and delivery evidence.
+It supersedes older "pending" statements only where a later delivery entry supplies
+evidence. The original 35 audit findings are historical findings, not 35 untouched
+bugs. This inventory is all currently identified work in the reviewed scope; it is
+not proof that every possible defect has been found.
+
+Priority: **P1** = before a wider pilot; **P2** = next reliability/product work;
+**P3** = later expansion or refinement. These are backlog priorities, not claims of
+a live incident. Status distinguishes **open implementation**, **source implemented /
+rollout pending**, **live verification pending**, and **platform limitation**.
+
+## 1. Deployment and release
+
+| ID | Priority | Pending item | Current evidence / completion condition |
+|---|---|---|---|
+| DEP-01 | P1 | Release the newer API/worker changes together | Read-only Railway status today still reports app, worker and cloud-login SUCCESS on `7b25ac3`. Last dispatch was rejected as temporarily paused; the current pause cause is unresolved. Release the pushed source and verify actual SHA, contracts, health and jobs. |
+| DEP-02 | P1 | Align extension source, download and installed version | Source is **0.4.9**; the public ZIP fetched today is **0.4.4**. Installed Chrome was last observed at **0.4.3**, not rechecked for this inventory. Publish the matching bundle and verify installed replies, snapshots, hash routes and access cleanup. |
+| DEP-03 | P2 | Complete Chrome Web Store release | Local icon/store preparation exists separately. Publisher registration/agreements/payment, public policy/support information, real listing screenshots, submission, approval and install URL are still pending. Do not count local ZIP preparation as publication. |
+| DEP-04 | P1 | Verify mixed-version rollout and rollback | New web code can meet the older API/SDK. Check capability gates, contract compatibility and preservation of old comments/pages/evidence during upgrade/rollback. |
+
+API `/health` currently reports status/Mongo/Redis OK. This proves health, not the
+newer feature rollout. Web implementation through `ad03bb4` has successful Vercel
+rollout evidence; the later documentation commit is `32c3388`.
+
+## 2. Known bugs and unfinished reliability changes
+
+| ID | Priority | Pending item | Required change / evidence |
+|---|---|---|---|
+| BUG-01 | P1 | Daily digest can include text without a resolved authorized project | **New code finding:** `notifications/digest.py` puts comments under "Unknown project" when page/project lookup returns None. Require a valid workspace/project mapping and positive current access before including text. No live leak established. |
+| BUG-02 | P2 | Daily digest can skip delivery after a failure | **New code finding:** its workspace checkpoint advances before fetching/sending. A crash/provider failure can exclude that window on retry. Add durable bounded windows and per-recipient delivery/retry state; verify crash and partial-send recovery. |
+| BUG-03 | P1 | New-ticket/file-manager drafts lack full SPA navigation protection | Local close/unload guards exist, but navigation within the app can still unmount these forms. Use one coordinated guard that supports nested dialogs without competing React Router blockers. |
+| BUG-04 | P2 | Concurrent metadata edits can overwrite the same field | Ticket/comment/file metadata lacks full version-checked writes. Changed-field PATCH reduces unrelated overwrites; it does not prevent two editors overwriting the same field. Add conflict/reload/copy recovery and safe original-request semantics. |
+| BUG-05 | P2 | Some integration dispatch remains post-commit without durable delivery | Project metadata may save before downstream integration work fails. Add a durable outbox where missing; keep saved state distinct from dispatch status. Existing snapshot/email outboxes are separate. |
+| BUG-06 | P2 | Unused upload grants can retain storage quota | Signed PUT reservations deliberately remain held because an earlier request may still finish. Add safe bounded grant/confirmation/reconciliation; never release solely because a URL expired. |
+| BUG-07 | P2 | Attachment fallback/orphan handling is incomplete | A stored upload followed by a lost response or direct-relay fallback can leave unused evidence or duplicate storage. Add upload-level replay/confirmation and safe orphan reconciliation. The PDF/image asset replay contract does not cover every attachment transport. |
+| BUG-08 | P1 | Sensitive URL/evidence redaction is incomplete | Route/query identity is preserved; TDR-0096 does not add secret redaction. Define safe display/capture/log fields without merging distinct pages. Add evidence preview/redaction and privacy exclusions. |
+| BUG-09 | P2 | Preview failure root cause remains unproven | The example.com canvas failed in live checks. Extension/retry/saved-feedback recovery works, but the underlying network/proxy failure was not established. Diagnose with supported network evidence before calling it repaired. |
+| BUG-10 | P2 | Legacy hash-route feedback remains merged | New #/ and #!/ identities are implemented in source, awaiting the matching rollout. Old merged feedback stays on the legacy page. Provide a reviewed mapping/reassignment workflow if required; no guessed migration. |
+| BUG-11 | P2 | Privacy, Terms and Support links are placeholders | Login footer and signup agreement still link to `#`. Supply actual approved policy/support destinations and verify every entry point. Do not invent legal text or organizational practices. |
+
+The two new digest findings are source-derived from
+[`digest.py`](../../backend/app/modules/notifications/digest.py), especially
+`run_digest_for_workspace`; no email or production state was changed for this audit.
+
+## 3. User flow and product UX
+
+| ID | Priority | Pending item | Completion condition |
+|---|---|---|---|
+| FLOW-01 | P1 | Finish the consistent connected-review launch flow | Complete CR-02/03 setup, actual SDK readiness and secure short-lived authorization exchange. Widget-first review with extension fallback remains a planned direction, not a universally shipped install-free flow. |
+| FLOW-02 | P1 | Make installation, update and reconnect predictable | One project-bound setup, clear installed/connected/outdated/expired states, install/update-and-resume, and a safe return to the original project/thread. Remove manual ZIP friction once a store release exists. |
+| FLOW-03 | P1 | Complete target-site login and return acceptance | Test real password/Google/other SSO redirects, popups and return URLs with the user's own website account. Keep Backline identity separate and retain the selected issue; no universal login guarantee. |
+| FLOW-04 | P2 | Finish website thread-card actions | Native/standalone text replies exist in newer source. Inline editing/deleting, guest resolution, attachments and mentions do not have parity across every adapter. Keep team content in the authorized portal/isolated surface. |
+| FLOW-05 | P2 | Improve reopen-on-site and reproduction | Locate the reported route/anchor after login; explain different user data, moved elements, viewport and deployment mismatch. Preserve original evidence and support authorized manual reanchor. |
+| FLOW-06 | P2 | Make screenshot quality explicit | Distinguish approximate DOM capture from native tab capture. Preview/retry/manual attachment and denial handling must preserve the draft. A generated JPEG alone is not fidelity evidence. |
+| FLOW-07 | P2 | Complete session restart/rejoin recovery | Verify browser restart/update, extension expiry, guest link expiry, revoked access and reconnect without stale overlays or wrong-project data. Standalone extension connection/logout policy needs explicit acceptance. |
+| FLOW-08 | P2 | Finish narrow, touch and keyboard UX acceptance | Wrapped toolbar/composer, nested focus, date menus, screen-reader labels, file/page/thread controls, upload errors and all return/close paths need broader device acceptance. |
+| FLOW-09 | P2 | Keep availability and pricing consistent with actual support | Reconcile current capability/readiness labels, limits, legacy guidance and plan comparison. Distinguish implemented features, disabled infrastructure and roadmap features. |
+
+## 4. Performance and optimization
+
+| ID | Priority | Pending item | Completion condition |
+|---|---|---|---|
+| OPT-01 | P2 | Paginate large project/page/comment collections | Batched enrichment is implemented, but full collection pagination/cursors remain open. Preserve access filtering and complete history. |
+| OPT-02 | P2 | Replace full native comment polling with bounded deltas | Current full-page polling grows with history. Add reconnect/removal semantics and a push/delta strategy without weakening revocation. |
+| OPT-03 | P2 | Measure real load and database/signing cost | Benchmark large projects, author/evidence enrichment, socket authorization fan-out, snapshot work, memory and latency. No load benchmark is recorded. |
+| OPT-04 | P3 | Reduce the large web bundle chunk | Production builds still emit the >500 kB chunk advisory. Review splitting/lazy-loading and measure startup impact before choosing changes. |
+| OPT-05 | P2 | Set product reliability metrics and a supported-site matrix | Measure launch-to-ready, auth-return success, save/capture success, locate success and rejoin frequency with denominators. Existing spot checks cannot substantiate "99% of websites." |
+
+## 5. Missing features and planned expansion
+
+| ID | Priority | Feature still pending | Actual missing scope |
+|---|---|---|---|
+| FEAT-01 | P2 | Dedicated Web App review mode | Explicit reproduction/app-state context, sanitized diagnostics and matching MCP contracts; ordinary website review already exists. |
+| FEAT-02 | P3 | Native Mobile App review | Build/device records, real-device capture integration, build-linked screenshots/coordinates, permissions and distribution. |
+| FEAT-03 | P2 | Video/audio recording | User-initiated permissions/start/stop/cancel, duration/size limits, validated private media storage, playback/download and quota handling. |
+| FEAT-04 | P2 | Console/network diagnostics or replay | Opt-in bounded capture, secret redaction, restricted payloads, private evidence timeline and retention/deletion behavior. |
+| FEAT-05 | P3 | Custom branding | Tenant-owned branding assets/settings and consistent authorized output. |
+| FEAT-06 | P3 | Custom domains | Ownership verification, host/workspace binding, certificates, status/removal and cookie/CORS isolation. |
+| FEAT-07 | P3 | White-label client portals | Branding/domain foundation plus guest screens, email identity, support/legal identity and lifecycle acceptance. |
+| FEAT-08 | P3 | Persisted undo/redo | Authorized reversible operations, durable history and conflict semantics. Current local controls are not a global undo history. |
+| FEAT-09 | P2 | Client digest and configurable digest schedule | Client-facing flow and settings remain separate from existing member daily/feedback emails. |
+| FEAT-10 | P3 | Interactive historical website replay | The version menu shows metadata and the live page; normalized DOM is not an archived runnable website. |
+| FEAT-11 | P3 | Actual browser/device QA lab | Separate isolated engines/devices, supported authenticated sessions, private-network connectivity, commercial/provider setup and real execution evidence. |
+| FEAT-12 | P2 | Complete AI/MCP fix-and-verify loop | Beyond current project/ticket CRUD and briefs: authorized capture evidence, fix/preview reference, verification request/result and human resolve/reopen. Browser authority must be separate. |
+
+## 6. Important capability limits
+
+- An iframe/proxy cannot guarantee arbitrary website login, OAuth, storage, CAPTCHA,
+  third-party API or anti-bot compatibility. A real user can complete supported
+  challenges in the actual website; that does not make proxy login universal.
+- The reviewed-site proxy has no general WebSocket/SSE/streaming relay.
+- Desktop Chrome/Edge extension support does not establish Firefox/Safari/mobile,
+  restricted browser-page or cross-origin child-frame annotation support.
+- Alternate-browser static screenshots are not interactive signed-in browser sessions.
+- Asset limits currently include one unencrypted PDF of 1–200 pages or up to 50
+  images per project, 20 MiB assets, and no SVG asset review. Proxy form bodies
+  have a separate 2 MiB ceiling. These are scope limits unless explicitly expanded.
+- BugHunt analyzes bounded existing feedback text (up to 40 open root comments,
+  400 characters each); it does not independently crawl/test every site or inspect
+  all screenshots. It is not the full QA agent described in the future plan.
+- Fresh shared server-browser capture remains disabled pending actual isolation.
+  Deploy notification/snapshot receipt does not prove a commit or fix is live.
+
+## 7. Implemented work still needing live verification
+
+These are **acceptance tasks**, not assertions that each repaired behavior is broken.
+
+| ID | Priority | Verification group | Remaining evidence |
+|---|---|---|---|
+| QA-01 | P1 | Backline authentication | Real signup/email ownership, password recovery, OTP resend/expiry/reuse/concurrency, Google redirect/cookies, logout/password changes and multi-tab recovery. |
+| QA-02 | P1 | Native/installed review | Update to the served matching extension, member/guest launch, actual target-site sign-in, reply/save/capture/return, restart and supported SPA/hash navigation. |
+| QA-03 | P1 | Persistence and failure recovery | Offline, slow/lost acknowledgement, original retry with one record, double submit, partial upload, failed refresh, copy/manual recovery and page/context changes on all review surfaces. |
+| QA-04 | P1 | PDF/image review | Actual private upload, decode, page selection, rotated/zoomed/touch pins, reanchor, guest/member comments/replies, reload persistence, timeout/retry and archived/missing files. |
+| QA-05 | P1 | Privacy/access boundaries | Viewer/commenter/editor/manager, team vs guest, wrong workspace/project/object, revoked links/sessions, role/archive changes during HTTP/socket/poll/draft, and cache cleanup. |
+| QA-06 | P2 | Email and integrations | Actual OTP/invite/feedback/digest receipt, opt-out/revocation/retry/restart, frozen links after rename, provider deduplication and integration failure recovery. Apps Script deduplication is unverified. |
+| QA-07 | P2 | Billing/quotas | Near-limit concurrent projects/members/AI/storage, failed reservations, reconciliation and plan/entitlement behavior. Storage accounting/enforcement is already deployed; do not list it as wholly missing. |
+| QA-08 | P2 | Deploy sync/versions/approval | Real signed CI delivery, rotate/revoke/replay/order/role negatives, snapshot association, outbox/recovery, stale approval, approve/reopen and independent route histories. |
+| QA-09 | P2 | Metadata and onboarding | Concurrent project/settings/rename/client saves, rollback/replay, missing legacy fields, permission loss and conflict reload/copy flows. Newer project CAS source still needs backend rollout. |
+| QA-10 | P2 | AI/MCP and product acceptance | Real provider results, authorized conditional updates/events, read-only vs write tools, evidence/preview verification loop, keyboard/focus/touch and a representative supported-site pilot. |
+
+## 8. Already changed — avoid duplicating this work
+
+- Web session recovery, original reply retries, explicit AI suggestion application,
+  draft copying, partial reply uploads and ticket-role controls are implemented.
+- Reply, existing-ticket edit and New-ticket unsent Close/Stay/Discard flows have
+  live evidence. New ticket's empty-save gate also passed. No new shared record was
+  created for those checks.
+- File request, PDF preparation/render and screenshot-helper deadlines are in source;
+  actual PDF/failure acceptance remains QA-03/04.
+- File management, page approval, team notes, deploy sync, asset-upload replay and
+  storage-byte accounting have implementations. Their remaining scope is rollout,
+  acceptance or the specific gaps above, not blanket "Coming soon" placeholders.
+- One earlier approved native comment and screenshot persisted after portal reload;
+  existing-login YouTube launch was observed. Those spot checks are not full site,
+  provider, extension-version or failure acceptance.
+
+## Recommended execution order
+
+1. Address digest privacy/delivery findings, unblock matching backend/extension
+   rollout, and complete core auth/access/save/PDF acceptance.
+2. Close nested navigation guards, metadata conflicts, upload reconciliation and
+   launch/install/return gaps; finish website thread action parity.
+3. Measure and optimize large-project behavior, polling and startup cost.
+4. Deliver diagnostics/recording and the scoped AI/MCP verification loop.
+5. Expand to native mobile, real browser/device labs, domains and white-label work.
+
+## Sources and check boundary
+
+- [Delivery ledger](06-delivery.md), [historical audit](site-gap-audit-2026-10-19.md),
+  [feature inventory](coming-soon-delivery-2026-10-20.md),
+  [connected-review plan](connected-review-plan-2026-10-19.md),
+  [Chrome store preparation](chrome-web-store-release-2026-10-20.md).
+- TDRs 0060–0103, especially 0085/0087/0089 and 0093–0103, distinguish shipped
+  contracts, remaining implementation and manual acceptance.
+- Read-only checks today: Git state, Railway service SHAs/health, public extension
+  ZIP manifest and relevant source. No new deploy, upload, email, shared mutation,
+  migration, package installation or test suite was performed for this inventory.
+- Existing local extension icon/store changes were preserved.

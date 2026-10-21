@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Current pending-work snapshot (2026-10-22):
+[categorized backlog](pending-backlog-2026-10-22.md) separates bugs, release gaps,
+flow work, optimization, missing features, platform limits and unverified fixes.
+It also records two source-derived daily-digest findings for follow-up.
+
 New-ticket follow-up (2026-10-21):
 [TDR-0103](../tdr/0103-new-ticket-and-screenshot-recovery.md) protects local ticket/
 team-note drafts, retains original save attempts, separates confirmed saves from
