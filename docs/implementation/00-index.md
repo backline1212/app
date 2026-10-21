@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Backlog execution (2026-10-22): [TDR-0104](../tdr/0104-digest-workspace-and-recipient-privacy.md)
+implements BUG-01's fail-closed digest mapping/current-recipient checks. The backlog
+now includes a sequential execution checklist; source, rollout and live acceptance
+are recorded separately.
+
 Current pending-work snapshot (2026-10-22):
 [categorized backlog](pending-backlog-2026-10-22.md) separates bugs, release gaps,
 flow work, optimization, missing features, platform limits and unverified fixes.

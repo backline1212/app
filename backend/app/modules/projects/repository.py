@@ -35,6 +35,12 @@ class ProjectRepository:
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
 
+    async def find_in_workspace(self, workspace_id: str, project_id: str) -> dict[str, Any] | None:
+        oid = to_object_id(project_id)
+        if oid is None:
+            return None
+        return await self.db.projects.find_one({"workspace_id": workspace_id, "_id": oid})
+
     async def create(
         self,
         *,

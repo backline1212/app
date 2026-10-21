@@ -1,5 +1,11 @@
 # Flow inventory and acceptance criteria
 
+Digest privacy follow-up (BUG-01/TDR-0104): missing/foreign/mismatched page/project
+references must omit text, never use Unknown project as permission. Verify legacy
+and standalone records, private/archived projects, current membership/verified email/
+opt-out and role changes between provider sends. Both layers stay member-only.
+Digest checkpoint/retry durability remains BUG-02.
+
 FD-09/10/18/21 creation follow-up (TDR-0103): verify local X/Escape/Cancel and
 native unload with body/metadata/screenshots/uncertain saves; Stay/Discard; original
 30-second save retry; rapid submit; completed save through stalled/failed refresh;

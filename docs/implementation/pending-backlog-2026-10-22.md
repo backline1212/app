@@ -11,6 +11,23 @@ Priority: **P1** = before a wider pilot; **P2** = next reliability/product work;
 a live incident. Status distinguishes **open implementation**, **source implemented /
 rollout pending**, **live verification pending**, and **platform limitation**.
 
+## Execution checklist
+
+Work one bounded slice at a time: trace contracts/access rules, record its plan/TDR,
+implement, run applicable checks, inspect the diff, commit/push, attempt supported
+rollout, and record actual acceptance separately. Never mark full completion from
+a source change or build alone. Codex follows AGENTS.md: lint/typecheck/build and
+affected backend Ruff/mypy/workspace-scope checks, without new test suites.
+
+| Sequence | Items | Status | Next action |
+|---|---|---|---|
+| 1 | BUG-01 | Source checked; rollout/acceptance pending | TDR-0104: scoped mappings/current recipient checks; Ruff/mypy/scope pass. |
+| 2 | BUG-02 | In progress | Durable bounded digest windows and per-recipient retry; no premature send checkpoint. |
+| 3 | DEP-01/02/04 | Pending | Matching source rollout, actual SHA/contracts/ZIP and updated-extension acceptance. |
+| 4 | BUG-03 | Planned | Coordinate nested draft guards through one router blocker. |
+| 5 | BUG-04/05/06/07/08 | Planned | Follow privacy/reliability priorities in separate reviewable slices. |
+| 6 | Remaining FLOW/OPT/FEAT/QA | Pending | Follow priority tables and record dependencies/acceptance per slice. |
+
 ## 1. Deployment and release
 
 | ID | Priority | Pending item | Current evidence / completion condition |
@@ -28,7 +45,7 @@ rollout evidence; the later documentation commit is `32c3388`.
 
 | ID | Priority | Pending item | Required change / evidence |
 |---|---|---|---|
-| BUG-01 | P1 | Daily digest can include text without a resolved authorized project | **New code finding:** `notifications/digest.py` puts comments under "Unknown project" when page/project lookup returns None. Require a valid workspace/project mapping and positive current access before including text. No live leak established. |
+| BUG-01 | P1 | Digest project/recipient privacy — source repaired, not yet verified live | TDR-0104 removes Unknown project disclosure, scopes page/project queries and rechecks current member/verified-email/preference/project access. Static checks pass; rollout and live negative acceptance remain pending. No live leak established. |
 | BUG-02 | P2 | Daily digest can skip delivery after a failure | **New code finding:** its workspace checkpoint advances before fetching/sending. A crash/provider failure can exclude that window on retry. Add durable bounded windows and per-recipient delivery/retry state; verify crash and partial-send recovery. |
 | BUG-03 | P1 | New-ticket/file-manager drafts lack full SPA navigation protection | Local close/unload guards exist, but navigation within the app can still unmount these forms. Use one coordinated guard that supports nested dialogs without competing React Router blockers. |
 | BUG-04 | P2 | Concurrent metadata edits can overwrite the same field | Ticket/comment/file metadata lacks full version-checked writes. Changed-field PATCH reduces unrelated overwrites; it does not prevent two editors overwriting the same field. Add conflict/reload/copy recovery and safe original-request semantics. |

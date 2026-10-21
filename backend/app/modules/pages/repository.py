@@ -13,6 +13,12 @@ class PageRepository:
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
 
+    async def find_in_workspace(self, workspace_id: str, page_id: str) -> dict[str, Any] | None:
+        oid = to_object_id(page_id)
+        if oid is None:
+            return None
+        return await self.db.pages.find_one({"workspace_id": workspace_id, "_id": oid})
+
     async def set_approval(
         self,
         workspace_id: str,

@@ -25,13 +25,18 @@ from app.modules.workspaces.repository import MembershipRepository, WorkspaceRep
 
 async def _project_for_page(
     db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
     page_id: str,
     cache: dict[str, dict[str, Any] | None],
 ) -> dict[str, Any] | None:
     if page_id in cache:
         return cache[page_id]
-    page = await PageRepository(db).find_by_id(page_id)
-    project = await ProjectRepository(db).find_by_id(page["project_id"]) if page else None
+    page = await PageRepository(db).find_in_workspace(workspace_id, page_id)
+    project = (
+        await ProjectRepository(db).find_in_workspace(workspace_id, page["project_id"])
+        if page
+        else None
+    )
     cache[page_id] = project
     return project
 
@@ -72,29 +77,41 @@ async def run_digest_for_workspace(
     if not comments:
         return 0
 
-    project_cache: dict[str, dict[str, Any] | None] = {}
-    with_projects: list[tuple[dict[str, Any], dict[str, Any] | None]] = [
-        (comment, await _project_for_page(db, comment["page_id"], project_cache))
-        for comment in comments
-    ]
-
     members = await MembershipRepository(db).list_for_workspace(workspace_id)
-    users_by_id = await UserRepository(db).find_many_by_ids([m["user_id"] for m in members])
-    for membership in members:
-        user_doc = users_by_id.get(membership["user_id"])
-        if user_doc is None or not user_doc.get("preferences", {}).get("daily_digest", True):
+    for candidate in members:
+        # Earlier recipients' provider calls can take time: refresh authority now.
+        membership = await MembershipRepository(db).find(
+            workspace_id=workspace_id, user_id=candidate["user_id"]
+        )
+        user_doc = await UserRepository(db).find_by_id(candidate["user_id"])
+        if (
+            membership is None
+            or user_doc is None
+            or not user_doc.get("email_verified_at")
+            or not user_doc.get("preferences", {}).get("daily_digest", True)
+        ):
             continue
         # Each person's digest holds only the projects they can open (TDR-0056).
+        project_cache: dict[str, dict[str, Any] | None] = {}
         grouped: dict[str, list[dict[str, Any]]] = {}
-        for comment, project in with_projects:
-            if project is not None and (
-                effective_project_role(
-                    project, user_id=membership["user_id"], workspace_role=membership["role"]
+        for comment in comments:
+            project = await _project_for_page(
+                db, workspace_id, comment.get("page_id") or "", project_cache
+            )
+            # Unresolved/foreign mappings never authorize disclosure by email.
+            if (
+                project is None
+                or project.get("archived_at")
+                or (comment.get("project_id") and comment["project_id"] != str(project["_id"]))
+                or (
+                    effective_project_role(
+                        project, user_id=membership["user_id"], workspace_role=membership["role"]
+                    )
+                    is None
                 )
-                is None
             ):
                 continue
-            name = str(project["name"]) if project is not None else "Unknown project"
+            name = str(project["name"])
             grouped.setdefault(name, []).append(comment)
         count = sum(len(items) for items in grouped.values())
         if not count:

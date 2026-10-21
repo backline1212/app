@@ -188,12 +188,10 @@ class CommentRepository:
     ) -> list[dict[str, Any]]:
         """M-08: notifications/digest.py's run_digest_for_workspace previously queried
         `db.comments.find(...)` directly (rule 2.1 violation) - moved here unchanged in
-        shape. Deliberately includes both layers: every recipient is a workspace
-        member (digest recipients come from MembershipRepository), and members are
-        already entitled to see both layers under this workspace's access model
-        (there is no project ACL - every member sees every project, per M-01's
-        recorded decision). This must never be reused for a client-facing digest
-        without adding a layer filter first."""
+        shape. Includes both layers for current workspace members only; the digest
+        service must positively resolve workspace-scoped page/project references
+        and recheck each recipient's project access. Never reuse for a client-facing
+        digest without adding a layer filter first."""
         query: dict[str, Any] = {
             "workspace_id": workspace_id,
             "deleted_at": None,

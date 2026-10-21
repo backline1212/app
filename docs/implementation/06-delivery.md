@@ -1,5 +1,19 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-01 digest privacy (TDR-0104)
+
+Added workspace-scoped page/project lookups and removed the Unknown project email
+fallback. Missing, foreign, archived and inconsistent mappings are omitted. Current
+membership, verified email and daily-digest preference are read per recipient;
+project access cache is rebuilt after earlier recipients' provider waits. Legacy
+comments without project_id still use their verified page mapping. No HTTP schema,
+migration/index, preference change, shared data mutation or provider call.
+
+Affected Ruff format/check and strict mypy (4 files) pass; workspace-scoping passes
+for 23 repositories and diff checks pass. No suite per
+AGENTS.md. Actual delivery and role/reference negatives await release/acceptance.
+The old early-checkpoint behavior remains BUG-02, the next planned slice.
+
 ## 2026-10-22: Categorized pending-work inventory
 
 Added [the current backlog](pending-backlog-2026-10-22.md), reconciling historical
