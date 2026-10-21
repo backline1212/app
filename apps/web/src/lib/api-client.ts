@@ -1,10 +1,17 @@
-import { getAccessToken, getAccessTokenRevision, setAccessToken } from "./auth-token";
+import { getAccessContextRevision, getAccessToken, getAccessTokenRevision, setAccessToken } from "./auth-token";
 import { decodeAccessToken } from "./jwt";
 import type { AccessTokenPayload } from "./jwt";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const REFRESH_PATH = "/api/v1/auth/refresh";
 const SWITCH_PATH = "/api/v1/auth/switch-workspace";
+// Invalid credentials/codes are final responses, not expired member sessions.
+const SIGN_IN_PATHS = new Set([
+  REFRESH_PATH, "/api/v1/auth/login", "/api/v1/auth/signup",
+  "/api/v1/auth/signup/verify", "/api/v1/auth/otp/request",
+  "/api/v1/auth/otp/verify", "/api/v1/auth/google/start",
+  "/api/v1/auth/google/callback", "/api/v1/auth/logout",
+]);
 /** Fired when the member can no longer open the workspace their session is in (they
  * were removed); AuthProvider refreshes the workspace list, which routes them out. */
 export const WORKSPACE_ACCESS_LOST_EVENT = "backline:workspace-access-lost";
@@ -18,6 +25,26 @@ export class ApiError extends Error {
   ) {
     super(message);
   }
+}
+
+function sessionChanged(): ApiError {
+  return new ApiError(409, "SESSION_CHANGED", "Your account or workspace changed. Check the current page before trying again.");
+}
+
+function requireRequestContext(previous: AccessTokenPayload | null, contextRevision: number): void {
+  const current = decodeAccessToken(getAccessToken() ?? "");
+  if (contextRevision !== getAccessContextRevision() || !previous || !current || current.sub !== previous.sub || current.workspace_id !== previous.workspace_id) throw sessionChanged();
+}
+
+/** Stop only this caller's wait; another request may still need the shared refresh. */
+function waitForSession<T>(pending: Promise<T>, signal?: AbortSignal | null): Promise<T> {
+  if (!signal) return pending;
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(signal.reason ?? new DOMException("Request cancelled", "AbortError"));
+    signal.addEventListener("abort", abort, { once: true });
+    pending.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    if (signal.aborted) { signal.removeEventListener("abort", abort); abort(); }
+  });
 }
 
 async function rawRequest(path: string, init?: RequestInit): Promise<Response> {
@@ -35,6 +62,7 @@ async function rawRequest(path: string, init?: RequestInit): Promise<Response> {
   } catch (error) {
     // An abort is the caller's own doing; anything else is the browser's bare
     // "Failed to fetch", which says nothing to a reviewer.
+    if (init?.signal?.aborted) throw init.signal.reason ?? error;
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new ApiError(0, "NETWORK_ERROR", "Can't reach Backline. Check your connection and try again.");
   }
@@ -63,7 +91,7 @@ async function performRefresh(revision: number, previous: AccessTokenPayload | n
     const body = (await response.json()) as { access_token: string };
     requireCurrentSession();
     const renewed = decodeAccessToken(body.access_token);
-    if (previous && renewed?.sub !== previous.sub) {
+    if (!renewed?.sub || (previous && renewed.sub !== previous.sub)) {
       setAccessToken(null);
       return { ok: false, error: new ApiError(401, "SESSION_CHANGED", "Sign in again to continue.") };
     }
@@ -86,6 +114,8 @@ async function performRefresh(revision: number, previous: AccessTokenPayload | n
       }
       const restored = (await scoped.json()) as { access_token: string };
       requireCurrentSession();
+      const scopedIdentity = decodeAccessToken(restored.access_token);
+      if (scopedIdentity?.sub !== renewed.sub || scopedIdentity.workspace_id !== previous.workspace_id) throw sessionChanged();
       body.access_token = restored.access_token;
     }
     setAccessToken(body.access_token);
@@ -109,21 +139,26 @@ function refreshOnce(): Promise<RefreshResult> {
   if (refreshInFlight) return refreshInFlight;
   const revision = getAccessTokenRevision();
   const previous = decodeAccessToken(getAccessToken() ?? "");
-  const execute = () => performRefresh(revision, previous);
+  const queued = new AbortController();
+  // A suspended tab can hold the origin lock. Bound waiting for it independently
+  // of the existing 20-second HTTP deadline after acquisition.
+  const queueTimeout = window.setTimeout(() => queued.abort(), 20_000);
+  const execute = () => {
+    window.clearTimeout(queueTimeout);
+    return performRefresh(revision, previous);
+  };
   const pending = navigator.locks
-    ? navigator.locks.request("backline:auth-refresh", execute)
+    ? navigator.locks.request("backline:auth-refresh", { signal: queued.signal }, execute)
     : execute();
   refreshInFlight = pending
     .catch((error: unknown): RefreshResult => ({
       ok: false,
-      error: error instanceof ApiError ? error : new ApiError(0, "SESSION_REFRESH_FAILED", "Session refresh couldn't finish. Try again."),
+      error: queued.signal.aborted
+        ? new ApiError(0, "SESSION_REFRESH_BUSY", "Another Backline tab is still refreshing your session. Try again shortly.")
+        : error instanceof ApiError ? error : new ApiError(0, "SESSION_REFRESH_FAILED", "Session refresh couldn't finish. Try again."),
     }))
-    .finally(() => { refreshInFlight = null; });
+    .finally(() => { window.clearTimeout(queueTimeout); refreshInFlight = null; });
   return refreshInFlight;
-}
-
-async function refreshAccessToken(): Promise<boolean> {
-  return (await refreshOnce()).ok;
 }
 
 /** Restores the session from the httpOnly refresh cookie; shares any refresh already in
@@ -134,32 +169,51 @@ export async function refreshSession<T>(): Promise<T> {
   return result.body as T;
 }
 
-let reopenInFlight: Promise<boolean> | null = null;
+let reopenInFlight: { revision: number; promise: Promise<boolean> } | null = null;
 
 // The member's role changed (or they were removed) after this access token was
 // issued, and the API refuses a token whose role is stale. Switching into the same
 // workspace again issues one with the current role; if that is refused too, they
 // are no longer a member.
 async function reopenWorkspace(): Promise<boolean> {
-  const workspaceId = decodeAccessToken(getAccessToken() ?? "")?.workspace_id;
+  const previous = decodeAccessToken(getAccessToken() ?? "");
+  const workspaceId = previous?.workspace_id;
   if (!workspaceId) return false;
-  reopenInFlight ??= (async () => {
+  const revision = getAccessTokenRevision();
+  if (reopenInFlight?.revision === revision) return reopenInFlight.promise;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 20_000);
+  const requireCurrent = () => {
+    if (revision !== getAccessTokenRevision()) throw sessionChanged();
+  };
+  const promise = (async () => {
     try {
       const response = await rawRequest(SWITCH_PATH, {
         method: "POST",
+        signal: controller.signal,
         body: JSON.stringify({ workspace_id: workspaceId }),
       });
+      requireCurrent();
       if (!response.ok) {
-        window.dispatchEvent(new Event(WORKSPACE_ACCESS_LOST_EVENT));
-        return false;
+        if (response.status === 403 || response.status === 404) window.dispatchEvent(new Event(WORKSPACE_ACCESS_LOST_EVENT));
+        throw await toApiError(response);
       }
-      setAccessToken(((await response.json()) as { access_token: string }).access_token);
+      const body = (await response.json()) as { access_token: string };
+      requireCurrent();
+      const renewed = decodeAccessToken(body.access_token);
+      if (renewed?.sub !== previous.sub || renewed.workspace_id !== workspaceId) throw sessionChanged();
+      setAccessToken(body.access_token);
       return true;
+    } catch (error) {
+      if (controller.signal.aborted) throw new ApiError(0, "WORKSPACE_REOPEN_TIMEOUT", "Checking workspace access timed out. Try again.");
+      throw error;
     } finally {
-      reopenInFlight = null;
+      window.clearTimeout(timeout);
+      if (reopenInFlight?.revision === revision) reopenInFlight = null;
     }
   })();
-  return reopenInFlight;
+  reopenInFlight = { revision, promise };
+  return promise;
 }
 
 // A 401 (AuthenticationError, 06-Backend-Architecture.md §6.7) means the access
@@ -167,19 +221,37 @@ async function reopenWorkspace(): Promise<boolean> {
 // surfaced as-is, except WORKSPACE_ACCESS_CHANGED: the session is fine but its role
 // is stale, so the workspace is reopened once and the request retried.
 async function send(path: string, init?: RequestInit): Promise<Response> {
+  const previous = decodeAccessToken(getAccessToken() ?? "");
+  const revision = getAccessTokenRevision();
+  const contextRevision = getAccessContextRevision();
   let response = await rawRequest(path, init);
-  if (response.status === 401 && path !== REFRESH_PATH) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) response = await rawRequest(path, init);
+  if (response.status === 401 && previous && !SIGN_IN_PATHS.has(path)) {
+    requireRequestContext(previous, contextRevision);
+    init?.signal?.throwIfAborted();
+    if (revision === getAccessTokenRevision()) {
+      const refreshed = await waitForSession(refreshOnce(), init?.signal);
+      if (!refreshed.ok) throw refreshed.error;
+    }
+    // Another request may already have refreshed this token. Never replay this
+    // request under a later login or a different active workspace.
+    requireRequestContext(previous, contextRevision);
+    init?.signal?.throwIfAborted();
+    response = await rawRequest(path, init);
   }
-  if (response.status === 403 && path !== SWITCH_PATH) {
+  if (response.status === 403 && path !== SWITCH_PATH && !SIGN_IN_PATHS.has(path)) {
     const code = await response
       .clone()
       .json()
       .then((body: { error?: { code?: string } } | null) => body?.error?.code)
       .catch(() => undefined);
-    if (code === "WORKSPACE_ACCESS_CHANGED" && (await reopenWorkspace())) {
-      response = await rawRequest(path, init);
+    if (code === "WORKSPACE_ACCESS_CHANGED") {
+      requireRequestContext(previous, contextRevision);
+      init?.signal?.throwIfAborted();
+      if (await waitForSession(reopenWorkspace(), init?.signal)) {
+        requireRequestContext(previous, contextRevision);
+        init?.signal?.throwIfAborted();
+        response = await rawRequest(path, init);
+      }
     }
   }
   return response;

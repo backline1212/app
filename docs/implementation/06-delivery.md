@@ -1,5 +1,23 @@
 # Delivery and verification ledger
 
+## 2026-10-21: Bounded session recovery and retry ownership (TDR-0099)
+
+Refresh lock acquisition and acquired HTTP work have independent 20-second bounds.
+Caller abort ends its recovery wait without cancelling shared work. Workspace
+recovery is bounded, revision-scoped and validates returned identity/context before
+installing a token. Request retries stay tied to their initial account/workspace
+and in-memory context revision, including logout/re-entry. Concurrent 401s reuse a
+renewed token; failed sign-in credentials/codes are not automatically replayed.
+Recovery errors remain explicit and transient 5xx does not announce access loss.
+
+Final affected web lint/typecheck/build pass 3/3; diff checks pass. The existing
+chunk advisory remains. Local evidence is
+`.tools/verification/2026-10-21-0099-final-web-checks.log`. No new suite, backend
+schema, credentials, provider sign-in or production feedback write. Browser use is
+disabled, so multi-tab/abort/login acceptance remains pending. Initial API fetches,
+uploads, cross-origin cookies and explicit login/switch UI sequencing retain their
+separate verification and implementation boundaries.
+
 ## 2026-10-21: Ticket detail permissions and draft protection (TDR-0098)
 
 Ticket details now gate reply/edit/delete by existing project roles. Read-only

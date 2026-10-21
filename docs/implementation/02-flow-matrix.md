@@ -1,5 +1,11 @@
 # Flow inventory and acceptance criteria
 
+FD-02/09/18 session recovery follow-up (TDR-0099): verify queued refresh timeout,
+acquired HTTP timeout, per-caller cancellation with shared work continuing, concurrent
+401 reuse, role recovery, transient server errors, logout/login and switching away/
+back during pending retries. Invalid password/signup/OTP/Google exchanges must not
+be automatically replayed. Manual browser/multi-tab acceptance remains open.
+
 FD-10/11/18 ticket detail follow-up (TDR-0098): verify viewer/commenter/editor
 controls, pending permission lookup, role loss with an open picker/delete dialog,
 metadata-only Stay/Discard/close/Back/unload, pending-write leave refusal, failed

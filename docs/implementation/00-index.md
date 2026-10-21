@@ -1,5 +1,9 @@
 # Final Draft implementation index
 
+Session recovery follow-up (2026-10-21): [TDR-0099](../tdr/0099-session-recovery-timeouts-and-context.md)
+bounds lock waits and workspace recovery, preserves caller cancellation and original
+retry ownership, and prevents automatic retry of failed sign-in credentials/codes.
+
 Ticket detail follow-up (2026-10-21): [TDR-0098](../tdr/0098-ticket-detail-permissions-and-drafts.md)
 adds project-role controls, protection for unsaved metadata and changed-field saves.
 Live acceptance and same-field concurrency remain separate gates.
