@@ -39,6 +39,8 @@ export function AssetReview({
 }) {
   const online = useOnlineStatus();
   const cache = useQueryClient();
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [params, setParams] = useSearchParams();
   const [commentMode, setCommentMode] = useState(true);
   const [draft, setDraft] = useState<api.Region | null>(null);
@@ -49,6 +51,7 @@ export function AssetReview({
   const [layer, setLayer] = useState<"client" | "team">("client");
   const [showFiles, setShowFiles] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState("");
+  const [saveWarning, setSaveWarning] = useState("");
   const [retryLocked, setRetryLocked] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
   const [replyCopyStatus, setReplyCopyStatus] = useState("");
@@ -132,10 +135,8 @@ export function AssetReview({
   async function refresh() { await cache.invalidateQueries({ queryKey: qk.assetComments(asset?.page_id) }); if (!guest) { await cache.invalidateQueries({ queryKey: qk.projectComments(projectId) }); } }
   const post = useMutation({
     mutationFn: async () => {
-      if (posting.current || (!prepared.current && (!asset || !draft))) throw new Error("Choose a location before saving.");
-      posting.current = true;
-      const submission = prepared.current ?? { assetId: asset!.id, payload: { body: body.trim(), region: { ...draft! }, layer, tags: [tag], client_request_id: crypto.randomUUID() } };
-      prepared.current = submission;
+      const submission = prepared.current;
+      if (!submission) throw new Error("Choose a location before saving.");
       try { return await api.createAssetComment(projectId, submission.assetId, submission.payload, guest); }
       catch (error) {
         const status = error instanceof Error && "status" in error ? Number(error.status) : 0;
@@ -144,26 +145,45 @@ export function AssetReview({
         throw error;
       }
     },
-    onSuccess: async comment => {
-      cache.setQueryData<Schemas["CommentOut"][]>(commentKey, current => [...(current ?? []).filter(row => row.id !== comment.id), comment]);
+    onSuccess: comment => {
+      if (!mounted.current) return;
       prepared.current = null; ambiguous.current = false; setRetryLocked(false); setBody(""); setDraft(null);
-      if (blocker.state !== "blocked") setSelected(comment.id);
-      setNavigationWarning(""); await refresh();
+      setNavigationWarning("");
+      const warn = () => setSaveWarning("Comment saved. Some feedback could not refresh; reload the review to check it.");
+      try {
+        cache.setQueryData<Schemas["CommentOut"][]>([...qk.assetComments(comment.page_id), guest ?? 'member'], current => [...(current ?? []).filter(row => row.id !== comment.id), comment]);
+        if (blocker.state !== "blocked") setSelected(comment.id);
+      } catch { warn(); }
+      void refresh().catch(warn);
     },
     onSettled: () => { posting.current = false; },
   });
   const replyMutation = useMutation({
     mutationFn: async () => {
-      if (replying.current || !selected) throw new Error("Choose a comment before replying.");
-      replying.current = true;
-      const submission = replyPrepared.current ?? { commentId: selected, body: reply.trim(), layer: selectedComment?.layer ?? "client", id: crypto.randomUUID() };
-      replyPrepared.current = submission;
+      const submission = replyPrepared.current;
+      if (!submission) throw new Error("Choose a comment before replying.");
       try { return await api.replyToComment(submission.commentId, submission.body, submission.layer, guest, submission.id); }
       catch (error) { setReplyLocked(true); throw error; }
     },
-    onSuccess: async () => { replyPrepared.current = null; setReplyLocked(false); setReply(""); setReplyCopyStatus(""); setNavigationWarning(""); await refresh(); },
+    onSuccess: comment => {
+      if (!mounted.current) return;
+      replyPrepared.current = null; setReplyLocked(false); setReply(""); setReplyCopyStatus(""); setNavigationWarning("");
+      const warn = () => setSaveWarning("Reply saved. Some feedback could not refresh; reload the review to check it.");
+      try { cache.setQueryData<Schemas["CommentOut"][]>([...qk.assetComments(comment.page_id), guest ?? 'member'], current => [...(current ?? []).filter(row => row.id !== comment.id), comment]); } catch { warn(); }
+      void refresh().catch(warn);
+    },
     onSettled: () => { replying.current = false; },
   });
+  function submitComment() {
+    if (posting.current || !canComment || !body.trim() || body.trim().length > 10_000 || (!prepared.current && (!asset || !draft || !mediaReady))) return;
+    prepared.current ??= { assetId: asset!.id, payload: { body: body.trim(), region: { ...draft! }, layer, tags: [tag], client_request_id: crypto.randomUUID() } };
+    posting.current = true; setSaveWarning(""); post.mutate();
+  }
+  function submitReply() {
+    if (replying.current || !canComment || !selectedComment || !reply.trim() || reply.trim().length > 10_000) return;
+    replyPrepared.current ??= { commentId: selected, body: reply.trim(), layer: selectedComment.layer, id: crypto.randomUUID() };
+    replying.current = true; setSaveWarning(""); replyMutation.mutate();
+  }
   const hasDraft = locationProtected || post.isPending || replyMutation.isPending;
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     const nextSearch = nextLocation.search.replace(/^\?/, "");
@@ -307,6 +327,7 @@ export function AssetReview({
       )}
       <div className="bl-segment"><button aria-pressed={!commentMode} disabled={hasDraft} onClick={() => { setCommentMode(false); setDraft(null); }}>View</button><button aria-pressed={commentMode && canComment} disabled={!canComment} onClick={() => setCommentMode(true)}>Comment</button></div>{project && <button type="button" className="bl-quiet" disabled={hasDraft} title={draft && body.trim() ? "Save or cancel your comment first" : undefined} onClick={() => setShowFiles(true)}>Manage files</button>}</div>
     {[assets.error?.message, comments.error?.message, reanchorMutation.error?.message].filter(Boolean).map((error) => <p key={error} className="bl-error" role="alert">{error}</p>)}
+    {saveWarning && <p role="status" className="bl-inline-warning">{saveWarning}</p>}
     {assets.error && <button type="button" className="bl-button" disabled={assets.isFetching} onClick={() => void assets.refetch()}>Retry files</button>}
     {navigationPending && <div className="bl-inline-warning" role="status"><p>The address changed while this draft was open. Save or cancel it before following the new location.</p><button type="button" className="bl-quiet" disabled={post.isPending || replyMutation.isPending} onClick={() => setParams(new URLSearchParams(acceptedSearch.current), { replace: true })}>Stay on this file</button></div>}
     <div className="bl-review-body"><section className="bl-asset-stage">{asset ? <><p className="bl-mono">{annotationMode ? (canEdit ? 'Click to pin a comment, drag to select an area, or move an existing pin.' : 'Click to pin a comment, or drag to select an area.') : 'Viewing document'}</p><div className={`bl-asset-sheet ${annotationMode ? 'commenting' : ''}`} style={{ transform: `scale(${zoomScale}) rotate(${rotation}deg)`, transformOrigin: "center center", transition: "transform 0.2s" }} onPointerDown={handleContainerDown} onPointerMove={handleContainerMove} onPointerUp={handleContainerUp} onPointerCancel={handleContainerCancel}>
@@ -410,10 +431,10 @@ export function AssetReview({
       {reply.trim() && !selectedComment && <div className="bl-form"><p role="status">The original thread is unavailable. Your reply text is still here; copy it before closing. An unconfirmed reply may already have been saved.</p><textarea className="bl-input" readOnly aria-label="Preserved reply text" value={reply} onFocus={event => event.target.select()} /><button type="button" className="bl-button" disabled={replyMutation.isPending} onClick={() => { setReply(""); replyPrepared.current = null; setReplyLocked(false); setReplyCopyStatus(""); }}>Close reply draft</button></div>}
 
       {draft && (
-        <form className="cp-body" style={{ padding: "16px", borderBottom: "1px solid var(--bl-line)" }} onSubmit={(e) => { e.preventDefault(); if (!posting.current && body.trim()) post.mutate(); }}>
+        <form className="cp-body" style={{ padding: "16px", borderBottom: "1px solid var(--bl-line)" }} onSubmit={(e) => { e.preventDefault(); submitComment(); }}>
           <fieldset disabled={post.isPending || retryLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <label className="cp-lbl" style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>New comment</label>
-          <textarea className="bl-input" autoFocus required rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="What needs to change here?" />
+          <textarea className="bl-input" autoFocus required maxLength={10_000} rows={4} value={body} onChange={(e) => { if (!posting.current && !retryLocked) setBody(e.target.value); }} placeholder="What needs to change here?" />
 
           <div className="cp-sec">
             <span className="cp-lbl">Tag</span>
@@ -467,9 +488,9 @@ export function AssetReview({
             </article>
           ))}
 
-          <form className="bl-form bl-flush" style={{ marginTop: "16px" }} onSubmit={(e) => { e.preventDefault(); if (!replying.current) replyMutation.mutate(); }}>
+          <form className="bl-form bl-flush" style={{ marginTop: "16px" }} onSubmit={(e) => { e.preventDefault(); submitReply(); }}>
             <label>Reply
-              <textarea className="bl-input" required readOnly={replyMutation.isPending || replyLocked || !canComment} value={reply} onChange={(e) => setReply(e.target.value)} />
+              <textarea className="bl-input" required maxLength={10_000} readOnly={replyMutation.isPending || replyLocked || !canComment} value={reply} onChange={(e) => { if (!replying.current && !replyLocked) setReply(e.target.value); }} />
             </label>
             {replyMutation.error && <p className="bl-error" role="alert">{replyMutation.error.message}</p>}
             {replyLocked && <p role="status">Saving is unconfirmed. Retry sends the original reply; check saved feedback before starting another reply.</p>}

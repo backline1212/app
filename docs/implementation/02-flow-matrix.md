@@ -1,5 +1,13 @@
 # Flow inventory and acceptance criteria
 
+FD-09/12/18 file-review follow-up (TDR-0100): verify one immutable comment/reply
+under rapid submit, lost/slow acknowledgement and original retry; confirmed save
+with refresh/cache failure; correct page/guest cache; JSON/content/upload timeout
+and caller cancellation; partial batch retry and busy release after refresh failure;
+local file-manager close/Stay/Discard/unload and dirty-name action guards. Actual PDF
+render/pins and guest/member persistence remain pending. File-manager SPA route
+blocking and same-field metadata CAS are separate open work.
+
 FD-02/09/18 session recovery follow-up (TDR-0099): verify queued refresh timeout,
 acquired HTTP timeout, per-caller cancellation with shared work continuing, concurrent
 401 reuse, role recovery, transient server errors, logout/login and switching away/

@@ -214,7 +214,7 @@ export function ReviewEntryPage() {
     return (<>
       {leaveError && <p role="alert" className="bl-error">{leaveError}</p>}
       <AssetReview
-        key={resolved.project_id}
+        key={`${resolved.project_id}:${assetGuest}`}
         projectId={resolved.project_id}
         title={resolved.project_name}
         guest={assetGuest}

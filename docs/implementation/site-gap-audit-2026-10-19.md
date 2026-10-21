@@ -3,6 +3,15 @@
 Date: 2026-10-19 (Asia/Calcutta). Baseline: `main`, commit `2daf5a7`.
 Scope decision: [TDR-0059](../tdr/0059-site-gap-audit.md).
 
+2026-10-21 follow-ups: [TDR-0098](../tdr/0098-ticket-detail-permissions-and-drafts.md)
+adds ticket-role controls, metadata draft protection and changed-field saves;
+[TDR-0099](../tdr/0099-session-recovery-timeouts-and-context.md) bounds session
+recovery and retains retry context; [TDR-0100](../tdr/0100-file-review-save-and-upload-recovery.md)
+repairs file-review save/refresh separation, submit guards and file-manager
+settlement. Static/source delivery and live browser/backend acceptance remain
+distinct in the ledger. Same-field metadata CAS and nested file-manager SPA route
+protection remain open; the historical rows below are not rewritten as closed.
+
 F30 edit follow-up: [TDR-0089](../tdr/0089-project-edit-concurrency-and-replay.md)
 adds versioned project saves, bounded actor/body replay and settings/rename conflict
 recovery. Actual concurrency/browser verification and post-commit integration

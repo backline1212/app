@@ -1,5 +1,11 @@
 # Final Draft implementation index
 
+File-review recovery follow-up (2026-10-21):
+[TDR-0100](../tdr/0100-file-review-save-and-upload-recovery.md) adds bounded file
+requests, synchronous submit guards, confirmed-save/refresh separation, recoverable
+file-manager settlement and local close/unload protection. Actual PDF acceptance
+and full nested-route protection remain open.
+
 Session recovery follow-up (2026-10-21): [TDR-0099](../tdr/0099-session-recovery-timeouts-and-context.md)
 bounds lock waits and workspace recovery, preserves caller cancellation and original
 retry ownership, and prevents automatic retry of failed sign-in credentials/codes.

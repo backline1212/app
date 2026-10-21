@@ -1,5 +1,41 @@
 # Delivery and verification ledger
 
+## 2026-10-21: File review save and upload recovery (TDR-0100)
+
+Image/PDF review captures comment/reply request IDs before synchronous guarded
+submission. Confirmed results update their page cache and remain saved if cache,
+navigation or refresh work fails. Guest-session instances and unmount guards
+protect late callbacks. Asset JSON/content/upload requests have 30/60/120-second
+bounds with cancellation and explicit uncertain-write recovery. File-manager
+submission guards and settlement release busy independently of refetch success;
+partial upload replay keeps its existing per-File request ID. Local close/unload
+protect renamed files and unconfirmed batches; pending operations refuse close.
+
+Final lifecycle changes pass affected web lint/typecheck/build 3/3 and diff checks;
+the existing chunk advisory remains. Local log:
+`.tools/verification/2026-10-21-0100-final-web-checks.log`. A draft-dialog wording
+refinement found during live verification is checked separately in
+`.tools/verification/2026-10-21-0100-final-copy-checks.log`; those final affected
+lint/typecheck/build checks also pass 3/3.
+No suite, shared feedback/upload/file change, role change or provider request.
+Actual PDF rendering/pins, guest/member writes and failure acceptance remain
+pending. Browser access resumed October 21: the deployed TDR-0097 reply draft now
+passes Close -> prompt, Stay -> preserved text and panel, repeated Close -> prompt,
+Discard -> no dialog/textarea and panel=closed. Only an unsent labelled draft was
+entered; no reply was posted and the existing count remained three comments.
+The TDR-0098 ticket metadata-only draft also passes Close -> prompt, Stay -> text
+preserved with the original selected ticket, repeated Close/Discard -> one completed
+close, no open dialog/textarea and no selected comment URL parameter. Save changes
+started disabled on the untouched ticket. Only an unsaved labelled body was entered;
+Save changes, Delete and Post reply were not clicked. Other-role and failure paths
+remain unverified.
+Nested file-manager SPA router blocking,
+metadata CAS, other attachment uploads and orphan reconciliation remain open.
+
+Web rollout of 1a2f7ba (TDR-0099, including TDR-0098) is confirmed successful by
+Vercel status. Latest read-only Railway state still reports API/worker/cloud-login
+on 7b25ac3 with health/Mongo/Redis ok. Backend/served-extension rollout is separate.
+
 ## 2026-10-21: Bounded session recovery and retry ownership (TDR-0099)
 
 Refresh lock acquisition and acquired HTTP work have independent 20-second bounds.
