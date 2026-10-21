@@ -42,6 +42,8 @@ export function TicketBoard({
             style={{ "--c": STATUS_COLORS[s] } as CSSProperties}
             aria-label={`${STATUS_LABELS[s]} (${column.length})`}
             onDragOver={(e) => {
+              const source = tickets.find(ticket => ticket.id === draggedId);
+              if (!source || update.isPending || !update.canEdit(source)) return;
               e.preventDefault();
               e.currentTarget.setAttribute('data-dragover', 'true');
             }}
@@ -58,7 +60,7 @@ export function TicketBoard({
               // the error banner in TicketsPage for one frame.
               if (id && !update.isPending) {
                 const ticket = tickets.find(t => t.id === id);
-                if (ticket && ticket.status !== s) {
+                if (ticket && update.canEdit(ticket) && ticket.status !== s) {
                   update.mutate({ id, patch: { status: s } });
                 }
               }
@@ -71,7 +73,7 @@ export function TicketBoard({
               <b>{column.length}</b>
             </h2>
             <div className="bl-bcol-b">
-              {column.length === 0 && <p className="bl-bcol-e">Drop a ticket here</p>}
+              {column.length === 0 && <p className="bl-bcol-e">{tickets.some(ticket => update.canEdit(ticket)) ? "Drop a ticket here" : "No tickets"}</p>}
               {column.map((t) => {
                 const priority = PRIORITY_META[t.priority ?? "medium"];
                 const due = dueMeta(t.due_at, isClosed(t.status));
@@ -80,10 +82,11 @@ export function TicketBoard({
                   <button
                     type="button"
                     key={t.id}
-                    draggable
+                    draggable={!update.isPending && update.canEdit(t)}
                     className={`bl-tc${draggedId === t.id ? " bl-dragging" : ""}`}
                     onClick={() => onOpen(t.id)}
                     onDragStart={(e) => {
+                      if (update.isPending || !update.canEdit(t)) { e.preventDefault(); return; }
                       e.dataTransfer.setData("text/plain", t.id);
                       e.dataTransfer.effectAllowed = "move";
                       setDraggedId(t.id);

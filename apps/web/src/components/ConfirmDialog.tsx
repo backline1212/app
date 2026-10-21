@@ -13,6 +13,7 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   destructive = false,
   pending = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: {
@@ -22,11 +23,12 @@ export function ConfirmDialog({
   cancelLabel?: string;
   destructive?: boolean;
   pending?: boolean;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   return (
-    <Dialog title={title} onClose={onCancel}>
+    <Dialog title={title} onClose={() => { if (!pending) onCancel(); }}>
       <div className="p-4">
         {/* A div, not a p: callers pass paragraphs of their own (and error lines). */}
         <div className="mb-4 bl-confirm-message">{message}</div>
@@ -40,7 +42,7 @@ export function ConfirmDialog({
           <button
             type="button"
             className={`bl-button${destructive ? " danger" : ""}`}
-            disabled={pending}
+            disabled={pending || confirmDisabled}
             onClick={onConfirm}
           >
             {confirmLabel}

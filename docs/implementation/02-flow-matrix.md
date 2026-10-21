@@ -1,5 +1,13 @@
 # Flow inventory and acceptance criteria
 
+FD-10/11/18/21 ticket triage follow-up (TDR-0102): verify mixed roles and archived/
+missing/failed project access in list/table/board/calendar/new-ticket entry; pending
+and disabled date portals; drag/drop after role loss; rapid quick edits, filter
+changes during failure and account/workspace changes before rollback. Confirmed
+DELETE must remain completed through a stalled/failed refresh, with Close usable;
+unmounted callbacks must not close another ticket. Pending confirmations refuse
+X/Escape/Cancel. No live deletion is part of current verification.
+
 FD-12 PDF preview follow-up (TDR-0101): verify preparation/render deadlines, retry
 with a fresh loading task, rapid page changes/unmount, late callbacks, invalid page
 dimensions and annotation readiness after an error. Existing pixel caps and actual

@@ -6,4 +6,4 @@ export type TicketUpdateMutation = UseMutationResult<
   CommentOut,
   Error,
   { id: string; patch: Schemas["CommentUpdate"] }
->;
+> & { canEdit: (ticket: Pick<Schemas["TicketOut"], "project_id">) => boolean };

@@ -1,6 +1,8 @@
 import type { Schemas } from "@backline/types";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { projectCan } from "../../lib/project-roles";
+import { getAccessContextRevision } from "../../lib/auth-token";
 import { downloadCsv } from "../../lib/csv";
 import { invalidateTicketsAndDashboard, qk } from "../../lib/query-keys";
 import { updateComment } from "../board/api";
@@ -24,6 +26,8 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
   const cache = useQueryClient();
   const [exportError, setExportError] = useState("");
   const [exporting, setExporting] = useState(false);
+  const editing = useRef(false);
+  const [updateWarning, setUpdateWarning] = useState("");
 
   const requestedDisplay = params.get("display") ?? "list";
   const display = ["list", "board", "table", "calendar"].includes(requestedDisplay) ? requestedDisplay : "list";
@@ -63,28 +67,46 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     queryFn: () => api.getDashboard(workspaceId) 
   });
 
+  const canEditTicket = (ticket: Pick<api.Ticket, "project_id">) => {
+    const project = projects.data?.find(item => item.id === ticket.project_id);
+    return Boolean(!projects.isError && project && !project.archived_at && projectCan(project, "edit"));
+  };
+  function requireEditable(id: string) {
+    const ticket = query.data?.items.find(item => item.id === id);
+    if (!ticket || !canEditTicket(ticket)) throw new Error("Editors and managers can change tickets in this project. Reload if your access recently changed.");
+  }
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Schemas["CommentUpdate"] }) => updateComment(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: Schemas["CommentUpdate"] }) => { requireEditable(id); return updateComment(id, patch); },
     onMutate: async ({ id, patch }) => {
+      requireEditable(id);
+      const key = qk.ticketsList(workspaceId, queryKeyStr);
+      const contextRevision = getAccessContextRevision();
       await cache.cancelQueries({ queryKey: qk.tickets(workspaceId) });
-      const previous = cache.getQueryData<Schemas["TicketListOut"]>(qk.ticketsList(workspaceId, queryKeyStr));
-      cache.setQueryData<Schemas["TicketListOut"]>(qk.ticketsList(workspaceId, queryKeyStr), (old) => {
+      if (contextRevision !== getAccessContextRevision()) throw new Error("Your account or workspace changed. Check the current tickets before trying again.");
+      const previous = cache.getQueryData<Schemas["TicketListOut"]>(key);
+      cache.setQueryData<Schemas["TicketListOut"]>(key, (old) => {
         if (!old) return old;
         const items = old.items.map((t) => t.id === id ? { ...t, ...(patch as unknown as Partial<api.Ticket>) } : t);
         // Mirror the API's order straight away: finished tickets sit below open ones.
         return { ...old, items: [...items.filter((t) => !isClosed(t.status)), ...items.filter((t) => isClosed(t.status))] };
       });
-      return { previous };
+      return { previous, key, contextRevision };
     },
     onError: (_err, _newTodo, context) => {
-      if (context?.previous) {
-        cache.setQueryData(qk.ticketsList(workspaceId, queryKeyStr), context.previous);
+      if (context?.previous && context.contextRevision === getAccessContextRevision()) {
+        cache.setQueryData(context.key, context.previous);
       }
     },
-    onSettled: () => {
-      invalidateTicketsAndDashboard(cache, workspaceId);
+    onSettled: (_saved, error, _variables, context) => {
+      editing.current = false;
+      if (context && context.contextRevision !== getAccessContextRevision()) return;
+      void invalidateTicketsAndDashboard(cache, workspaceId).catch(() => setUpdateWarning(error ? "The ticket list could not refresh. Reload to check the current state." : "Change saved. Reload to refresh the ticket list."));
     },
   });
+  const mutate: typeof update.mutate = (variables, options) => {
+    if (editing.current) return;
+    editing.current = true; setUpdateWarning(""); update.mutate(variables, options);
+  };
 
   function set(key: string, value: string | string[]) {
     const next = new URLSearchParams(params);
@@ -165,7 +187,9 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     projects,
     members,
     dashboard,
-    update,
+    update: { ...update, mutate, canEdit: canEditTicket },
+    updateWarning,
+    canCreate: !projects.isError && Boolean(projects.data?.some(project => !project.archived_at && projectCan(project, "edit"))),
     exportAll,
     exporting,
     exportError,

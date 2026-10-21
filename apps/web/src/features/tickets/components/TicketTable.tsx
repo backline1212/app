@@ -94,10 +94,10 @@ export function TicketTable({
                   </button>
                 </td>
                 <td>
-                  <StatusSelect ticket={t} disabled={update.isPending} onChange={(status) => update.mutate({ id: t.id, patch: { status } })} />
+                  <StatusSelect ticket={t} disabled={update.isPending || !update.canEdit(t)} onChange={(status) => update.mutate({ id: t.id, patch: { status } })} />
                 </td>
                 <td>
-                  <PrioritySelect ticket={t} disabled={update.isPending} onChange={(priority) => update.mutate({ id: t.id, patch: { priority } })} />
+                  <PrioritySelect ticket={t} disabled={update.isPending || !update.canEdit(t)} onChange={(priority) => update.mutate({ id: t.id, patch: { priority } })} />
                 </td>
                 <td>
                   <div className="bl-tcell-tags">
@@ -126,14 +126,14 @@ export function TicketTable({
                   )}
                 </td>
                 <td onClick={(e) => e.stopPropagation()}>
-                  <DatePicker value={t.due_at} onChange={(value) => update.mutate({ id: t.id, patch: { due_at: value } })} triggerClassName={`bl-due bl-due-trigger ${due?.tone ?? ""}`}>
+                  <DatePicker disabled={update.isPending || !update.canEdit(t)} value={t.due_at} onChange={(value) => update.mutate({ id: t.id, patch: { due_at: value } })} triggerClassName={`bl-due bl-due-trigger ${due?.tone ?? ""}`}>
                     {due ? due.text : "Set date"}
                   </DatePicker>
                 </td>
                 <td className="bl-col-actions">
-                  <button type="button" className="bl-row-delete" aria-label={`Delete ticket ${ticketRef(t)}`} title="Delete ticket" onClick={(e) => { e.stopPropagation(); onDelete(t); }}>
+                  {update.canEdit(t) && <button type="button" className="bl-row-delete" disabled={update.isPending} aria-label={`Delete ticket ${ticketRef(t)}`} title="Delete ticket" onClick={(e) => { e.stopPropagation(); onDelete(t); }}>
                     <TrashIcon />
-                  </button>
+                  </button>}
                 </td>
               </tr>
             );

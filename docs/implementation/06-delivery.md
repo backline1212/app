@@ -1,5 +1,23 @@
 # Delivery and verification ledger
 
+## 2026-10-21: Ticket triage permissions and lifecycle (TDR-0102)
+
+Ticket list/table/board/calendar mutation controls use project editor/manager access;
+unknown/failed role data and archive state fail closed. Creation entry and access
+retry explain availability. Quick edits serialize before dispatch, check permission
+before optimism/write, pin rollback to its original filter key and skip rollback
+after context change. Refetch failure cannot retain the edit lock. Disabled date
+pickers hide portals/ignore callbacks. Delete confirmation checks its own role and
+guards double submit; confirmed deletion remains completed if refetch stalls/fails.
+Shared pending confirmation X/Escape/Cancel cannot imply cancellation of a write.
+
+Final affected lint/typecheck/build pass 3/3; diff checks pass. The existing chunk
+advisory remains. Evidence:
+`.tools/verification/2026-10-21-0102-final-lifecycle-checks.log`.
+No suite, production ticket update/delete/role change or provider call. Mixed-role,
+failure/concurrency, filter/context rollback and deletion acceptance remain pending.
+Same-field metadata CAS and the new-ticket form lifecycle remain open work.
+
 ## 2026-10-21: PDF worker recovery (TDR-0101)
 
 PDF preparation and page parsing/rendering have independent 30-second deadlines.

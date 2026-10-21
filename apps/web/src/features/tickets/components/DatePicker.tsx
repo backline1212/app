@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useFocusTrap } from "../../../lib/use-focus-trap";
 import { useOnClickOutside } from "../../../lib/use-click-outside";
@@ -26,13 +26,16 @@ export function DatePicker({
   onChange,
   triggerClassName,
   children,
+  disabled = false,
 }: {
   value: string | null | undefined;
   onChange: (date: string | null) => void;
   triggerClassName?: string;
   children?: ReactNode;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
   const rootRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -40,9 +43,9 @@ export function DatePicker({
   // any ancestor with overflow:auto/hidden instead of being clipped by it - so
   // click-outside has to watch the portaled node too, since it no longer shares a DOM
   // subtree with rootRef.
-  const popoverPos = useFloatingPosition(triggerRef, popoverRef, open);
+  const popoverPos = useFloatingPosition(triggerRef, popoverRef, open && !disabled);
 
-  useFocusTrap(popoverRef, open);
+  useFocusTrap(popoverRef, open && !disabled);
   useOnClickOutside([rootRef, popoverRef], () => setOpen(false));
 
   // We keep 'month' as a local Date representing the displayed month/year (ignoring its day)
@@ -63,17 +66,20 @@ export function DatePicker({
   }
 
   const handleDateSelect = (d: number) => {
+    if (disabled) return;
     onChange(utcKey(month.getFullYear(), month.getMonth(), d));
     closeAndRestoreFocus();
   };
 
   const handleToday = () => {
+    if (disabled) return;
     const now = new Date();
     onChange(utcKey(now.getFullYear(), now.getMonth(), now.getDate()));
     closeAndRestoreFocus();
   };
 
   const handleClear = () => {
+    if (disabled) return;
     onChange(null);
     closeAndRestoreFocus();
   };
@@ -136,6 +142,7 @@ export function DatePicker({
       <button
         ref={triggerRef}
         type="button"
+        disabled={disabled}
         className={triggerClassName ?? "bl-input"}
         aria-label={value ? `Change date, currently ${displayValue}` : 'Select date'}
         aria-haspopup="dialog"
@@ -153,7 +160,7 @@ export function DatePicker({
       >
         {children ?? displayValue}
       </button>
-      {open && createPortal(
+      {open && !disabled && createPortal(
         <div
           ref={popoverRef}
           className="bl-dp"

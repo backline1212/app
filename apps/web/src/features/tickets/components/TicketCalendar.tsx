@@ -47,13 +47,15 @@ export function TicketCalendar({ tickets, update, onOpen }: { tickets: api.Ticke
       const id = e.dataTransfer.getData("text/plain");
       const ticket = tickets.find((t) => t.id === id);
       const nextDueAt = key ? `${key}T00:00:00Z` : null;
-      if (ticket && (ticket.due_at ?? null) !== nextDueAt) {
+      if (ticket && !update.isPending && update.canEdit(ticket) && (ticket.due_at ?? null) !== nextDueAt) {
         update.mutate({ id, patch: { due_at: nextDueAt } });
       }
       setDraggedId(null);
     };
   }
   function dragOverDay(e: DragEvent) {
+    const source = tickets.find(ticket => ticket.id === draggedId);
+    if (!source || update.isPending || !update.canEdit(source)) return;
     e.preventDefault();
     e.currentTarget.setAttribute("data-dragover", "true");
   }
@@ -66,8 +68,9 @@ export function TicketCalendar({ tickets, update, onOpen }: { tickets: api.Ticke
       <button
         key={t.id}
         type="button"
-        draggable
+        draggable={!update.isPending && update.canEdit(t)}
         onDragStart={(e) => {
+          if (update.isPending || !update.canEdit(t)) { e.preventDefault(); return; }
           e.dataTransfer.setData("text/plain", t.id);
           e.dataTransfer.effectAllowed = "move";
           setDraggedId(t.id);

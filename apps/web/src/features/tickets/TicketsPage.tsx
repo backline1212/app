@@ -44,6 +44,8 @@ export function TicketsPage() {
     members,
     dashboard,
     update,
+    updateWarning,
+    canCreate,
     exportAll,
     exporting,
     exportError,
@@ -125,7 +127,7 @@ export function TicketsPage() {
           <button className="bl-quiet" disabled={exporting} onClick={() => void exportAll()}>
             {exporting ? "Exporting…" : "Export CSV"}
           </button>
-          <button className="bl-button" onClick={() => setShowCreate(true)}>
+          <button className="bl-button" disabled={!canCreate} title={canCreate ? "Create a team ticket" : "Needs editor access on an active project"} onClick={() => setShowCreate(true)}>
             <PlusIcon width={13} height={13} /> New ticket
           </button>
         </div>
@@ -181,7 +183,10 @@ export function TicketsPage() {
       </div>
 
       {query.isLoading && <p role="status">Loading tickets…</p>}
-      {[query.error?.message, update.error?.message, exportError].filter(Boolean).map((error) => (
+      {projects.error && <button type="button" className="bl-quiet" disabled={projects.isFetching} onClick={() => void projects.refetch()}>Retry project access</button>}
+      {projects.data && !projects.error && !canCreate && <p role="status">You can read these tickets. Editor access on an active project is needed to create or triage them.</p>}
+      {updateWarning && <p role="status">{updateWarning}</p>}
+      {[query.error?.message, projects.error?.message, update.error?.message, exportError].filter(Boolean).map((error) => (
         <p key={error} className="bl-error" role="alert">
           {error}
         </p>
@@ -248,7 +253,7 @@ export function TicketsPage() {
                 {narrowed ? "Clear filters" : "Show everyone's tickets"}
               </button>
             )}
-            <button className="bl-button" onClick={() => setShowCreate(true)}>
+            <button className="bl-button" disabled={!canCreate} title={canCreate ? "Create a team ticket" : "Needs editor access on an active project"} onClick={() => setShowCreate(true)}>
               New ticket
             </button>
           </div>
@@ -270,7 +275,7 @@ export function TicketsPage() {
       )}
 
       {showCreate && <NewTicket workspace={workspace} members={members.data ?? []} onClose={() => setShowCreate(false)} />}
-      {deleting && <DeleteTicketDialog ticket={deleting} workspaceId={workspace.id} onCancel={() => setDeleting(null)} onDeleted={() => setDeleting(null)} />}
+      {deleting && update.canEdit(deleting) && <DeleteTicketDialog ticket={deleting} workspaceId={workspace.id} onCancel={() => setDeleting(null)} onDeleted={() => setDeleting(null)} />}
       {selected && <TicketDetail id={selected} workspace={workspace} members={members.data ?? []} onClose={closeDetail} />}
     </main>
   );

@@ -61,7 +61,7 @@ export function TicketRow({
           {ticket.is_standalone && ticket.page_path && " · not pinned"}
         </span>
       </div>
-      <StatusSelect ticket={ticket} disabled={update.isPending} onChange={(status) => update.mutate({ id: ticket.id, patch: { status } })} />
+      <StatusSelect ticket={ticket} disabled={update.isPending || !update.canEdit(ticket)} onChange={(status) => update.mutate({ id: ticket.id, patch: { status } })} />
       <div className="bl-tk-tags" onClick={(e) => e.stopPropagation()}>
         {ticket.tags?.slice(0, 2).map((tag) => (
           <button type="button" className="bl-tag" key={tag} onClick={() => onFilterTag(tag)}>
@@ -81,9 +81,9 @@ export function TicketRow({
         )}
       </span>
       <span className={`bl-due ${due?.tone ?? ""}`}>{due ? due.text : "No date"}</span>
-      <button type="button" className="bl-row-delete" aria-label={`Delete ticket ${ticketRef(ticket)}`} title="Delete ticket" onClick={(e) => { e.stopPropagation(); onDelete(ticket); }}>
+      {update.canEdit(ticket) && <button type="button" className="bl-row-delete" disabled={update.isPending} aria-label={`Delete ticket ${ticketRef(ticket)}`} title="Delete ticket" onClick={(e) => { e.stopPropagation(); onDelete(ticket); }}>
         <TrashIcon />
-      </button>
+      </button>}
     </div>
   );
 }

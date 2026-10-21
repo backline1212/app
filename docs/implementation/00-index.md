@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Ticket triage follow-up (2026-10-21):
+[TDR-0102](../tdr/0102-ticket-list-permissions-and-mutation-lifecycle.md) applies
+project roles to all ticket views and repairs quick-edit rollback/confirmation
+lifecycle. Mixed-role and failure acceptance remain open.
+
 PDF preview follow-up (2026-10-21):
 [TDR-0101](../tdr/0101-pdf-preparation-and-render-deadlines.md) bounds worker
 preparation/page rendering and rejects invalid viewport dimensions. Real PDF
