@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Direct review-upload replay follow-up (2026-10-22):
+[TDR-0111](../tdr/0111-repeatable-direct-review-uploads.md) reuses the same
+actor/project/content object for repeat API-relay screenshot or attachment uploads.
+Signed-grant cleanup and orphan reconciliation remain open.
+
 Review URL display follow-up (2026-10-22):
 [TDR-0110](../tdr/0110-review-url-display-redaction.md) masks common secrets in
 portal URL labels while preserving canonical page identity and navigation. Evidence,

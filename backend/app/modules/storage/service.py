@@ -1,3 +1,5 @@
+import hashlib
+import json
 import uuid
 from typing import Any
 
@@ -102,6 +104,25 @@ def _upload_key(workspace_id: str, project_id: str, content_type: str) -> str:
     return f"uploads/{workspace_id}/{project_id}/{uuid.uuid4()}.{extension}"
 
 
+def _direct_upload_key(
+    workspace_id: str,
+    project_id: str,
+    actor: Actor,
+    content_type: str,
+    data: bytes,
+) -> str:
+    """Scope content-based replay to one actor and one project, without shared dedupe."""
+    actor_type, actor_id = actor_identity(actor)
+    digest = hashlib.sha256(data).hexdigest()
+    identity = json.dumps(
+        [workspace_id, project_id, actor_type, actor_id, content_type, digest],
+        separators=(",", ":"),
+    ).encode()
+    replay_id = hashlib.sha256(identity).hexdigest()
+    extension = _EXTENSION_BY_CONTENT_TYPE[content_type]
+    return f"uploads/{workspace_id}/{project_id}/{replay_id}.{extension}"
+
+
 async def create_upload_url(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
@@ -157,7 +178,7 @@ async def store_upload(
     except PydanticValidationError as exc:
         raise ValidationError("Unsupported upload type or size.") from exc
     workspace_id = await resolve_actor_project_access(db, actor, project_id, "comment:create")
-    key = _upload_key(workspace_id, project_id, validated.content_type)
+    key = _direct_upload_key(workspace_id, project_id, actor, validated.content_type, data)
     await store_bytes(
         db,
         workspace_id=workspace_id,

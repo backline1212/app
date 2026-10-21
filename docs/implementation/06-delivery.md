@@ -1,5 +1,17 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-07 direct review-upload replay (TDR-0111)
+
+The same-origin screenshot/attachment upload relay now derives an actor- and
+project-scoped key from validated file bytes and content type. A repeated request
+after a lost response writes the same object and reuses the same quota hold; upload
+reference insertion accepts only matching ownership and content. Legacy random
+keys and signed PUTs remain readable and usable. Signed-grant expiry alone still
+cannot safely release a hold. No HTTP contract, migration, object deletion or shared
+fixture write was needed. Full backend Ruff, affected format, full strict mypy
+(217 files), affected mypy (2 files), workspace-scope (25 repositories) and diff
+checks pass. Live relay retry, quota and object acceptance await backend rollout.
+
 ## 2026-10-22: BUG-08 portal URL display redaction (TDR-0110)
 
 Project, page, canvas and version labels now mask common token/auth/contact query
@@ -26,7 +38,9 @@ the older API/worker commit pending Railway rollout. Source commits `299aacb` an
 `54b489f` were pushed. Vercel reports success for `54b489f`. Its exact-SHA Railway
 dispatch was rejected as temporarily paused before an accepted deployment ID;
 read-only status still shows app, worker and cloud-login on `7b25ac3`. Live
-integration delivery remains unverified.
+integration delivery remains unverified. A later exact-SHA dispatch of `711a57a`
+was also rejected as temporarily paused before an accepted deployment ID; the
+three live services still reported `7b25ac3` on read-only status.
 
 ## 2026-10-22: BUG-05 project integration dispatch (TDR-0108)
 

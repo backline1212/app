@@ -3,8 +3,10 @@ from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 
 from app.core.config import get_settings
+from app.core.errors import ConflictError
 
 
 class UploadRepository:
@@ -24,18 +26,25 @@ class UploadRepository:
         content_type: str,
         content_length: int,
     ) -> None:
-        await self.db.uploads.insert_one(
-            {
-                "_id": key,
-                "workspace_id": workspace_id,
-                "project_id": project_id,
-                "actor_type": actor_type,
-                "actor_id": actor_id,
-                "content_type": content_type,
-                "content_length": content_length,
-                "created_at": datetime.now(UTC),
-            }
-        )
+        record = {
+            "_id": key,
+            "workspace_id": workspace_id,
+            "project_id": project_id,
+            "actor_type": actor_type,
+            "actor_id": actor_id,
+            "content_type": content_type,
+            "content_length": content_length,
+            "created_at": datetime.now(UTC),
+        }
+        try:
+            await self.db.uploads.insert_one(record)
+        except DuplicateKeyError:
+            existing = await self.find(workspace_id, project_id, key)
+            if existing is None or any(
+                existing.get(field) != record[field]
+                for field in ("actor_type", "actor_id", "content_type", "content_length")
+            ):
+                raise ConflictError("This upload key already names different content.") from None
 
     async def find(self, workspace_id: str, project_id: str, key: str) -> dict[str, Any] | None:
         return await self.db.uploads.find_one(
