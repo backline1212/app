@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Comment integration delivery follow-up (2026-10-22):
+[TDR-0109](../tdr/0109-durable-comment-integration-dispatch.md) stores notifier
+intents in the same transaction as ticket/reply creation and status changes. Legacy
+Arq jobs remain readable; live provider/crash acceptance is separate.
+
 Project integration delivery follow-up (2026-10-22):
 [TDR-0108](../tdr/0108-durable-project-integration-dispatch.md) stores per-destination
 project-update notification intents in the metadata transaction and adds worker

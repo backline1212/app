@@ -2,14 +2,15 @@ import asyncio
 import logging
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 from app.core.actor_access import resolve_actor_project_access
 from app.core.arq_pool import get_arq_pool
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
-from app.core.events import append_event
+from app.core.events import ActorType, append_event
 from app.core.project_access import can_view_project
 from app.core.session import Actor, GuestSession, Session, actor_identity, validate_member_session
 from app.modules.auth.repository import UserRepository
@@ -138,18 +139,149 @@ def _require_own_comment(existing: dict[str, Any], actor: Actor) -> None:
         raise PermissionDeniedError("Only the comment's own author can do that.")
 
 
-async def _dispatch_integration_event(
-    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, event_type: str, comment_id: str
+async def _stage_integration_event(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    project_id: str,
+    event_type: Literal["comment.created", "comment.status_changed"],
+    comment_id: str,
+    session: AsyncIOMotorClientSession,
+    status: str | None = None,
 ) -> None:
-    # Deferred import: integrations/service.py imports get_comment_out from this same
-    # module (for its manual create-task/create-card triggers), so importing it at
-    # module scope here would be circular. See projects/service.py's identical pattern
-    # for share_links.
-    from app.modules.integrations.service import dispatch_comment_event
+    # Deferred imports avoid the integrations service's dependency on comments.
+    from app.modules.integrations.dispatch_repository import IntegrationDispatchRepository
+    from app.modules.integrations.factory import NOTIFIER_TYPES
+    from app.modules.integrations.repository import IntegrationRepository
 
-    await dispatch_comment_event(
-        db, workspace_id=workspace_id, event_type=event_type, comment_id=comment_id
+    project = await ProjectRepository(db).find_by_id(project_id, session=session)
+    if (
+        project is None
+        or project["workspace_id"] != workspace_id
+        or not (project.get("settings_json") or {}).get("slack_notifications_enabled", True)
+    ):
+        return
+    integrations = await IntegrationRepository(db).list_for_workspace_in_transaction(
+        workspace_id, session=session
     )
+    await IntegrationDispatchRepository(db).create_comment_event(
+        workspace_id=workspace_id,
+        project_id=project_id,
+        comment_id=comment_id,
+        event_type=event_type,
+        status=status,
+        integration_ids=[
+            str(item["_id"])
+            for item in integrations
+            if item["type"] in NOTIFIER_TYPES
+            and (not item.get("project_scope") or item["project_scope"] == project_id)
+        ],
+        session=session,
+    )
+
+
+async def _create_with_integration_intent(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    doc: dict[str, Any],
+    workspace_id: str,
+    project_id: str,
+    actor_type: ActorType,
+    actor_id: str,
+    event_payload: dict[str, Any],
+) -> dict[str, Any]:
+    repo = CommentRepository(db)
+
+    async def create(session: AsyncIOMotorClientSession) -> dict[str, Any]:
+        created = await repo.create(doc, session=session)
+        await append_event(
+            db,
+            workspace_id=workspace_id,
+            type=comment_events.COMMENT_CREATED,
+            actor_type=actor_type,
+            actor_id=actor_id,
+            payload={"comment_id": str(created["_id"]), **event_payload},
+            session=session,
+        )
+        await _stage_integration_event(
+            db,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            event_type="comment.created",
+            comment_id=str(created["_id"]),
+            session=session,
+        )
+        return created
+
+    try:
+        async with await db.client.start_session() as session:
+            return await session.with_transaction(create)
+    except DuplicateKeyError:
+        request_id = doc.get("client_request_id")
+        if request_id is None:
+            raise
+        existing = await repo.find_by_client_request_id(workspace_id, request_id)
+        if existing is None:
+            raise
+        require_matching_replay(existing, doc)
+        return existing
+
+
+async def _update_with_integration_intent(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    project_id: str,
+    comment_id: str,
+    patch: dict[str, Any],
+    expected_revision: int | None,
+    actor_type: ActorType,
+    actor_id: str,
+    event_payload: dict[str, Any],
+) -> tuple[dict[str, Any], bool]:
+    repo = CommentRepository(db)
+
+    async def update(session: AsyncIOMotorClientSession) -> tuple[dict[str, Any], bool]:
+        before = await repo.find_in_workspace(workspace_id, comment_id, session=session)
+        if before is None:
+            raise NotFoundError("Comment not found.")
+        status_changed = "status" in patch and patch["status"] != before["status"]
+        if expected_revision is None:
+            if not await repo.update(workspace_id, comment_id, patch, session=session):
+                raise NotFoundError("Comment not found.")
+        elif (
+            await repo.update_if_revision(
+                workspace_id, comment_id, patch, expected_revision, session=session
+            )
+            is None
+        ):
+            raise ConflictError(
+                "This feedback changed since you opened it. "
+                "Copy your draft and reload before saving again."
+            )
+        await append_event(
+            db,
+            workspace_id=workspace_id,
+            type=comment_events.COMMENT_UPDATED,
+            actor_type=actor_type,
+            actor_id=actor_id,
+            payload={"comment_id": comment_id, "project_id": project_id, **event_payload},
+            session=session,
+        )
+        if status_changed:
+            await _stage_integration_event(
+                db,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                event_type="comment.status_changed",
+                comment_id=comment_id,
+                status=patch["status"],
+                session=session,
+            )
+        return before, status_changed
+
+    async with await db.client.start_session() as session:
+        return await session.with_transaction(update)
 
 
 async def _resolve_author_name(
@@ -486,38 +618,31 @@ async def create_comment(
             screenshot=True,
         )
     doc["ticket_number"] = await CommentRepository(db).next_ticket_number(page["workspace_id"])
-    created = await CommentRepository(db).create(doc)
-    if created is not doc:
-        # The repository authorized a duplicate-key replay; do not emit create
-        # notifications or integration events twice for the same persisted ticket.
-        return await _comment_out(db, created)
-
     actor_type, actor_id = actor_identity(actor)
-    await append_event(
+    created = await _create_with_integration_intent(
         db,
+        doc=doc,
         workspace_id=page["workspace_id"],
-        type=comment_events.COMMENT_CREATED,
+        project_id=page["project_id"],
         actor_type=actor_type,
         actor_id=actor_id,
-        payload={
-            "comment_id": str(created["_id"]),
+        event_payload={
             "page_id": page_id,
             "project_id": page["project_id"],
             "layer": effective_layer,
         },
     )
+    if created is not doc:
+        # The repository authorized a duplicate-key replay; do not emit create
+        # notifications or integration events twice for the same persisted ticket.
+        return await _comment_out(db, created)
+
     comment_out = await _comment_out(db, created)
     await _broadcast_comment_event(
         event_type="comment.created",
         workspace_id=page["workspace_id"],
         project_id=page["project_id"],
         comment=comment_out,
-    )
-    await _dispatch_integration_event(
-        db,
-        workspace_id=page["workspace_id"],
-        event_type="comment.created",
-        comment_id=comment_out.id,
     )
     return comment_out
 
@@ -613,24 +738,23 @@ async def create_reply(
             key=attachment.key,
             content_type=attachment.content_type,
         )
-    created = await repo.create(doc)
-    if created is not doc:
-        return await _comment_out(db, created)
-
     actor_type, actor_id = actor_identity(actor)
-    await append_event(
+    created = await _create_with_integration_intent(
         db,
+        doc=doc,
         workspace_id=parent["workspace_id"],
-        type=comment_events.COMMENT_CREATED,
+        project_id=parent_page["project_id"],
         actor_type=actor_type,
         actor_id=actor_id,
-        payload={
-            "comment_id": str(created["_id"]),
+        event_payload={
             "parent_id": parent_id,
             "project_id": parent_page["project_id"],
             "layer": effective_layer,
         },
     )
+    if created is not doc:
+        return await _comment_out(db, created)
+
     comment_out = await _comment_out(db, created)
     await _broadcast_comment_event(
         event_type="comment.created",
@@ -638,13 +762,6 @@ async def create_reply(
         project_id=parent_page["project_id"],
         comment=comment_out,
     )
-    await _dispatch_integration_event(
-        db,
-        workspace_id=parent["workspace_id"],
-        event_type="comment.created",
-        comment_id=comment_out.id,
-    )
-
     # M-06: notify the thread's stakeholders - the parent comment's own author (when
     # a member; a guest author has no notification inbox) and its current assignees -
     # excluding whoever just posted this reply. This applies uniformly regardless of
@@ -1151,31 +1268,20 @@ async def update_comment(
         patch.update(waiting_on_ids=[], waiting_on_client=False)
 
     expected_revision = changes.expected_revision if changes is not None else None
-    if expected_revision is None:
-        if not await repo.update(workspace_id, comment_id, patch):
-            raise NotFoundError("Comment not found.")
-    elif await repo.update_if_revision(workspace_id, comment_id, patch, expected_revision) is None:
-        raise ConflictError(
-            "This feedback changed since you opened it. "
-            "Copy your draft and reload before saving again."
-        )
-    await append_event(
+    before, status_changed = await _update_with_integration_intent(
         db,
         workspace_id=workspace_id,
-        type=comment_events.COMMENT_UPDATED,
+        project_id=project_id,
+        comment_id=comment_id,
+        patch=patch,
+        expected_revision=expected_revision,
         actor_type="member",
         actor_id=actor_user_id,
-        payload={
-            "comment_id": comment_id,
-            "project_id": project_id,
-            **{k: v for k, v in patch.items() if k != "edited_at"},
-        },
+        event_payload={k: v for k, v in patch.items() if k != "edited_at"},
     )
 
-    status_changed = status is not None and status != existing["status"]
-
-    previous_assignees = existing.get(
-        "assignee_ids", [existing["assignee_id"]] if existing.get("assignee_id") else []
+    previous_assignees = before.get(
+        "assignee_ids", [before["assignee_id"]] if before.get("assignee_id") else []
     )
     for assigned_user_id in set(patch.get("assignee_ids", [])) - set(previous_assignees):
         await notification_service.notify_comment_assigned(
@@ -1195,8 +1301,8 @@ async def update_comment(
         # Excludes the actor themselves (handled inside the notify function too).
         final_assignees = patch.get("assignee_ids", previous_assignees)
         status_recipients = set(final_assignees)
-        if existing["author_type"] == "member" and existing.get("author_member_id"):
-            status_recipients.add(existing["author_member_id"])
+        if before["author_type"] == "member" and before.get("author_member_id"):
+            status_recipients.add(before["author_member_id"])
         for recipient_id in status_recipients:
             await notification_service.notify_comment_status_changed(
                 db,
@@ -1218,13 +1324,7 @@ async def update_comment(
         comment=comment_out,
     )
     if status_changed:
-        await _dispatch_integration_event(
-            db,
-            workspace_id=workspace_id,
-            event_type="comment.status_changed",
-            comment_id=comment_id,
-        )
-        if status == "resolved" and updated["author_type"] == "guest":
+        if patch.get("status") == "resolved" and updated["author_type"] == "guest":
             await _notify_guest_comment_resolved(db, updated)
     return comment_out
 
@@ -1350,24 +1450,16 @@ async def resolve_own_comment(
     if existing["status"] == "resolved":
         return await _comment_out(db, existing)  # idempotent no-op, not an error
 
-    if not await repo.update(
-        workspace_id,
-        comment_id,
-        {"status": "resolved", "waiting_on_ids": [], "waiting_on_client": False},
-    ):
-        raise NotFoundError("Comment not found.")
-    await append_event(
+    await _update_with_integration_intent(
         db,
         workspace_id=workspace_id,
-        type=comment_events.COMMENT_UPDATED,
+        project_id=page["project_id"],
+        comment_id=comment_id,
+        patch={"status": "resolved", "waiting_on_ids": [], "waiting_on_client": False},
+        expected_revision=None,
         actor_type="guest",
         actor_id=actor.guest_session_id,
-        payload={
-            "comment_id": comment_id,
-            "project_id": page["project_id"],
-            "status": "resolved",
-            "resolved_by": "reviewer",
-        },
+        event_payload={"status": "resolved", "resolved_by": "reviewer"},
     )
 
     updated = await repo.find_by_id(comment_id)
@@ -1378,12 +1470,6 @@ async def resolve_own_comment(
         workspace_id=workspace_id,
         project_id=page["project_id"],
         comment=comment_out,
-    )
-    await _dispatch_integration_event(
-        db,
-        workspace_id=workspace_id,
-        event_type="comment.status_changed",
-        comment_id=comment_id,
     )
     # Same M-06 stakeholder notification status changes always trigger - a guest
     # resolving their own comment is still a status change assignees/authors care

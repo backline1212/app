@@ -16,10 +16,10 @@ from arq.connections import RedisSettings
 from app.core.config import get_settings
 from app.workers.browser_render import render_browser_snapshot_job
 from app.workers.integrations import (
-    deliver_project_dispatch_job,
+    deliver_integration_dispatch_job,
     dispatch_integration_event_job,
     dispatch_project_updated_event_job,
-    sweep_project_dispatches_job,
+    sweep_integration_dispatches_job,
 )
 from app.workers.notifications import (
     deliver_daily_digest_job,
@@ -50,8 +50,8 @@ class WorkerSettings:
         sweep_snapshot_deliveries_job,
         dispatch_integration_event_job,
         dispatch_project_updated_event_job,
-        deliver_project_dispatch_job,
-        sweep_project_dispatches_job,
+        deliver_integration_dispatch_job,
+        sweep_integration_dispatches_job,
         send_guest_resolved_email_job,
         send_daily_digests_job,
         sweep_daily_digests_job,
@@ -76,7 +76,7 @@ class WorkerSettings:
         cron(send_daily_digests_job, hour=9, minute=0),
         cron(sweep_daily_digests_job, second=5),
         cron(sweep_snapshot_deliveries_job, second=15),
-        cron(sweep_project_dispatches_job, second=20),
+        cron(sweep_integration_dispatches_job, second=20),
         cron(sweep_notification_emails_job, second=30),
         cron(sweep_storage_reservations_job, second=45),
     ]

@@ -1,5 +1,19 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-05 comment integration dispatch (TDR-0109)
+
+Ticket/reply creation and member/guest status changes now save the comment, audit
+event and per-notifier delivery intent in one Mongo transaction. Create-request
+replays resolve outside a duplicate-aborted transaction; the minute worker handles
+both comment and project rows. A status-change row retains its event-time status.
+Current project/comment/connection scope and mute checks precede provider calls.
+Legacy Arq handlers remain for mixed rollout. Static checks, exact-SHA rollout and
+live Redis/provider/crash acceptance are recorded separately as they complete.
+Backend Ruff app/scripts, affected format, strict mypy (217 files), workspace scope
+(25 repositories) and diff checks pass. No HTTP contract/index migration, suite,
+shared comment write, provider call or email was performed. Production still serves
+the older API/worker commit pending Railway rollout.
+
 ## 2026-10-22: BUG-05 project integration dispatch (TDR-0108)
 
 Project metadata and per-connected-notifier dispatch intents now commit together.

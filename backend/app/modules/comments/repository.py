@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
@@ -15,10 +15,16 @@ class CommentRepository:
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
 
-    async def create(self, doc: dict[str, Any]) -> dict[str, Any]:
+    async def create(
+        self, doc: dict[str, Any], *, session: AsyncIOMotorClientSession | None = None
+    ) -> dict[str, Any]:
         try:
-            result = await self.db.comments.insert_one(doc)
+            result = await self.db.comments.insert_one(doc, session=session)
         except DuplicateKeyError:
+            if session is not None:
+                # A duplicate aborts this Mongo transaction. The caller must read
+                # the winning request outside it before treating this as a replay.
+                raise
             # comments_workspace_client_request_id_strings caught a race that slipped
             # past create_comment/create_reply's find_by_client_request_id
             # check-before-create in comments/service.py (two concurrent retries of the
@@ -61,6 +67,20 @@ class CommentRepository:
         # caller checks doc["workspace_id"] against the caller's workspace immediately
         # after (e.g. comments/service.py's update_comment) before acting on it.
         return await self.db.comments.find_one({"_id": oid})
+
+    async def find_in_workspace(
+        self,
+        workspace_id: str,
+        comment_id: str,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> dict[str, Any] | None:
+        oid = to_object_id(comment_id)
+        if oid is None:
+            return None
+        return await self.db.comments.find_one(
+            {"_id": oid, "workspace_id": workspace_id, "deleted_at": None}, session=session
+        )
 
     async def find_many_in_workspace(
         self,
@@ -256,16 +276,30 @@ class CommentRepository:
             {"_id": {"$in": oids}}, {"$set": {"deleted_at": datetime.now(UTC)}}
         )
 
-    async def update(self, workspace_id: str, comment_id: str, patch: dict[str, Any]) -> bool:
+    async def update(
+        self,
+        workspace_id: str,
+        comment_id: str,
+        patch: dict[str, Any],
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> bool:
         patch["edited_at"] = datetime.now(UTC)
         result = await self.db.comments.update_one(
             {"workspace_id": workspace_id, "_id": to_object_id(comment_id), "deleted_at": None},
             {"$set": patch, "$inc": {"revision": 1}},
+            session=session,
         )
         return result.matched_count == 1
 
     async def update_if_revision(
-        self, workspace_id: str, comment_id: str, patch: dict[str, Any], expected_revision: int
+        self,
+        workspace_id: str,
+        comment_id: str,
+        patch: dict[str, Any],
+        expected_revision: int,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
     ) -> dict[str, Any] | None:
         query: dict[str, Any] = {
             "workspace_id": workspace_id,
@@ -280,6 +314,7 @@ class CommentRepository:
             query,
             {"$set": {**patch, "edited_at": datetime.now(UTC)}, "$inc": {"revision": 1}},
             return_document=ReturnDocument.AFTER,
+            session=session,
         )
 
     async def apply_ai_priority(

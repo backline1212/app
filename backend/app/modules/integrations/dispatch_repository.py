@@ -45,6 +45,39 @@ class IntegrationDispatchRepository:
             session=session,
         )
 
+    async def create_comment_event(
+        self,
+        *,
+        workspace_id: str,
+        project_id: str,
+        comment_id: str,
+        event_type: Literal["comment.created", "comment.status_changed"],
+        integration_ids: list[str],
+        status: str | None = None,
+        session: AsyncIOMotorClientSession,
+    ) -> None:
+        if not integration_ids:
+            return
+        now = datetime.now(UTC)
+        await self.db.integration_dispatches.insert_many(
+            [
+                {
+                    "workspace_id": workspace_id,
+                    "project_id": project_id,
+                    "comment_id": comment_id,
+                    "integration_id": integration_id,
+                    "event_type": event_type,
+                    **({"status": status} if status is not None else {}),
+                    "state": "pending",
+                    "after": now,
+                    "attempts": 0,
+                    "created_at": now,
+                }
+                for integration_id in integration_ids
+            ],
+            session=session,
+        )
+
     async def due(self, limit: int = 50) -> list[dict[str, Any]]:
         # workspace-scope-exempt: internal worker sweep discovers only pending rows.
         # Every claim and downstream project/integration lookup is workspace-scoped.
