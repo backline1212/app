@@ -1,6 +1,6 @@
 import type { Schemas } from "@backline/types";
 
-import { apiFetch } from "../../lib/api-client";
+import { ApiError, apiFetch } from "../../lib/api-client";
 
 export type CommentOut = Schemas["CommentOut"];
 export type CommentStatus = CommentOut["status"];
@@ -46,9 +46,11 @@ export function createUpload(
   projectId: string,
   contentType: string,
   contentLength: number,
+  signal?: AbortSignal,
 ): Promise<Schemas["UploadOut"]> {
   return apiFetch<Schemas["UploadOut"]>("/api/v1/uploads", {
     method: "POST",
+    signal,
     body: JSON.stringify({
       project_id: projectId,
       content_type: contentType,
@@ -59,28 +61,43 @@ export function createUpload(
 
 // Presigned-PUT upload for a reply attachment, returning the AttachmentIn the reply
 // carries - the same two-step flow a screenshot uses (POST /uploads, then PUT the bytes).
-export async function uploadAttachment(projectId: string, file: File): Promise<Schemas["AttachmentIn"]> {
-  const upload = await createUpload(projectId, file.type, file.size);
+export async function uploadAttachment(projectId: string, file: File, parent?: AbortSignal): Promise<Schemas["AttachmentIn"]> {
+  if (!file.size || file.size > 20 * 1024 * 1024) throw new Error("Attachments must contain data and be at most 20 MiB.");
+  const controller = new AbortController();
+  const cancel = () => controller.abort(parent?.reason);
+  parent?.addEventListener("abort", cancel, { once: true });
+  if (parent?.aborted) cancel();
+  const timeout = window.setTimeout(() => controller.abort(), 120_000);
   try {
-    const response = await fetch(upload.upload_url, {
-      method: "PUT",
-      body: file,
-      headers: { "Content-Type": file.type },
-    });
-    if (response.ok) {
-      return { key: upload.key, filename: file.name, content_type: file.type };
+    const upload = await createUpload(projectId, file.type, file.size, controller.signal);
+    try {
+      const response = await fetch(upload.upload_url, {
+        method: "PUT",
+        body: file,
+        signal: controller.signal,
+        headers: { "Content-Type": file.type },
+      });
+      if (response.ok) {
+        return { key: upload.key, filename: file.name, content_type: file.type };
+      }
+    } catch (error) {
+      if (controller.signal.aborted) throw error;
+      // A bucket CORS/network failure falls through to the same-origin relay below.
     }
-  } catch {
-    // A bucket CORS/network failure falls through to the same-origin relay below.
-  }
-  const form = new FormData();
-  form.append("project_id", projectId);
-  form.append("file", file, file.name);
-  const stored = await apiFetch<Schemas["StoredUploadOut"]>("/api/v1/uploads/direct", {
-    method: "POST",
-    body: form,
-  });
-  return { key: stored.key, filename: file.name, content_type: file.type };
+    const form = new FormData();
+    form.append("project_id", projectId);
+    form.append("file", file, file.name);
+    const stored = await apiFetch<Schemas["StoredUploadOut"]>("/api/v1/uploads/direct", {
+      method: "POST",
+      body: form,
+      signal: controller.signal,
+    });
+    return { key: stored.key, filename: file.name, content_type: file.type };
+  } catch (error) {
+    if (parent?.aborted) throw parent.reason ?? error;
+    if (controller.signal.aborted) throw new ApiError(0, "UPLOAD_TIMEOUT", "Upload confirmation timed out. The file may already be stored; check your attachments before selecting it again.");
+    throw error;
+  } finally { window.clearTimeout(timeout); parent?.removeEventListener("abort", cancel); }
 }
 
 // Moderation delete (any comment in the caller's workspace, regardless of authorship) -

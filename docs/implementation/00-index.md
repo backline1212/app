@@ -1,5 +1,11 @@
 # Final Draft implementation index
 
+New-ticket follow-up (2026-10-21):
+[TDR-0103](../tdr/0103-new-ticket-and-screenshot-recovery.md) protects local ticket/
+team-note drafts, retains original save attempts, separates confirmed saves from
+refresh work and repairs screenshot limits/partial upload/deadlines. Shared nested
+SPA guard design and actual writes remain open acceptance work.
+
 Ticket triage follow-up (2026-10-21):
 [TDR-0102](../tdr/0102-ticket-list-permissions-and-mutation-lifecycle.md) applies
 project roles to all ticket views and repairs quick-edit rollback/confirmation

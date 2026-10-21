@@ -318,6 +318,6 @@ export function ProjectsPage() {
     {duplicating && <DuplicateProjectDialog project={duplicating} workspaceSlug={workspace.slug} onClose={() => setDuplicating(null)} />}
     {share && <ShareProjectModal project={share} workspaceId={workspace.id} workspaceSlug={workspace.slug} workspaceName={workspace.name} onClose={() => setShare(null)} />}
     {managePages && <ProjectPagesModal project={managePages} activePageId={null} onOpenPage={(pageId) => navigate(`/w/${workspace.slug}/p/${managePages.id}${pageId ? `?page=${encodeURIComponent(pageId)}` : ""}`)} onClose={() => setManagePages(null)} />}
-    {showNewTicket && <NewTicket workspace={workspace} members={members.data ?? []} onClose={() => setShowNewTicket(false)} />}
+    {showNewTicket && <NewTicket key={workspace.id} workspace={workspace} members={members.data ?? []} onClose={() => setShowNewTicket(false)} />}
   </>;
 }

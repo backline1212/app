@@ -1,5 +1,23 @@
 # Delivery and verification ledger
 
+## 2026-10-21: New ticket/team note and screenshot recovery (TDR-0103)
+
+Creation captures the immutable original save before synchronous guarded dispatch,
+with a 30-second deadline and original-request retry. Confirmed results remain saved
+through refresh failure/stall and allow closing. Local close/Stay/Discard and native
+unload protect drafts; pending work refuses close. Workspace/project keys and
+unmount checks protect late callbacks. Screenshot selection enforces remaining
+capacity before upload, retains each success, reports partial failures and owns blob
+cleanup. The shared checked PUT/direct fallback now has a 120-second request bound,
+caller cancellation and size preflight, including existing reply attachments.
+
+Final affected web lint/typecheck/build pass 3/3; diff checks pass. The existing
+chunk advisory remains. Evidence: `.tools/verification/2026-10-21-0103-final-web-checks.log`.
+No suite, shared ticket/note/
+upload, role change or provider call. Actual writes/failure acceptance, nested SPA
+navigation protection and exactly-once attachment upload remain open. Local close/
+unload protection is not a claim of full router protection.
+
 ## 2026-10-21: Ticket triage permissions and lifecycle (TDR-0102)
 
 Ticket list/table/board/calendar mutation controls use project editor/manager access;

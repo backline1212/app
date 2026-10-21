@@ -1234,7 +1234,7 @@ export function ProjectOverviewPage() {
       )}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
       {showSettings && canManageProject && <ProjectForm workspace={workspace} project={project} onClose={() => setShowSettings(false)} />}
-      {showTeamNote && canTriage && <NewTicket workspace={workspace} members={membersQuery.data ?? []} initialProjectId={project.id} initialPageId={activePage?.id ?? ""} teamNote onClose={() => setShowTeamNote(false)} />}
+      {showTeamNote && canTriage && <NewTicket key={`${workspace.id}:${project.id}`} workspace={workspace} members={membersQuery.data ?? []} initialProjectId={project.id} initialPageId={activePage?.id ?? ""} teamNote onClose={() => setShowTeamNote(false)} />}
     </main>
   );
 }

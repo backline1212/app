@@ -1,5 +1,12 @@
 # Flow inventory and acceptance criteria
 
+FD-09/10/18/21 creation follow-up (TDR-0103): verify local X/Escape/Cancel and
+native unload with body/metadata/screenshots/uncertain saves; Stay/Discard; original
+30-second save retry; rapid submit; completed save through stalled/failed refresh;
+project/role/page changes; screenshot 10-file/20 MiB/type/empty preflight, retained
+partial successes, CORS fallback, 120-second helper bound, unmount cancellation and
+blob cleanup. No complete nested SPA route or exactly-once upload claim.
+
 FD-10/11/18/21 ticket triage follow-up (TDR-0102): verify mixed roles and archived/
 missing/failed project access in list/table/board/calendar/new-ticket entry; pending
 and disabled date portals; drag/drop after role loss; rapid quick edits, filter
