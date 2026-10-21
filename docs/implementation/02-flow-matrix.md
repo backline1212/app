@@ -1,5 +1,11 @@
 # Flow inventory and acceptance criteria
 
+Concurrent-edit follow-up (BUG-04/TDR-0107): load the same ticket/comment/file in
+two members' tabs, save one field from each at the same revision, and require one
+409 while retaining the losing draft. Reload/review/copy and retry, including
+legacy revision 0, rapid quick edits, asset title transaction, mixed clients and
+same/different field changes. Source checks do not prove live collision behavior.
+
 Draft navigation follow-up (BUG-03/TDR-0106): verify one and nested unsent drafts
 under a single route confirmation, Back/Forward, Stay/X/Escape, coordinated discard,
 pending save/upload refusal, completion, uncertain retry/copy, file-review internal

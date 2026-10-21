@@ -256,13 +256,31 @@ class CommentRepository:
             {"_id": {"$in": oids}}, {"$set": {"deleted_at": datetime.now(UTC)}}
         )
 
-    async def update(self, comment_id: str, patch: dict[str, Any]) -> None:
+    async def update(self, workspace_id: str, comment_id: str, patch: dict[str, Any]) -> bool:
         patch["edited_at"] = datetime.now(UTC)
-        # workspace-scope-exempt: every caller (update_comment/toggle_layer/reanchor in
-        # comments/service.py) already fetched and verified this comment's workspace_id
-        # via find_by_id before calling update() - the mutation itself doesn't need to
-        # re-filter by it.
-        await self.db.comments.update_one({"_id": to_object_id(comment_id)}, {"$set": patch})
+        result = await self.db.comments.update_one(
+            {"workspace_id": workspace_id, "_id": to_object_id(comment_id), "deleted_at": None},
+            {"$set": patch, "$inc": {"revision": 1}},
+        )
+        return result.matched_count == 1
+
+    async def update_if_revision(
+        self, workspace_id: str, comment_id: str, patch: dict[str, Any], expected_revision: int
+    ) -> dict[str, Any] | None:
+        query: dict[str, Any] = {
+            "workspace_id": workspace_id,
+            "_id": to_object_id(comment_id),
+            "deleted_at": None,
+        }
+        if expected_revision == 0:
+            query["$or"] = [{"revision": 0}, {"revision": {"$exists": False}}]
+        else:
+            query["revision"] = expected_revision
+        return await self.db.comments.find_one_and_update(
+            query,
+            {"$set": {**patch, "edited_at": datetime.now(UTC)}, "$inc": {"revision": 1}},
+            return_document=ReturnDocument.AFTER,
+        )
 
     async def apply_ai_priority(
         self,
@@ -285,7 +303,10 @@ class CommentRepository:
                 "edited_at": expected.get("edited_at"),
                 "priority": {"$in": [None, "medium"]} if previous == "medium" else previous,
             },
-            {"$set": {"priority": priority, "edited_at": datetime.now(UTC)}},
+            {
+                "$set": {"priority": priority, "edited_at": datetime.now(UTC)},
+                "$inc": {"revision": 1},
+            },
             return_document=ReturnDocument.AFTER,
         )
 

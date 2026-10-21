@@ -38,7 +38,7 @@ class AssetRepository:
                 "anchor.kind": "asset",
                 "anchor.asset_id": asset_id,
             },
-            {"$set": {"anchor": anchor, "recovery_status": "ok"}},
+            {"$set": {"anchor": anchor, "recovery_status": "ok"}, "$inc": {"revision": 1}},
         )
         return bool(result.matched_count)
 
@@ -97,12 +97,24 @@ class AssetRepository:
         patch: dict[str, Any],
         *,
         session: AsyncIOMotorClientSession,
-    ) -> None:
-        await self.db.project_assets.update_one(
-            {"workspace_id": workspace_id, "project_id": project_id, "_id": to_object_id(asset_id)},
-            {"$set": patch},
+        expected_revision: int | None = None,
+    ) -> bool:
+        query: dict[str, Any] = {
+            "workspace_id": workspace_id,
+            "project_id": project_id,
+            "_id": to_object_id(asset_id),
+        }
+        if expected_revision is not None:
+            if expected_revision == 0:
+                query["$or"] = [{"revision": 0}, {"revision": {"$exists": False}}]
+            else:
+                query["revision"] = expected_revision
+        result = await self.db.project_assets.update_one(
+            query,
+            {"$set": patch, "$inc": {"revision": 1}},
             session=session,
         )
+        return result.matched_count == 1
 
     async def find(
         self,

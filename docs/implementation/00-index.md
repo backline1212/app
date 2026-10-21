@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Concurrent-edit follow-up (2026-10-22):
+[TDR-0107](../tdr/0107-comment-and-file-update-conflicts.md) adds revision-checked
+member comment/ticket and file edits with 409 recovery. Legacy clients remain
+compatible; matching API rollout and stale-tab acceptance are separate.
+
 Draft navigation follow-up (2026-10-22):
 [TDR-0106](../tdr/0106-coordinated-draft-navigation.md) combines route protection
 for nested ticket, reply and file-review drafts under one blocker. Local close and

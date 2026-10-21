@@ -2594,9 +2594,16 @@ export interface components {
             created_at: string;
             /** Archived At */
             archived_at?: string | null;
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
         };
         /** AssetUpdate */
         AssetUpdate: {
+            /** Expected Revision */
+            expected_revision?: number | null;
             /** Filename */
             filename?: string | null;
             /** Archived */
@@ -2968,6 +2975,11 @@ export interface components {
             created_at: string;
             /** Edited At */
             edited_at: string | null;
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
             /** Ticket Number */
             ticket_number?: number | null;
             /**
@@ -2995,6 +3007,8 @@ export interface components {
         };
         /** CommentUpdate */
         CommentUpdate: {
+            /** Expected Revision */
+            expected_revision?: number | null;
             /** Body */
             body?: string | null;
             /** Status */
@@ -5297,6 +5311,11 @@ export interface components {
             created_at: string;
             /** Edited At */
             edited_at: string | null;
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
             /** Ticket Number */
             ticket_number?: number | null;
             /**

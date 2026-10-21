@@ -76,7 +76,12 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     if (!ticket || !canEditTicket(ticket)) throw new Error("Editors and managers can change tickets in this project. Reload if your access recently changed.");
   }
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Schemas["CommentUpdate"] }) => { requireEditable(id); return updateComment(id, patch); },
+    mutationFn: ({ id, patch }: { id: string; patch: Schemas["CommentUpdate"] }) => {
+      requireEditable(id);
+      const current = query.data?.items.find(item => item.id === id);
+      if (!current) throw new Error("This ticket is no longer in the list. Reload before editing.");
+      return updateComment(id, patch, current.revision ?? 0);
+    },
     onMutate: async ({ id, patch }) => {
       requireEditable(id);
       const key = qk.ticketsList(workspaceId, queryKeyStr);
@@ -100,6 +105,7 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     onSettled: (_saved, error, _variables, context) => {
       editing.current = false;
       if (context && context.contextRevision !== getAccessContextRevision()) return;
+      if (error) setUpdateWarning(error.message);
       void invalidateTicketsAndDashboard(cache, workspaceId).catch(() => setUpdateWarning(error ? "The ticket list could not refresh. Reload to check the current state." : "Change saved. Reload to refresh the ticket list."));
     },
   });

@@ -18,9 +18,11 @@ class AssetOut(BaseModel):
     url: str
     created_at: datetime
     archived_at: datetime | None = None
+    revision: int = 0
 
 
 class AssetUpdate(BaseModel):
+    expected_revision: int | None = Field(default=None, ge=0)
     filename: str | None = Field(default=None, min_length=1, max_length=255)
     archived: bool | None = None
 

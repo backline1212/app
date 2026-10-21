@@ -25,8 +25,9 @@ affected backend Ruff/mypy/workspace-scope checks, without new test suites.
 | 2 | BUG-02 | Source checked; indexes applied; rollout/acceptance pending | TDR-0105: durable scoped recipient rows before checkpoint; leases, bounded scans/retries and recovery sweeps. |
 | 3 | DEP-01/02/04 | Pending | Matching source rollout, actual SHA/contracts/ZIP and updated-extension acceptance. |
 | 4 | BUG-03 | Web deployed; browser acceptance pending | TDR-0106: served bundle includes one root-route blocker for nested ticket, reply and file drafts. Browser use was disabled at acceptance. |
-| 5 | BUG-04/05/06/07/08 | Planned | Follow privacy/reliability priorities in separate reviewable slices. |
-| 6 | Remaining FLOW/OPT/FEAT/QA | Pending | Follow priority tables and record dependencies/acceptance per slice. |
+| 5 | BUG-04 | Source checked; rollout/acceptance pending | TDR-0107: revision-checked comment/ticket/file updates with conflict recovery. |
+| 6 | BUG-05/06/07/08 | Planned | Follow privacy/reliability priorities in separate reviewable slices. |
+| 7 | Remaining FLOW/OPT/FEAT/QA | Pending | Follow priority tables and record dependencies/acceptance per slice. |
 
 ## 1. Deployment and release
 
@@ -48,7 +49,7 @@ rollout evidence; the later documentation commit is `32c3388`.
 | BUG-01 | P1 | Digest project/recipient privacy — source repaired, not yet verified live | TDR-0104 removes Unknown project disclosure, scopes page/project queries and rechecks current member/verified-email/preference/project access. Static checks pass; rollout and live negative acceptance remain pending. No live leak established. |
 | BUG-02 | P2 | Digest delivery durability — source repaired, not yet verified live | TDR-0105 materializes durable recipient rows before checkpoint advance, resumes preparation/scans and records send/retry outcomes. Link-only digests limit queued content exposure. Static checks pass; four additive indexes applied and re-inspected with no conflicts/data changes. Rollout and actual crash/provider acceptance remain pending. |
 | BUG-03 | P1 | New-ticket/file-manager SPA navigation protection — deployed, browser acceptance pending | TDR-0106 adds one coordinated router guard for ticket, reply and file review drafts, including nested forms, pending saves, and access-loss cleanup. Lint/typecheck/build pass and the served bundle matches; browser Back/Forward/failure acceptance remains pending while browser use is disabled. |
-| BUG-04 | P2 | Concurrent metadata edits can overwrite the same field | Ticket/comment/file metadata lacks full version-checked writes. Changed-field PATCH reduces unrelated overwrites; it does not prevent two editors overwriting the same field. Add conflict/reload/copy recovery and safe original-request semantics. |
+| BUG-04 | P2 | Concurrent metadata overwrite — source repaired, rollout/acceptance pending | TDR-0107 adds scoped atomic revision checks to member ticket/comment and file edits; new web callers send the viewed revision, 409 retains drafts. Legacy callers without an expectation remain compatible; actual API rollout and two-editor/rapid-edit acceptance are pending. |
 | BUG-05 | P2 | Some integration dispatch remains post-commit without durable delivery | Project metadata may save before downstream integration work fails. Add a durable outbox where missing; keep saved state distinct from dispatch status. Existing snapshot/email outboxes are separate. |
 | BUG-06 | P2 | Unused upload grants can retain storage quota | Signed PUT reservations deliberately remain held because an earlier request may still finish. Add safe bounded grant/confirmation/reconciliation; never release solely because a URL expired. |
 | BUG-07 | P2 | Attachment fallback/orphan handling is incomplete | A stored upload followed by a lost response or direct-relay fallback can leave unused evidence or duplicate storage. Add upload-level replay/confirmation and safe orphan reconciliation. The PDF/image asset replay contract does not cover every attachment transport. |

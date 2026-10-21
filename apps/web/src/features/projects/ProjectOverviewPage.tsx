@@ -524,8 +524,11 @@ export function ProjectOverviewPage() {
   // read-only status.
   const canUpdateStatus = canTriage;
   const statusMutation = useMutation({
-    mutationFn: ({ commentId, status }: { commentId: string; status: CommentStatus }) =>
-      boardApi.updateComment(commentId, { status }),
+    mutationFn: ({ commentId, status }: { commentId: string; status: CommentStatus }) => {
+      const current = commentsQuery.data?.find(comment => comment.id === commentId);
+      if (!current) throw new Error("This comment is no longer available. Reload before changing its status.");
+      return boardApi.updateComment(commentId, { status }, current.revision ?? 0);
+    },
     onSuccess: (updated) => upsertProjectComment(queryClient, projectId ?? "", updated),
   });
   const updateStatusFromCanvas = statusMutation.mutateAsync;

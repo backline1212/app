@@ -378,7 +378,7 @@ export function CommentDetail({
   const updateKey = ["comment-update", comment.id] as const;
   const update = useMutation({
     mutationKey: updateKey,
-    mutationFn: (patch: Schemas["CommentUpdate"]) => boardApi.updateComment(comment.id, patch),
+    mutationFn: (patch: Schemas["CommentUpdate"]) => boardApi.updateComment(comment.id, patch, comment.revision ?? 0),
     onMutate: async (patch) => {
       await queryClient.cancelQueries({ queryKey: qk.projectComments(projectId) });
       const before = queryClient
@@ -395,6 +395,7 @@ export function CommentDetail({
     },
     onError: (_error, _patch, context) => {
       if (context?.before) patchProjectComment(queryClient, projectId, context.before.id, context.before);
+      void queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId) });
     },
     onSuccess: (updated) => {
       // A later edit is still on its way: its optimistic value is newer than this
@@ -844,7 +845,7 @@ export function CommentDetail({
 
         {update.isError && (
           <p role="alert" className="bl-error">
-            Could not save that change.
+            {update.error.message} Review the latest comment before trying again.
           </p>
         )}
         {changeLayer.isError && (

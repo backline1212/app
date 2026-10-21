@@ -81,7 +81,7 @@ export function CommentRow({
   // Merged into the cached list straight away, like the detail's edits, rather than
   // refetching every comment in the project for one changed status.
   const statusMutation = useMutation({
-    mutationFn: (status: CommentStatus) => boardApi.updateComment(comment.id, { status }),
+    mutationFn: (status: CommentStatus) => boardApi.updateComment(comment.id, { status }, comment.revision ?? 0),
     onSuccess: (updated) => upsertProjectComment(queryClient, projectId, updated),
     onError: () => toast("Couldn't change that comment's status. Try again.", "error"),
   });

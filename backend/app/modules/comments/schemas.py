@@ -134,6 +134,7 @@ class CommentBodyEdit(BaseModel):
 
 
 class CommentUpdate(BaseModel):
+    expected_revision: int | None = Field(default=None, ge=0)
     body: Trimmed | None = Field(default=None, min_length=1, max_length=10_000)
     status: Status | None = None
     assignee_id: str | None = None
@@ -174,6 +175,7 @@ class CommentOut(BaseModel):
     attachments: list[AttachmentOut]
     created_at: datetime
     edited_at: datetime | None
+    revision: int = 0
     # Human-readable per-workspace number ("#14"), assigned when a top-level comment or
     # a standalone ticket is created. Replies never get one - they belong to their
     # thread's number. None only for records created before numbering existed and not

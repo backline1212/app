@@ -9111,6 +9111,11 @@
               }
             ],
             "title": "Archived At"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision",
+            "default": 0
           }
         },
         "type": "object",
@@ -9131,6 +9136,18 @@
       },
       "AssetUpdate": {
         "properties": {
+          "expected_revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
+          },
           "filename": {
             "anyOf": [
               {
@@ -10063,6 +10080,11 @@
             ],
             "title": "Edited At"
           },
+          "revision": {
+            "type": "integer",
+            "title": "Revision",
+            "default": 0
+          },
           "ticket_number": {
             "anyOf": [
               {
@@ -10150,6 +10172,18 @@
       },
       "CommentUpdate": {
         "properties": {
+          "expected_revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
+          },
           "body": {
             "anyOf": [
               {
@@ -16132,6 +16166,11 @@
               }
             ],
             "title": "Edited At"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision",
+            "default": 0
           },
           "ticket_number": {
             "anyOf": [

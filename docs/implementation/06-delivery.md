@@ -1,5 +1,24 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-04 comment/ticket/file edit conflicts (TDR-0107)
+
+Pydantic comment and asset update contracts now accept an optional expected
+revision; responses expose revision with a legacy 0 default. Scoped Mongo updates
+compare and increment it atomically. Comment human/AI priority/file reanchor writes
+advance the counter. File changes stay in the existing transaction, with linked
+page title changed only after its revision check succeeds. A mismatch returns 409
+before events or notifications. Old clients without an expectation remain accepted
+during mixed rollout. New web ticket, board, comment, canvas status and file-manager
+updates send their rendered revision. Conflict feedback retains form data and refreshes
+lists where needed. No destructive migration or new index.
+
+Generated OpenAPI JSON/TypeScript comes from Pydantic. Backend Ruff, strict mypy
+(215 files), workspace scope (24 repositories), types typecheck and web lint/typecheck/
+production build pass; diff checks pass. The existing >500 kB chunk advisory remains.
+No suite or live two-editor/shared-data mutation. Source commit, backend rollout and
+browser acceptance remain pending at this checkpoint; Railway still reports the old
+service commit and had rejected the preceding exact-commit dispatch as paused.
+
 ## 2026-10-22: BUG-03 coordinated draft navigation (TDR-0106)
 
 One root-route blocker now aggregates draft registrations from reply/ticket details,

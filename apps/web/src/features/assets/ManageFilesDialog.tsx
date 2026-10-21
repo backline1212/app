@@ -36,7 +36,7 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
   }
   const update = useMutation({
     mutationFn: async ({ file, patch }: { file: api.Asset; patch: Parameters<typeof api.updateAsset>[2] }) => {
-      return api.updateAsset(project.id, file.id, patch);
+      return api.updateAsset(project.id, file.id, { ...patch, expected_revision: file.revision ?? 0 });
     },
     onSuccess: saved => {
       if (!mounted.current) return;
@@ -108,7 +108,7 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
       </div>
       {files.isLoading && <p role="status">Loading files…</p>}
       {files.error && <p role="alert" className="bl-error">{files.error.message} <button type="button" onClick={() => void files.refetch()}>Retry</button></p>}
-      {(update.error || upload.error) && <p role="alert" className="bl-error">{update.error?.message ?? upload.error?.message}</p>}
+      {(update.error || upload.error) && <p role="alert" className="bl-error">{update.error?.message ?? upload.error?.message} {update.error && <button type="button" className="bl-quiet" disabled={files.isFetching} onClick={() => void files.refetch()}>Reload file list</button>}</p>}
       {progress && <p role="status">{progress}</p>}
       {refreshWarning && <p role="status">{refreshWarning}</p>}
       {hasPendingBatch && !upload.isPending && <div><button type="button" className="bl-button" disabled={pending || !canEdit} onClick={() => { if (batch.current) submitUpload(batch.current.files); }}>Retry remaining uploads</button><button type="button" className="bl-quiet" disabled={pending} onClick={() => { batch.current = null; setHasPendingBatch(false); setProgress("Batch closed. Check the file list before selecting files again; unconfirmed uploads may already be saved."); upload.reset(); }}>Close batch</button></div>}

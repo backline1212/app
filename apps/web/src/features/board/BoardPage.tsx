@@ -232,17 +232,26 @@ export function BoardPage() {
     }: {
       commentId: string;
       patch: { status?: CommentStatus; assignee_id?: string | null };
-    }) => boardApi.updateComment(commentId, patch),
+    }) => {
+      const current = comments?.find(comment => comment.id === commentId);
+      if (!current) throw new Error("This comment is no longer in the board. Reload before editing.");
+      return boardApi.updateComment(commentId, patch, current.revision ?? 0);
+    },
     onSuccess: invalidate,
+    onError: invalidate,
   });
 
   const bulkUpdateMutation = useMutation({
-    mutationFn: (status: CommentStatus) =>
-      Promise.all([...selected].map((id) => boardApi.updateComment(id, { status }))),
+    mutationFn: (status: CommentStatus) => {
+      const rows = [...selected].map(id => comments?.find(comment => comment.id === id));
+      if (rows.some(row => !row)) throw new Error("The selection changed. Reload the board before updating it.");
+      return Promise.all(rows.map(row => boardApi.updateComment(row!.id, { status }, row!.revision ?? 0)));
+    },
     onSuccess: () => {
       setSelected(new Set());
       invalidate();
     },
+    onError: invalidate,
   });
 
   const pageUrls = useMemo(() => {
@@ -307,6 +316,9 @@ export function BoardPage() {
 
   return (
     <main className="bl-wrap">
+      {(updateMutation.error || bulkUpdateMutation.error) && <p role="alert" className="bl-error">
+        {updateMutation.error?.message ?? bulkUpdateMutation.error?.message} Reload the board before trying again.
+      </p>}
       <BoardHeader
         connectionStatus={connectionStatus}
         view={view}

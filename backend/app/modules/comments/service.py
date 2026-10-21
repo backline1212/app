@@ -8,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.actor_access import resolve_actor_project_access
 from app.core.arq_pool import get_arq_pool
-from app.core.errors import NotFoundError, PermissionDeniedError, ValidationError
+from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
 from app.core.project_access import can_view_project
 from app.core.session import Actor, GuestSession, Session, actor_identity, validate_member_session
@@ -305,6 +305,7 @@ async def _comment_out(
         attachments=attachments,
         created_at=doc["created_at"],
         edited_at=doc.get("edited_at"),
+        revision=doc.get("revision", 0),
         ticket_number=doc.get("ticket_number"),
     )
 
@@ -746,7 +747,8 @@ async def edit_comment(
     _require_own_comment(existing, actor)
     await _require_member_can_comment(db, existing, actor)
 
-    await repo.update(comment_id, {"body": body, "edited_at": datetime.now(UTC)})
+    if not await repo.update(existing["workspace_id"], comment_id, {"body": body}):
+        raise NotFoundError("Comment not found.")
 
     page = await _page_for_broadcast(db, existing["page_id"])
     actor_type, actor_id = actor_identity(actor)
@@ -1066,7 +1068,7 @@ async def update_comment(
     if existing is None or existing["workspace_id"] != workspace_id:
         raise NotFoundError("Comment not found.")
     page = await PageRepository(db).find_by_id(existing["page_id"])
-    if page is None:
+    if page is None or page.get("workspace_id") != workspace_id:
         # Defense-in-depth: a comment whose page no longer exists (pages/service.py's
         # delete_page now enforces this can't happen via its own reference-count
         # check/delete transaction, but this guards any other cause of a dangling
@@ -1089,6 +1091,7 @@ async def update_comment(
         raise NotFoundError("Comment not found.")
     if changes is not None:
         supplied = changes.model_dump(exclude_unset=True)
+        supplied.pop("expected_revision", None)
         for key in (
             "body",
             "status",
@@ -1147,7 +1150,15 @@ async def update_comment(
     if patch.get("status", existing["status"]) in ("resolved", "wont_fix"):
         patch.update(waiting_on_ids=[], waiting_on_client=False)
 
-    await repo.update(comment_id, patch)
+    expected_revision = changes.expected_revision if changes is not None else None
+    if expected_revision is None:
+        if not await repo.update(workspace_id, comment_id, patch):
+            raise NotFoundError("Comment not found.")
+    elif await repo.update_if_revision(workspace_id, comment_id, patch, expected_revision) is None:
+        raise ConflictError(
+            "This feedback changed since you opened it. "
+            "Copy your draft and reload before saving again."
+        )
     await append_event(
         db,
         workspace_id=workspace_id,
@@ -1339,9 +1350,12 @@ async def resolve_own_comment(
     if existing["status"] == "resolved":
         return await _comment_out(db, existing)  # idempotent no-op, not an error
 
-    await repo.update(
-        comment_id, {"status": "resolved", "waiting_on_ids": [], "waiting_on_client": False}
-    )
+    if not await repo.update(
+        workspace_id,
+        comment_id,
+        {"status": "resolved", "waiting_on_ids": [], "waiting_on_client": False},
+    ):
+        raise NotFoundError("Comment not found.")
     await append_event(
         db,
         workspace_id=workspace_id,
@@ -1467,7 +1481,8 @@ async def toggle_layer(
     ):
         raise NotFoundError("Comment not found.")
 
-    await repo.update(comment_id, {"layer": layer})
+    if not await repo.update(workspace_id, comment_id, {"layer": layer}):
+        raise NotFoundError("Comment not found.")
     page = await _page_for_broadcast(db, existing["page_id"])
     await append_event(
         db,
@@ -1529,14 +1544,16 @@ async def reanchor(
     if existing.get("anchor", {}).get("kind") == "asset":
         raise ValidationError("Use the file review controls to move this file comment.")
 
-    await repo.update(
+    if not await repo.update(
+        workspace_id,
         comment_id,
         {
             "anchor": anchor.model_dump(),
             "recovery_status": "ok",
             "consecutive_orphaned_revisions": 0,
         },
-    )
+    ):
+        raise NotFoundError("Comment not found.")
     page = await _page_for_broadcast(db, existing["page_id"])
     await append_event(
         db,

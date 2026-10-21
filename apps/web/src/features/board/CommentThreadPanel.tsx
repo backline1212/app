@@ -134,10 +134,11 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
   });
 
   const updateMutation = useMutation({
-    mutationFn: (patch: Schemas["CommentUpdate"]) => boardApi.updateComment(comment.id, patch),
+    mutationFn: (patch: Schemas["CommentUpdate"]) => boardApi.updateComment(comment.id, patch, comment.revision ?? 0),
     onSuccess: (updated) => {
       patchProjectComment(queryClient, projectId, updated.id, updated);
     },
+    onError: () => { void queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId) }); },
   });
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -195,6 +196,7 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
     <Dialog title="Thread" onClose={() => guard.requestLeave(onClose)}>
       {guard.dialog}
       <div className="bl-form">
+        {updateMutation.error && <p role="alert" className="bl-error">{updateMutation.error.message} Review the current thread before trying again.</p>}
         <div className="bl-chip-row">
           <LayerBadge layer={comment.layer} />
           {orphaned && <RecoveryBadge status={comment.recovery_status} />}

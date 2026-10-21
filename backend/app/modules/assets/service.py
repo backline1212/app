@@ -268,12 +268,6 @@ async def update_asset(
         patch: dict[str, Any] = {}
         if body.filename is not None:
             patch["filename"] = body.filename
-            await PageRepository(db).update(
-                workspace_id,
-                doc["page_id"],
-                {"title": body.filename},
-                session=session,
-            )
         if body.archived is not None:
             if not body.archived and doc.get("archived_at") is not None:
                 limit = 1 if project.project_type == "pdf" else 50
@@ -283,8 +277,26 @@ async def update_asset(
                 (doc.get("archived_at") or datetime.now(UTC)) if body.archived else None
             )
         if patch:
-            await repo.update(workspace_id, project_id, asset_id, patch, session=session)
-        return {**doc, **patch}
+            if not await repo.update(
+                workspace_id,
+                project_id,
+                asset_id,
+                patch,
+                session=session,
+                expected_revision=body.expected_revision,
+            ):
+                raise ConflictError(
+                    "This file changed since you opened it. "
+                    "Review the current file before saving again."
+                )
+            if body.filename is not None:
+                await PageRepository(db).update(
+                    workspace_id,
+                    doc["page_id"],
+                    {"title": body.filename},
+                    session=session,
+                )
+        return {**doc, **patch, "revision": doc.get("revision", 0) + (1 if patch else 0)}
 
     async with await db.client.start_session() as session:
         updated: dict[str, Any] = await session.with_transaction(_update)
@@ -297,7 +309,7 @@ async def update_asset(
         payload={
             "project_id": project_id,
             "asset_id": asset_id,
-            "changes": body.model_dump(exclude_unset=True),
+            "changes": body.model_dump(exclude_unset=True, exclude={"expected_revision"}),
         },
     )
     return await asset_out(updated)

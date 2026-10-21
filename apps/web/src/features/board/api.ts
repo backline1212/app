@@ -13,10 +13,11 @@ export function listProjectComments(projectId: string): Promise<CommentOut[]> {
 export function updateComment(
   commentId: string,
   patch: Schemas["CommentUpdate"],
+  expectedRevision: number,
 ): Promise<CommentOut> {
   return apiFetch<CommentOut>(`/api/v1/comments/${commentId}`, {
     method: "PATCH",
-    body: JSON.stringify(patch),
+    body: JSON.stringify({ ...patch, expected_revision: expectedRevision }),
   });
 }
 
