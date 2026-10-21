@@ -1,5 +1,13 @@
 # Flow inventory and acceptance criteria
 
+Digest durability follow-up (BUG-02/TDR-0105): verify legacy/current-day adoption,
+one UTC daily window under duplicate schedules, preparation crash at every batch/
+checkpoint boundary, per-recipient send failures, scan cursor continuation through
+private/deleted feedback, recipient/role/opt-out changes, expired/late leases and
+stable provider retries. Emails now link to authorized portal feedback rather than
+copying comment snippets. Failed/expired delivery records remain explicit; no
+exactly-once inbox claim, legacy checkpoint repair or old/new worker overlap claim.
+
 Digest privacy follow-up (BUG-01/TDR-0104): missing/foreign/mismatched page/project
 references must omit text, never use Unknown project as permission. Verify legacy
 and standalone records, private/archived projects, current membership/verified email/

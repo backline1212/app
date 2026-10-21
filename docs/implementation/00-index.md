@@ -1,5 +1,11 @@
 # Final Draft implementation index
 
+Digest delivery follow-up (2026-10-22):
+[TDR-0105](../tdr/0105-durable-daily-digest-delivery.md) replaces premature send
+checkpoints with durable recipient outboxes, resumable preparation and bounded,
+current-access link-only delivery. Provider/crash acceptance and rollout remain
+separate from source checks.
+
 Backlog execution (2026-10-22): [TDR-0104](../tdr/0104-digest-workspace-and-recipient-privacy.md)
 implements BUG-01's fail-closed digest mapping/current-recipient checks. The backlog
 now includes a sequential execution checklist; source, rollout and live acceptance

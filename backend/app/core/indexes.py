@@ -17,6 +17,14 @@ class AdditiveIndex:
 
 
 REVIEW_PERSISTENCE_INDEXES: tuple[AdditiveIndex, ...] = (
+    AdditiveIndex("digest_deliveries", (("state", 1), ("after", 1)), "digest_deliveries_due"),
+    AdditiveIndex(
+        "digest_deliveries",
+        (("workspace_id", 1), ("user_id", 1), ("created_at", -1)),
+        "digest_deliveries_workspace_recipient",
+    ),
+    AdditiveIndex("workspaces", (("digest_window.after", 1),), "workspaces_digest_preparation_due"),
+    AdditiveIndex("workspaces", (("digest_last_scheduled_day", 1),), "workspaces_digest_schedule"),
     AdditiveIndex(
         "deployments",
         (("workspace_id", 1), ("project_id", 1), ("received_at", -1), ("_id", -1)),

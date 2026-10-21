@@ -1,5 +1,39 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-02 durable daily digest delivery (TDR-0105)
+
+Workspace preparation windows retain immutable time bounds/day, lease and member
+cursor; batches of 100 create deterministic scoped outbox rows before checkpoint
+advance. Preparation resumes after failure and duplicate schedules share one day.
+Legacy first runs do not backfill history, and a legacy checkpoint from today is
+adopted without an extra rollout email. Checkpoint completion never moves backward.
+
+Independent recipient leases and 80-second processing deadlines scan at most 200
+feedback rows per attempt with saved cursor progress. Current verified recipient,
+preference, membership and positive scoped project/evidence checks gate sending.
+Digests now contain a portal link/window, without comment snippets/project names.
+Envelopes/keys are frozen; failures back off, eight errors/expired retry windows
+become retained failed records. Provider-accepted/sent, skipped and failed states
+are distinct. Resend uses the existing supported key window; Apps Script remains
+at least once. A minute sweep recovers missed preparation/queue/send work.
+
+Full Ruff app/scripts, affected format checks, strict mypy app (215 files) and
+workspace scope (24 repositories) pass. Four additive index definitions use the
+existing dry-run-first migration path. Production inspection found no conflicts;
+additive apply created all four indexes. A second dry run confirms all indexes
+present, none missing and no review data modified. No new
+HTTP schema, generated declaration, destructive migration, test suite, production
+digest invocation or provider call. Legacy test expectations for inline digest
+snippets/sending are not acceptance for this changed flow; no suites run per
+AGENTS.md. The internal per-workspace entry point remains as a preparation wrapper.
+
+Actual crash/concurrency/cursor/provider/recipient negatives remain pending. Rollout
+must drain old digest workers before enabling the matching new worker/index set;
+an old worker's already-advanced checkpoint cannot reconstruct lost historical
+delivery. Frozen workspace-slug links across later rename remain an acceptance
+case. The preceding c371733 exact-commit dispatch was again rejected as temporarily
+paused with no accepted deployment ID; backend/extension rollout remains open.
+
 ## 2026-10-22: BUG-01 digest privacy (TDR-0104)
 
 Added workspace-scoped page/project lookups and removed the Unknown project email

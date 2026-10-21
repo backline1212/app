@@ -6,7 +6,11 @@ from typing import Any
 
 from app.core.db import get_db
 from app.core.email import send_email
-from app.modules.notifications.digest import run_daily_digests
+from app.modules.notifications.digest import (
+    deliver_digest,
+    prepare_digest_workspace,
+    run_daily_digests,
+)
 from app.modules.notifications.email_delivery import deliver_email, sweep_emails
 
 
@@ -24,8 +28,7 @@ async def send_guest_resolved_email_job(
     ctx: dict[str, Any], guest_email: str, guest_name: str, comment_body: str
 ) -> None:
     # comment_body/guest_name are arbitrary user-authored text - escape before
-    # interpolating into HTML (digest.py's _render_digest_html already does this
-    # correctly; this call site was missing it, allowing HTML injection into an
+    # interpolating into HTML (this was missing, allowing HTML injection into an
     # outgoing email via a crafted comment/name).
     await send_email(
         to=guest_email,
@@ -40,3 +43,17 @@ async def send_guest_resolved_email_job(
 
 async def send_daily_digests_job(ctx: dict[str, Any]) -> dict[str, int]:
     return await run_daily_digests(get_db())
+
+
+async def sweep_daily_digests_job(ctx: dict[str, Any]) -> dict[str, int]:
+    return await run_daily_digests(get_db())
+
+
+async def prepare_daily_digest_job(ctx: dict[str, Any], *, workspace_id: str) -> int:
+    return await prepare_digest_workspace(get_db(), workspace_id=workspace_id)
+
+
+async def deliver_daily_digest_job(
+    ctx: dict[str, Any], *, workspace_id: str, delivery_id: str
+) -> None:
+    await deliver_digest(get_db(), workspace_id=workspace_id, delivery_id=delivery_id)

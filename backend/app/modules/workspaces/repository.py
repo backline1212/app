@@ -1,7 +1,9 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 
 from app.core.config import get_settings
 from app.core.mongo_utils import to_object_id
@@ -13,6 +15,122 @@ class WorkspaceRepository:
 
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
+
+    async def due_digest_workspaces(self, limit: int = 50) -> list[dict[str, Any]]:
+        now = datetime.now(UTC)
+        due: list[dict[str, Any]] = [{"digest_window.after": {"$lte": now}}]
+        if now.hour >= 9:
+            due.append(
+                {
+                    "digest_window": None,
+                    "digest_last_scheduled_day": {"$ne": now.date().isoformat()},
+                }
+            )
+        cursor = self.db.workspaces.find({"$or": due}, {"_id": 1})
+        return await cursor.sort("_id", 1).limit(limit).to_list(length=limit)
+
+    async def claim_digest_preparation(self, workspace_id: str) -> dict[str, Any] | None:
+        workspace = await self.find_by_id(workspace_id)
+        if workspace is None:
+            return None
+        now = datetime.now(UTC)
+        lease = uuid4().hex
+        window = workspace.get("digest_window")
+        if window:
+            return await self.db.workspaces.find_one_and_update(
+                {
+                    "_id": to_object_id(workspace_id),
+                    "digest_window.id": window["id"],
+                    "digest_window.after": {"$lte": now},
+                },
+                {
+                    "$set": {
+                        "digest_window.lease": lease,
+                        "digest_window.after": now + timedelta(minutes=2),
+                    }
+                },
+                return_document=ReturnDocument.AFTER,
+            )
+        day = now.date().isoformat()
+        if now.hour < 9 or workspace.get("digest_last_scheduled_day") == day:
+            return None
+        since = workspace.get("last_digest_sent_at")
+        if since is None:
+            # Preserve the legacy first-run no-history behavior; no email is due.
+            await self.db.workspaces.update_one(
+                {
+                    "_id": to_object_id(workspace_id),
+                    "last_digest_sent_at": None,
+                    "digest_window": None,
+                },
+                {"$set": {"last_digest_sent_at": now, "digest_last_scheduled_day": day}},
+            )
+            return None
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=UTC)
+        if workspace.get("digest_last_scheduled_day") is None and since.date() == now.date():
+            # A legacy worker already checkpointed today's digest. Adopt its day
+            # without sending an extra rollout digest; retain the existing cursor.
+            await self.db.workspaces.update_one(
+                {
+                    "_id": to_object_id(workspace_id),
+                    "last_digest_sent_at": since,
+                    "digest_window": None,
+                    "digest_last_scheduled_day": None,
+                },
+                {"$set": {"digest_last_scheduled_day": day}},
+            )
+            return None
+        if since >= now:
+            return None
+        window = {
+            "id": uuid4().hex,
+            "since": since,
+            "until": now,
+            "day": day,
+            "lease": lease,
+            "after": now + timedelta(minutes=2),
+        }
+        return await self.db.workspaces.find_one_and_update(
+            {
+                "_id": to_object_id(workspace_id),
+                "last_digest_sent_at": since,
+                "digest_window": None,
+                "digest_last_scheduled_day": {"$ne": day},
+            },
+            {"$set": {"digest_window": window}},
+            return_document=ReturnDocument.AFTER,
+        )
+
+    async def advance_digest_preparation(
+        self,
+        workspace_id: str,
+        window: dict[str, Any],
+        member_cursor: str | None,
+        *,
+        complete: bool = False,
+    ) -> bool:
+        update: dict[str, Any]
+        if complete:
+            update = {
+                "$set": {
+                    "digest_last_scheduled_day": window["day"],
+                },
+                "$max": {"last_digest_sent_at": window["until"]},
+                "$unset": {"digest_window": ""},
+            }
+        else:
+            update = {"$set": {"digest_window.member_cursor": member_cursor}}
+        result = await self.db.workspaces.update_one(
+            {
+                "_id": to_object_id(workspace_id),
+                "digest_window.id": window["id"],
+                "digest_window.lease": window["lease"],
+                "digest_window.after": {"$gt": datetime.now(UTC)},
+            },
+            update,
+        )
+        return result.matched_count == 1
 
     async def create(self, *, name: str, slug: str) -> dict[str, Any]:
         now = datetime.now(UTC)
@@ -102,24 +220,6 @@ class WorkspaceRepository:
             {"_id": to_object_id(workspace_id)}, {"$set": {"last_digest_sent_at": when}}
         )
 
-    async def claim_digest_window(
-        self,
-        workspace_id: str,
-        *,
-        expected_last_sent_at: datetime | None,
-        new_last_sent_at: datetime,
-    ) -> bool:
-        """Atomic compare-and-swap on `last_digest_sent_at`: only one caller can
-        successfully advance it past `expected_last_sent_at` at a time. Used to claim
-        the digest window BEFORE sending any email (notifications/digest.py), so a
-        crashed/retried run or two overlapping schedule fires for the same workspace
-        can't both send the same batch of comments twice."""
-        result = await self.db.workspaces.update_one(
-            {"_id": to_object_id(workspace_id), "last_digest_sent_at": expected_last_sent_at},
-            {"$set": {"last_digest_sent_at": new_last_sent_at}},
-        )
-        return result.modified_count == 1
-
 
 class MembershipRepository:
     """`memberships` - 11-Database.md §11.3. `workspace_id`/`user_id` are stored as
@@ -174,6 +274,22 @@ class MembershipRepository:
     ) -> list[dict[str, Any]]:
         cursor = self.db.memberships.find({"workspace_id": workspace_id}, session=session)
         return [doc async for doc in cursor]
+
+    async def digest_page(
+        self, workspace_id: str, until: datetime, after: str | None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        query: dict[str, Any] = {
+            "workspace_id": workspace_id,
+            "$or": [{"created_at": {"$lte": until}}, {"created_at": {"$exists": False}}],
+        }
+        if after:
+            query["_id"] = {"$gt": to_object_id(after)}
+        return (
+            await self.db.memberships.find(query, {"user_id": 1})
+            .sort("_id", 1)
+            .limit(limit)
+            .to_list(length=limit)
+        )
 
     async def list_for_user(self, user_id: str) -> list[dict[str, Any]]:
         # workspace-scope-exempt: intentionally cross-workspace - "list every workspace

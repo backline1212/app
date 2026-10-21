@@ -22,7 +22,7 @@ affected backend Ruff/mypy/workspace-scope checks, without new test suites.
 | Sequence | Items | Status | Next action |
 |---|---|---|---|
 | 1 | BUG-01 | Source checked; rollout/acceptance pending | TDR-0104: scoped mappings/current recipient checks; Ruff/mypy/scope pass. |
-| 2 | BUG-02 | In progress | Durable bounded digest windows and per-recipient retry; no premature send checkpoint. |
+| 2 | BUG-02 | Source checked; indexes applied; rollout/acceptance pending | TDR-0105: durable scoped recipient rows before checkpoint; leases, bounded scans/retries and recovery sweeps. |
 | 3 | DEP-01/02/04 | Pending | Matching source rollout, actual SHA/contracts/ZIP and updated-extension acceptance. |
 | 4 | BUG-03 | Planned | Coordinate nested draft guards through one router blocker. |
 | 5 | BUG-04/05/06/07/08 | Planned | Follow privacy/reliability priorities in separate reviewable slices. |
@@ -46,7 +46,7 @@ rollout evidence; the later documentation commit is `32c3388`.
 | ID | Priority | Pending item | Required change / evidence |
 |---|---|---|---|
 | BUG-01 | P1 | Digest project/recipient privacy — source repaired, not yet verified live | TDR-0104 removes Unknown project disclosure, scopes page/project queries and rechecks current member/verified-email/preference/project access. Static checks pass; rollout and live negative acceptance remain pending. No live leak established. |
-| BUG-02 | P2 | Daily digest can skip delivery after a failure | **New code finding:** its workspace checkpoint advances before fetching/sending. A crash/provider failure can exclude that window on retry. Add durable bounded windows and per-recipient delivery/retry state; verify crash and partial-send recovery. |
+| BUG-02 | P2 | Digest delivery durability — source repaired, not yet verified live | TDR-0105 materializes durable recipient rows before checkpoint advance, resumes preparation/scans and records send/retry outcomes. Link-only digests limit queued content exposure. Static checks pass; four additive indexes applied and re-inspected with no conflicts/data changes. Rollout and actual crash/provider acceptance remain pending. |
 | BUG-03 | P1 | New-ticket/file-manager drafts lack full SPA navigation protection | Local close/unload guards exist, but navigation within the app can still unmount these forms. Use one coordinated guard that supports nested dialogs without competing React Router blockers. |
 | BUG-04 | P2 | Concurrent metadata edits can overwrite the same field | Ticket/comment/file metadata lacks full version-checked writes. Changed-field PATCH reduces unrelated overwrites; it does not prevent two editors overwriting the same field. Add conflict/reload/copy recovery and safe original-request semantics. |
 | BUG-05 | P2 | Some integration dispatch remains post-commit without durable delivery | Project metadata may save before downstream integration work fails. Add a durable outbox where missing; keep saved state distinct from dispatch status. Existing snapshot/email outboxes are separate. |

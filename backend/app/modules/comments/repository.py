@@ -199,6 +199,28 @@ class CommentRepository:
         }
         return [doc async for doc in self.db.comments.find(query)]
 
+    async def digest_page(
+        self,
+        workspace_id: str,
+        since: datetime,
+        until: datetime,
+        after: str | None,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        query: dict[str, Any] = {
+            "workspace_id": workspace_id,
+            "deleted_at": None,
+            "created_at": {"$gt": since, "$lte": until},
+        }
+        if after:
+            query["_id"] = {"$gt": to_object_id(after)}
+        return (
+            await self.db.comments.find(query, {"page_id": 1, "project_id": 1})
+            .sort("_id", 1)
+            .limit(limit)
+            .to_list(length=limit)
+        )
+
     async def find_by_client_request_id(
         self, workspace_id: str, client_request_id: str
     ) -> dict[str, Any] | None:

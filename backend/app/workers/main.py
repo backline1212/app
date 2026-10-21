@@ -20,9 +20,12 @@ from app.workers.integrations import (
     dispatch_project_updated_event_job,
 )
 from app.workers.notifications import (
+    deliver_daily_digest_job,
+    prepare_daily_digest_job,
     send_daily_digests_job,
     send_guest_resolved_email_job,
     send_member_notification_email_job,
+    sweep_daily_digests_job,
     sweep_notification_emails_job,
 )
 from app.workers.project_preview import capture_project_preview_job
@@ -47,6 +50,9 @@ class WorkerSettings:
         dispatch_project_updated_event_job,
         send_guest_resolved_email_job,
         send_daily_digests_job,
+        sweep_daily_digests_job,
+        prepare_daily_digest_job,
+        deliver_daily_digest_job,
         send_member_notification_email_job,
         sweep_notification_emails_job,
         resume_project_hard_delete_job,
@@ -60,11 +66,11 @@ class WorkerSettings:
     # burst of "Capture As" clicks across projects can't exhaust the worker
     # container's memory the way an unbounded queue would.
     max_jobs = 3
-    # 17.6: daily digest, once a day at 09:00 server time. Also runnable directly via
-    # modules/notifications/digest.py's run_daily_digests(db) for tests/manual triggers
-    # without waiting for the schedule.
+    # 17.6: the 09:00 UTC daily digest queues durable per-recipient work. The minute
+    # sweep recovers interrupted work; new daily windows remain gated to >=09:00 UTC.
     cron_jobs = [
         cron(send_daily_digests_job, hour=9, minute=0),
+        cron(sweep_daily_digests_job, second=5),
         cron(sweep_snapshot_deliveries_job, second=15),
         cron(sweep_notification_emails_job, second=30),
         cron(sweep_storage_reservations_job, second=45),

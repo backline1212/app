@@ -1,26 +1,26 @@
-from datetime import UTC, datetime
+"""Durable daily digest preparation and current-access, link-only delivery."""
+
+import asyncio
+import logging
+from datetime import UTC, datetime, timedelta
 from html import escape
-from typing import Any
+from typing import Any, Literal
+from urllib.parse import quote
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.core.arq_pool import get_arq_pool
+from app.core.config import get_settings
 from app.core.email import send_email
 from app.core.project_access import effective_project_role
 from app.modules.auth.repository import UserRepository
 from app.modules.comments.repository import CommentRepository
+from app.modules.notifications.digest_repository import DigestDeliveryRepository
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.repository import ProjectRepository
 from app.modules.workspaces.repository import MembershipRepository, WorkspaceRepository
 
-# 17.6: "Instant or daily digest (member-configurable per workspace, default: daily)."
-# Only the daily digest is implemented this milestone - a per-member instant/daily
-# preference needs its own settings UI and a schema field on `memberships`, which is a
-# real, separate piece of scope deliberately deferred (docs/tdr/0009), not half-built
-# here. Every member currently gets the daily digest; there is no instant mode yet.
-#
-# M-08: this module previously issued raw db.* calls directly instead of going through
-# each collection's repository (rule 2.1 violation) - every query below now goes
-# through the same repository classes the rest of the app uses.
+logger = logging.getLogger("backline.digest")
 
 
 async def _project_for_page(
@@ -41,91 +41,228 @@ async def _project_for_page(
     return project
 
 
-def _render_digest_html(grouped: dict[str, list[dict[str, Any]]]) -> str:
-    sections = []
-    for project_name, comments in grouped.items():
-        items = "".join(f"<li>{escape(c['body'][:200])}</li>" for c in comments)
-        sections.append(f"<h3>{escape(project_name)}</h3><ul>{items}</ul>")
-    return "<p>New comments since your last digest:</p>" + "".join(sections)
+async def prepare_digest_workspace(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str
+) -> int:
+    repo = WorkspaceRepository(db)
+    workspace = await repo.claim_digest_preparation(workspace_id)
+    if workspace is None:
+        return 0
+    window = workspace["digest_window"]
+    cursor = window.get("member_cursor")
+    prepared = 0
+    try:
+        async with asyncio.timeout(80):
+            while True:
+                members = await MembershipRepository(db).digest_page(
+                    workspace_id, window["until"], cursor
+                )
+                await DigestDeliveryRepository(db).materialize(
+                    workspace_id, window, [member["user_id"] for member in members]
+                )
+                next_cursor = str(members[-1]["_id"]) if members else cursor
+                if not await repo.advance_digest_preparation(
+                    workspace_id, window, next_cursor, complete=len(members) < 100
+                ):
+                    return prepared
+                prepared += len(members)
+                if len(members) < 100:
+                    return prepared
+                cursor = next_cursor
+    except Exception as exc:
+        logger.warning("Digest preparation deferred (%s)", type(exc).__name__)
+    return prepared
 
 
 async def run_digest_for_workspace(
     db: AsyncIOMotorDatabase[dict[str, Any]], workspace_doc: dict[str, Any]
 ) -> int:
-    """Returns the number of comments included (0 if nothing new, or on a workspace's
-    first-ever run - there's no prior checkpoint to diff against, so it just establishes
-    one rather than emailing the workspace's entire history on day one)."""
-    workspace_id = str(workspace_doc["_id"])
-    since = workspace_doc.get("last_digest_sent_at")
-    now = datetime.now(UTC)
-    workspace_repo = WorkspaceRepository(db)
+    """Legacy internal entry point: prepare durable recipient rows, never send inline.
 
-    # Claim the digest window atomically BEFORE fetching/sending anything: a second
-    # overlapping run for this workspace (duplicate schedule fire) or a retry after a
-    # partial crash will lose this compare-and-swap and skip, rather than both runs
-    # emailing the same batch of comments to every member.
-    if not await workspace_repo.claim_digest_window(
-        workspace_id, expected_last_sent_at=since, new_last_sent_at=now
-    ):
-        return 0
+    The return value now counts prepared recipients, not emailed comments.
+    """
+    return await prepare_digest_workspace(db, workspace_id=str(workspace_doc["_id"]))
 
-    if since is None:
-        return 0
 
-    comments = await CommentRepository(db).list_since_for_workspace(workspace_id, since)
+async def _recipient(
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, user_id: str
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]] | None:
+    membership = await MembershipRepository(db).find(workspace_id=workspace_id, user_id=user_id)
+    user = await UserRepository(db).find_by_id(user_id)
+    workspace = await WorkspaceRepository(db).find_by_id(workspace_id)
+    if membership is None or user is None or workspace is None or not user.get("email_verified_at"):
+        return None
+    if not user.get("preferences", {}).get("daily_digest", True):
+        return None
+    return user, membership, workspace
 
-    if not comments:
-        return 0
 
-    members = await MembershipRepository(db).list_for_workspace(workspace_id)
-    for candidate in members:
-        # Earlier recipients' provider calls can take time: refresh authority now.
-        membership = await MembershipRepository(db).find(
-            workspace_id=workspace_id, user_id=candidate["user_id"]
+async def _visible(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    membership: dict[str, Any],
+    comment: dict[str, Any],
+    cache: dict[str, dict[str, Any] | None],
+) -> bool:
+    if comment.get("deleted_at"):
+        return False
+    project = await _project_for_page(db, workspace_id, comment.get("page_id") or "", cache)
+    return bool(
+        project is not None
+        and not project.get("archived_at")
+        and (not comment.get("project_id") or comment["project_id"] == str(project["_id"]))
+        and effective_project_role(
+            project, user_id=membership["user_id"], workspace_role=membership["role"]
         )
-        user_doc = await UserRepository(db).find_by_id(candidate["user_id"])
-        if (
-            membership is None
-            or user_doc is None
-            or not user_doc.get("email_verified_at")
-            or not user_doc.get("preferences", {}).get("daily_digest", True)
-        ):
-            continue
-        # Each person's digest holds only the projects they can open (TDR-0056).
-        project_cache: dict[str, dict[str, Any] | None] = {}
-        grouped: dict[str, list[dict[str, Any]]] = {}
-        for comment in comments:
-            project = await _project_for_page(
-                db, workspace_id, comment.get("page_id") or "", project_cache
-            )
-            # Unresolved/foreign mappings never authorize disclosure by email.
-            if (
-                project is None
-                or project.get("archived_at")
-                or (comment.get("project_id") and comment["project_id"] != str(project["_id"]))
-                or (
-                    effective_project_role(
-                        project, user_id=membership["user_id"], workspace_role=membership["role"]
-                    )
-                    is None
-                )
-            ):
-                continue
-            name = str(project["name"])
-            grouped.setdefault(name, []).append(comment)
-        count = sum(len(items) for items in grouped.values())
-        if not count:
-            continue
-        subject = f"{count} new comment{'s' if count != 1 else ''} - {workspace_doc['name']}"
-        await send_email(to=user_doc["email"], subject=subject, html=_render_digest_html(grouped))
+        is not None
+    )
 
-    return len(comments)
+
+async def _evidence_visible(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    doc: dict[str, Any],
+    membership: dict[str, Any],
+    comment_id: str,
+) -> bool:
+    rows = await CommentRepository(db).find_many_in_workspace(
+        doc["workspace_id"],
+        [comment_id],
+        fields={"page_id": 1, "project_id": 1, "deleted_at": 1},
+    )
+    return bool(rows and await _visible(db, doc["workspace_id"], membership, rows[0], {}))
+
+
+async def _send_claimed(
+    db: AsyncIOMotorDatabase[dict[str, Any]], doc: dict[str, Any]
+) -> Literal["sent", "skipped", "failed", "pending"]:
+    workspace_id, delivery_id, lease = doc["workspace_id"], str(doc["_id"]), doc["lease"]
+    repo = DigestDeliveryRepository(db)
+    recipient = await _recipient(db, workspace_id, doc["user_id"])
+    if recipient is None:
+        return "skipped"
+    user, membership, workspace = recipient
+    evidence = doc.get("candidate_comment_id")
+    if not evidence or not await _evidence_visible(db, doc, membership, evidence):
+        comments = await CommentRepository(db).digest_page(
+            workspace_id, doc["since"], doc["until"], doc.get("scan_cursor")
+        )
+        evidence = None
+        cache: dict[str, dict[str, Any] | None] = {}
+        for comment in comments:
+            if await _visible(db, workspace_id, membership, comment, cache):
+                evidence = str(comment["_id"])
+                break
+        cursor = evidence or (str(comments[-1]["_id"]) if comments else doc.get("scan_cursor"))
+        if not await repo.save_progress(
+            workspace_id,
+            delivery_id,
+            lease,
+            {"scan_cursor": cursor, "candidate_comment_id": evidence},
+        ):
+            return "pending"
+        if evidence is None:
+            return "pending" if len(comments) == 200 else "skipped"
+
+    envelope = doc.get("envelope")
+    if envelope is not None and envelope["to"] != user["email"]:
+        return "skipped"
+    expires = doc.get("expires_at")
+    if expires is not None and (
+        expires.replace(tzinfo=UTC) if expires.tzinfo is None else expires
+    ) <= datetime.now(UTC):
+        return "failed"
+    if envelope is None:
+        link = (
+            get_settings().public_dashboard_base_url.rstrip("/")
+            + f"/w/{quote(workspace['slug'], safe='')}/tickets"
+        )
+        envelope = {
+            "to": user["email"],
+            "subject": "Backline daily feedback digest",
+            "html": (
+                "<p>New feedback is available in Backline for the period "
+                f"{doc['since'].date().isoformat()} to {doc['until'].date().isoformat()}.</p>"
+                f'<p><a href="{escape(link, quote=True)}">Open your authorized feedback</a></p>'
+                "<p>Manage daily digest emails in your Backline account settings.</p>"
+            ),
+        }
+        if not await repo.save_progress(
+            workspace_id,
+            delivery_id,
+            lease,
+            {"envelope": envelope, "expires_at": datetime.now(UTC) + timedelta(hours=24)},
+        ):
+            return "pending"
+    current = await _recipient(db, workspace_id, doc["user_id"])
+    if current is None or current[0]["email"] != envelope["to"]:
+        return "skipped"
+    if not await _evidence_visible(db, doc, current[1], evidence):
+        return "pending"
+    await send_email(
+        to=envelope["to"],
+        subject=envelope["subject"],
+        html=envelope["html"],
+        idempotency_key=f"digest/{delivery_id}",
+    )
+    return "sent"
+
+
+async def deliver_digest(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, delivery_id: str
+) -> None:
+    repo = DigestDeliveryRepository(db)
+    doc = await repo.claim(workspace_id, delivery_id)
+    if doc is None:
+        return
+    try:
+        async with asyncio.timeout(80):
+            state = await _send_claimed(db, doc)
+    except Exception as exc:
+        failures = int(doc.get("failures", 0)) + 1
+        await repo.finish(
+            workspace_id,
+            delivery_id,
+            lease=doc["lease"],
+            state="failed" if failures >= 8 else "pending",
+            failures=failures,
+            after=datetime.now(UTC) + timedelta(seconds=min(3600, 30 * 2 ** (failures - 1))),
+        )
+        logger.warning("Digest delivery deferred/failed (%s)", type(exc).__name__)
+        return
+    await repo.finish(
+        workspace_id,
+        delivery_id,
+        lease=doc["lease"],
+        state=state,
+        after=datetime.now(UTC) + timedelta(seconds=1) if state == "pending" else None,
+    )
 
 
 async def run_daily_digests(db: AsyncIOMotorDatabase[dict[str, Any]]) -> dict[str, int]:
-    workspaces = await WorkspaceRepository(db).list_all()
-    results = {}
-    for workspace_doc in workspaces:
-        count = await run_digest_for_workspace(db, workspace_doc)
-        results[str(workspace_doc["_id"])] = count
-    return results
+    """Queue bounded preparation/delivery; provider sends run in separate jobs."""
+    workspaces = await WorkspaceRepository(db).due_digest_workspaces()
+    deliveries = await DigestDeliveryRepository(db).due()
+    queued = {"preparations": 0, "deliveries": 0}
+    try:
+        async with asyncio.timeout(20):
+            pool = await get_arq_pool()
+            minute = datetime.now(UTC).strftime("%Y%m%d%H%M")
+            for workspace in workspaces:
+                workspace_id = str(workspace["_id"])
+                job = await pool.enqueue_job(
+                    "prepare_daily_digest_job",
+                    workspace_id=workspace_id,
+                    _job_id=f"digest-prepare/{workspace_id}/{minute}",
+                )
+                queued["preparations"] += job is not None
+            for delivery in deliveries:
+                job = await pool.enqueue_job(
+                    "deliver_daily_digest_job",
+                    workspace_id=delivery["workspace_id"],
+                    delivery_id=str(delivery["_id"]),
+                    _job_id=f"digest-email/{delivery['_id']}/{delivery['after'].isoformat()}",
+                )
+                queued["deliveries"] += job is not None
+    except Exception as exc:
+        logger.warning("Digest sweep deferred (%s)", type(exc).__name__)
+    return queued
