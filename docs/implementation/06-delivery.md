@@ -1,5 +1,22 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-05 project integration dispatch (TDR-0108)
+
+Project metadata and per-connected-notifier dispatch intents now commit together.
+The new scoped outbox uses a minute sweep, atomic lease, bounded retries and
+terminal sent/skipped/failed states. Delivery rechecks the current project and
+connection before sending; it retains the event-time project name. Old queued Arq
+jobs keep their handler during mixed rollout. Comment-event dispatch remains a
+separate follow-up. Static checks, additive index dry-run/apply, exact-SHA rollout
+and live failure/crash acceptance are recorded separately below as they complete.
+Backend Ruff app/scripts, strict mypy (217 files), workspace scope (25 repositories)
+and diff checks pass; no test suite or shared project/provider write. The production
+index migration dry run found only `integration_dispatches_due` missing and no
+conflicts. Additive apply created it; a second dry run found every persistence index
+present, none missing, no conflicts and no review data modified. The new worker is
+not live while Railway remains on `7b25ac3`. Crash/provider acceptance and any
+user-visible failed-delivery status remain pending.
+
 ## 2026-10-22: BUG-04 comment/ticket/file edit conflicts (TDR-0107)
 
 Pydantic comment and asset update contracts now accept an optional expected
@@ -15,9 +32,11 @@ lists where needed. No destructive migration or new index.
 Generated OpenAPI JSON/TypeScript comes from Pydantic. Backend Ruff, strict mypy
 (215 files), workspace scope (24 repositories), types typecheck and web lint/typecheck/
 production build pass; diff checks pass. The existing >500 kB chunk advisory remains.
-No suite or live two-editor/shared-data mutation. Source commit, backend rollout and
-browser acceptance remain pending at this checkpoint; Railway still reports the old
-service commit and had rejected the preceding exact-commit dispatch as paused.
+No suite or live two-editor/shared-data mutation. Source commit `d00d857` was
+pushed. Its exact-SHA Railway dispatch was rejected as temporarily paused before
+an accepted deployment ID; app, worker and cloud-login still reported `7b25ac3`.
+The commit's Vercel status succeeded, and the public page/current JS returned 200.
+Matching backend rollout and browser acceptance remain pending.
 
 ## 2026-10-22: BUG-03 coordinated draft navigation (TDR-0106)
 

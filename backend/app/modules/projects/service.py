@@ -549,19 +549,31 @@ async def update_project(
             },
             session=session,
         )
+        # Keep notification intent in the same transaction as the metadata and
+        # activity event. The minute worker sweep can recover even if Redis is down
+        # immediately after this request commits.
+        from app.modules.integrations.dispatch_repository import IntegrationDispatchRepository
+        from app.modules.integrations.factory import NOTIFIER_TYPES
+        from app.modules.integrations.repository import IntegrationRepository
+
+        integrations = await IntegrationRepository(db).list_for_workspace_in_transaction(
+            workspace_id, session=session
+        )
+        await IntegrationDispatchRepository(db).create_project_updated(
+            workspace_id=workspace_id,
+            project_id=project_id,
+            project_name=str(transaction_patch.get("name", current["name"])),
+            integration_ids=[
+                str(item["_id"])
+                for item in integrations
+                if item["type"] in NOTIFIER_TYPES
+                and (not item.get("project_scope") or item["project_scope"] == project_id)
+            ],
+            session=session,
+        )
         return True
 
-    changed = await run_plan_change(db, workspace_id, update)
-
-    # Deferred import: integrations/service.py imports ProjectRepository from this
-    # module's sibling (projects/repository.py), not from here, so this isn't a true
-    # cycle - deferred anyway to match the established convention every other
-    # cross-module integrations-dispatch call site in this codebase already uses
-    # (comments/service.py's _dispatch_integration_event).
-    from app.modules.integrations.service import dispatch_project_updated_event
-
-    if changed:
-        await dispatch_project_updated_event(db, workspace_id=workspace_id, project_id=project_id)
+    await run_plan_change(db, workspace_id, update)
 
     updated = await repo.find_by_id(project_id)
     assert updated is not None

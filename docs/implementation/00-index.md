@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Project integration delivery follow-up (2026-10-22):
+[TDR-0108](../tdr/0108-durable-project-integration-dispatch.md) stores per-destination
+project-update notification intents in the metadata transaction and adds worker
+retry/recovery. Comment-event dispatch is a separate remaining BUG-05 slice.
+
 Concurrent-edit follow-up (2026-10-22):
 [TDR-0107](../tdr/0107-comment-and-file-update-conflicts.md) adds revision-checked
 member comment/ticket and file edits with 409 recovery. Legacy clients remain

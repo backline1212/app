@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from bson import ObjectId
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
@@ -46,6 +46,20 @@ class IntegrationRepository:
 
     async def list_for_workspace(self, workspace_id: str) -> list[dict[str, Any]]:
         cursor = self.db.integrations.find({"workspace_id": workspace_id})
+        return [doc async for doc in cursor]
+
+    async def find_in_workspace(
+        self, workspace_id: str, integration_id: str
+    ) -> dict[str, Any] | None:
+        oid = to_object_id(integration_id)
+        if oid is None:
+            return None
+        return await self.db.integrations.find_one({"workspace_id": workspace_id, "_id": oid})
+
+    async def list_for_workspace_in_transaction(
+        self, workspace_id: str, *, session: AsyncIOMotorClientSession
+    ) -> list[dict[str, Any]]:
+        cursor = self.db.integrations.find({"workspace_id": workspace_id}, session=session)
         return [doc async for doc in cursor]
 
     async def list_for_workspace_by_type(

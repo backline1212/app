@@ -10,6 +10,7 @@ from app.core.events import append_event
 from app.modules.comments.service import get_comment_out
 from app.modules.integrations import events as integration_events
 from app.modules.integrations.base import IntegrationDeliveryError
+from app.modules.integrations.delivery import deliver_project_dispatch, sweep_project_dispatches
 from app.modules.integrations.factory import NOTIFIER_TYPES, get_notifier
 from app.modules.integrations.repository import IntegrationRepository
 from app.modules.integrations.service import build_event_context, run_project_updated_dispatch
@@ -85,3 +86,15 @@ async def dispatch_project_updated_event_job(
     payload worth retrying)."""
     del ctx
     await run_project_updated_dispatch(get_db(), workspace_id=workspace_id, project_id=project_id)
+
+
+async def deliver_project_dispatch_job(
+    ctx: dict[str, Any], *, workspace_id: str, dispatch_id: str
+) -> None:
+    del ctx
+    await deliver_project_dispatch(get_db(), workspace_id=workspace_id, dispatch_id=dispatch_id)
+
+
+async def sweep_project_dispatches_job(ctx: dict[str, Any]) -> int:
+    del ctx
+    return await sweep_project_dispatches(get_db())

@@ -17,6 +17,11 @@ class AdditiveIndex:
 
 
 REVIEW_PERSISTENCE_INDEXES: tuple[AdditiveIndex, ...] = (
+    AdditiveIndex(
+        "integration_dispatches",
+        (("state", 1), ("after", 1)),
+        "integration_dispatches_due",
+    ),
     AdditiveIndex("digest_deliveries", (("state", 1), ("after", 1)), "digest_deliveries_due"),
     AdditiveIndex(
         "digest_deliveries",
