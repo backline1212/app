@@ -1,5 +1,20 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-03 coordinated draft navigation (TDR-0106)
+
+One root-route blocker now aggregates draft registrations from reply/ticket details,
+file review, new ticket/team note and file manager. It names affected drafts in a
+single confirmation; pending saves/uploads cannot be discarded. Saving/unmounting
+the final affected draft resumes the waiting route. Local close confirmations keep
+their own action, with a one-navigation exemption only for that form. Native unload
+consults the same transient registry. Identity/workspace loss bypasses draft blocking
+so protected screens can clear. No HTTP schema, generated declaration or migration.
+
+Affected web typecheck, lint and production build pass; the existing >500 kB chunk
+advisory remains. Diff checks pass. No test suite, shared comment/ticket/file write
+or browser acceptance yet. Source rollout and live Back/Forward, nested, pending,
+local-close and access-loss acceptance are still open.
+
 ## 2026-10-22: BUG-02 durable daily digest delivery (TDR-0105)
 
 Workspace preparation windows retain immutable time bounds/day, lease and member
@@ -31,7 +46,7 @@ Actual crash/concurrency/cursor/provider/recipient negatives remain pending. Rol
 must drain old digest workers before enabling the matching new worker/index set;
 an old worker's already-advanced checkpoint cannot reconstruct lost historical
 delivery. Frozen workspace-slug links across later rename remain an acceptance
-case. The preceding c371733 exact-commit dispatch was again rejected as temporarily
+case. The 52f6634 exact-commit dispatch was again rejected as temporarily
 paused with no accepted deployment ID; backend/extension rollout remains open.
 
 ## 2026-10-22: BUG-01 digest privacy (TDR-0104)

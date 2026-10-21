@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Draft navigation follow-up (2026-10-22):
+[TDR-0106](../tdr/0106-coordinated-draft-navigation.md) combines route protection
+for nested ticket, reply and file-review drafts under one blocker. Local close and
+native unload remain protected; live route/failure acceptance is separate.
+
 Digest delivery follow-up (2026-10-22):
 [TDR-0105](../tdr/0105-durable-daily-digest-delivery.md) replaces premature send
 checkpoints with durable recipient outboxes, resumable preparation and bounded,

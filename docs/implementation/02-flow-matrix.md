@@ -1,5 +1,11 @@
 # Flow inventory and acceptance criteria
 
+Draft navigation follow-up (BUG-03/TDR-0106): verify one and nested unsent drafts
+under a single route confirmation, Back/Forward, Stay/X/Escape, coordinated discard,
+pending save/upload refusal, completion, uncertain retry/copy, file-review internal
+URL changes, local close without duplicate prompts, and forced access-loss cleanup.
+Source checks are separate from deployed browser acceptance.
+
 Digest durability follow-up (BUG-02/TDR-0105): verify legacy/current-day adoption,
 one UTC daily window under duplicate schedules, preparation crash at every batch/
 checkpoint boundary, per-recipient send failures, scan cursor continuation through

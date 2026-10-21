@@ -7,14 +7,15 @@ import { ProjectLayout } from "./layout/ProjectLayout";
 import { WorkspaceLayout } from "./layout/WorkspaceLayout";
 
 import { rememberReturnPath } from "../lib/return-path";
+import { DraftNavigationProvider } from "../lib/draft-navigation";
 import { ScrollToTop } from "../lib/ScrollToTop";
 
 function RootLayout() {
   return (
-    <>
+    <DraftNavigationProvider>
       <ScrollToTop />
       <Outlet />
-    </>
+    </DraftNavigationProvider>
   );
 }
 

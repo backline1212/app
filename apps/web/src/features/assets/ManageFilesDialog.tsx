@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Dialog } from "../../components/Dialog";
 import { qk } from "../../lib/query-keys";
 import { projectCan } from "../../lib/project-roles";
+import { useDraftNavigationGuard } from "../../lib/draft-navigation";
 import type { ProjectOut } from "../projects/api";
 import * as api from "./api";
 
@@ -77,12 +78,11 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
   const pending = update.isPending || upload.isPending;
   const renamed = editing !== null && filename !== files.data?.find(file => file.id === editing)?.filename;
   const protect = pending || hasPendingBatch || renamed;
-  useEffect(() => {
-    if (!protect) return;
-    const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
-    window.addEventListener("beforeunload", beforeUnload);
-    return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [protect]);
+  useDraftNavigationGuard({
+    name: "file changes", dirty: protect && !pending, pending,
+    unconfirmed: hasPendingBatch,
+    discard: () => { batch.current = null; setHasPendingBatch(false); setEditing(null); setConfirmClose(false); onClose(); },
+  });
   function requestClose() {
     if (busy.current) return;
     if (hasPendingBatch || renamed) setConfirmClose(true); else onClose();

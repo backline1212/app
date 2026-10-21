@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useBlocker, useSearchParams } from "react-router-dom";
-import { Dialog } from "../../components/Dialog";
+import { Link, useSearchParams } from "react-router-dom";
+import { useDraftNavigationGuard } from "../../lib/draft-navigation";
 import { qk } from "../../lib/query-keys";
 import { useOnlineStatus } from "../../lib/use-online-status";
 import { LayerBadge, StatusBadge } from "@backline/ui";
@@ -152,7 +152,7 @@ export function AssetReview({
       const warn = () => setSaveWarning("Comment saved. Some feedback could not refresh; reload the review to check it.");
       try {
         cache.setQueryData<Schemas["CommentOut"][]>([...qk.assetComments(comment.page_id), guest ?? 'member'], current => [...(current ?? []).filter(row => row.id !== comment.id), comment]);
-        if (blocker.state !== "blocked") setSelected(comment.id);
+        if (!navigationBlocked) setSelected(comment.id);
       } catch { warn(); }
       void refresh().catch(warn);
     },
@@ -185,21 +185,20 @@ export function AssetReview({
     replying.current = true; setSaveWarning(""); replyMutation.mutate();
   }
   const hasDraft = locationProtected || post.isPending || replyMutation.isPending;
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+  const { blocked: navigationBlocked } = useDraftNavigationGuard({
+    name: "file review comment or reply", dirty: locationProtected, pending: post.isPending || replyMutation.isPending,
+    unconfirmed: retryLocked || replyLocked,
+    discard: () => { prepared.current = null; replyPrepared.current = null; setBody(""); setReply(""); setDraft(null); setRetryLocked(false); setReplyLocked(false); },
+    shouldBlock: ({ currentLocation, nextLocation }) => {
     const nextSearch = nextLocation.search.replace(/^\?/, "");
     if (allowedSearch.current !== null) {
       const allowed = currentLocation.pathname === nextLocation.pathname && allowedSearch.current === nextSearch;
       allowedSearch.current = null;
       if (allowed) return false;
     }
-    return hasDraft && (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search || currentLocation.hash !== nextLocation.hash);
+    return currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search || currentLocation.hash !== nextLocation.hash;
+    },
   });
-  useEffect(() => {
-    if (!hasDraft) return;
-    const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
-    window.addEventListener("beforeunload", protect);
-    return () => window.removeEventListener("beforeunload", protect);
-  }, [hasDraft]);
   function keepDraft(): boolean {
     if (!hasDraft) return false;
     setNavigationWarning("Save or cancel your comment or reply before changing the file, page or location.");
@@ -521,9 +520,5 @@ export function AssetReview({
       )}
     </aside></div>
     {showFiles && project && <ManageFilesDialog project={project} onClose={() => setShowFiles(false)} />}
-    {blocker.state === "blocked" && <Dialog title="Keep your review draft?" onClose={() => blocker.reset()}>
-      <div className="bl-file-manager"><p>{post.isPending || replyMutation.isPending ? "Your feedback is being saved. Wait for the result before leaving." : retryLocked || replyLocked ? "Saving was not confirmed. The original feedback may already exist; check it before posting again. Leaving discards this tab's retry details." : "You have unsaved feedback on this file. Stay to save or copy it, or discard it and continue."}</p></div>
-      <footer className="bl-dialog-actions bl-dialog-actions-bordered"><button type="button" className="bl-button" onClick={() => blocker.reset()}>Stay and review</button><button type="button" className="bl-button" disabled={post.isPending || replyMutation.isPending} onClick={() => { prepared.current = null; replyPrepared.current = null; setBody(""); setReply(""); setDraft(null); setRetryLocked(false); setReplyLocked(false); blocker.proceed(); }}>{hasDraft ? "Discard draft and continue" : "Continue"}</button></footer>
-    </Dialog>}
   </main>;
 }

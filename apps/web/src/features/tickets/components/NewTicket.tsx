@@ -11,6 +11,7 @@ import * as api from "../api";
 import { DatePicker } from "./DatePicker";
 import { projectCan } from "../../../lib/project-roles";
 import { reviewPagePath } from "../../../lib/review-page-path";
+import { useDraftNavigationGuard } from "../../../lib/draft-navigation";
 
 type Shot = Schemas["AttachmentIn"] & { preview: string };
 
@@ -136,12 +137,11 @@ export function NewTicket({ workspace, members, onClose, initialProjectId = "", 
   });
 
   const hasDraft = !confirmed && Boolean(body.trim() || shots.length || assignee || dueAt || priority !== "medium" || tag !== "Bug" || retryLocked);
-  useEffect(() => {
-    if (!hasDraft && !save.isPending && !uploading) return;
-    const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
-    window.addEventListener("beforeunload", beforeUnload);
-    return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [hasDraft, save.isPending, uploading]);
+  useDraftNavigationGuard({
+    name: teamNote ? "team note" : "new ticket", dirty: hasDraft,
+    pending: save.isPending || uploading, unconfirmed: retryLocked,
+    discard: () => { prepared.current = null; setConfirmClose(false); onClose(); },
+  });
   function requestClose() {
     if (busy.current || uploadBusy.current) return;
     if (hasDraft) setConfirmClose(true); else onClose();
