@@ -5,6 +5,14 @@ continued core flow repair, without clarification questions. This inventory cove
 actual source behavior, including promises in pricing; a removed label is not proof
 of a feature. Preserve current architecture and the isolation gate in TDR-0065.
 
+2026-10-21 core reliability follow-ups: TDR-0098 adds ticket-role controls and
+metadata draft protection; TDR-0099 bounds session recovery and retry ownership;
+TDR-0100 adds file request deadlines, confirmed-save recovery and file-manager
+settlement/close guards; TDR-0101 bounds PDF worker preparation/rendering. Portal
+reply and ticket metadata-only Close/Stay/Discard now have live acceptance evidence.
+Actual PDF writes/render/pins and the feature inventory below still have their
+separate delivery/acceptance gates; these fixes do not implement recording or apps.
+
 Core follow-ups now also include [atomic metadata onboarding](../tdr/0083-atomic-project-and-client-creation.md)
 and [PDF/image upload replay](../tdr/0084-file-upload-replay.md). These source repairs
 do not establish browser/storage failure acceptance or full storage-byte quotas.

@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+PDF preview follow-up (2026-10-21):
+[TDR-0101](../tdr/0101-pdf-preparation-and-render-deadlines.md) bounds worker
+preparation/page rendering and rejects invalid viewport dimensions. Real PDF
+rendering, retry and pin acceptance remain separate gates.
+
 File-review recovery follow-up (2026-10-21):
 [TDR-0100](../tdr/0100-file-review-save-and-upload-recovery.md) adds bounded file
 requests, synchronous submit guards, confirmed-save/refresh separation, recoverable

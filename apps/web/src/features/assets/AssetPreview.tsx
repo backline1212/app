@@ -43,14 +43,21 @@ function PdfCanvas({ blob, pageNumber, onReady }: { blob: Blob; pageNumber: numb
   useEffect(() => {
     let cancelled = false;
     let task: pdfjs.PDFDocumentLoadingTask | undefined;
+    const timeout = window.setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      setError("Preparing this PDF took too long. Retry PDF to start again.");
+      if (task) void task.destroy().catch(() => undefined);
+    }, 30_000);
     setDocument(null);
     setError("");
     void blob.arrayBuffer().then(data => {
       if (cancelled) return;
       task = pdfjs.getDocument({ data: new Uint8Array(data) });
       return task.promise.then(pdf => { if (!cancelled) setDocument(pdf); });
-    }).catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "PDF could not be read."); });
-    return () => { cancelled = true; if (task) void task.destroy().catch(() => undefined); };
+    }).catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "PDF could not be read."); })
+      .finally(() => window.clearTimeout(timeout));
+    return () => { cancelled = true; window.clearTimeout(timeout); if (task) void task.destroy().catch(() => undefined); };
   }, [blob, retry]);
 
   useEffect(() => {
@@ -60,11 +67,21 @@ function PdfCanvas({ blob, pageNumber, onReady }: { blob: Blob; pageNumber: numb
     setRenderedPage(null);
     if (!document) return;
     setError("");
+    // Includes waiting for a previous cancelled render and page parsing. Never
+    // leave the reviewer on an indefinite loading state if the worker stalls.
+    const timeout = window.setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      render?.cancel();
+      onReady(false);
+      setError(`Rendering PDF page ${pageNumber} took too long. Retry PDF to start again.`);
+    }, 30_000);
     void document.getPage(pageNumber).then(async page => {
       await renderPending.current.catch(() => undefined);
       if (cancelled || !canvas.current) return;
       // Bound pixel memory even for a PDF with unusually large physical dimensions.
       const natural = page.getViewport({ scale: 1 });
+      if (!Number.isFinite(natural.width) || !Number.isFinite(natural.height) || natural.width <= 0 || natural.height <= 0) throw new Error("This PDF page has invalid dimensions and cannot be displayed.");
       const scale = Math.min(1.5, 4096 / Math.max(natural.width, natural.height), Math.sqrt(8_000_000 / (natural.width * natural.height)));
       const viewport = page.getViewport({ scale });
       const context = canvas.current.getContext("2d");
@@ -75,8 +92,9 @@ function PdfCanvas({ blob, pageNumber, onReady }: { blob: Blob; pageNumber: numb
       renderPending.current = render.promise;
       await renderPending.current;
       if (!cancelled) { setRenderedPage(pageNumber); onReady(true); }
-    }).catch((e: unknown) => { if (!cancelled) { onReady(false); setError(e instanceof Error ? e.message : "PDF could not be rendered."); } });
-    return () => { cancelled = true; render?.cancel(); };
+    }).catch((e: unknown) => { if (!cancelled) { onReady(false); setError(e instanceof Error ? e.message : "PDF could not be rendered."); } })
+      .finally(() => window.clearTimeout(timeout));
+    return () => { cancelled = true; window.clearTimeout(timeout); render?.cancel(); };
   }, [document, pageNumber, onReady]);
   return <>
     {renderedPage !== pageNumber && !error && <div className="bl-asset-loading" role="status">{document ? `Rendering PDF page ${pageNumber}…` : "Preparing PDF…"}</div>}

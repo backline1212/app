@@ -1,5 +1,22 @@
 # Delivery and verification ledger
 
+## 2026-10-21: PDF worker recovery (TDR-0101)
+
+PDF preparation and page parsing/rendering have independent 30-second deadlines.
+Timeouts keep annotation readiness false, destroy/cancel the active task and expose
+the existing fresh-document retry. Timer/late-callback cleanup covers replacement
+and unmount. Finite positive page dimensions are required before bounded canvas
+allocation. Actual decode/render/timeout/retry/pin acceptance remains pending.
+
+Affected web lint/typecheck/build pass 3/3; diff checks pass. The existing chunk
+advisory remains. Evidence: `.tools/verification/2026-10-21-0101-web-checks.log`.
+No suite, shared file/upload/comment or permission change. Source 4dda021
+(TDR-0100) is pushed. Its first push hit transient GitHub DNS failure; resolution
+recovered and push succeeded. Exact-commit Railway deployment was then attempted
+after the confirmed push and again rejected as temporarily paused, without an
+accepted deployment ID. No backend/served-extension update is claimed.
+Vercel confirms successful web rollout of 4dda021, including TDR-0100.
+
 ## 2026-10-21: File review save and upload recovery (TDR-0100)
 
 Image/PDF review captures comment/reply request IDs before synchronous guarded

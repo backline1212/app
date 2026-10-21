@@ -1,5 +1,10 @@
 # Flow inventory and acceptance criteria
 
+FD-12 PDF preview follow-up (TDR-0101): verify preparation/render deadlines, retry
+with a fresh loading task, rapid page changes/unmount, late callbacks, invalid page
+dimensions and annotation readiness after an error. Existing pixel caps and actual
+PDF/image pin placement must still pass browser acceptance.
+
 FD-09/12/18 file-review follow-up (TDR-0100): verify one immutable comment/reply
 under rapid submit, lost/slow acknowledgement and original retry; confirmed save
 with refresh/cache failure; correct page/guest cache; JSON/content/upload timeout
