@@ -27,14 +27,15 @@ affected backend Ruff/mypy/workspace-scope checks, without new test suites.
 | 4 | BUG-03 | Web deployed; browser acceptance pending | TDR-0106: served bundle includes one root-route blocker for nested ticket, reply and file drafts. Browser use was disabled at acceptance. |
 | 5 | BUG-04 | Source checked; rollout/acceptance pending | TDR-0107: revision-checked comment/ticket/file updates with conflict recovery. |
 | 6 | BUG-05 | Source checked; rollout/acceptance pending | TDR-0108/0109: transactional project and comment notifier intent, leases and recovery; additive index applied. |
-| 7 | BUG-06/07/08 | Planned | Follow privacy/reliability priorities in separate reviewable slices. |
-| 8 | Remaining FLOW/OPT/FEAT/QA | Pending | Follow priority tables and record dependencies/acceptance per slice. |
+| 7 | BUG-08 | Portal display source checked; rollout/acceptance pending | TDR-0110 masks common sensitive URL labels; evidence/logs remain. |
+| 8 | BUG-06/07 | Planned | Follow safe grant/evidence reconciliation design in separate slices. |
+| 9 | Remaining FLOW/OPT/FEAT/QA | Pending | Follow priority tables and record dependencies/acceptance per slice. |
 
 ## 1. Deployment and release
 
 | ID | Priority | Pending item | Current evidence / completion condition |
 |---|---|---|---|
-| DEP-01 | P1 | Release the newer API/worker changes together | Read-only Railway status today still reports app, worker and cloud-login SUCCESS on `7b25ac3`. Last dispatch was rejected as temporarily paused; the current pause cause is unresolved. Release the pushed source and verify actual SHA, contracts, health and jobs. |
+| DEP-01 | P1 | Release the newer API/worker changes together | Read-only Railway status still reports app, worker and cloud-login SUCCESS on `7b25ac3`. Exact-SHA dispatch of `54b489f` was rejected as temporarily paused before an accepted deployment ID; the pause cause is unresolved. Release the pushed source and verify actual SHA, contracts, health and jobs. |
 | DEP-02 | P1 | Align extension source, download and installed version | Source is **0.4.9**; the public ZIP fetched today is **0.4.4**. Installed Chrome was last observed at **0.4.3**, not rechecked for this inventory. Publish the matching bundle and verify installed replies, snapshots, hash routes and access cleanup. |
 | DEP-03 | P2 | Complete Chrome Web Store release | Local icon/store preparation exists separately. Publisher registration/agreements/payment, public policy/support information, real listing screenshots, submission, approval and install URL are still pending. Do not count local ZIP preparation as publication. |
 | DEP-04 | P1 | Verify mixed-version rollout and rollback | New web code can meet the older API/SDK. Check capability gates, contract compatibility and preservation of old comments/pages/evidence during upgrade/rollback. |
@@ -54,7 +55,7 @@ rollout evidence; the later documentation commit is `32c3388`.
 | BUG-05 | P2 | Integration dispatch durability — source checked, rollout/acceptance pending | TDR-0108/0109 move project-update and comment create/status notifier intents into their Mongo transactions. Retry/lease worker passes static checks; additive due index is applied. Rollout, provider/crash acceptance and user-visible failed-delivery status remain. Existing snapshot/email outboxes are separate. |
 | BUG-06 | P2 | Unused upload grants can retain storage quota | Signed PUT reservations deliberately remain held because an earlier request may still finish. Add safe bounded grant/confirmation/reconciliation; never release solely because a URL expired. |
 | BUG-07 | P2 | Attachment fallback/orphan handling is incomplete | A stored upload followed by a lost response or direct-relay fallback can leave unused evidence or duplicate storage. Add upload-level replay/confirmation and safe orphan reconciliation. The PDF/image asset replay contract does not cover every attachment transport. |
-| BUG-08 | P1 | Sensitive URL/evidence redaction is incomplete | Route/query identity is preserved; TDR-0096 does not add secret redaction. Define safe display/capture/log fields without merging distinct pages. Add evidence preview/redaction and privacy exclusions. |
+| BUG-08 | P1 | Sensitive URL/evidence redaction is incomplete — portal display source checked | TDR-0110 masks common secret/contact URL labels while preserving raw route/query identity. Web lint/typecheck/build pass. Backend events/logs, screenshot/DOM evidence, arbitrary path secrets and live acceptance remain; define safe capture/export fields without merging distinct pages. |
 | BUG-09 | P2 | Preview failure root cause remains unproven | The example.com canvas failed in live checks. Extension/retry/saved-feedback recovery works, but the underlying network/proxy failure was not established. Diagnose with supported network evidence before calling it repaired. |
 | BUG-10 | P2 | Legacy hash-route feedback remains merged | New #/ and #!/ identities are implemented in source, awaiting the matching rollout. Old merged feedback stays on the legacy page. Provide a reviewed mapping/reassignment workflow if required; no guessed migration. |
 | BUG-11 | P2 | Privacy, Terms and Support links are placeholders | Login footer and signup agreement still link to `#`. Supply actual approved policy/support destinations and verify every entry point. Do not invent legal text or organizational practices. |

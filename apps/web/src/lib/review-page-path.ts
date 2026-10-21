@@ -1,10 +1,50 @@
-/** Keep route/query context visible when different review pages share a pathname. */
-export function reviewPagePath(address: string): string {
+const PRIVATE_QUERY_KEY = /^(?:access[_-]?token|id[_-]?token|refresh[_-]?token|token|auth(?:orization)?|api[_-]?key|key|secret|client[_-]?secret|sig(?:nature)?|session(?:[_-]?id)?|code|state|password|passcode|pwd|jwt|email|phone|address)$/i;
+const PRIVATE_PATH_PARENT = /^(?:token|reset|invite|verify|magic|session)$/i;
+
+function redactParams(raw: string): string {
+  const params = new URLSearchParams(raw);
+  for (const key of params.keys()) {
+    if (PRIVATE_QUERY_KEY.test(key)) params.set(key, "REDACTED");
+  }
+  return params.toString();
+}
+
+function redactPath(raw: string): string {
+  const segments = raw.split("/");
+  for (let index = 1; index < segments.length; index += 1) {
+    if (PRIVATE_PATH_PARENT.test(segments[index - 1]) && segments[index]) segments[index] = "REDACTED";
+  }
+  return segments.join("/");
+}
+
+/** Display only. Never use this value for page identity, navigation or capture. */
+export function redactReviewUrl(address: string): string {
   try {
     const url = new URL(address);
+    url.username = "";
+    url.password = "";
+    url.pathname = redactPath(url.pathname);
+    if (url.search) url.search = redactParams(url.search.slice(1));
+    if (url.hash.startsWith("#/") || url.hash.startsWith("#!/")) {
+      const queryStart = url.hash.indexOf("?");
+      const route = queryStart === -1 ? url.hash.slice(1) : url.hash.slice(1, queryStart);
+      url.hash = `#${redactPath(route)}${queryStart === -1 ? "" : `?${redactParams(url.hash.slice(queryStart + 1))}`}`;
+    } else if (url.hash.includes("=")) {
+      url.hash = `#${redactParams(url.hash.slice(1))}`;
+    }
+    return url.toString();
+  } catch {
+    return "Page address unavailable";
+  }
+}
+
+/** Keep nonsecret route/query context visible when pages share a pathname. */
+export function reviewPagePath(address: string): string {
+  try {
+    const url = new URL(redactReviewUrl(address));
     return url.pathname + url.search + url.hash;
   } catch {
-    return address;
+    return "Page address unavailable";
   }
 }
 

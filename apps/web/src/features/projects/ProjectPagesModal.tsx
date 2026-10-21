@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Dialog } from "../../components/Dialog";
 import { useToast } from "../../components/Toast";
 import { qk } from "../../lib/query-keys";
+import { redactReviewUrl } from "../../lib/review-page-path";
 import type { ProjectOut } from "./api";
 import * as api from "./api";
 
@@ -85,17 +86,17 @@ export function ProjectPagesModal({ project, activePageId, onClose, onOpenPage }
                   {editingId === page.id ? (
                     <form className="bl-page-rename" onSubmit={(event) => { event.preventDefault(); updatePage.mutate({ id: page.id, title: editTitle }); }}>
                       <label className="sr-only" htmlFor={`page-title-${page.id}`}>Page display name</label>
-                      <input id={`page-title-${page.id}`} className="bl-input" value={editTitle} maxLength={500} onChange={(event) => setEditTitle(event.target.value)} placeholder={page.url_normalized} autoFocus />
+                      <input id={`page-title-${page.id}`} className="bl-input" value={editTitle} maxLength={500} onChange={(event) => setEditTitle(event.target.value)} placeholder={redactReviewUrl(page.url_normalized)} autoFocus />
                       <button className="bl-button" disabled={updatePage.isPending}>Save</button><button type="button" className="bl-quiet" onClick={() => setEditingId(null)}>Cancel</button>
                     </form>
                   ) : <>
-                    <button type="button" className="bl-page-main" aria-current={activePageId === page.id ? "page" : undefined} onClick={() => onOpenPage(page.id)}><strong>{page.title || page.url_normalized}</strong><small>{page.url_normalized}</small></button>
+                    <button type="button" className="bl-page-main" aria-current={activePageId === page.id ? "page" : undefined} onClick={() => onOpenPage(page.id)}><strong>{page.title || redactReviewUrl(page.url_normalized)}</strong><small>{redactReviewUrl(page.url_normalized)}</small></button>
                     <span className="bl-page-comments">{page.comment_count ? `${page.comment_count} comment${page.comment_count === 1 ? "" : "s"}` : "Clear"}</span>
                     <div className="bl-page-actions">
-                      <button type="button" className="bl-icon-button" aria-label={`Move ${page.title || page.url_normalized} up`} disabled={index === 0 || reorderPages.isPending} onClick={() => movePage(index, -1)}>↑</button>
-                      <button type="button" className="bl-icon-button" aria-label={`Move ${page.title || page.url_normalized} down`} disabled={index === pages.length - 1 || reorderPages.isPending} onClick={() => movePage(index, 1)}>↓</button>
+                      <button type="button" className="bl-icon-button" aria-label={`Move ${page.title || redactReviewUrl(page.url_normalized)} up`} disabled={index === 0 || reorderPages.isPending} onClick={() => movePage(index, -1)}>↑</button>
+                      <button type="button" className="bl-icon-button" aria-label={`Move ${page.title || redactReviewUrl(page.url_normalized)} down`} disabled={index === pages.length - 1 || reorderPages.isPending} onClick={() => movePage(index, 1)}>↓</button>
                       <button type="button" className="bl-quiet" onClick={() => { setEditTitle(page.title || ""); setEditingId(page.id); }}>Rename</button>
-                      <button type="button" className="bl-icon-button danger" aria-label={`Remove ${page.title || page.url_normalized}`} onClick={() => setRemoveTarget(page)}>×</button>
+                      <button type="button" className="bl-icon-button danger" aria-label={`Remove ${page.title || redactReviewUrl(page.url_normalized)}`} onClick={() => setRemoveTarget(page)}>×</button>
                     </div>
                   </>}
                 </li>
@@ -110,7 +111,7 @@ export function ProjectPagesModal({ project, activePageId, onClose, onOpenPage }
         <Dialog title="Remove empty page?" onClose={() => setRemoveTarget(null)}>
           <div className="bl-confirm-body">
             <span className="bl-confirm-icon warning"><PageIcon /></span>
-            <div><p>Remove <strong>{removeTarget.title || removeTarget.url_normalized}</strong> from this project?</p><small>Backline checks that it has no comments, revisions, diffs, or asset references. Review history is never cascaded by this action.</small></div>
+            <div><p>Remove <strong>{removeTarget.title || redactReviewUrl(removeTarget.url_normalized)}</strong> from this project?</p><small>Backline checks that it has no comments, revisions, diffs, or asset references. Review history is never cascaded by this action.</small></div>
           </div>
           {removePage.error && <p role="alert" className="bl-error bl-confirm-error">{removePage.error.message}</p>}
           <footer className="bl-dialog-actions bl-dialog-actions-bordered"><button type="button" className="bl-quiet" onClick={() => setRemoveTarget(null)}>Cancel</button><button type="button" className="bl-button danger" disabled={removePage.isPending} onClick={() => removePage.mutate(removeTarget.id)}>{removePage.isPending ? "Checking…" : "Remove page"}</button></footer>

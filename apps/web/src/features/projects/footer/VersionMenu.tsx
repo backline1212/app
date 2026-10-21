@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { formatDate } from "../../../lib/date-format";
 import { qk } from "../../../lib/query-keys";
+import { redactReviewUrl } from "../../../lib/review-page-path";
 import { useOnClickOutside } from "../../../lib/use-click-outside";
 import * as api from "../api";
 import { ChevronIcon } from "../panel/icons";
@@ -92,7 +93,7 @@ export function VersionMenu({ projectId, currentPageId, onSelectPage }: VersionM
                       }}
                     >
                       <span className="bl-version-heading">
-                        <strong>{revision.page_title || revision.page_url}</strong>
+                        <strong>{revision.page_title || redactReviewUrl(revision.page_url)}</strong>
                         {revision.is_current && <em>Current</em>}
                       </span>
                       <time>{formatDate(revision.captured_at, { dateStyle: "medium", timeStyle: "short" })}</time>

@@ -8,7 +8,7 @@ import { API_BASE_URL, apiFetch } from "../../lib/api-client";
 import { removeProjectComment, upsertProjectComment } from "../../lib/comment-cache";
 import { projectCan } from "../../lib/project-roles";
 import { qk } from "../../lib/query-keys";
-import { reviewPageLabel } from "../../lib/review-page-path";
+import { redactReviewUrl, reviewPageLabel } from "../../lib/review-page-path";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { useSearchParamsUpdater } from "../../lib/use-search-params-updater";
 import { ticketRef } from "../../lib/ticket-ref";
@@ -834,6 +834,7 @@ export function ProjectOverviewPage() {
   }
   const iframeSrc = frameSrcRef.current.src;
   const displayUrl = activePage?.url_normalized || project.start_url || project.target_origin;
+  const displayAddress = redactReviewUrl(displayUrl);
   const topLevelComments = (commentsQuery.data ?? []).filter((comment) => !comment.parent_id);
   // The same "#14" the drawer, board and pins print - not the comment's position in
   // this project's list, which matched none of them.
@@ -889,7 +890,7 @@ export function ProjectOverviewPage() {
               </span>
             </div>
             <a href={displayUrl} target="_blank" rel="noreferrer" className="bl-review-url" title="Open the live page in a new tab">
-              <span>{displayUrl.replace(/^https?:\/\//, "")}</span>
+              <span>{displayAddress.replace(/^https?:\/\//, "")}</span>
               <ExternalLinkIcon width={10} height={10} />
             </a>
           </div>
@@ -1044,7 +1045,7 @@ export function ProjectOverviewPage() {
             >
               <div className="bl-live-frame-bar">
                 <span className="bl-live-frame-lights" aria-hidden="true"><i /><i /><i /></span>
-                <span className="bl-live-frame-address" title={displayUrl}>{displayUrl.replace(/^https?:\/\//, "")}</span>
+                <span className="bl-live-frame-address" title={displayAddress}>{displayAddress.replace(/^https?:\/\//, "")}</span>
                 <span className="bl-live-frame-source">
                   <i aria-hidden="true" />
                   Rendered as {browser.name}
@@ -1081,7 +1082,7 @@ export function ProjectOverviewPage() {
                 ) : browserRender.status?.status === "ready" && browserRender.status.screenshot_url ? (
                   <img
                     src={browserRender.status.screenshot_url}
-                    alt={`${displayUrl} rendered in ${browser.name}`}
+                    alt={`${displayAddress} rendered in ${browser.name}`}
                     className="bl-render-snapshot-img"
                   />
                 ) : (
@@ -1110,7 +1111,7 @@ export function ProjectOverviewPage() {
             >
               <div className="bl-live-frame-bar">
                 <span className="bl-live-frame-lights" aria-hidden="true"><i /><i /><i /></span>
-                <span className="bl-live-frame-address" title={displayUrl}>{displayUrl.replace(/^https?:\/\//, "")}</span>
+                <span className="bl-live-frame-address" title={displayAddress}>{displayAddress.replace(/^https?:\/\//, "")}</span>
                 <span className="bl-live-frame-source"><i aria-hidden="true" />Website preview</span>
                 <button type="button" onClick={reloadPreview} aria-label="Reload proxy preview" title="Reload proxy preview">
                   <ReloadIcon width={13} height={13} className={iframeStatus === "loading" ? "bl-is-spinning" : ""} />
@@ -1128,7 +1129,7 @@ export function ProjectOverviewPage() {
                 {effectiveFrameStatus === "loading" && (
                   <div className="bl-iframe-state is-loading" role="status">
                     <span className="bl-review-loader" aria-hidden="true" />
-                    <strong>Loading {displayUrl.replace(/^https?:\/\//, "")}</strong>
+                    <strong>Loading {displayAddress.replace(/^https?:\/\//, "")}</strong>
                     <span className="bl-iframe-steps" aria-hidden="true"><i /><i /><i /></span>
                     <p>Wait for the comment tools to connect. If this website needs its normal browser login, use Open with extension.</p>
                     <button type="button" className="bl-quiet" onClick={() => updateViewParams({ panel: "comments" })}>View saved feedback</button>

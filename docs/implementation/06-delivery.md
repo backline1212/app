@@ -1,5 +1,15 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-08 portal URL display redaction (TDR-0110)
+
+Project, page, canvas and version labels now mask common token/auth/contact query
+keys, URL userinfo and obvious secret path segments, including supported hash-route
+queries. Registration, navigation and extension targets keep the original URL.
+Backend evidence/log redaction and live browser acceptance remain open; this is a
+display slice, not a complete privacy repair. Web lint, typecheck, production build
+and diff checks pass. The build retains the existing >500 kB native review chunk
+advisory; no test suite or shared-data write was run.
+
 ## 2026-10-22: BUG-05 comment integration dispatch (TDR-0109)
 
 Ticket/reply creation and member/guest status changes now save the comment, audit
@@ -12,7 +22,11 @@ live Redis/provider/crash acceptance are recorded separately as they complete.
 Backend Ruff app/scripts, affected format, strict mypy (217 files), workspace scope
 (25 repositories) and diff checks pass. No HTTP contract/index migration, suite,
 shared comment write, provider call or email was performed. Production still serves
-the older API/worker commit pending Railway rollout.
+the older API/worker commit pending Railway rollout. Source commits `299aacb` and
+`54b489f` were pushed. Vercel reports success for `54b489f`. Its exact-SHA Railway
+dispatch was rejected as temporarily paused before an accepted deployment ID;
+read-only status still shows app, worker and cloud-login on `7b25ac3`. Live
+integration delivery remains unverified.
 
 ## 2026-10-22: BUG-05 project integration dispatch (TDR-0108)
 
@@ -20,8 +34,8 @@ Project metadata and per-connected-notifier dispatch intents now commit together
 The new scoped outbox uses a minute sweep, atomic lease, bounded retries and
 terminal sent/skipped/failed states. Delivery rechecks the current project and
 connection before sending; it retains the event-time project name. Old queued Arq
-jobs keep their handler during mixed rollout. Comment-event dispatch remains a
-separate follow-up. Static checks, additive index dry-run/apply, exact-SHA rollout
+jobs keep their handler during mixed rollout. Comment-event dispatch followed in
+TDR-0109. Static checks, additive index dry-run/apply, exact-SHA rollout
 and live failure/crash acceptance are recorded separately below as they complete.
 Backend Ruff app/scripts, strict mypy (217 files), workspace scope (25 repositories)
 and diff checks pass; no test suite or shared project/provider write. The production

@@ -21,6 +21,7 @@ import { ComingSoonPanel, type SoonType } from "./ComingSoonPanel";
 import { ProjectArtwork } from "./ProjectArtwork";
 import { LockIcon, PlusIcon, SearchIcon } from "../../components/icons";
 import { projectCan, roleLabel } from "../../lib/project-roles";
+import { redactReviewUrl } from "../../lib/review-page-path";
 import { EmptyArt } from "../../components/illustrations";
 
 const TYPE_LABELS: Record<string, string> = { website: "Website", image: "Images", pdf: "PDF" };
@@ -130,7 +131,7 @@ export function ProjectsPage() {
     const total = s?.total ?? 0, open = s?.open ?? 0, resolved = s?.resolved ?? 0;
     const isWebsite = (p.project_type ?? "website") === "website";
     const destination = `/w/${workspace.slug}/p/${p.id}`;
-    const displayUrl = isWebsite ? (p.start_url ?? p.target_origin).replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
+    const displayUrl = isWebsite ? redactReviewUrl(p.start_url ?? p.target_origin).replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
     // The two preview layouts put the menu in the card's top-right corner, over the
     // artwork; the row layouts (list/table) have no corner to speak of and keep it in
     // the actions column at the end of the row.
@@ -193,7 +194,7 @@ export function ProjectsPage() {
     const s = stats.get(p.id);
     const isWebsite = (p.project_type ?? "website") === "website";
     const destination = `/w/${workspace.slug}/p/${p.id}`;
-    const displayUrl = isWebsite ? (p.start_url ?? p.target_origin).replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
+    const displayUrl = isWebsite ? redactReviewUrl(p.start_url ?? p.target_origin).replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
     const count = (value: number) => <td className={`bl-col-num${value > 0 ? " has-value" : ""}`}>{value}</td>;
     return <tr key={p.id} className={p.archived_at ? "is-archived" : ""}>
       <td>{p.archived_at

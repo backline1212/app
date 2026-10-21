@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Review URL display follow-up (2026-10-22):
+[TDR-0110](../tdr/0110-review-url-display-redaction.md) masks common secrets in
+portal URL labels while preserving canonical page identity and navigation. Evidence,
+logs and user-authored titles remain separate privacy work.
+
 Comment integration delivery follow-up (2026-10-22):
 [TDR-0109](../tdr/0109-durable-comment-integration-dispatch.md) stores notifier
 intents in the same transaction as ticket/reply creation and status changes. Legacy
