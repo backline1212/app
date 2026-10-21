@@ -28,6 +28,11 @@ discard closes local transient forms and preserves already saved server records.
 
 ## Acceptance to record
 
+Source checks pass (web lint/typecheck/build and diff). Vercel reports success for
+`82da7f4`; the public page/bundle return 200 and the bundle contains the shared
+draft dialog. Browser use was disabled at this checkpoint, so the interactions
+below remain unverified rather than inferred from bundle contents.
+
 Single and nested drafts; two affected drafts in one confirmation; Stay/X/Escape;
 discard/resume; browser Back/Forward; unconfirmed original-request recovery;
 pending save/upload refusal and completion; unaffected canvas URL transitions;

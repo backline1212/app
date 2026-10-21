@@ -11,9 +11,12 @@ consults the same transient registry. Identity/workspace loss bypasses draft blo
 so protected screens can clear. No HTTP schema, generated declaration or migration.
 
 Affected web typecheck, lint and production build pass; the existing >500 kB chunk
-advisory remains. Diff checks pass. No test suite, shared comment/ticket/file write
-or browser acceptance yet. Source rollout and live Back/Forward, nested, pending,
-local-close and access-loss acceptance are still open.
+advisory remains. Diff checks pass. Commit `82da7f4` was pushed; Vercel reports
+success. The public page and its current `/assets/index-DXjt5DHG.js` both return
+200, and that served bundle contains the new draft dialog. No test suite or shared
+comment/ticket/file write. Browser use was disabled in Work settings during this
+check, so live Back/Forward, nested, pending, local-close and access-loss acceptance
+remains open.
 
 ## 2026-10-22: BUG-02 durable daily digest delivery (TDR-0105)
 
