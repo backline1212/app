@@ -42,6 +42,11 @@ rapid submit, page/project/role changes, 10-file/20 MiB/type limits, partial/COR
 timeout uploads, cancellation and blob URL cleanup. Actual save/upload acceptance
 remains pending unless explicitly recorded in the ledger.
 
+2026-10-22 live follow-up: ad03bb4 web rollout succeeded. New ticket empty-save
+gating and unsent body Cancel/Stay/Discard pass in signed-in Chrome. No ticket or
+upload was created; the existing total stayed five. Actual write/failure acceptance
+is still pending.
+
 SPA route navigation is not newly blocked by this form; its project parents already
 own router blockers and need a shared guard design before adding another. Local
 close/unload protection must not be described as full route protection. Unused

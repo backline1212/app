@@ -1,5 +1,23 @@
 # Delivery and verification ledger
 
+## 2026-10-22: Deployed portal draft acceptance follow-up
+
+Vercel confirms successful web rollout of ad03bb4, including TDR-0098 through
+TDR-0103. In the signed-in Chrome verification tab, New ticket opens with Create
+ticket disabled on the empty form. Entering only a labelled unsent body and clicking
+Cancel opens Keep your ticket draft. Stay preserves the exact text; a repeated
+Cancel followed by Discard draft and close leaves no open dialog or textarea. The
+existing Everyone ticket count remains five. Create ticket, screenshot upload,
+Delete, role changes and provider sign-in were not invoked.
+
+Earlier live checks in this continuation also verified portal reply and existing
+ticket body draft Close/Stay/Discard without publishing/saving. They do not verify
+actual POST/upload retries, mixed roles, induced failures or PDF rendering/pins.
+Those acceptance gates and the feature inventory remain open. Railway's most recent
+exact-source dispatch (4dda021) was rejected as temporarily paused with no accepted
+deployment ID; API/worker/cloud-login last read remain 7b25ac3, health/Mongo/Redis ok.
+Extension 0.4.9 source/served/installed rollout is still separate from web rollout.
+
 ## 2026-10-21: New ticket/team note and screenshot recovery (TDR-0103)
 
 Creation captures the immutable original save before synchronous guarded dispatch,
