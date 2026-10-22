@@ -16,6 +16,7 @@ from app.modules.integrations.base import (
     IntegrationDeliveryError,
     assert_public_url,
     is_team_only_blocked,
+    page_site,
 )
 
 SIGNATURE_HEADER = "X-Backline-Signature"
@@ -32,6 +33,7 @@ def sign(secret: str, timestamp: str, body: bytes) -> str:
 
 def _comment_payload(comment: CommentOut, event: EventContext) -> dict[str, Any]:
     context = comment.context or {}
+    site = page_site(context)
     return {
         "id": comment.id,
         "ticket_number": comment.ticket_number,
@@ -43,7 +45,7 @@ def _comment_payload(comment: CommentOut, event: EventContext) -> dict[str, Any]
         "layer": comment.layer,
         "author_name": comment.author_name,
         "author_type": comment.author_type,
-        "page_url": context.get("url"),
+        "page_url": site if site != "unknown site" else None,
         "browser": context.get("browser"),
         "os": context.get("os"),
         "device_type": context.get("device_type"),

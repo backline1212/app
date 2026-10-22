@@ -8,6 +8,7 @@ from app.modules.integrations.base import (
     IntegrationContext,
     IntegrationDeliveryError,
     is_team_only_blocked,
+    page_site,
     ticket_ref,
 )
 
@@ -20,12 +21,13 @@ def _format_message(comment: CommentOut, heading: str, event: EventContext) -> s
     body = comment.body
     if len(body) > _BODY_TRUNCATE_LENGTH:
         body = body[:_BODY_TRUNCATE_LENGTH].rstrip() + "..."
-    page_url = comment.context.get("url", "(unknown page)") if comment.context else "(unknown page)"
+    page_url = page_site(comment.context)
+    page_label = f"<{page_url}>" if page_url != "unknown site" else page_url
     layer_label = "Team only" if comment.layer == "team" else "Client visible"
     message = (
         f"**{heading}** · {event.project_name} ({layer_label})\n"
         f"{body}\n"
-        f"<{page_url}>\n"
+        f"{page_label}\n"
         f"[Open {ticket_ref(comment)} in Backline](<{event.backlink_url}>)"
     )
     return message[:_MESSAGE_LIMIT]

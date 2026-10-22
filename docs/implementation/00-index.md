@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Integration page-field privacy follow-up (2026-10-22):
+[TDR-0113](../tdr/0113-private-page-url-integration-exports.md) exports the
+reviewed site's origin rather than credential-bearing routes/queries to connected
+notifiers, trackers and signed webhooks. The Backline ticket link retains context.
+
 First-party review-upload transport follow-up (2026-10-22):
 [TDR-0112](../tdr/0112-first-party-review-upload-relay.md) uses the same-origin
 relay for widget and portal screenshot/attachment uploads, with a visible retry

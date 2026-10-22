@@ -1,7 +1,10 @@
 import asyncio
+import ipaddress
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -127,12 +130,35 @@ def ticket_ref(comment: CommentOut) -> str:
     return f"#{comment.ticket_number}" if comment.ticket_number is not None else comment.id[-6:]
 
 
+def page_site(context: dict[str, Any] | None) -> str:
+    """Export only a target origin; a review route can contain login credentials."""
+    raw = (context or {}).get("url")
+    if not isinstance(raw, str):
+        return "unknown site"
+    try:
+        parsed = urlsplit(raw)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            return "unknown site"
+        host = parsed.hostname.encode("idna").decode("ascii")
+        try:
+            ipaddress.IPv6Address(host)
+        except ValueError:
+            if not re.fullmatch(r"[a-zA-Z0-9_.-]+", host):
+                return "unknown site"
+        else:
+            host = f"[{host}]"
+        port = f":{parsed.port}" if parsed.port is not None else ""
+        return f"{parsed.scheme}://{host}{port}"
+    except (UnicodeError, ValueError):
+        return "unknown site"
+
+
 def context_lines(comment: CommentOut) -> list[tuple[str, str]]:
     """(label, value) pairs describing where and on what the feedback was left - only
     what the comment actually recorded, nothing inferred."""
     context = comment.context or {}
     anchor = comment.anchor or {}
-    rows: list[tuple[str, str]] = [("Page", str(context.get("url") or "unknown"))]
+    rows: list[tuple[str, str]] = [("Page site", page_site(context))]
     fingerprint = anchor.get("dom_fingerprint") or {}
     selector = fingerprint.get("selector_path") if isinstance(fingerprint, dict) else None
     if selector:

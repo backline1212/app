@@ -1,5 +1,15 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-08 integration page-field privacy (TDR-0113)
+
+Automatic notifier messages, tracker descriptions and signed webhook `page_url`
+now export only a validated HTTP(S) target origin. They retain the Backline ticket
+link for full authorized context; stored page identity remains exact. Invalid URLs
+produce a neutral label/null field. Full backend Ruff, affected format, strict mypy
+(217 files), workspace-scope (25 repositories) and diff checks pass. No contract
+generation, migration, suite, shared comment or external provider call was run.
+Backend rollout and an authorized provider/webhook acceptance remain pending.
+
 ## 2026-10-22: BUG-06/07 first-party review upload relay (TDR-0112)
 
 Widget screenshot/attachment and portal reply/new-ticket attachment uploads now
@@ -11,7 +21,10 @@ diff checks pass; the web build retains its existing >500 kB native review chunk
 advisory. No suite, shared upload or quota write was performed. Mixed-version
 acceptance remains: the relay exists on the older backend, but deterministic
 retry reuse needs TDR-0111's pending backend rollout. Historical signed holds and
-custom clients remain open.
+custom clients remain open. Source commit `285281e` was pushed; Vercel reports
+success and the public web page returns HTTP 200. The widget SDK is bundled by
+the backend Docker image, so its rollout remains pending. Read-only Railway CLI
+status is currently unavailable because its saved login was rejected.
 
 ## 2026-10-22: BUG-07 direct review-upload replay (TDR-0111)
 

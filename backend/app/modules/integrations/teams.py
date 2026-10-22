@@ -8,6 +8,7 @@ from app.modules.integrations.base import (
     IntegrationContext,
     IntegrationDeliveryError,
     is_team_only_blocked,
+    page_site,
     ticket_ref,
 )
 
@@ -41,7 +42,7 @@ def _comment_card(comment: CommentOut, heading: str, event: EventContext) -> dic
     body = comment.body
     if len(body) > _BODY_TRUNCATE_LENGTH:
         body = body[:_BODY_TRUNCATE_LENGTH].rstrip() + "..."
-    page_url = comment.context.get("url", "") if comment.context else ""
+    page_url = page_site(comment.context)
     layer_label = "Team only" if comment.layer == "team" else "Client visible"
     return _card(
         f"{heading} · {event.project_name} ({layer_label})",

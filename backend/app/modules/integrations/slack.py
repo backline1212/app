@@ -8,6 +8,7 @@ from app.modules.integrations.base import (
     IntegrationContext,
     IntegrationDeliveryError,
     is_team_only_blocked,
+    page_site,
     ticket_ref,
 )
 
@@ -24,7 +25,7 @@ def _format_message(comment: CommentOut, heading: str, event: EventContext) -> s
     body = comment.body
     if len(body) > _BODY_TRUNCATE_LENGTH:
         body = body[:_BODY_TRUNCATE_LENGTH].rstrip() + "..."
-    page_url = comment.context.get("url", "(unknown page)") if comment.context else "(unknown page)"
+    page_url = page_site(comment.context)
     layer_label = "Team only" if comment.layer == "team" else "Client visible"
     return (
         f"*{heading}* · {_escape(event.project_name)} ({layer_label})\n"
