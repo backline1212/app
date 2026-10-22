@@ -7,8 +7,8 @@ Date: 2026-10-23. Status: source checked; browser acceptance pending.
 The Mobile App tab no longer describes a TestFlight/APK runner, device-linked
 comments or replay as though they can be used today. It names these as planned
 and points reviewers to the existing Images/PDF project flow for pinned
-feedback on screenshots and documents. Its action opens the Images tab, where
-the existing upload/project-creation path remains available. The Web App tab
+feedback on screenshots and documents. Its actions open the Images or PDF tab,
+where the existing upload/project-creation paths remain available. The Web App tab
 continues to direct reviewers to Website projects for signed-in site review.
 
 The pricing card displays a waiting icon instead of a checkmark for features

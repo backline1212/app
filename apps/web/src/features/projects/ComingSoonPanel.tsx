@@ -29,7 +29,7 @@ const SOON: Record<SoonType, { title: string; lead: string; points: string[]; ar
   },
 };
 
-export function ComingSoonPanel({ type, onReviewWebsite, onReviewImages }: { type: SoonType; onReviewWebsite?: () => void; onReviewImages?: () => void }) {
+export function ComingSoonPanel({ type, onReviewWebsite, onReviewImages, onReviewPdf }: { type: SoonType; onReviewWebsite?: () => void; onReviewImages?: () => void; onReviewPdf?: () => void }) {
   const d = SOON[type];
   return (
     <section className="bl-soon-panel" aria-labelledby={`soon-${type}`}>
@@ -48,7 +48,10 @@ export function ComingSoonPanel({ type, onReviewWebsite, onReviewImages }: { typ
           ))}
         </ul>
         {type === "webapp" && onReviewWebsite && <button type="button" className="bl-button" onClick={onReviewWebsite}>Review a website now</button>}
-        {type === "mobile" && onReviewImages && <button type="button" className="bl-button" onClick={onReviewImages}>Review screenshots now</button>}
+        {type === "mobile" && (onReviewImages || onReviewPdf) && <div className="bl-link-row">
+          {onReviewImages && <button type="button" className="bl-button" onClick={onReviewImages}>Review screenshots now</button>}
+          {onReviewPdf && <button type="button" className="bl-quiet" onClick={onReviewPdf}>Review a PDF</button>}
+        </div>}
       </div>
       <div className="bl-soon-art">
         <img src={d.art} alt="" />

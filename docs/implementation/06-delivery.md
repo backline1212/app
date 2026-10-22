@@ -3,8 +3,8 @@
 ## 2026-10-23: Available review paths in product copy (TDR-0124)
 
 The Mobile App panel now states that native device/build/replay review is
-planned and points to the usable Images/PDF project flow. Its action opens the
-Images tab. Pricing rows marked `coming_soon` use a waiting icon instead of a
+planned and points to the usable Images/PDF project flow. Its actions open the
+Images or PDF tab. Pricing rows marked `coming_soon` use a waiting icon instead of a
 checkmark while retaining their explicit label. This does not change
 entitlements, billing, or availability. Web lint/typecheck/build passed (3/3
 Turbo tasks); browser acceptance is pending. See
