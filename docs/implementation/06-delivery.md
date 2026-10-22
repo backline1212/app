@@ -1,5 +1,32 @@
 # Delivery and verification ledger
 
+## 2026-10-23: Public extension information and signup links (TDR-0121)
+
+Added signed-out `/privacy` and `/support` routes with extension data collection,
+use, sharing and support guidance. Signup and login footer now link to the live
+routes rather than `#`; the signup checkbox acknowledges the privacy notice and
+does not pretend that a missing Terms document exists. Web lint, typecheck and
+build passed after the final notice copy (3/3 Turbo tasks). Browser use was
+disabled in Work settings, so signed-out
+route navigation, layout and deployed URLs were not accepted in a browser. The
+publisher must verify live processors and certify service-wide data practices
+before entering the privacy URL in Chrome Web Store. See [TDR-0121](../tdr/0121-public-extension-privacy-and-support-pages.md).
+No test suite was written or run under this Codex task's instructions.
+
+## 2026-10-23: Chrome Web Store draft item and pending trader verification (TDR-0120)
+
+The owner reported submitting Google verification. The intended publisher
+dashboard now says "Your verification is currently pending." Uploaded the
+source-matched 0.4.9 ZIP to draft item `kdijhbgnbpjoaalbpnimfomemeheokca` and
+saved its English description, Workflow & Planning category, 128-pixel icon,
+homepage, single-purpose statement, all requested permission justifications and
+No remote code. The dashboard confirmed "Item saved." Its current submit dialog
+still calls for a screenshot/video, data-use certification, public contact email
+and verification of that email. A public privacy URL, accurate collection
+categories, reviewer access, installed 0.4.9 acceptance and backend/public ZIP
+rollout remain open. No fee payment, review submission or publication is claimed.
+This was a dashboard/configuration slice; no code test suite was written or run.
+
 ## 2026-10-23: Chrome Web Store publisher handoff (TDR-0120)
 
 The intended Google publisher account `contact.dwarkesh@gmail.com` reached the

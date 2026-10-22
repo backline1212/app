@@ -1,0 +1,59 @@
+.bl-info-page {
+  min-height: 100vh;
+  background: #f6f8fc;
+  color: #17213a;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.bl-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px max(24px, calc((100vw - 900px) / 2));
+  border-bottom: 1px solid #dce3ef;
+  background: #fff;
+}
+
+.bl-info-brand {
+  color: #17213a;
+  font-size: 1.25rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.bl-info-header nav {
+  display: flex;
+  gap: 20px;
+}
+
+.bl-info-page a { color: #3444aa; }
+.bl-info-header a { text-underline-offset: 3px; }
+
+.bl-info-content {
+  width: min(100% - 40px, 820px);
+  margin: 0 auto;
+  padding: 56px 0 80px;
+  line-height: 1.7;
+}
+
+.bl-info-content h1 {
+  margin: 0 0 16px;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.15;
+}
+
+.bl-info-lead {
+  font-size: 1.12rem;
+  color: #485775;
+}
+
+.bl-info-content section {
+  margin-top: 36px;
+  padding-top: 24px;
+  border-top: 1px solid #dce3ef;
+}
+
+.bl-info-content h2 { margin: 0 0 12px; font-size: 1.35rem; }
+.bl-info-content p, .bl-info-content ul { margin: 0 0 16px; }
+.bl-info-content li { margin-bottom: 10px; }

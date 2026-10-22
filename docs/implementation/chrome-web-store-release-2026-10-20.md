@@ -13,21 +13,34 @@ The 118-character manifest description fits Chrome's 132-character limit.
 Extension/widget lint, typecheck and build passed (6/6 Turbo tasks). The 0.4.5
 hash below is historical; do not upload that old package.
 
-The Chrome Web Store dashboard recognizes `contact.dwarkesh@gmail.com` after the
-account owner completed Google's sign-in verification. An account-settings dialog
-now requires an EEA trader or non-trader declaration. Do not guess or submit that
-legal declaration. The dialog also shows that a contact email must be added and
-verified before publishing or editing items. The dashboard has not yet shown an
-actual registration-fee amount or payment state. No charge, ZIP upload, listing
-submission or publication is verified in this release pass.
+The Chrome Web Store dashboard recognizes `contact.dwarkesh@gmail.com`. The owner
+selected trader status and submitted Google's publisher verification; the settings
+page says "Your verification is currently pending." The dashboard has not shown
+an actual registration-fee amount or payment state. No charge is verified.
 
-Public extension privacy/support URLs, a real extension screenshot, promotional
-art, reviewer access and truthful owner-level data-use certifications remain open.
-Google's image guidance says the extension icon, small promotional image and one
-screenshot are mandatory. A source build is not interactive acceptance; test 0.4.9
-in Chrome before submission. The current public API download still serves 0.4.4;
+Uploaded the source-matched 0.4.9 ZIP as **draft** item
+`kdijhbgnbpjoaalbpnimfomemeheokca`. The dashboard confirmed saved store copy,
+Workflow & Planning category, English language, store icon, homepage URL,
+single-purpose statement and permission justifications. Remote code is marked No.
+The dashboard's current blockers are a real screenshot/video, data-use
+certification, public contact email and contact-email verification. A public
+privacy URL and source-matched data categories remain necessary even though the
+current blocker dialog does not list them. No review submission or publication is
+verified.
+
+Public extension privacy/support URLs, a real extension screenshot, reviewer
+access and truthful owner-level data-use certifications remain open. The current
+dashboard requires a store icon and at least one screenshot or video; the small
+promotional tile is offered as an optional field. A source build is not
+interactive acceptance; test 0.4.9 in Chrome before submission. The current
+public API download still serves 0.4.4;
 ship and verify the 0.4.9 backend image before presenting the store upload as the
 latest installed build.
+
+Source now includes signed-out `/privacy` and `/support` pages (TDR-0121). The
+deployed URLs and service-wide facts must be checked before setting the Chrome
+privacy-policy or support URL fields. Browser use was disabled for the subsequent
+verification pass, so no live route check is claimed.
 
 ## Upload package
 
@@ -110,10 +123,11 @@ retention promises or other organization-wide practices from extension code alon
 
 ## Required before submission
 
-1. Open the developer dashboard using the intended Google publisher account.
-   Confirm the actual one-time charge/currency on Google's checkout. No charge has
-   been made in this task. Google agreements/account setup remain uncompleted.
-2. Supply the public publisher/support details and a reachable public privacy-policy
+1. Wait for Google's pending trader verification decision and inspect the account
+   status. Confirm any actual developer registration charge/currency if Google
+   presents checkout; no charge was made in this task.
+2. Supply and verify the public publisher contact email, public support details,
+   and a reachable public privacy-policy
    URL describing the collection above and the actual service's practices. Current
    web source contains placeholder Privacy links; those are not a policy URL.
 3. Load/update the packaged extension and verify actual Chrome behavior. The
@@ -123,8 +137,9 @@ retention promises or other organization-wide practices from extension code alon
    personal/private website content and client information. Prepare the store's
    required promotional artwork separately; do not present a fabricated mockup as
    evidence of functional acceptance.
-5. Upload the ZIP, enter listing/privacy/distribution fields, provide reviewer
-   access through an appropriate dedicated review account, and submit for review.
+5. Complete the draft's data categories, privacy URL and distribution fields,
+   provide reviewer access through an appropriate dedicated review account, and
+   submit for review.
    Never use prototype passwords or expose a real user's credentials in listing
    text. Submission and Google approval are separate states.
 6. After an approved store URL exists, wire it into the web extension-install flow
@@ -137,12 +152,11 @@ retention promises or other organization-wide practices from extension code alon
 - [Privacy fields](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)
 - [Store images](https://developer.chrome.com/docs/webstore/images)
 
-Browser control could read the existing Backline tab, but opening the developer
-dashboard was rejected with `Not allowed`. The user was asked to open it manually.
-No upload, payment, public certification or submission has occurred. A subsequent
-Chrome inventory shows Google sign-in for the Web Store; the user was asked to
-complete sign-in. Extension/widget lint, typecheck and build passed (6/6 Turbo
-tasks); the final icon-only rebuild also passed. ZIP contents and icon appearance
-were inspected. No test suite was written or run.
+Earlier preparation could not open the developer dashboard in the installed Chrome
+profile. The owner completed sign-in, and the draft item was later created in the
+available signed-in dashboard as recorded above. No payment, public certification
+or review submission has occurred. Extension/widget lint, typecheck and build
+passed (6/6 Turbo tasks); ZIP contents and icon appearance were inspected. No
+test suite was written or run.
 
 Final ZIP SHA-256: `CB02723E4BF34A26DC347DB483DDFA23446D4F20908110F07691A709F51C231C`.

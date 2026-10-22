@@ -1,11 +1,16 @@
 # Final Draft implementation index
 
+Public extension information follow-up (2026-10-23):
+[TDR-0121](../tdr/0121-public-extension-privacy-and-support-pages.md) adds
+signed-out privacy and support pages and replaces dead signup privacy/support
+links. Live URLs and owner data-use certification remain open.
+
 Chrome Web Store publisher follow-up (2026-10-23):
 [TDR-0120](../tdr/0120-chrome-web-store-publisher-verification.md) records the
-intended publisher account, owner-selected trader status, source-matched 0.4.9
-package and Google verification handoff. Payment, listing and review remain
-unverified; the [release handoff](chrome-web-store-release-2026-10-20.md) carries
-the upload artifact and open requirements.
+intended publisher account, owner-selected trader status, pending Google
+verification and source-matched 0.4.9 draft item. Payment, review and publication
+remain unverified; the [release handoff](chrome-web-store-release-2026-10-20.md)
+carries the upload artifact and open requirements.
 
 Review bundle loading follow-up (2026-10-22):
 [TDR-0119](../tdr/0119-defer-file-and-pdf-review-bundles.md) defers file

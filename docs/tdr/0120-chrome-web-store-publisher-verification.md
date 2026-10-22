@@ -22,12 +22,21 @@ known.
 
 ## Evidence and follow-up
 
-The Chrome Web Store dashboard showed the intended account email, trader prompt,
-and publisher-verification preparation dialog. Google lists legal name/address,
+The Chrome Web Store dashboard showed the intended account email and selected
+trader status. After the owner submitted verification, the account page reported
+"Your verification is currently pending." Google lists legal name/address,
 phone, ID/address evidence for individuals or organization registration evidence
-for organizations. The account page also showed a contact email verification
-requirement. No registration-fee amount, charge, package upload or review state
-has been observed.
+for organizations. The account page also requires a separate public contact email
+and its verification. No registration-fee amount or charge has been observed.
+
+The source-matched 0.4.9 ZIP was uploaded as draft item
+`kdijhbgnbpjoaalbpnimfomemeheokca`. The dashboard confirmed "Item saved" for
+the English store description, Workflow & Planning category, 128-pixel store icon,
+homepage URL, single-purpose text, permission justifications, and no-remote-code
+answer. The dashboard still requires an authentic screenshot or video, data-use
+certification, public contact email and contact-email verification. The privacy
+policy URL and source-matched disclosures also remain unfinished. The draft has
+not been submitted for review or published.
 
 The built ZIP's root manifest is 0.4.9. Extension/widget lint, typecheck and
 build passed (6/6 tasks); the ZIP structure, icon dimensions and SHA-256 are in

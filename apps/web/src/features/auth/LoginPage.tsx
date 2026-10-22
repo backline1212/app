@@ -59,7 +59,7 @@ export function LoginPage() {
   const [newPassword, setNewPassword] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acknowledgedPrivacy, setAcknowledgedPrivacy] = useState(false);
   const [code, setCode] = useState("");
   const [codePurpose, setCodePurpose] = useState<"signin" | "signup">("signin");
   const [error, setError] = useState<string | null>(null);
@@ -214,8 +214,8 @@ export function LoginPage() {
       setError(`Use at least ${PASSWORD_MIN_LENGTH} characters.`);
       return;
     }
-    if (!acceptedTerms) {
-      setError("Agree to the terms and privacy policy to create an account.");
+    if (!acknowledgedPrivacy) {
+      setError("Review the privacy notice to create an account.");
       return;
     }
     if (!beginAuth()) return;
@@ -517,12 +517,12 @@ export function LoginPage() {
                 <label className="lg-check">
                   <input
                     type="checkbox"
-                    id="lgTerms"
+                    id="lgPrivacy"
                     disabled={isSubmitting}
-                    checked={acceptedTerms}
-                    onChange={(event) => setAcceptedTerms(event.target.checked)}
+                    checked={acknowledgedPrivacy}
+                    onChange={(event) => setAcknowledgedPrivacy(event.target.checked)}
                   />
-                  <span>I agree to the <a href="#">terms of service</a> and the <a href="#">privacy policy</a>.</span>
+                  <span>I have read the <a href="/privacy" target="_blank" rel="noopener noreferrer">privacy notice</a>.</span>
                 </label>
                 {error && (
                   <p id={errorId} role="alert" className="lg-err">
@@ -718,9 +718,8 @@ export function LoginPage() {
 
         <div className="lg-foot">
           <span className="c">&copy; {new Date().getFullYear()} Backline</span>
-          <a href="#">Privacy</a>
-          <a href="#">Terms</a>
-          <a href="#">Support</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/support">Support</a>
         </div>
       </section>
 

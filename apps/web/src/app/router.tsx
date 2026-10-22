@@ -48,6 +48,8 @@ const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { path: "/login", lazy: page(() => import("../features/auth/LoginPage"), "LoginPage") },
+      { path: "/privacy", lazy: page(() => import("../features/pages/PublicInfoPages"), "PrivacyPage") },
+      { path: "/support", lazy: page(() => import("../features/pages/PublicInfoPages"), "SupportPage") },
       {
         path: "/auth/callback",
         lazy: page(() => import("../features/auth/AuthCallbackPage"), "AuthCallbackPage"),
