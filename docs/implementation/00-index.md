@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+File-review keyboard follow-up (2026-10-22):
+[TDR-0117](../tdr/0117-scope-file-review-keyboard-shortcuts.md) scopes PDF/image
+page and zoom shortcuts away from controls, dialogs and modified keys.
+Browser PDF acceptance remains open.
+
 Guest handoff proxy-privacy follow-up (2026-10-22):
 [TDR-0116](../tdr/0116-keep-guest-handoff-out-of-reviewed-site-requests.md)
 strips the Backline guest token/name from requests and Referers sent upstream by

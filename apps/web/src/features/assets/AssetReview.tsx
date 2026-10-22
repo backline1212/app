@@ -210,7 +210,9 @@ export function AssetReview({
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA' || hasDraft) return;
+      const target = e.target instanceof Element ? e.target : document.activeElement;
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || hasDraft ||
+        target?.closest('input, textarea, select, button, [contenteditable], [role="dialog"], [role="tablist"]')) return;
       if (e.key === '=' || e.key === '+') { setZoomScale(s => Math.min(4, s + 0.25)); }
       else if (e.key === '-') { setZoomScale(s => Math.max(0.25, s - 0.25)); }
       else if (e.key === '[') { setRotation(r => (r - 90) % 360); }

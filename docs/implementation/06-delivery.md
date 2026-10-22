@@ -1,5 +1,14 @@
 # Delivery and verification ledger
 
+## 2026-10-22: FLOW-08 file-review keyboard focus (TDR-0117)
+
+The PDF/image review's global arrow, zoom and rotation shortcuts now yield to
+modified keys, already-handled events, editable controls, buttons, dialogs and
+tablists. This avoids changing pages while the reviewer operates another
+control. Web lint, typecheck, production build and diff checks pass. The build
+still reports the tracked >500 kB chunk advisory (OPT-04). Browser keyboard
+and full PDF acceptance remain open.
+
 ## 2026-10-22: BUG-08 guest handoff proxy egress (TDR-0116)
 
 The proxy removes reserved `backline_guest` and `backline_name` parameters
