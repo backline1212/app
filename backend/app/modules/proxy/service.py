@@ -613,6 +613,21 @@ async def fetch_proxied_resource(
 
     content_type = upstream.headers.get("content-type", "application/octet-stream")
 
+    # A reviewed site's assets and document viewers may probe with HEAD. There is no
+    # body to rewrite or inject into, even when the corresponding GET is HTML.
+    if method == "HEAD":
+        return ProxiedResponse(
+            status_code=upstream.status_code,
+            content_type=content_type,
+            body=b"",
+            set_cookies=set_cookies,
+            extra_headers=tuple(
+                (name, value)
+                for name in _PASSTHROUGH_RESPONSE_HEADERS
+                if (value := upstream.headers.get(name)) is not None
+            ),
+        )
+
     if "text/html" in content_type:
         proxy_prefix = "" if request.preview_host else f"/proxy/{share_token}"
         cookie_attributes = (

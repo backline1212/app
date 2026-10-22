@@ -1,5 +1,14 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-14 website preview HEAD requests (TDR-0118)
+
+Preview root/path and legacy fallback routes now accept HEAD. The proxy keeps
+normal link, rate, cookie, redirect and SSRF handling, but returns an empty
+body without HTML injection or a false zero Content-Length. Backend
+Ruff/format, mypy (217 files), workspace-scope (25 repository files) and diff
+checks pass. No external target probe or live rollout is
+claimed; example.com root cause and PDF/site acceptance remain open.
+
 ## 2026-10-22: FLOW-08 file-review keyboard focus (TDR-0117)
 
 The PDF/image review's global arrow, zoom and rotation shortcuts now yield to

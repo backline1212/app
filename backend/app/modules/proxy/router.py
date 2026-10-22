@@ -114,6 +114,11 @@ async def _proxy(share_token: str, path: str, request: Request) -> Response:
         response.headers["vary"] = "accept-encoding"
     for cookie in result.set_cookies:
         response.headers.append("set-cookie", cookie)
+    if request.method == "HEAD":
+        # _bounded_request does not download the GET representation. Starlette's
+        # empty Response would otherwise advertise a false Content-Length: 0.
+        if "content-length" in response.headers:
+            del response.headers["content-length"]
     return response
 
 
@@ -130,6 +135,11 @@ async def proxy_root(share_token: str, request: Request) -> Response:
 
 @router.post("/proxy/{share_token}")
 async def proxy_root_post(share_token: str, request: Request) -> Response:
+    return await _proxy(share_token, "/", request)
+
+
+@router.head("/proxy/{share_token}", include_in_schema=False)
+async def proxy_root_head(share_token: str, request: Request) -> Response:
     return await _proxy(share_token, "/", request)
 
 
@@ -159,6 +169,11 @@ async def proxy_path(share_token: str, path: str, request: Request) -> Response:
 
 @router.post("/proxy/{share_token}/{path:path}")
 async def proxy_path_post(share_token: str, path: str, request: Request) -> Response:
+    return await _proxy(share_token, path, request)
+
+
+@router.head("/proxy/{share_token}/{path:path}", include_in_schema=False)
+async def proxy_path_head(share_token: str, path: str, request: Request) -> Response:
     return await _proxy(share_token, path, request)
 
 

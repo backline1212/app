@@ -56,3 +56,8 @@ async def unmatched_path_fallback_get(full_path: str, request: Request) -> Redir
 @router.post("/{full_path:path}")
 async def unmatched_path_fallback_post(full_path: str, request: Request) -> RedirectResponse:
     return await _unmatched_path_fallback(full_path, request)
+
+
+@router.head("/{full_path:path}", include_in_schema=False)
+async def unmatched_path_fallback_head(full_path: str, request: Request) -> RedirectResponse:
+    return await _unmatched_path_fallback(full_path, request)

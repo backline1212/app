@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Preview HEAD-method follow-up (2026-10-22):
+[TDR-0118](../tdr/0118-preview-head-request-support.md) relays bodyless
+HEAD probes through both preview link modes. Backend rollout and actual
+site/asset acceptance remain open.
+
 File-review keyboard follow-up (2026-10-22):
 [TDR-0117](../tdr/0117-scope-file-review-keyboard-shortcuts.md) scopes PDF/image
 page and zoom shortcuts away from controls, dialogs and modified keys.
