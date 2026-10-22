@@ -32,3 +32,7 @@ browser/network acceptance should verify website guest/member entry without
 the PDF chunk, an image file without the PDF parser, and a PDF file that loads
 its parser/worker, renders, switches pages and saves comments. Network and
 startup timings remain to be measured before closing OPT-04/03.
+
+Rollout evidence on 2026-10-22: GitHub's Vercel context reports success for
+source commit `a86e919`, and the public Vercel root returns HTTP 200. No
+signed-in network trace, image review or PDF comment acceptance was run.

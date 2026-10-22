@@ -8,7 +8,9 @@ loading state while its code arrives. Web lint, typecheck, production build and
 diff checks pass. The former 514.27 kB native-review chunk becomes separate
 6.18 kB native-review, 25.89 kB file-review and 483.14 kB PDF parser chunks;
 the >500 kB build advisory clears. These sizes do not establish live speed.
-Web rollout, network confirmation and full image/PDF/comment acceptance remain.
+GitHub reports Vercel success for `a86e919`, and the public root returns
+HTTP 200. Signed-in network confirmation and full image/PDF/comment acceptance
+remain.
 
 ## 2026-10-22: BUG-14 website preview HEAD requests (TDR-0118)
 
