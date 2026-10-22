@@ -1,5 +1,16 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-08 private DOM capture exclusions (TDR-0114)
+
+The widget now excludes editable fields and marked-private subtrees from new DOM
+snapshot text, attributes, accessible names, roles and descendants. Anchor hashes
+share that exclusion; exact selector paths use structural indexes inside private
+areas. Comments remain usable, while automatic recovery inside those excluded
+subtrees may be weaker. Widget and extension lint/typecheck/build and diff checks
+pass. The extension build used existing local store-preparation changes, which
+remain unstaged. No suite, signed-in capture or shared-data write was run.
+Widget SDK and extension rollout plus actual capture/anchor acceptance remain open.
+
 ## 2026-10-22: BUG-08 integration page-field privacy (TDR-0113)
 
 Automatic notifier messages, tracker descriptions and signed webhook `page_url`

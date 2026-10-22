@@ -1,4 +1,4 @@
-import { computeIdentity, getDirectText, getStableAttributes } from "./node-identity";
+import { computeIdentity, getDirectText, getStableAttributes, isPrivateReviewElement } from "./node-identity";
 import { computeSimhash } from "./simhash";
 import type { AnchorPayload, DomFingerprint } from "./types";
 
@@ -19,7 +19,7 @@ function nthOfTypeIndex(el: Element): number {
 
 function selectorSegment(el: Element): string {
   const tag = el.tagName.toLowerCase();
-  if (el.id) return `${tag}#${el.id}`;
+  if (!isPrivateReviewElement(el) && el.id) return `${tag}#${el.id}`;
   return `${tag}:nth-of-type(${nthOfTypeIndex(el)})`;
 }
 

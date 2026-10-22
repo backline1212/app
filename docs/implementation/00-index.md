@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Private DOM evidence follow-up (2026-10-22):
+[TDR-0114](../tdr/0114-private-dom-capture-exclusions.md) excludes editable and
+`data-backline-private` subtrees from new normalized snapshots and anchor text.
+Screenshot/historical and arbitrary visible-text privacy remain separate work.
+
 Integration page-field privacy follow-up (2026-10-22):
 [TDR-0113](../tdr/0113-private-page-url-integration-exports.md) exports the
 reviewed site's origin rather than credential-bearing routes/queries to connected

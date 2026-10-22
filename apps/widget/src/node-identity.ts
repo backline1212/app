@@ -1,11 +1,18 @@
 import { sha256 } from "./hash";
 
+const PRIVATE_SELECTOR = 'input,textarea,select,[contenteditable=""],[contenteditable="true"],[contenteditable="plaintext-only"],[data-backline-private]';
+
+export function isPrivateReviewElement(el: Element): boolean {
+  return el.closest(PRIVATE_SELECTOR) !== null;
+}
+
 // Shared by dom-snapshot.ts (whole-page walk, at load time) and anchor.ts (single
 // element, at click time) - both must compute node identity the same way, or an
 // anchor's hashes can never match the corresponding node in a later snapshot, even for
 // a completely unchanged page (docs/tdr/0004-anchor-snapshot-shared-hash-scheme.md).
 
 export function getDirectText(el: Element): string {
+  if (isPrivateReviewElement(el)) return "";
   let text = "";
   for (const child of el.childNodes) {
     if (child.nodeType === Node.TEXT_NODE) {
@@ -16,6 +23,7 @@ export function getDirectText(el: Element): string {
 }
 
 export function getStableAttributes(el: Element): Record<string, string> {
+  if (isPrivateReviewElement(el)) return {};
   const attrs: Record<string, string> = {};
   const id = el.getAttribute("id");
   if (id) attrs.id = id;

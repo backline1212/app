@@ -1,5 +1,5 @@
 import { sha256 } from "./hash";
-import { getDirectText, getStableAttributes } from "./node-identity";
+import { getDirectText, getStableAttributes, isPrivateReviewElement } from "./node-identity";
 import { computeSimhash } from "./simhash";
 import type { NodeRecord, NodeTreeEntry, NormalizedSnapshot } from "./types";
 
@@ -51,12 +51,15 @@ async function buildNode(
   if (state.count % 40 === 0) { await new Promise(resolve => setTimeout(resolve, 0)); requireCurrent(state); }
   const nodeId = `n_${state.count}`;
   const tag = el.tagName.toLowerCase();
+  const privateElement = isPrivateReviewElement(el);
   const attributes = getStableAttributes(el);
-  if (el.childNodes.length > 20_000) throw new Error("This page is too complex for a complete version capture. Comments still work.");
-  let rawTextLength = 0;
-  for (const child of el.childNodes) {
-    if (child.nodeType === Node.TEXT_NODE) rawTextLength += child.textContent?.length ?? 0;
-    if (rawTextLength > 200_000) throw new Error("A page element is too large for version capture. Comments still work.");
+  if (!privateElement) {
+    if (el.childNodes.length > 20_000) throw new Error("This page is too complex for a complete version capture. Comments still work.");
+    let rawTextLength = 0;
+    for (const child of el.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) rawTextLength += child.textContent?.length ?? 0;
+      if (rawTextLength > 200_000) throw new Error("A page element is too large for version capture. Comments still work.");
+    }
   }
   const text = getDirectText(el);
   if (text.length > MAX_TEXT_LENGTH || Object.values(attributes).some(value => value.length > 4000)) throw new Error("A page element is too large for version capture. Comments still work.");
@@ -70,13 +73,15 @@ async function buildNode(
   const children: NodeTreeEntry[] = [];
   // The upfront child-count bound makes this copy bounded; a live collection can
   // otherwise skip siblings when an app removes/reparents elements during awaits.
-  for (const child of Array.from(el.children)) {
-    state.scanned += 1;
-    if (state.scanned > 20_000) throw new Error("This page is too complex for a complete version capture. Comments still work.");
-    if (state.scanned % 100 === 0) { await new Promise(resolve => setTimeout(resolve, 0)); requireCurrent(state); }
-    if (child.hasAttribute("data-backline-root")) continue;
-    if (!isVisible(child)) continue;
-    children.push(await buildNode(child, ancestorPathHash, nodesIndex, state, depth + 1));
+  if (!privateElement) {
+    for (const child of Array.from(el.children)) {
+      state.scanned += 1;
+      if (state.scanned > 20_000) throw new Error("This page is too complex for a complete version capture. Comments still work.");
+      if (state.scanned % 100 === 0) { await new Promise(resolve => setTimeout(resolve, 0)); requireCurrent(state); }
+      if (child.hasAttribute("data-backline-root")) continue;
+      if (!isVisible(child)) continue;
+      children.push(await buildNode(child, ancestorPathHash, nodesIndex, state, depth + 1));
+    }
   }
 
   const record: NodeRecord = {
@@ -84,9 +89,9 @@ async function buildNode(
     attributes,
     text,
     bounding_box: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
-    computed_style_subset: getStyleSubset(el),
-    role: el.getAttribute("role"),
-    accessible_name: el.getAttribute("aria-label") ?? (text || null),
+    computed_style_subset: privateElement ? {} : getStyleSubset(el),
+    role: privateElement ? null : el.getAttribute("role"),
+    accessible_name: privateElement ? null : el.getAttribute("aria-label") ?? (text || null),
     node_hash: nodeHash,
     ancestor_path_hash: ancestorPathHash,
     text_similarity_hash: computeSimhash(text),
