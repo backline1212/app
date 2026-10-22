@@ -43,48 +43,17 @@ export function createReply(
   });
 }
 
-export function createUpload(
-  projectId: string,
-  contentType: string,
-  contentLength: number,
-  signal?: AbortSignal,
-): Promise<Schemas["UploadOut"]> {
-  return apiFetch<Schemas["UploadOut"]>("/api/v1/uploads", {
-    method: "POST",
-    signal,
-    body: JSON.stringify({
-      project_id: projectId,
-      content_type: contentType,
-      content_length: contentLength,
-    }),
-  });
-}
-
-// Presigned-PUT upload for a reply attachment, returning the AttachmentIn the reply
-// carries - the same two-step flow a screenshot uses (POST /uploads, then PUT the bytes).
+// The same-origin relay confirms the object in one request and supports repeat
+// upload of the same bytes after a lost response on a matching backend.
 export async function uploadAttachment(projectId: string, file: File, parent?: AbortSignal): Promise<Schemas["AttachmentIn"]> {
   if (!file.size || file.size > 20 * 1024 * 1024) throw new Error("Attachments must contain data and be at most 20 MiB.");
   const controller = new AbortController();
   const cancel = () => controller.abort(parent?.reason);
   parent?.addEventListener("abort", cancel, { once: true });
   if (parent?.aborted) cancel();
-  const timeout = window.setTimeout(() => controller.abort(), 120_000);
+  // Allow the relay's 120-second object-write deadline plus request/response time.
+  const timeout = window.setTimeout(() => controller.abort(), 150_000);
   try {
-    const upload = await createUpload(projectId, file.type, file.size, controller.signal);
-    try {
-      const response = await fetch(upload.upload_url, {
-        method: "PUT",
-        body: file,
-        signal: controller.signal,
-        headers: { "Content-Type": file.type },
-      });
-      if (response.ok) {
-        return { key: upload.key, filename: file.name, content_type: file.type };
-      }
-    } catch (error) {
-      if (controller.signal.aborted) throw error;
-      // A bucket CORS/network failure falls through to the same-origin relay below.
-    }
     const form = new FormData();
     form.append("project_id", projectId);
     form.append("file", file, file.name);

@@ -36,6 +36,12 @@ const HOST_STYLES = `
     padding: 4px 6px 4px 8px; font-size: 12px; max-width: 100%; border: 1px solid rgba(0,0,0,0.06);
   }
   .bl-attachment-chip.bl-attachment-pending { opacity: 0.6; }
+  .bl-attachment-chip.bl-attachment-failed { border-color: #B42318; }
+  .bl-attachment-failure { color: #B42318; font-size: 11px; }
+  button.bl-attachment-retry {
+    background: none; border: none; color: #2455A4; cursor: pointer;
+    padding: 0 2px; font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
   .bl-attachment-name {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;
   }

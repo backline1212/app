@@ -251,7 +251,7 @@ export function openComposer(
   const hasDraft = (): boolean =>
     !closed &&
     !posted &&
-    (submitted || textarea.value.trim() !== "" || attachments.getAttachments().length > 0 || attachments.pendingCount() > 0);
+    (submitted || textarea.value.trim() !== "" || attachments.getAttachments().length > 0 || attachments.pendingCount() > 0 || attachments.failedCount() > 0);
 
   function nudge(): void {
     if (closed) return;
@@ -320,6 +320,10 @@ export function openComposer(
     // Posting now would silently leave a still-uploading file off the comment.
     if (attachments.pendingCount() > 0) {
       statusEl.textContent = "Wait for the attachment to finish uploading.";
+      return;
+    }
+    if (attachments.failedCount() > 0) {
+      statusEl.textContent = "Retry or remove failed attachments before posting.";
       return;
     }
     submitted = true;

@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+First-party review-upload transport follow-up (2026-10-22):
+[TDR-0112](../tdr/0112-first-party-review-upload-relay.md) uses the same-origin
+relay for widget and portal screenshot/attachment uploads, with a visible retry
+for failed widget attachments. Legacy signed PUT clients remain supported.
+
 Direct review-upload replay follow-up (2026-10-22):
 [TDR-0111](../tdr/0111-repeatable-direct-review-uploads.md) reuses the same
 actor/project/content object for repeat API-relay screenshot or attachment uploads.

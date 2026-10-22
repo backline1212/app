@@ -32,8 +32,8 @@ export function attachmentIcon(): string {
  * submit - so a reviewer sees per-file upload failures immediately (a chip that just
  * won't leave its pending state) rather than the whole comment silently failing to post
  * later. `uploadFile` does the actual network work (index.ts owns the API client; ui.ts
- * doesn't import it, same separation as everywhere else in this file) and returns null
- * on failure, which removes the chip and never gets included in the submitted result.
+ * doesn't import it, same separation as everywhere else in this file). A failed chip
+ * retains its File for an explicit retry and blocks posting until retried or removed.
  * `onCountChange` reports how many chips are showing (pending uploads included) after
  * every add/remove, for a caller whose attach button label depends on it.
  */
@@ -47,6 +47,7 @@ export function setupAttachments(
 ): {
   getAttachments: () => AttachmentResult[];
   pendingCount: () => number;
+  failedCount: () => number;
   addFiles: (files: File[]) => void;
   disable: () => void;
   enable: () => void;
@@ -70,17 +71,18 @@ export function setupAttachments(
 
       const chip = document.createElement("span");
       chip.className = "bl-attachment-chip bl-attachment-pending";
-      chip.innerHTML = `${attachmentIcon()}<span class="bl-attachment-name"></span><button type="button" class="bl-attachment-remove" aria-label="Remove attachment">&times;</button>`;
+      chip.innerHTML = `${attachmentIcon()}<span class="bl-attachment-name"></span><span class="bl-attachment-failure" hidden>Failed</span><button type="button" class="bl-attachment-retry" hidden>Retry</button><button type="button" class="bl-attachment-remove" aria-label="Remove attachment">&times;</button>`;
       chip.querySelector(".bl-attachment-name")!.textContent = file.name;
       attachmentsEl.appendChild(chip);
       reportCount();
 
       const removeButton = chip.querySelector<HTMLButtonElement>(".bl-attachment-remove")!;
+      const retryButton = chip.querySelector<HTMLButtonElement>(".bl-attachment-retry")!;
+      const failureLabel = chip.querySelector<HTMLSpanElement>(".bl-attachment-failure")!;
       let result: AttachmentResult | null = null;
       // Removed before its upload finished: the upload still completes, but it must not
       // be attached to the comment the reviewer took it out of.
       let removed = false;
-      pending += 1;
       removeButton.addEventListener("click", () => {
         if (disabled) return;
         removed = true;
@@ -92,21 +94,33 @@ export function setupAttachments(
         }
       });
 
-      void uploadFile(file)
-        .catch(() => null)
-        .then((uploadedResult) => {
-          pending -= 1;
-          if (removed) return;
-          if (!uploadedResult) {
-            chip.remove();
-            reportCount();
-            onProblem?.(`${file.name} couldn't be uploaded.`);
-            return;
-          }
-          result = uploadedResult;
-          uploaded.push(uploadedResult);
-          chip.classList.remove("bl-attachment-pending");
-        });
+      function attemptUpload(): void {
+        chip.classList.remove("bl-attachment-failed");
+        chip.classList.add("bl-attachment-pending");
+        retryButton.hidden = true;
+        failureLabel.hidden = true;
+        pending += 1;
+        void uploadFile(file)
+          .catch(() => null)
+          .then((uploadedResult) => {
+            pending -= 1;
+            if (removed) return;
+            chip.classList.remove("bl-attachment-pending");
+            if (!uploadedResult) {
+              chip.classList.add("bl-attachment-failed");
+              retryButton.hidden = false;
+              failureLabel.hidden = false;
+              onProblem?.(`${file.name} couldn't be uploaded. Retry or remove it.`);
+              return;
+            }
+            result = uploadedResult;
+            uploaded.push(uploadedResult);
+          });
+      }
+      retryButton.addEventListener("click", () => {
+        if (!disabled && !removed) attemptUpload();
+      });
+      attemptUpload();
     }
   }
 
@@ -121,6 +135,7 @@ export function setupAttachments(
   return {
     getAttachments: () => uploaded,
     pendingCount: () => pending,
+    failedCount: () => attachmentsEl.querySelectorAll(".bl-attachment-failed").length,
     addFiles,
     disable: () => {
       disabled = true;

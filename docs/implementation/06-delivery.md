@@ -1,5 +1,18 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-06/07 first-party review upload relay (TDR-0112)
+
+Widget screenshot/attachment and portal reply/new-ticket attachment uploads now
+use `/uploads/direct` without first requesting a signed R2 PUT. The extension
+already used the relay. A failed widget attachment retains its chip/File with
+Retry/Remove controls and blocks posting until resolved, so a comment cannot
+silently omit that selected file. Widget/web lint, typecheck, production builds and
+diff checks pass; the web build retains its existing >500 kB native review chunk
+advisory. No suite, shared upload or quota write was performed. Mixed-version
+acceptance remains: the relay exists on the older backend, but deterministic
+retry reuse needs TDR-0111's pending backend rollout. Historical signed holds and
+custom clients remain open.
+
 ## 2026-10-22: BUG-07 direct review-upload replay (TDR-0111)
 
 The same-origin screenshot/attachment upload relay now derives an actor- and
@@ -20,7 +33,8 @@ queries. Registration, navigation and extension targets keep the original URL.
 Backend evidence/log redaction and live browser acceptance remain open; this is a
 display slice, not a complete privacy repair. Web lint, typecheck, production build
 and diff checks pass. The build retains the existing >500 kB native review chunk
-advisory; no test suite or shared-data write was run.
+advisory; no test suite or shared-data write was run. Source commit `711a57a` was
+pushed and its Vercel status reports success; browser acceptance remains open.
 
 ## 2026-10-22: BUG-05 comment integration dispatch (TDR-0109)
 
