@@ -1,5 +1,24 @@
 # Delivery and verification ledger
 
+## 2026-10-23: Chrome Web Store publisher handoff (TDR-0120)
+
+The intended Google publisher account `contact.dwarkesh@gmail.com` reached the
+Chrome Web Store dashboard after owner sign-in verification. The owner chose
+trader status for professional publishing. Google now requires publisher
+verification using a payment profile and legal identity or organization evidence;
+the owner must complete that sensitive flow. No fee amount, charge, identity
+submission, ZIP upload, listing submission, review result or live listing is
+verified. A public privacy/support route, real extension screenshot, reviewer
+access, data-use certifications and installed 0.4.9 acceptance remain pending.
+
+Rebuilt the current 0.4.9 ZIP; manifest at root, bundled scripts/popup and all
+four PNG icon sizes inspected. The 118-character description fits Chrome's
+132-character limit. Extension/widget lint, typecheck and build passed (6/6
+Turbo tasks). The public API still serves a 0.4.4 ZIP; backend rollout and
+public-artifact verification remain open. See [TDR-0120](../tdr/0120-chrome-web-store-publisher-verification.md)
+and the [release handoff](chrome-web-store-release-2026-10-20.md). No test suite
+was written or run under this Codex task's instructions.
+
 ## 2026-10-22: OPT-04 deferred file/PDF bundles (TDR-0119)
 
 Website guest/member entry now loads the file reviewer only for file projects,

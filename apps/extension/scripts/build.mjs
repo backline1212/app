@@ -59,6 +59,7 @@ await esbuild.build({
 
 fs.copyFileSync(path.join(rootDir, "manifest.json"), path.join(distDir, "manifest.json"));
 fs.copyFileSync(path.join(rootDir, "src/popup.html"), path.join(distDir, "popup.html"));
+fs.cpSync(path.join(rootDir, "icons"), path.join(distDir, "icons"), { recursive: true });
 
 // Zipped for direct download from Settings > Browser Extension (backend/app/main.py
 // mounts this dist dir at /extension) ahead of a Chrome Web Store listing existing -

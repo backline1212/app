@@ -1,5 +1,12 @@
 # Final Draft implementation index
 
+Chrome Web Store publisher follow-up (2026-10-23):
+[TDR-0120](../tdr/0120-chrome-web-store-publisher-verification.md) records the
+intended publisher account, owner-selected trader status, source-matched 0.4.9
+package and Google verification handoff. Payment, listing and review remain
+unverified; the [release handoff](chrome-web-store-release-2026-10-20.md) carries
+the upload artifact and open requirements.
+
 Review bundle loading follow-up (2026-10-22):
 [TDR-0119](../tdr/0119-defer-file-and-pdf-review-bundles.md) defers file
 review until a file project opens and PDF parsing until a PDF opens. Build
