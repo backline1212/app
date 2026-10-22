@@ -1,5 +1,16 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-12 legacy preview form redirects (TDR-0115)
+
+Legacy `/proxy/{token}/` form requests now pass the website's 301/302/303/307/308
+redirect status to the browser while rewriting same-origin Location and retaining
+session cookie headers. A 307/308 can therefore replay its original method/body,
+instead of the proxy converting it to a GET. Backend Ruff and format pass, mypy
+passes on 217 source files, workspace-scope passes on 25 repository files, and
+diff checks pass. No suite, external login or shared-data write is claimed. Backend
+rollout and controlled 307/308/303 form acceptance remain pending; the
+example.com preview failure has no proven cause yet.
+
 ## 2026-10-22: BUG-08 private DOM capture exclusions (TDR-0114)
 
 The widget now excludes editable fields and marked-private subtrees from new DOM

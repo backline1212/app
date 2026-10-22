@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Legacy preview redirect follow-up (2026-10-22):
+[TDR-0115](../tdr/0115-preserve-legacy-preview-form-redirect-status.md)
+preserves a reviewed site's form redirect status so 307/308 keep the method
+and body. Backend rollout and a controlled login-form acceptance remain open.
+
 Private DOM evidence follow-up (2026-10-22):
 [TDR-0114](../tdr/0114-private-dom-capture-exclusions.md) excludes editable and
 `data-backline-private` subtrees from new normalized snapshots and anchor text.
@@ -33,7 +38,8 @@ Arq jobs remain readable; live provider/crash acceptance is separate.
 Project integration delivery follow-up (2026-10-22):
 [TDR-0108](../tdr/0108-durable-project-integration-dispatch.md) stores per-destination
 project-update notification intents in the metadata transaction and adds worker
-retry/recovery. Comment-event dispatch is a separate remaining BUG-05 slice.
+retry/recovery. [TDR-0109](../tdr/0109-durable-comment-integration-dispatch.md)
+covers comment-event dispatch; provider acceptance remains open.
 
 Concurrent-edit follow-up (2026-10-22):
 [TDR-0107](../tdr/0107-comment-and-file-update-conflicts.md) adds revision-checked

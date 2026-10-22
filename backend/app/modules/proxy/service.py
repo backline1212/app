@@ -657,8 +657,9 @@ async def _fetch_legacy(
         # A form submission is answered with the redirect itself rather than followed
         # here: the reviewer's browser makes the next hop, so the frame's URL ends up on
         # the page it's actually showing (and the session cookie rides along on this
-        # response). A script's fetch/XHR login that answers with JSON instead falls
-        # through to the passthrough, Set-Cookie included.
+        # response). Keep the upstream status: 307/308 must replay the method and body,
+        # while 303 intentionally switches to GET. A script's fetch/XHR login that
+        # answers with JSON instead falls through to the passthrough.
         upstream = await _bounded_request(client, method, upstream_url, content=body)
         cookie_events.extend(
             _legacy_set_cookies(upstream.headers.get_list("set-cookie"), share_token)
@@ -668,7 +669,7 @@ async def _fetch_legacy(
             return (
                 upstream,
                 ProxiedResponse(
-                    status_code=303,
+                    status_code=upstream.status_code,
                     content_type="text/plain",
                     body=b"",
                     set_cookies=(

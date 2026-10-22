@@ -29,7 +29,8 @@ affected backend Ruff/mypy/workspace-scope checks, without new test suites.
 | 6 | BUG-05 | Source checked; rollout/acceptance pending | TDR-0108/0109: transactional project and comment notifier intent, leases and recovery; additive index applied. |
 | 7 | BUG-08 | Portal display web deployed; integration/DOM slices source checked | TDR-0110/0113/0114 mask portal labels, external page fields and private DOM areas; screenshot/history/logs and live acceptance remain. |
 | 8 | BUG-06/07 | Portal relay web deployed; widget/backend rollout/acceptance pending | TDR-0111/0112 reuse a relay object on retry and avoid new signed grants in first-party flows; historical grants/evidence reconciliation remains. |
-| 9 | Remaining FLOW/OPT/FEAT/QA | Pending | Follow priority tables and record dependencies/acceptance per slice. |
+| 9 | BUG-12 | Source checked; backend rollout/form acceptance pending | TDR-0115 keeps 307/308 method and body in the legacy proxy form flow. This is not established as the cause of the observed example.com failure. |
+| 10 | Remaining FLOW/OPT/FEAT/QA | Pending | Follow priority tables and record dependencies/acceptance per slice. |
 
 ## 1. Deployment and release
 
@@ -59,6 +60,7 @@ rollout evidence; the later documentation commit is `32c3388`.
 | BUG-09 | P2 | Preview failure root cause remains unproven | The example.com canvas failed in live checks. Extension/retry/saved-feedback recovery works, but the underlying network/proxy failure was not established. Diagnose with supported network evidence before calling it repaired. |
 | BUG-10 | P2 | Legacy hash-route feedback remains merged | New #/ and #!/ identities are implemented in source, awaiting the matching rollout. Old merged feedback stays on the legacy page. Provide a reviewed mapping/reassignment workflow if required; no guessed migration. |
 | BUG-11 | P2 | Privacy, Terms and Support links are placeholders | Login footer and signup agreement still link to `#`. Supply actual approved policy/support destinations and verify every entry point. Do not invent legal text or organizational practices. |
+| BUG-12 | P2 | Legacy preview changes method-preserving form redirects to GET — source repaired, rollout/acceptance pending | TDR-0115 relays upstream redirect status for legacy `/proxy/{token}/` form requests. Ruff, format, mypy (217 files), workspace scope (25 repositories) and diff checks pass; verify 307/308 POST body and 303 GET with an authorized test site after rollout. This is not proof of the example.com root cause. |
 
 The two new digest findings are source-derived from
 [`digest.py`](../../backend/app/modules/notifications/digest.py), especially
