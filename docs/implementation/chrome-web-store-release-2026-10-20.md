@@ -37,10 +37,14 @@ public API download still serves 0.4.4;
 ship and verify the 0.4.9 backend image before presenting the store upload as the
 latest installed build.
 
-Source now includes signed-out `/privacy` and `/support` pages (TDR-0121). The
-deployed URLs and service-wide facts must be checked before setting the Chrome
-privacy-policy or support URL fields. Browser use was disabled for the subsequent
-verification pass, so no live route check is claimed.
+Source now includes signed-out `/privacy` and `/support` pages (TDR-0121).
+Vercel reported success for `8af3ce5`; both URLs returned HTTP 200 and the
+deployed JS referenced their page chunk. Browser rendering/navigation and
+service-wide privacy facts must still be checked before setting the Chrome
+privacy-policy or support URL fields. Browser use was disabled for this pass.
+Railway posted successful app/worker statuses for the same commit, but the public
+extension ZIP still contains manifest version 0.4.4; the 0.4.9 download rollout
+is not accepted.
 
 ## Upload package
 

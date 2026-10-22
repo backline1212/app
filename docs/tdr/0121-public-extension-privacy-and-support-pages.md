@@ -1,6 +1,6 @@
 # TDR-0121: Give extension reviewers public privacy and support pages
 
-Date: 2026-10-23. Status: implemented in source; live verification pending.
+Date: 2026-10-23. Status: deployed; browser acceptance pending.
 
 ## Decision
 
@@ -25,7 +25,8 @@ for review. No certification is inferred from writing the notice.
 ## Verification
 
 Web lint, typecheck and production build passed after the final notice copy.
-Browser
-control was disabled in Work settings at the time of this pass, so signed-out
-navigation, visual layout and deployed public URLs remain unverified. No new test
-suite was written or run under the Codex task instruction.
+Vercel reported success for commit `8af3ce5`, both `/privacy` and `/support`
+returned HTTP 200, and the deployed JavaScript referenced the public page chunk
+containing the notice and support address. Browser control was disabled in Work
+settings, so signed-out rendering, navigation and visual layout remain unverified.
+No new test suite was written or run under the Codex task instruction.

@@ -8,7 +8,10 @@ routes rather than `#`; the signup checkbox acknowledges the privacy notice and
 does not pretend that a missing Terms document exists. Web lint, typecheck and
 build passed after the final notice copy (3/3 Turbo tasks). Browser use was
 disabled in Work settings, so signed-out
-route navigation, layout and deployed URLs were not accepted in a browser. The
+route navigation and layout were not accepted in a browser. Vercel reported a
+successful deployment for `8af3ce5`; `/privacy` and `/support` returned HTTP 200,
+and the deployed JS referenced the public page chunk with the notice and support
+address. The
 publisher must verify live processors and certify service-wide data practices
 before entering the privacy URL in Chrome Web Store. See [TDR-0121](../tdr/0121-public-extension-privacy-and-support-pages.md).
 No test suite was written or run under this Codex task's instructions.
@@ -24,7 +27,11 @@ No remote code. The dashboard confirmed "Item saved." Its current submit dialog
 still calls for a screenshot/video, data-use certification, public contact email
 and verification of that email. A public privacy URL, accurate collection
 categories, reviewer access, installed 0.4.9 acceptance and backend/public ZIP
-rollout remain open. No fee payment, review submission or publication is claimed.
+rollout remain open. The public API download still reported version 0.4.4 after
+Railway posted successful app/worker statuses on `8af3ce5`; those statuses do
+not establish a current extension artifact. Railway CLI access was unauthorized,
+so the source of the stale ZIP could not be inspected. No fee payment, review
+submission or publication is claimed.
 This was a dashboard/configuration slice; no code test suite was written or run.
 
 ## 2026-10-23: Chrome Web Store publisher handoff (TDR-0120)

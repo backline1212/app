@@ -3,7 +3,8 @@
 Public extension information follow-up (2026-10-23):
 [TDR-0121](../tdr/0121-public-extension-privacy-and-support-pages.md) adds
 signed-out privacy and support pages and replaces dead signup privacy/support
-links. Live URLs and owner data-use certification remain open.
+links. Deployed assets are verified; browser acceptance and owner data-use
+certification remain open.
 
 Chrome Web Store publisher follow-up (2026-10-23):
 [TDR-0120](../tdr/0120-chrome-web-store-publisher-verification.md) records the

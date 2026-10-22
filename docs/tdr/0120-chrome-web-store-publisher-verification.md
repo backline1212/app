@@ -35,7 +35,9 @@ the English store description, Workflow & Planning category, 128-pixel store ico
 homepage URL, single-purpose text, permission justifications, and no-remote-code
 answer. The dashboard still requires an authentic screenshot or video, data-use
 certification, public contact email and contact-email verification. The privacy
-policy URL and source-matched disclosures also remain unfinished. The draft has
+policy URL field and source-matched disclosures also remain unfinished. The public
+privacy/support pages were subsequently deployed (TDR-0121), but browser
+acceptance and service-wide factual review remain open. The draft has
 not been submitted for review or published.
 
 The built ZIP's root manifest is 0.4.9. Extension/widget lint, typecheck and
