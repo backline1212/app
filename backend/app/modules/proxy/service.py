@@ -8,7 +8,7 @@ from email.utils import format_datetime
 from http.cookies import CookieError, SimpleCookie
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import unquote_plus, urlsplit, urlunsplit
 
 import httpx
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -58,6 +58,7 @@ _FORWARDED_REQUEST_HEADERS = frozenset(
     }
 )
 _BLOCKED_CUSTOM_HEADER_PREFIXES = ("x-forwarded-", "x-real-ip", "x-backline")
+_GUEST_HANDOFF_PARAMS = frozenset({"backline_guest", "backline_name"})
 
 # Upstream response headers worth keeping on non-HTML: caching validators so a reload
 # doesn't refetch every script and image through the proxy, plus what media seeking
@@ -247,6 +248,21 @@ def _forwarded_headers(headers: Mapping[str, str]) -> dict[str, str]:
     return forwarded
 
 
+def _without_guest_handoff_params(query: str) -> str:
+    """Keep the website's query bytes/order, but never forward Backline's guest
+    handoff fields to it. Re-encoding every parameter would change some sites' URLs."""
+    return "&".join(
+        part
+        for part in query.split("&")
+        if unquote_plus(part.partition("=")[0]) not in _GUEST_HANDOFF_PARAMS
+    )
+
+
+def _without_guest_handoff_from_url(url: str) -> str:
+    parsed = urlsplit(url)
+    return urlunsplit(parsed._replace(query=_without_guest_handoff_params(parsed.query)))
+
+
 def _cookie_prefix(share_token: str) -> str:
     """Session cookies live in the reviewer's browser on Backline's own origin, so they
     are namespaced per share link. Two things fall out of that: Backline's own cookies
@@ -332,7 +348,9 @@ def _upstream_referer(referer: str | None, *, share_token: str, target_origin: s
     index = referer.find(marker)
     if index == -1:
         return None
-    return f"{target_origin}{referer[index + len(marker) :] or '/'}"
+    return _without_guest_handoff_from_url(
+        f"{target_origin}{referer[index + len(marker) :] or '/'}"
+    )
 
 
 def _location_for_browser(
@@ -383,7 +401,7 @@ def _preview_referer(referer: str | None, *, request_host: str, target_origin: s
     rest = parsed.path or "/"
     if parsed.query:
         rest += f"?{parsed.query}"
-    return f"{target_origin}{rest}"
+    return _without_guest_handoff_from_url(f"{target_origin}{rest}")
 
 
 def _preview_location(location: str, *, base_url: str, target_origin: str) -> str:
@@ -496,8 +514,9 @@ async def fetch_proxied_resource(
     target_origin = review_origin(project["target_origin"])
 
     upstream_url = f"{target_origin}/{path.lstrip('/')}"
-    if query_string:
-        upstream_url += f"?{query_string}"
+    website_query = _without_guest_handoff_params(query_string)
+    if website_query:
+        upstream_url += f"?{website_query}"
 
     request = incoming or ProxyRequest()
     method = request.method.upper()

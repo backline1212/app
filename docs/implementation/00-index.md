@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Guest handoff proxy-privacy follow-up (2026-10-22):
+[TDR-0116](../tdr/0116-keep-guest-handoff-out-of-reviewed-site-requests.md)
+strips the Backline guest token/name from requests and Referers sent upstream by
+the proxy. Browser/Backline URL exposure and direct snippet handoff remain open.
+
 Legacy preview redirect follow-up (2026-10-22):
 [TDR-0115](../tdr/0115-preserve-legacy-preview-form-redirect-status.md)
 preserves a reviewed site's form redirect status so 307/308 keep the method

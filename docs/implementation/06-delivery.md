@@ -1,5 +1,17 @@
 # Delivery and verification ledger
 
+## 2026-10-22: BUG-08 guest handoff proxy egress (TDR-0116)
+
+The proxy removes reserved `backline_guest` and `backline_name` parameters
+before requesting the reviewed site or forwarding a mapped Referer. It keeps
+other query bytes and order, while the widget can still receive the handoff on
+Backline's preview URL. Backend Ruff and format pass, mypy passes on 217
+source files, workspace-scope passes on 25 repositories, and diff checks pass.
+No shared guest
+session or external request was created for this change. Backend rollout and
+an authorized upstream-request inspection remain pending. Initial Backline
+URLs, browser history and direct snippet mode still need a separate exchange.
+
 ## 2026-10-22: BUG-12 legacy preview form redirects (TDR-0115)
 
 Legacy `/proxy/{token}/` form requests now pass the website's 301/302/303/307/308
