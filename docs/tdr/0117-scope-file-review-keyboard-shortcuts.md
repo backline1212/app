@@ -23,3 +23,8 @@ should open a multipage PDF, confirm unmodified arrows/zoom/rotation work on
 the review surface, and confirm file controls, dialogs, tablists and modified
 keys keep their own behavior. PDF rendering, upload and coordinate/pin QA
 remain separate; this source check does not establish end-to-end PDF support.
+
+Source and rollout verification on 2026-10-22: web lint, typecheck and build
+pass; GitHub reports the Vercel context successful for `bce57e8`, and the
+public `backline-qa.vercel.app` root returns HTTP 200. No browser keyboard or
+actual PDF journey was run.
