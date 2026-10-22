@@ -244,7 +244,7 @@ export function ProjectsPage() {
 
       <div className="bl-tabs" aria-label="Project types">{[['all', 'All projects'], ['website', 'Website'], ['image', 'Images'], ['pdf', 'PDF']].map(([key, label]) => <button key={key} aria-pressed={type === key} onClick={() => filter("type", key)}>{label}<span className="bl-count">{(projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (key === "all" || (p.project_type ?? "website") === key)).length}</span></button>)}<button type="button" aria-pressed={type === "webapp"} onClick={() => filter("type", "webapp")}>Web App <small>Soon</small></button><button type="button" aria-pressed={type === "mobile"} onClick={() => filter("type", "mobile")}>Mobile App <small>Soon</small></button></div>
 
-      {soonType ? <ComingSoonPanel type={soonType} onReviewWebsite={() => filter("type", "website")} /> : <>
+      {soonType ? <ComingSoonPanel type={soonType} onReviewWebsite={() => filter("type", "website")} onReviewImages={() => filter("type", "image")} /> : <>
 
       {/* One search-styled control on this screen, not two: this is the "filter the
           visible grid" input; the omnisearch in the persistent topbar (⌘K) is the

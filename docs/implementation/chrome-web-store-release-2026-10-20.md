@@ -58,7 +58,8 @@ HTTP 200, manifest 0.4.9 and SHA-256
 The portal download workaround is live. The original API route remains stale.
 
 The portal now points to a new versioned 0.4.10 ZIP with the current hash above.
-Its public deployment and installed acceptance are pending. The 0.4.9 static
+Vercel reported success for `ca6219f`, and the hosted ZIP returned HTTP 200,
+manifest 0.4.10 and the same SHA-256. Installed acceptance is pending. The 0.4.9 static
 file remains available for rollback until 0.4.10 is accepted.
 
 ## Upload package

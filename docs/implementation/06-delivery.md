@@ -1,5 +1,16 @@
 # Delivery and verification ledger
 
+## 2026-10-23: Available review paths in product copy (TDR-0124)
+
+The Mobile App panel now states that native device/build/replay review is
+planned and points to the usable Images/PDF project flow. Its action opens the
+Images tab. Pricing rows marked `coming_soon` use a waiting icon instead of a
+checkmark while retaining their explicit label. This does not change
+entitlements, billing, or availability. Web lint/typecheck/build passed (3/3
+Turbo tasks); browser acceptance is pending. See
+[TDR-0124](../tdr/0124-available-review-paths-in-product-copy.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-23: Website sign-in continuation (TDR-0123)
 
 The native browser launch no longer removes its session just because the
@@ -14,8 +25,10 @@ and web lint/typecheck/build passed (7/7 Turbo tasks); source and portal ZIP
 hashes match at
 `82AA528F00701E885F39C6DF635BEDC1447B652F72ABBA0A05676D0F335DEE1A`.
 The web production build was repeated after copying the ZIP; the built ZIP has
-the same hash and root manifest 0.4.10. Deployment and public retrieval still
-need verification. Installed login, toolbar, comment and return acceptance
+the same hash and root manifest 0.4.10. Vercel reported success for `ca6219f`;
+the public versioned ZIP returned HTTP 200, 51,154 bytes, manifest 0.4.10 and
+the same hash. The portal root returned HTTP 200. Installed login, toolbar,
+comment and return acceptance
 remain pending; the 0.4.9 Web Store draft requires replacement. See
 [TDR-0123](../tdr/0123-keep-native-review-through-website-sign-in.md).
 No test suite was written or run under the Codex task instruction.

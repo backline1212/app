@@ -1,6 +1,6 @@
 # TDR-0123: Keep browser review available through website sign-in
 
-Date: 2026-10-23. Status: source checked; browser acceptance pending.
+Date: 2026-10-23. Status: portal deployed; installed-browser acceptance pending.
 
 ## Problem and decision
 
@@ -31,7 +31,9 @@ proxy, or guarantee a toolbar on unsupported/restricted browser pages.
 Extension and web lint, typecheck and production build passed. The source
 extension ZIP and portal ZIP have SHA-256
 `82AA528F00701E885F39C6DF635BEDC1447B652F72ABBA0A05676D0F335DEE1A`;
-manifest version is 0.4.10. A real password/SSO redirect, installed update,
+manifest version is 0.4.10. Vercel reported success for `ca6219f`; the public
+versioned ZIP returned HTTP 200, manifest 0.4.10 and the same SHA-256, and the
+portal root returned HTTP 200. A real password/SSO redirect, installed update,
 return-to-project, save and capture still require browser acceptance after
 deployment. The Chrome Web Store draft remains 0.4.9 until it is updated; it
 must not be submitted as the current build. No test suite was written or run

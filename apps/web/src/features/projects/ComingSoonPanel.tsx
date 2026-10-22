@@ -19,17 +19,17 @@ const SOON: Record<SoonType, { title: string; lead: string; points: string[]; ar
   },
   mobile: {
     title: "Review builds on real devices",
-    lead: "Point Backline at a TestFlight or APK build and clients can comment on the running app from their own phone, with the tap that caused the problem recorded next to the note.",
+    lead: "Native app review is planned. Today, upload screenshots or a PDF as an Images or PDF project to collect pinned feedback from clients.",
     points: [
-      "Comments pinned to a screen and a device, with OS version and viewport attached automatically.",
-      "Replay of the last 30 seconds before the comment was left.",
-      "Builds versioned, so a comment on build 42 still reads correctly on build 47.",
+      "Planned: comments linked to a real device, screen and build.",
+      "Planned: explicit device capture permissions and version-aware feedback.",
+      "Planned: build distribution and review from supported phones.",
     ],
     art: mobileArt,
   },
 };
 
-export function ComingSoonPanel({ type, onReviewWebsite }: { type: SoonType; onReviewWebsite?: () => void }) {
+export function ComingSoonPanel({ type, onReviewWebsite, onReviewImages }: { type: SoonType; onReviewWebsite?: () => void; onReviewImages?: () => void }) {
   const d = SOON[type];
   return (
     <section className="bl-soon-panel" aria-labelledby={`soon-${type}`}>
@@ -48,6 +48,7 @@ export function ComingSoonPanel({ type, onReviewWebsite }: { type: SoonType; onR
           ))}
         </ul>
         {type === "webapp" && onReviewWebsite && <button type="button" className="bl-button" onClick={onReviewWebsite}>Review a website now</button>}
+        {type === "mobile" && onReviewImages && <button type="button" className="bl-button" onClick={onReviewImages}>Review screenshots now</button>}
       </div>
       <div className="bl-soon-art">
         <img src={d.art} alt="" />

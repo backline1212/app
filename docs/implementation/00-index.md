@@ -1,11 +1,16 @@
 # Final Draft implementation index
 
+Review availability copy follow-up (2026-10-23):
+[TDR-0124](../tdr/0124-available-review-paths-in-product-copy.md) clarifies
+the planned native Mobile App scope, links the usable screenshot review path,
+and distinguishes unavailable pricing features visually. Browser acceptance
+remains open.
+
 Browser sign-in continuation follow-up (2026-10-23):
 [TDR-0123](../tdr/0123-keep-native-review-through-website-sign-in.md)
 keeps a tab-bound review session when a website sign-in outlasts the toolbar
-check. Extension 0.4.10 and its versioned portal download are source checked;
-deployment, installed acceptance and replacement of the 0.4.9 Web Store draft
-remain open.
+check. Extension 0.4.10 and its versioned portal download are deployed;
+installed acceptance and replacement of the 0.4.9 Web Store draft remain open.
 
 Extension download follow-up (2026-10-23):
 [TDR-0122](../tdr/0122-versioned-portal-extension-download.md) points portal

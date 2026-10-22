@@ -65,7 +65,9 @@ export function PlanPricingCard({ plan, interval, currency, currentPlanId, canMa
         {plan.features.map((feature) => (
           <li key={feature.label} className={feature.coming_soon ? "is-soon" : undefined}>
             <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
-              <path d="M5 10.5 8.3 13.5 15 6.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              {feature.coming_soon
+                ? <><circle cx="10" cy="10" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M7 10h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></>
+                : <path d="M5 10.5 8.3 13.5 15 6.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
             </svg>
             <span>{feature.label}</span>
             {feature.coming_soon && <em>Coming soon</em>}
