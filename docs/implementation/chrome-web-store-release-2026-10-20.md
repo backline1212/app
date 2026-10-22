@@ -46,6 +46,11 @@ Railway posted successful app/worker statuses for the same commit, but the publi
 extension ZIP still contains manifest version 0.4.4; the 0.4.9 download rollout
 is not accepted.
 
+The portal download links now target a checked-in, versioned static 0.4.9 ZIP
+through the web deployment (TDR-0122). This avoids presenting the stale API ZIP
+to portal users. The Vercel-hosted ZIP must be fetched and checked before calling
+that workaround live; the original API route remains stale.
+
 ## Upload package
 
 Run `pnpm exec turbo run lint typecheck build --filter=@backline/extension --filter=@backline/widget`

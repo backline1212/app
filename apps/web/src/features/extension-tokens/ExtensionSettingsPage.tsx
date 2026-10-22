@@ -4,7 +4,7 @@ import { Link, useOutletContext } from "react-router-dom";
 
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { LoadingScreen } from "../../components/LoadingScreen";
-import { API_BASE_URL } from "../../lib/api-client";
+import { EXTENSION_DOWNLOAD_URL } from "../review/extension-download";
 import { formatRelativeTime } from "../../lib/date-format";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
@@ -124,7 +124,7 @@ export function ExtensionSettingsPage() {
           </ol>
           <p>Already installed? Replace the files in the folder you loaded, click Reload on its extension card, then reload your Backline tabs. In Edge, use <code>edge://extensions</code>.</p>
           <a
-            href={`${API_BASE_URL}/extension/backline-extension.zip`}
+            href={EXTENSION_DOWNLOAD_URL}
             className="bl-button"
             style={{ display: "inline-block", width: "fit-content", textDecoration: "none" }}
           >

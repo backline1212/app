@@ -1,5 +1,17 @@
 # Delivery and verification ledger
 
+## 2026-10-23: Versioned portal extension download (TDR-0122)
+
+The public API's ZIP still contains 0.4.4. Added the source-matched 0.4.9 ZIP
+to the web app's public assets and pointed both portal installation flows at a
+shared versioned URL, `/backline-extension-0.4.9.zip`. The source and public
+package SHA-256 match, as does the built web-dist copy. Web lint/typecheck/build
+passed (3/3 Turbo tasks); public Vercel download acceptance is pending. The old
+API route remains externally reachable and its
+Railway deployment discrepancy still needs investigation. See
+[TDR-0122](../tdr/0122-versioned-portal-extension-download.md). No test suite
+was written or run under the Codex task instruction.
+
 ## 2026-10-23: Public extension information and signup links (TDR-0121)
 
 Added signed-out `/privacy` and `/support` routes with extension data collection,

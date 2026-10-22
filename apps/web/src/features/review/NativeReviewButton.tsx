@@ -2,7 +2,8 @@ import type { NativeReviewAuth, NativeReviewStatus } from "@backline/types";
 import { type Ref, useEffect, useRef, useState } from "react";
 
 import { Dialog } from "../../components/Dialog";
-import { API_BASE_URL, ApiError } from "../../lib/api-client";
+import { ApiError } from "../../lib/api-client";
+import { EXTENSION_DOWNLOAD_URL } from "./extension-download";
 import { useOnlineStatus } from "../../lib/use-online-status";
 import { createExtensionToken, revokeExtensionToken } from "../extension-tokens/api";
 import { ExtensionError, extensionRequest, isExtensionContextInvalidated, reviewExtensionProblem } from "./review-extension";
@@ -120,7 +121,7 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
         {busy && <p role="status">{phase === "checking" ? "Checking your browser extension…" : "Opening the website and waiting for its Backline toolbar…"}</p>}
         {phase === "setup" && <>
           <p>{message}</p><p>One-time setup in desktop Chrome or Edge:</p>
-          <ol><li><a href={`${API_BASE_URL}/extension/backline-extension.zip`}>Download the extension</a> and unzip it.</li>
+          <ol><li><a href={EXTENSION_DOWNLOAD_URL}>Download the extension</a> and unzip it.</li>
             <li>Open the extensions page below, turn on Developer mode and choose Load unpacked.</li>
             <li>Select the unzipped folder, then return here and choose Check again.</li></ol>
           <label>Browser<select className="bl-input" value={browserAddress} onChange={event => { setBrowserAddress(event.target.value); setCopied(false); }}><option value="chrome://extensions">Chrome</option><option value="edge://extensions">Edge</option></select></label>
