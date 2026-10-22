@@ -7,7 +7,9 @@ planned and points to the usable Images/PDF project flow. Its actions open the
 Images or PDF tab. Pricing rows marked `coming_soon` use a waiting icon instead of a
 checkmark while retaining their explicit label. This does not change
 entitlements, billing, or availability. Web lint/typecheck/build passed (3/3
-Turbo tasks); browser acceptance is pending. See
+Turbo tasks). Vercel reported success for `955f6e8`; the public root and
+project bundle returned HTTP 200, and the bundle contains both screenshot
+and PDF actions plus the planned native-app copy. Browser acceptance is pending. See
 [TDR-0124](../tdr/0124-available-review-paths-in-product-copy.md).
 No test suite was written or run under the Codex task instruction.
 
@@ -31,6 +33,9 @@ the same hash. The portal root returned HTTP 200. Installed login, toolbar,
 comment and return acceptance
 remain pending; the 0.4.9 Web Store draft requires replacement. See
 [TDR-0123](../tdr/0123-keep-native-review-through-website-sign-in.md).
+The API's legacy extension ZIP and manifest still returned 0.4.4 with a
+cache-busting query after Railway posted app/worker success on `3cf6814`;
+`/health` returned 200. Its service/build mapping remains unresolved.
 No test suite was written or run under the Codex task instruction.
 
 ## 2026-10-23: Versioned portal extension download (TDR-0122)

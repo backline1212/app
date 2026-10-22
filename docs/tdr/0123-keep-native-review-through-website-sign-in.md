@@ -38,3 +38,9 @@ return-to-project, save and capture still require browser acceptance after
 deployment. The Chrome Web Store draft remains 0.4.9 until it is updated; it
 must not be submitted as the current build. No test suite was written or run
 under the Codex task instruction.
+
+The API's legacy `/extension/backline-extension.zip` and `/extension/manifest.json`
+still returned 0.4.4 with a `?v=0.4.10` cache-busting query after Railway posted
+success for app/worker on `3cf6814`. Its `/health` returned 200. This points
+to an unresolved service/build mapping or rollout discrepancy; the portal's
+versioned 0.4.10 ZIP remains the verified installation route.

@@ -1,6 +1,6 @@
 # TDR-0124: Show available review paths beside planned features
 
-Date: 2026-10-23. Status: source checked; browser acceptance pending.
+Date: 2026-10-23. Status: portal deployed; browser acceptance pending.
 
 ## Decision
 
@@ -19,6 +19,10 @@ date or unavailable feature is promised.
 ## Verification
 
 Web lint, typecheck and production build passed (3/3 Turbo tasks).
+Vercel reported success for `955f6e8`; the public root and current project
+bundle returned HTTP 200, and the served bundle contains both screenshot and
+PDF actions with the planned native-app copy. The 0.4.10 extension ZIP remains
+publicly available with its recorded SHA-256.
 Browser acceptance of the tabs, action and pricing card remains open while
 local browser use is disabled. No test suite was written or run under the
 Codex task instruction.
