@@ -22,13 +22,15 @@ class NativeReviewError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
 }
 
-function waitForReady(launchId: string): { ready: Promise<void>; cancel: () => void } {
+function waitForReady(launchId: string): { ready: Promise<boolean>; cancel: () => void } {
   let timer: ReturnType<typeof setTimeout>;
-  const ready = new Promise<void>((resolve, reject) => {
-    readyWaiters.set(launchId, () => { clearTimeout(timer); readyWaiters.delete(launchId); resolve(); });
+  const ready = new Promise<boolean>(resolve => {
+    readyWaiters.set(launchId, () => { clearTimeout(timer); readyWaiters.delete(launchId); resolve(true); });
     timer = setTimeout(() => {
       readyWaiters.delete(launchId);
-      reject(new Error("The website opened but its review tools did not connect. Finish signing in, then reopen with the extension. If the site redirects to another domain, use that address in the project URL."));
+      // A password/SSO flow may take longer than this handshake. Keep the
+      // tab-bound session so the content script can attach on return.
+      resolve(false);
     }, 15000);
   });
   return { ready, cancel: () => { clearTimeout(timer); readyWaiters.delete(launchId); } };
@@ -75,7 +77,7 @@ async function request<T>(auth: NativeReviewAuth, path: string, init: RequestIni
   return response.status === 204 ? undefined as T : response.json() as Promise<T>;
 }
 
-async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<void> {
+async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<{ ready: boolean }> {
   const launchEpoch = reviewEpoch;
   const destination = new URL(input.url);
   if (!["http:", "https:"].includes(destination.protocol) || destination.username || destination.password) {
@@ -136,7 +138,7 @@ async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<
     } else {
       await chrome.tabs.update(tab.id, { url: destination.href });
     }
-    await waiter.ready;
+    return { ready: await waiter.ready };
   } catch (error) {
     const rolledBack = await mutateSession(tab.id, latest => latest?.launchId === launchId
       ? latest.accessEnded || launchEpoch !== reviewEpoch ? null : previous : undefined);

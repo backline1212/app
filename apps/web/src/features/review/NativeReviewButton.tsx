@@ -1,4 +1,4 @@
-import type { NativeReviewAuth, NativeReviewStatus } from "@backline/types";
+import type { NativeReviewAuth, NativeReviewLaunchResult, NativeReviewStatus } from "@backline/types";
 import { type Ref, useEffect, useRef, useState } from "react";
 
 import { Dialog } from "../../components/Dialog";
@@ -17,7 +17,7 @@ interface Props {
   triggerRef?: Ref<HTMLButtonElement>;
 }
 
-type Phase = "checking" | "setup" | "reload" | "opening" | "connected" | "error";
+type Phase = "checking" | "setup" | "reload" | "opening" | "waiting" | "connected" | "error";
 
 export function NativeReviewButton({ projectId, url, member, guest, onGuestSessionExpired, triggerRef }: Props) {
   const online = useOnlineStatus();
@@ -56,7 +56,8 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
     setMessage("");
     setNeedsRejoin(false);
     let issuedId: string | null = null;
-    let connected = false;
+    let launchAttempted = false;
+    let credentialRetained = false;
     try {
       let status: NativeReviewStatus;
       try { status = await extensionRequest<NativeReviewStatus>("status", undefined, controller.signal); }
@@ -82,21 +83,30 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
         auth = { kind: "member", token: issued.token };
       }
       if (!current()) return;
-      await extensionRequest("launch", { projectId, url, returnUrl: window.location.href, auth }, controller.signal);
+      launchAttempted = true;
+      const result = await extensionRequest<NativeReviewLaunchResult>("launch", { projectId, url, returnUrl: window.location.href, auth }, controller.signal);
+      credentialRetained = true;
       if (!current()) return;
-      connected = true;
       setHasConnected(true);
-      setPhase("connected");
+      setPhase(result.ready ? "connected" : "waiting");
     } catch (error) {
+      credentialRetained = launchAttempted && (error instanceof ExtensionError && error.timedOut
+        || error instanceof DOMException && error.name === "AbortError");
       if (!current()) return;
+      if (credentialRetained) {
+        setHasConnected(true);
+        setPhase("waiting");
+        return;
+      }
       setPhase(isExtensionContextInvalidated(error) ? "reload" : "error");
       const status = error instanceof ApiError || error instanceof ExtensionError ? error.status : 0;
       setNeedsRejoin(Boolean(guest && [401, 403, 404].includes(status)));
       setMessage(error instanceof Error ? error.message : "Browser review couldn't connect. Try again.");
     } finally {
       if (active.current === controller) active.current = null;
-      // Cancelled or late responses cannot retain an undisclosed launch credential.
-      if (issuedId && !connected) await revokeExtensionToken(issuedId).catch(() => undefined);
+      // Revoke only when launch definitively failed before the extension could
+      // accept the credential; a timeout/closed dialog may still have opened it.
+      if (issuedId && !credentialRetained) await revokeExtensionToken(issuedId).catch(() => undefined);
     }
   }
 
@@ -110,7 +120,7 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
     <button ref={triggerRef} type="button" className="bl-review-control bl-button" onClick={() => void start()} disabled={open && busy}>
       {hasConnected ? "Open website review again" : "Open with extension"}
     </button>
-    {open && <Dialog title={phase === "reload" ? "Reconnect browser review" : phase === "setup" ? "Set up browser review" : phase === "connected" ? "Website review connected" : "Open website review"} onClose={close}>
+    {open && <Dialog title={phase === "reload" ? "Reconnect browser review" : phase === "setup" ? "Set up browser review" : phase === "connected" ? "Website review connected" : phase === "waiting" ? "Finish website sign-in" : "Open website review"} onClose={close}>
       <div className="bl-dialog-intro"><p>Your website opens in a separate tab. Keep Backline open for saved feedback.</p></div>
       <div className="bl-browser-flow" aria-busy={busy}>
         <ol className="bl-review-steps" aria-label="Browser review steps">
@@ -131,13 +141,14 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
         {phase === "error" && <p role="alert" className="bl-error">{message}</p>}
         {phase === "reload" && <p role="status">Your extension was updated. Reload this Backline tab to reconnect, then open website review again. Your saved feedback stays in this project.</p>}
         {phase === "connected" && <p role="status">The Backline toolbar is connected in your website tab.</p>}
+        {phase === "waiting" && <p role="status">Your website tab is opening. Sign in there as usual; the Backline toolbar will appear when you return to this project's website. If the site lands on another domain, update the project URL or reopen review from Backline.</p>}
         {phase !== "setup" && phase !== "reload" && <ol><li>Sign in to the website using your own account if needed.</li><li>Choose Comment to see saved pins and add feedback, or Draw to select an area.</li><li>Write your feedback and save. Use Return to Backline to see the saved ticket.</li></ol>}
         <p className="bl-policy-note">A Backline review link doesn't sign you in to the website or give access to another person's website account.</p>
       </div>
       <footer className="bl-dialog-actions bl-dialog-actions-bordered">
-        <button type="button" className="bl-quiet" onClick={close}>{busy ? "Stop waiting" : phase === "connected" ? "Done" : "Close"}</button>
+        <button type="button" className="bl-quiet" onClick={close}>{phase === "connected" ? "Done" : "Close"}</button>
         {phase === "reload" && <button type="button" className="bl-button" onClick={() => window.location.reload()}>Reload Backline</button>}
-        {!busy && phase !== "connected" && phase !== "reload" && (needsRejoin && onGuestSessionExpired
+        {!busy && phase !== "connected" && phase !== "waiting" && phase !== "reload" && (needsRejoin && onGuestSessionExpired
           ? <button type="button" className="bl-button" onClick={() => { close(); onGuestSessionExpired(); }}>Rejoin review</button>
           : <button type="button" className="bl-button" disabled={!online} onClick={() => void start()}>{phase === "setup" ? "Check again" : "Try again"}</button>)}
       </footer>

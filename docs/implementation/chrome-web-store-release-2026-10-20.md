@@ -4,14 +4,18 @@ Date: 2026-10-20. Original local package: 0.4.5. Store publication: pending.
 
 ## 2026-10-23 release update
 
-The current source manifest is 0.4.9. Rebuilt the package at
-`apps/extension/dist/backline-extension.zip` from that manifest. The ZIP contains
-the root manifest, three bundled scripts, popup HTML, and 16/32/48/128-pixel PNG
-icons. Its size is 51,249 bytes and SHA-256 is
+The current source manifest is 0.4.10 after TDR-0123's sign-in continuation
+fix. Its rebuilt ZIP at `apps/extension/dist/backline-extension.zip` is 51,154
+bytes, with SHA-256
+`82AA528F00701E885F39C6DF635BEDC1447B652F72ABBA0A05676D0F335DEE1A`.
+The root manifest, three bundled scripts, popup HTML and 16/32/48/128-pixel
+PNG icons were checked. Extension and web lint/typecheck/build passed (7/7
+Turbo tasks). Replace the 0.4.9 draft upload before submitting it. The
+118-character manifest description fits Chrome's 132-character limit.
+
+The 0.4.9 ZIP previously uploaded as a draft was 51,249 bytes with SHA-256
 `4A6665644F33D0E343F6D0FCDB71B82C54BDDF548BB0788DB2EA2ED33F947197`.
-The 118-character manifest description fits Chrome's 132-character limit.
-Extension/widget lint, typecheck and build passed (6/6 Turbo tasks). The 0.4.5
-hash below is historical; do not upload that old package.
+The 0.4.5 hash below is historical; do not upload either older package.
 
 The Chrome Web Store dashboard recognizes `contact.dwarkesh@gmail.com`. The owner
 selected trader status and submitted Google's publisher verification; the settings
@@ -32,7 +36,7 @@ Public extension privacy/support URLs, a real extension screenshot, reviewer
 access and truthful owner-level data-use certifications remain open. The current
 dashboard requires a store icon and at least one screenshot or video; the small
 promotional tile is offered as an optional field. A source build is not
-interactive acceptance; test 0.4.9 in Chrome before submission. The public API
+interactive acceptance; test 0.4.10 in Chrome before submission. The public API
 download still serves 0.4.4, so portal installation uses the separately verified
 versioned web artifact below. Investigate the backend deployment mismatch before
 using the API ZIP again.
@@ -52,6 +56,10 @@ to portal users. Vercel reported success for `71cd5f1`; the hosted ZIP returned
 HTTP 200, manifest 0.4.9 and SHA-256
 `4A6665644F33D0E343F6D0FCDB71B82C54BDDF548BB0788DB2EA2ED33F947197`.
 The portal download workaround is live. The original API route remains stale.
+
+The portal now points to a new versioned 0.4.10 ZIP with the current hash above.
+Its public deployment and installed acceptance are pending. The 0.4.9 static
+file remains available for rollback until 0.4.10 is accepted.
 
 ## Upload package
 

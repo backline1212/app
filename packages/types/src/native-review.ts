@@ -11,6 +11,10 @@ export interface NativeReviewLaunch {
   auth?: NativeReviewAuth;
 }
 
+export interface NativeReviewLaunchResult {
+  ready: boolean;
+}
+
 export interface NativeReviewInfo {
   project: { id: string; name: string; target_origin: string; my_role?: "viewer" | "commenter" | "editor" | "manager" | null };
   authorName: string;

@@ -1,9 +1,10 @@
 import type { NativeReviewLaunch, NativeReviewStatus } from "@backline/types";
 
 import { API_BASE_URL } from "../../lib/api-client";
+import { EXTENSION_VERSION } from "./extension-download";
 
 export class ExtensionError extends Error {
-  constructor(message: string, readonly status = 0) { super(message); }
+  constructor(message: string, readonly status = 0, readonly timedOut = false) { super(message); }
 }
 
 export function isExtensionContextInvalidated(error: unknown): boolean {
@@ -16,7 +17,7 @@ export function reviewExtensionProblem(status: NativeReviewStatus): string | nul
   }
   const parts = typeof status.extensionVersion === "string" && /^\d+(\.\d+){2,3}$/.test(status.extensionVersion)
     ? status.extensionVersion.split(".").map(Number) : [];
-  const minimum = [0, 4, 1];
+  const minimum = EXTENSION_VERSION.split(".").map(Number);
   let supported = parts.length >= 3;
   for (let i = 0; supported && i < minimum.length; i += 1) {
     if (parts[i] === minimum[i]) continue;
@@ -24,7 +25,7 @@ export function reviewExtensionProblem(status: NativeReviewStatus): string | nul
     break;
   }
   return status.version === 2 && supported ? null
-    : "Update to the latest Backline extension (0.4.1 or newer). Replace its files with this download, reload its extension card, then reload Backline.";
+    : `Update to Backline extension ${EXTENSION_VERSION} or newer. Replace its files with this download, reload its extension card, then reload Backline.`;
 }
 
 export function extensionRequest<T>(action: "status" | "launch", input?: NativeReviewLaunch, signal?: AbortSignal): Promise<T> {
@@ -32,7 +33,7 @@ export function extensionRequest<T>(action: "status" | "launch", input?: NativeR
     const id = crypto.randomUUID();
     const timer = window.setTimeout(() => finish(new ExtensionError(action === "status"
       ? "Backline couldn't find the extension in this browser. If it's already installed, reload this Backline tab and check again."
-      : "The website hasn't confirmed its review tools. Finish signing in on the website, then try again.")), action === "status" ? 2500 : 30000);
+      : "The website may still be opening. Finish signing in and wait for the Backline toolbar. If it does not appear, reopen browser review from the project.", 0, true)), action === "status" ? 2500 : 30000);
     function finish(error?: Error, data?: T) {
       window.clearTimeout(timer);
       window.removeEventListener("message", receive);

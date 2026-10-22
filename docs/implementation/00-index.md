@@ -1,5 +1,12 @@
 # Final Draft implementation index
 
+Browser sign-in continuation follow-up (2026-10-23):
+[TDR-0123](../tdr/0123-keep-native-review-through-website-sign-in.md)
+keeps a tab-bound review session when a website sign-in outlasts the toolbar
+check. Extension 0.4.10 and its versioned portal download are source checked;
+deployment, installed acceptance and replacement of the 0.4.9 Web Store draft
+remain open.
+
 Extension download follow-up (2026-10-23):
 [TDR-0122](../tdr/0122-versioned-portal-extension-download.md) points portal
 installation links to the versioned 0.4.9 package served by the web app while

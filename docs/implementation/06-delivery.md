@@ -1,5 +1,25 @@
 # Delivery and verification ledger
 
+## 2026-10-23: Website sign-in continuation (TDR-0123)
+
+The native browser launch no longer removes its session just because the
+initial toolbar check reached 15 seconds. It returns a waiting state so
+ordinary password/SSO redirects can finish and attach the toolbar on return
+to the project's origin. Explicit launch errors still roll back, and the
+portal revokes an unaccepted project token. An uncertain portal response or
+closed launch dialog preserves the potentially active, eight-hour scoped
+token; it can be revoked in Browser Extension settings. The portal now
+requires extension 0.4.10 and links to a source-matched 0.4.10 ZIP. Extension
+and web lint/typecheck/build passed (7/7 Turbo tasks); source and portal ZIP
+hashes match at
+`82AA528F00701E885F39C6DF635BEDC1447B652F72ABBA0A05676D0F335DEE1A`.
+The web production build was repeated after copying the ZIP; the built ZIP has
+the same hash and root manifest 0.4.10. Deployment and public retrieval still
+need verification. Installed login, toolbar, comment and return acceptance
+remain pending; the 0.4.9 Web Store draft requires replacement. See
+[TDR-0123](../tdr/0123-keep-native-review-through-website-sign-in.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-23: Versioned portal extension download (TDR-0122)
 
 The public API's ZIP still contains 0.4.4. Added the source-matched 0.4.9 ZIP
