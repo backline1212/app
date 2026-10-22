@@ -1,6 +1,6 @@
 # TDR-0122: Serve the current extension package from the portal
 
-Date: 2026-10-23. Status: implemented in source; public download verification pending.
+Date: 2026-10-23. Status: deployed; public artifact accepted.
 
 ## Decision
 
@@ -23,5 +23,8 @@ only where manual installation is still needed.
 The source ZIP, public copy and built web-dist copy have the same SHA-256:
 `4A6665644F33D0E343F6D0FCDB71B82C54BDDF548BB0788DB2EA2ED33F947197`.
 The root manifest is 0.4.9. Web lint, typecheck and production build passed
-(3/3 Turbo tasks). Deployed download acceptance remains pending. No test suite
-was written or run under the Codex task instruction.
+(3/3 Turbo tasks). Vercel reported success for `71cd5f1`; fetching the public
+versioned URL returned HTTP 200, a ZIP with manifest 0.4.9, and the exact
+SHA-256 above. This verifies the download artifact, not installation or comment
+behavior in a browser. No test suite was written or run under the Codex task
+instruction.

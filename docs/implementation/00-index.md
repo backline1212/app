@@ -3,7 +3,8 @@
 Extension download follow-up (2026-10-23):
 [TDR-0122](../tdr/0122-versioned-portal-extension-download.md) points portal
 installation links to the versioned 0.4.9 package served by the web app while
-the API's public ZIP remains stale. Public download acceptance remains open.
+the API's public ZIP remains stale. The public download's manifest and hash are
+verified; installed browser acceptance remains open.
 
 Public extension information follow-up (2026-10-23):
 [TDR-0121](../tdr/0121-public-extension-privacy-and-support-pages.md) adds

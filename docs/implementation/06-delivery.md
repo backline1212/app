@@ -6,7 +6,9 @@ The public API's ZIP still contains 0.4.4. Added the source-matched 0.4.9 ZIP
 to the web app's public assets and pointed both portal installation flows at a
 shared versioned URL, `/backline-extension-0.4.9.zip`. The source and public
 package SHA-256 match, as does the built web-dist copy. Web lint/typecheck/build
-passed (3/3 Turbo tasks); public Vercel download acceptance is pending. The old
+passed (3/3 Turbo tasks). Vercel reported success for `71cd5f1`; the public
+versioned URL returned HTTP 200, manifest 0.4.9 and the same SHA-256 as the
+store draft. Browser installation/comment acceptance remains open. The old
 API route remains externally reachable and its
 Railway deployment discrepancy still needs investigation. See
 [TDR-0122](../tdr/0122-versioned-portal-extension-download.md). No test suite

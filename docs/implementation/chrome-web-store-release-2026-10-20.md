@@ -32,10 +32,10 @@ Public extension privacy/support URLs, a real extension screenshot, reviewer
 access and truthful owner-level data-use certifications remain open. The current
 dashboard requires a store icon and at least one screenshot or video; the small
 promotional tile is offered as an optional field. A source build is not
-interactive acceptance; test 0.4.9 in Chrome before submission. The current
-public API download still serves 0.4.4;
-ship and verify the 0.4.9 backend image before presenting the store upload as the
-latest installed build.
+interactive acceptance; test 0.4.9 in Chrome before submission. The public API
+download still serves 0.4.4, so portal installation uses the separately verified
+versioned web artifact below. Investigate the backend deployment mismatch before
+using the API ZIP again.
 
 Source now includes signed-out `/privacy` and `/support` pages (TDR-0121).
 Vercel reported success for `8af3ce5`; both URLs returned HTTP 200 and the
@@ -48,8 +48,10 @@ is not accepted.
 
 The portal download links now target a checked-in, versioned static 0.4.9 ZIP
 through the web deployment (TDR-0122). This avoids presenting the stale API ZIP
-to portal users. The Vercel-hosted ZIP must be fetched and checked before calling
-that workaround live; the original API route remains stale.
+to portal users. Vercel reported success for `71cd5f1`; the hosted ZIP returned
+HTTP 200, manifest 0.4.9 and SHA-256
+`4A6665644F33D0E343F6D0FCDB71B82C54BDDF548BB0788DB2EA2ED33F947197`.
+The portal download workaround is live. The original API route remains stale.
 
 ## Upload package
 
