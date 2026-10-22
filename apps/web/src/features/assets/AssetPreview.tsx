@@ -1,11 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import * as pdfjs from "pdfjs-dist";
+import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { qk } from "../../lib/query-keys";
 import { getAssetContent, type Asset } from "./api";
-
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 export function AssetPreview({ asset, projectId, pageNumber, guest, onReady }: {
   asset: Asset; projectId: string; pageNumber: number; guest?: string; onReady: (ready: boolean) => void;
@@ -35,14 +33,14 @@ export function AssetPreview({ asset, projectId, pageNumber, guest, onReady }: {
 
 function PdfCanvas({ blob, pageNumber, onReady }: { blob: Blob; pageNumber: number; onReady: (ready: boolean) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [document, setDocument] = useState<pdfjs.PDFDocumentProxy | null>(null);
+  const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const [renderedPage, setRenderedPage] = useState<number | null>(null);
   const renderPending = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     let cancelled = false;
-    let task: pdfjs.PDFDocumentLoadingTask | undefined;
+    let task: PDFDocumentLoadingTask | undefined;
     const timeout = window.setTimeout(() => {
       if (cancelled) return;
       cancelled = true;
@@ -51,8 +49,11 @@ function PdfCanvas({ blob, pageNumber, onReady }: { blob: Blob; pageNumber: numb
     }, 30_000);
     setDocument(null);
     setError("");
-    void blob.arrayBuffer().then(data => {
+    // Download the PDF parser only when a reviewer actually opens a PDF. Image
+    // review and website sign-in never need this large engine module.
+    void Promise.all([import("pdfjs-dist"), blob.arrayBuffer()]).then(([pdfjs, data]) => {
       if (cancelled) return;
+      pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
       task = pdfjs.getDocument({ data: new Uint8Array(data) });
       return task.promise.then(pdf => { if (!cancelled) setDocument(pdf); });
     }).catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "PDF could not be read."); })
@@ -62,7 +63,7 @@ function PdfCanvas({ blob, pageNumber, onReady }: { blob: Blob; pageNumber: numb
 
   useEffect(() => {
     let cancelled = false;
-    let render: pdfjs.RenderTask | undefined;
+    let render: RenderTask | undefined;
     onReady(false);
     setRenderedPage(null);
     if (!document) return;

@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Review bundle loading follow-up (2026-10-22):
+[TDR-0119](../tdr/0119-defer-file-and-pdf-review-bundles.md) defers file
+review until a file project opens and PDF parsing until a PDF opens. Build
+sizes improved; browser/network and PDF acceptance remain open.
+
 Preview HEAD-method follow-up (2026-10-22):
 [TDR-0118](../tdr/0118-preview-head-request-support.md) relays bodyless
 HEAD probes through both preview link modes. Backend rollout and actual

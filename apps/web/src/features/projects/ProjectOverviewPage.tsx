@@ -1,6 +1,6 @@
 import type { Schemas } from "@backline/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type CSSProperties, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 
 import { useWSEvent } from "../../app/WSProvider";
@@ -13,7 +13,6 @@ import { useDocumentTitle } from "../../lib/use-document-title";
 import { useSearchParamsUpdater } from "../../lib/use-search-params-updater";
 import { ticketRef } from "../../lib/ticket-ref";
 import { WORKFLOW_STATUSES } from "../../lib/workflow";
-import { AssetReview } from "../assets/AssetReview";
 import { NewTicket } from "../tickets/components/NewTicket";
 import { listMembers } from "../workspaces/api";
 import { useAuth } from "../auth/AuthContext";
@@ -48,6 +47,8 @@ import { QuickToolsDock } from "./footer/QuickToolsDock";
 import { ShortcutsModal } from "./ShortcutsModal";
 import { loadShortcuts } from "./shortcuts";
 import { NativeReviewButton } from "../review/NativeReviewButton";
+
+const AssetReview = lazy(() => import("../assets/AssetReview").then(module => ({ default: module.AssetReview })));
 
 type PageOut = Schemas["PageOut"];
 
@@ -775,7 +776,9 @@ export function ProjectOverviewPage() {
   }
 
   if (project.project_type && project.project_type !== "website") {
-    return <AssetReview key={project.id} projectId={project.id} project={project} title={project.name} workspaceSlug={workspace.slug} requestedComment={commentsQuery.data?.find(comment => comment.id === (searchParams.get("thread") ?? searchParams.get("comment")))} />;
+    return <Suspense fallback={<div className="bl-asset-loading" role="status">Opening file review…</div>}>
+      <AssetReview key={project.id} projectId={project.id} project={project} title={project.name} workspaceSlug={workspace.slug} requestedComment={commentsQuery.data?.find(comment => comment.id === (searchParams.get("thread") ?? searchParams.get("comment")))} />
+    </Suspense>;
   }
 
   const activeLinks = (shareLinksQuery.data ?? []).filter((link) => reviewLinkState(link, linkNow) === "active");

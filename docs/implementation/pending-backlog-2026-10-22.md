@@ -89,7 +89,7 @@ The two new digest findings are source-derived from
 | OPT-01 | P2 | Paginate large project/page/comment collections | Batched enrichment is implemented, but full collection pagination/cursors remain open. Preserve access filtering and complete history. |
 | OPT-02 | P2 | Replace full native comment polling with bounded deltas | Current full-page polling grows with history. Add reconnect/removal semantics and a push/delta strategy without weakening revocation. |
 | OPT-03 | P2 | Measure real load and database/signing cost | Benchmark large projects, author/evidence enrichment, socket authorization fan-out, snapshot work, memory and latency. No load benchmark is recorded. |
-| OPT-04 | P3 | Reduce the large web bundle chunk | Production builds still emit the >500 kB chunk advisory. Review splitting/lazy-loading and measure startup impact before choosing changes. |
+| OPT-04 | P3 | Reduce the large web bundle chunk — source split, rollout/measurement pending | TDR-0119 defers file review and pdf.js: native-review 514.27 kB combined before vs 6.18 kB native review, 25.89 kB file review and 483.14 kB PDF parser after. Build warning cleared; browser network/startup and image/PDF acceptance are pending. |
 | OPT-05 | P2 | Set product reliability metrics and a supported-site matrix | Measure launch-to-ready, auth-return success, save/capture success, locate success and rejoin frequency with denominators. Existing spot checks cannot substantiate "99% of websites." |
 
 ## 5. Missing features and planned expansion

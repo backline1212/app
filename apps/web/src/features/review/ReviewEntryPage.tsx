@@ -1,12 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type FormEvent, lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { API_BASE_URL, ApiError } from "../../lib/api-client";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { useOnlineStatus } from "../../lib/use-online-status";
-import { AssetReview } from "../assets/AssetReview";
 import * as reviewApi from "./api";
 import { GuestBoard } from "./GuestBoard";
 import { NativeReviewButton } from "./NativeReviewButton";
@@ -16,6 +15,8 @@ import {
   setStoredGuestSession,
   type StoredGuestSession,
 } from "./guest-session";
+
+const AssetReview = lazy(() => import("../assets/AssetReview").then(module => ({ default: module.AssetReview })));
 
 // Guest entry resolves the share link and passcode once. Website reviewers choose
 // the real browser tab or the compatible embedded/snippet path; only the latter
@@ -213,14 +214,16 @@ export function ReviewEntryPage() {
   if (sessionMatchesLink && assetGuest && resolved) {
     return (<>
       {leaveError && <p role="alert" className="bl-error">{leaveError}</p>}
-      <AssetReview
-        key={`${resolved.project_id}:${assetGuest}`}
-        projectId={resolved.project_id}
-        title={resolved.project_name}
-        guest={assetGuest}
-        guestName={displayName}
-        onLeave={handleLeave}
-      /></>
+      <Suspense fallback={<div className="bl-asset-loading" role="status">Opening file review…</div>}>
+        <AssetReview
+          key={`${resolved.project_id}:${assetGuest}`}
+          projectId={resolved.project_id}
+          title={resolved.project_name}
+          guest={assetGuest}
+          guestName={displayName}
+          onLeave={handleLeave}
+        />
+      </Suspense></>
     );
   }
 
