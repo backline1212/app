@@ -169,7 +169,7 @@ export function openComposer(
   onCancel: () => void,
   uploadFile: (file: File) => Promise<AttachmentResult | null>,
   details: ComposerDetails,
-): { setStatus: (text: string) => void; setRetryLocked: (locked: boolean) => void; close: () => void } {
+): { setStatus: (text: string) => void; setCloseDelay: (ms: number) => void; setRetryLocked: (locked: boolean) => void; close: () => void } {
   const composer = document.createElement("div");
   composer.className = "bl-card bl-composer";
   composer.setAttribute("role", "dialog");
@@ -244,6 +244,7 @@ export function openComposer(
   // Set once the post succeeded: the card lingers a moment to show "Comment posted.",
   // and nothing in it is a draft any more.
   let posted = false;
+  let closeDelay = 1200;
   let closed = false;
   // Escape on a written comment arms a discard for a few seconds instead of dropping it.
   let discardArmedUntil = 0;
@@ -341,7 +342,7 @@ export function openComposer(
         // Left up long enough to read the status line's "Comment posted." before it
         // goes - closing immediately would cut that off, and never closing at all is
         // the exact bug this replaces.
-        window.setTimeout(removeComposer, 1200);
+        window.setTimeout(removeComposer, closeDelay);
         return;
       }
       // Failed - back to a normal, editable composer so the reviewer can retry or
@@ -439,6 +440,9 @@ export function openComposer(
   return {
     setStatus: (text: string) => {
       statusEl.textContent = text;
+    },
+    setCloseDelay: (ms: number) => {
+      closeDelay = ms;
     },
     setRetryLocked: (locked: boolean) => {
       retryLocked = locked;

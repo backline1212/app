@@ -14,6 +14,8 @@ export interface CommentViewData {
   body: string;
   status: string;
   tags: string[];
+  screenshotUrl?: string | null;
+  captureStatus?: "ok" | "failed";
   attachments: AttachmentInfo[];
   pagePath: string;
   replies: CommentViewReply[];
@@ -124,6 +126,11 @@ export function openCommentView(
   function renderContent(data: CommentViewData): void {
     content.innerHTML = `
       <p class="bl-thread-message-body bl-cv-text"></p>
+      ${data.screenshotUrl
+        ? `<a class="bl-attachment-link bl-cv-screenshot" href="${escapeHtml(data.screenshotUrl)}" target="_blank" rel="noopener noreferrer">View captured screenshot</a>`
+        : data.captureStatus === "failed"
+          ? '<p class="bl-cv-capture-warning">Automatic screenshot unavailable. The comment and its location were saved.</p>'
+          : ""}
       ${
         data.tags.length > 0
           ? `<div class="bl-cp-sec">

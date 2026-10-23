@@ -2,6 +2,17 @@
 
 Date: 2026-10-20. Original local package: 0.4.5. Store publication: pending.
 
+## 2026-10-24 release update
+
+TDR-0125 advances the source manifest and portal download to 0.4.11 so the
+on-site comment card reports screenshot outcome. The ZIP is 51,458 bytes with
+SHA-256 `4239C81E53A9CB17E6D0C1B2B7C93956C383C3E0AA427F456C5A0F59E59E89E8`.
+The 0.4.9 dashboard draft still needs replacement; do not submit that older
+draft as the current version. Widget, extension and web lint/typecheck/build
+passed (9/9 Turbo tasks); the source, portal-public and built-web ZIP hashes
+match, and the root manifest and scripts are present. Browser acceptance
+remains pending.
+
 ## 2026-10-23 release update
 
 The current source manifest is 0.4.10 after TDR-0123's sign-in continuation

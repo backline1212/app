@@ -227,7 +227,14 @@ export function setupRegionDrawer({
           );
           threadManager.attachPinClickHandler(pin, created.id);
           tooltip.dismiss();
-          controls.setStatus("Comment posted.");
+          if (created.capture_status === "failed") {
+            controls.setStatus("Comment posted without an automatic screenshot. The text and location were saved.");
+            controls.setCloseDelay(4000);
+          } else if (created.screenshot_url) {
+            controls.setStatus("Comment posted with screenshot.");
+          } else {
+            controls.setStatus("Comment posted.");
+          }
           onCommentCreated?.(created);
           return true;
         } catch (error) {

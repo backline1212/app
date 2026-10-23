@@ -1,5 +1,21 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Website screenshot outcome (TDR-0125)
+
+Point and region comment confirmations now report whether the server returned
+a saved screenshot or a failed automatic capture. A failure remains visible for
+four seconds; the saved on-site thread card has a persistent failure notice or
+a link to the private captured screenshot. Older responses without evidence
+fields remain readable. Extension source and the portal download advance to
+0.4.11; the Chrome Web Store draft is still 0.4.9. Widget, extension and web
+lint/typecheck/build passed (9/9 Turbo tasks). The 51,458-byte source,
+portal-public and built-web ZIPs have matching SHA-256
+`4239C81E53A9CB17E6D0C1B2B7C93956C383C3E0AA427F456C5A0F59E59E89E8`;
+its root manifest is 0.4.11 and the three scripts and popup are present.
+Deployment and browser acceptance remain pending. See
+[TDR-0125](../tdr/0125-show-screenshot-outcome-in-site-review.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-23: Available review paths in product copy (TDR-0124)
 
 The Mobile App panel now states that native device/build/replay review is

@@ -88,6 +88,9 @@ export interface CommentRecord {
   status: string;
   created_at: string;
   anchor: AnchorPayload;
+  // Older records/adapters may omit evidence fields; never infer a capture result.
+  screenshot_url?: string | null;
+  capture_status?: "ok" | "failed";
   attachments: AttachmentRecord[];
   tags: string[];
   // Per-workspace sequential ticket reference (comments/schemas.py's CommentOut) - null

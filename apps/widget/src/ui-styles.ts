@@ -276,6 +276,8 @@ const HOST_STYLES = `
     white-space: pre-wrap; word-break: break-word;
   }
   .bl-cv-files { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+  .bl-card .bl-cv-screenshot { margin-top: 12px; }
+  .bl-cv-capture-warning { margin: 12px 0 0; font-size: 12px; line-height: 1.45; color: var(--bl-ink-2); }
   .bl-cv-replies {
     display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding-top: 12px;
     border-top: 1px solid var(--bl-line-soft);

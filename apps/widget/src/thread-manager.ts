@@ -206,6 +206,8 @@ export function createThreadManager({
       status: top.status,
       layer: top.layer ?? "client",
       tags: top.tags ?? [],
+      screenshotUrl: top.screenshot_url,
+      captureStatus: top.capture_status,
       attachments: top.attachments ?? [],
       pagePath: pagePath(),
       replies: thread.slice(1).map((reply) => ({

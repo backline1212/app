@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Backline",
-  "version": "0.4.10",
+  "version": "0.4.11",
   "minimum_chrome_version": "110",
   "description": "Leave point and rectangle comments on any site, right from your browser, without opening the Backline dashboard first.",
   "icons": {

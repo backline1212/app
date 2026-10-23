@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Website screenshot outcome follow-up (2026-10-24):
+[TDR-0125](../tdr/0125-show-screenshot-outcome-in-site-review.md) shows
+automatic capture success/failure in the on-site post confirmation and saved
+thread card. Extension 0.4.11 rollout and browser acceptance remain open.
+
 Review availability copy follow-up (2026-10-23):
 [TDR-0124](../tdr/0124-available-review-paths-in-product-copy.md) clarifies
 the planned native Mobile App scope, links the usable screenshot review path,
