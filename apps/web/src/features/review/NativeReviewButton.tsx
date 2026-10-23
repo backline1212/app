@@ -17,7 +17,7 @@ interface Props {
   triggerRef?: Ref<HTMLButtonElement>;
 }
 
-type Phase = "checking" | "setup" | "reload" | "opening" | "waiting" | "connected" | "error";
+type Phase = "checking" | "setup" | "update" | "reload" | "opening" | "waiting" | "connected" | "error";
 
 export function NativeReviewButton({ projectId, url, member, guest, onGuestSessionExpired, triggerRef }: Props) {
   const online = useOnlineStatus();
@@ -71,7 +71,7 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
       if (!current()) return;
       const problem = reviewExtensionProblem(status);
       if (problem) {
-        setPhase("setup");
+        setPhase("update");
         setMessage(problem);
         return;
       }
@@ -121,11 +121,11 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
     <button ref={triggerRef} type="button" className="bl-review-control bl-button" onClick={() => void start()} disabled={open && (busy || phase === "waiting")}>
       {hasConnected ? "Open website review again" : "Open with extension"}
     </button>
-    {open && <Dialog title={phase === "reload" ? "Reconnect browser review" : phase === "setup" ? "Set up browser review" : phase === "connected" ? "Website review connected" : phase === "waiting" ? "Finish website sign-in" : "Open website review"} onClose={close}>
+    {open && <Dialog title={phase === "reload" ? "Reconnect browser review" : phase === "update" ? "Update browser extension" : phase === "setup" ? "Set up browser review" : phase === "connected" ? "Website review connected" : phase === "waiting" ? "Finish website sign-in" : "Open website review"} onClose={close}>
       <div className="bl-dialog-intro"><p>Your website opens in a separate tab. Keep Backline open for saved feedback.</p></div>
       <div className="bl-browser-flow" aria-busy={busy}>
         <ol className="bl-review-steps" aria-label="Browser review steps">
-          <li aria-current={phase === "setup" || phase === "reload" || phase === "checking" ? "step" : undefined}>Connect extension</li>
+          <li aria-current={phase === "setup" || phase === "update" || phase === "reload" || phase === "checking" ? "step" : undefined}>Connect extension</li>
           <li aria-current={phase === "opening" || phase === "waiting" ? "step" : undefined}>Open website</li>
           <li aria-current={phase === "connected" ? "step" : undefined}>Leave feedback</li>
         </ol>
@@ -134,24 +134,32 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
           <p>{message}</p><p>One-time setup in desktop Chrome or Edge:</p>
           <ol><li><a href={EXTENSION_DOWNLOAD_URL}>Download the extension</a> and unzip it.</li>
             <li>Open the extensions page below, turn on Developer mode and choose Load unpacked.</li>
-            <li>Select the unzipped folder, then return here and choose Check again.</li></ol>
+            <li>Select the unzipped folder, then reload this Backline tab and open website review again.</li></ol>
           <label>Browser<select className="bl-input" value={browserAddress} onChange={event => { setBrowserAddress(event.target.value); setCopied(false); }}><option value="chrome://extensions">Chrome</option><option value="edge://extensions">Edge</option></select></label>
           <div className="bl-link-row"><input className="bl-input bl-mono" aria-label="Extensions page address" readOnly value={browserAddress} onFocus={event => event.target.select()} /><button type="button" className="bl-quiet" onClick={() => void copyBrowserAddress()}>{copied ? "Copied" : "Copy address"}</button></div>
-          <small>Paste this address into your browser's address bar. For an existing installation, replace its files and click Reload on its extension card. Reload Backline if it still cannot connect.</small>
+          <small>Paste this address into your browser's address bar. Reloading Backline lets the newly installed extension connect to this tab.</small>
+        </>}
+        {phase === "update" && <>
+          <p>{message}</p>
+          <ol><li><a href={EXTENSION_DOWNLOAD_URL}>Download the current extension</a> and unzip it.</li>
+            <li>Replace the files in your existing unpacked extension folder, then click Reload on its card in your browser's extensions page.</li>
+            <li>Reload this Backline tab and open website review again.</li></ol>
+          <label>Browser<select className="bl-input" value={browserAddress} onChange={event => { setBrowserAddress(event.target.value); setCopied(false); }}><option value="chrome://extensions">Chrome</option><option value="edge://extensions">Edge</option></select></label>
+          <div className="bl-link-row"><input className="bl-input bl-mono" aria-label="Extensions page address" readOnly value={browserAddress} onFocus={event => event.target.select()} /><button type="button" className="bl-quiet" onClick={() => void copyBrowserAddress()}>{copied ? "Copied" : "Copy address"}</button></div>
         </>}
         {phase === "error" && <p role="alert" className="bl-error">{message}</p>}
         {phase === "reload" && <p role="status">Your extension was updated. Reload this Backline tab to reconnect, then open website review again. Your saved feedback stays in this project.</p>}
         {phase === "connected" && <p role="status">The Backline toolbar is connected in your website tab.</p>}
         {phase === "waiting" && <p role="status">Your website tab may still be opening. Sign in there as usual; the Backline toolbar should appear when you return to this project's website. If you see the toolbar, close this dialog and continue reviewing. If it does not appear, close this dialog and reopen website review from the project.</p>}
-        {phase !== "setup" && phase !== "reload" && <ol><li>Sign in to the website using your own account if needed.</li><li>Choose Comment to see saved pins and add feedback, or Draw to select an area.</li><li>Write your feedback and save. Use Return to Backline to see the saved ticket.</li></ol>}
+        {phase !== "setup" && phase !== "update" && phase !== "reload" && <ol><li>Sign in to the website using your own account if needed.</li><li>Choose Comment to see saved pins and add feedback, or Draw to select an area.</li><li>Write your feedback and save. Use Return to Backline to see the saved ticket.</li></ol>}
         <p className="bl-policy-note">A Backline review link doesn't sign you in to the website or give access to another person's website account.</p>
       </div>
       <footer className="bl-dialog-actions bl-dialog-actions-bordered">
         <button type="button" className="bl-quiet" onClick={close}>{phase === "connected" ? "Done" : "Close"}</button>
-        {phase === "reload" && <button type="button" className="bl-button" onClick={() => window.location.reload()}>Reload Backline</button>}
-        {!busy && phase !== "connected" && phase !== "waiting" && phase !== "reload" && (needsRejoin && onGuestSessionExpired
+        {(phase === "setup" || phase === "update" || phase === "reload") && <button type="button" className="bl-button" onClick={() => window.location.reload()}>Reload Backline</button>}
+        {!busy && phase !== "connected" && phase !== "waiting" && phase !== "reload" && phase !== "setup" && phase !== "update" && (needsRejoin && onGuestSessionExpired
           ? <button type="button" className="bl-button" onClick={() => { close(); onGuestSessionExpired(); }}>Rejoin review</button>
-          : <button type="button" className="bl-button" disabled={!online} onClick={() => void start()}>{phase === "setup" ? "Check again" : "Try again"}</button>)}
+          : <button type="button" className="bl-button" disabled={!online} onClick={() => void start()}>Try again</button>)}
       </footer>
     </Dialog>}
   </>;

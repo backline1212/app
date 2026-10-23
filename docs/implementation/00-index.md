@@ -1,5 +1,11 @@
 # Final Draft implementation index
 
+Extension setup and update guidance (2026-10-24):
+[TDR-0133](../tdr/0133-separate-extension-install-and-update-guidance.md)
+distinguishes a missing extension from an installed incompatible one and
+explains the required Backline tab reload. Source checks passed; rollout and
+browser acceptance remain open.
+
 Guest file-review transport isolation (2026-10-24):
 [TDR-0132](../tdr/0132-isolate-guest-file-review-transport.md) explicitly
 omits member cookies and browser caching from direct guest PDF/image requests.

@@ -1,5 +1,18 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Extension install/update guidance (TDR-0133)
+
+Website review now shows separate steps for first-time Load unpacked setup
+and replacement of an installed outdated/wrong-server extension. Both states
+offer Reload Backline after the browser's extension card is installed or
+reloaded, avoiding a Check again action that cannot detect a newly injected
+content script in the already open tab. Web lint/typecheck/build passed (3/3
+Turbo tasks), and diff check passed. Web rollout and browser acceptance for
+missing/incompatible/reloaded states remain pending while API `/health`
+returns Railway fallback 404. See
+[TDR-0133](../tdr/0133-separate-extension-install-and-update-guidance.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-24: Guest PDF/image transport isolation (TDR-0132)
 
 Direct guest file metadata, comment, mutation and content requests now use
