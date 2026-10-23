@@ -1,5 +1,11 @@
 # Final Draft implementation index
 
+Website review waiting-state follow-up (2026-10-24):
+[TDR-0128](../tdr/0128-honest-website-review-waiting-state.md) reserves
+"connected" for confirmed toolbar readiness and prevents another launch
+while the sign-in/waiting dialog remains open. Web rollout and browser
+acceptance remain open.
+
 Review continuity during API fallback (2026-10-24):
 [TDR-0127](../tdr/0127-preserve-reviews-through-api-edge-fallback.md) keeps
 native and guest review sessions when Railway's edge returns a service-level

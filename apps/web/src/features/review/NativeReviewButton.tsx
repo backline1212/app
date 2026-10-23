@@ -55,6 +55,7 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
     setPhase("checking");
     setMessage("");
     setNeedsRejoin(false);
+    setHasConnected(false);
     let issuedId: string | null = null;
     let launchAttempted = false;
     let credentialRetained = false;
@@ -87,14 +88,14 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
       const result = await extensionRequest<NativeReviewLaunchResult>("launch", { projectId, url, returnUrl: window.location.href, auth }, controller.signal);
       credentialRetained = true;
       if (!current()) return;
-      setHasConnected(true);
+      setHasConnected(result.ready);
       setPhase(result.ready ? "connected" : "waiting");
     } catch (error) {
       credentialRetained = launchAttempted && (error instanceof ExtensionError && error.timedOut
         || error instanceof DOMException && error.name === "AbortError");
       if (!current()) return;
       if (credentialRetained) {
-        setHasConnected(true);
+        setHasConnected(false);
         setPhase("waiting");
         return;
       }
@@ -117,7 +118,7 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
 
   const busy = phase === "checking" || phase === "opening";
   return <>
-    <button ref={triggerRef} type="button" className="bl-review-control bl-button" onClick={() => void start()} disabled={open && busy}>
+    <button ref={triggerRef} type="button" className="bl-review-control bl-button" onClick={() => void start()} disabled={open && (busy || phase === "waiting")}>
       {hasConnected ? "Open website review again" : "Open with extension"}
     </button>
     {open && <Dialog title={phase === "reload" ? "Reconnect browser review" : phase === "setup" ? "Set up browser review" : phase === "connected" ? "Website review connected" : phase === "waiting" ? "Finish website sign-in" : "Open website review"} onClose={close}>
@@ -125,7 +126,7 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
       <div className="bl-browser-flow" aria-busy={busy}>
         <ol className="bl-review-steps" aria-label="Browser review steps">
           <li aria-current={phase === "setup" || phase === "reload" || phase === "checking" ? "step" : undefined}>Connect extension</li>
-          <li aria-current={phase === "opening" ? "step" : undefined}>Open website</li>
+          <li aria-current={phase === "opening" || phase === "waiting" ? "step" : undefined}>Open website</li>
           <li aria-current={phase === "connected" ? "step" : undefined}>Leave feedback</li>
         </ol>
         {busy && <p role="status">{phase === "checking" ? "Checking your browser extension…" : "Opening the website and waiting for its Backline toolbar…"}</p>}
@@ -141,7 +142,7 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
         {phase === "error" && <p role="alert" className="bl-error">{message}</p>}
         {phase === "reload" && <p role="status">Your extension was updated. Reload this Backline tab to reconnect, then open website review again. Your saved feedback stays in this project.</p>}
         {phase === "connected" && <p role="status">The Backline toolbar is connected in your website tab.</p>}
-        {phase === "waiting" && <p role="status">Your website tab is opening. Sign in there as usual; the Backline toolbar will appear when you return to this project's website. If the site lands on another domain, update the project URL or reopen review from Backline.</p>}
+        {phase === "waiting" && <p role="status">Your website tab may still be opening. Sign in there as usual; the Backline toolbar should appear when you return to this project's website. If you see the toolbar, close this dialog and continue reviewing. If it does not appear, close this dialog and reopen website review from the project.</p>}
         {phase !== "setup" && phase !== "reload" && <ol><li>Sign in to the website using your own account if needed.</li><li>Choose Comment to see saved pins and add feedback, or Draw to select an area.</li><li>Write your feedback and save. Use Return to Backline to see the saved ticket.</li></ol>}
         <p className="bl-policy-note">A Backline review link doesn't sign you in to the website or give access to another person's website account.</p>
       </div>

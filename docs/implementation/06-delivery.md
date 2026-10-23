@@ -1,5 +1,17 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Honest website review waiting state (TDR-0128)
+
+The portal now labels a native review connected only when toolbar readiness
+was confirmed. Its waiting dialog keeps the website-opening step active,
+explains how to continue sign-in and disables repeat launch clicks until the
+reviewer closes it and deliberately retries. This prevents a duplicate
+project-token launch from that dialog without cancelling an uncertain
+tab-bound session. Web lint/typecheck/build passed (3/3 Turbo tasks). Rollout
+and browser acceptance remain pending. See
+[TDR-0128](../tdr/0128-honest-website-review-waiting-state.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-24: Preserve review sessions through API fallback (TDR-0127)
 
 Native review and the guest widget now distinguish Railway's edge fallback
