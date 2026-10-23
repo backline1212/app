@@ -2,6 +2,18 @@
 
 Date: 2026-10-20. Original local package: 0.4.5. Store publication: pending.
 
+## 2026-10-24 startup-outage update
+
+TDR-0130 advances the source manifest and versioned portal ZIP to 0.4.13 so
+the native review toolbar stays available and retries access after an initial
+API outage. The 51,939-byte source, portal-public and built-web ZIPs have
+SHA-256 `62100C9FEFEDB1574891F71B74B40954C42DFC1EAB713630AFEEBC6E082C41C2`
+and root manifest 0.4.13. Widget/extension/web lint/typecheck/build passed
+(7/7 Turbo tasks); web build passed again after copying the ZIP. Replace the
+0.4.9 store draft with this package only after publisher access is restored.
+Public rollout and installed-browser acceptance remain pending. The API host
+still returned Railway fallback 404 during this source verification.
+
 ## 2026-10-24 review-continuity update
 
 TDR-0127 advances the source manifest to 0.4.12 so a Railway edge fallback

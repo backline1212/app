@@ -1,5 +1,21 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Native toolbar startup outage recovery (TDR-0130)
+
+An initial API edge fallback or network failure no longer removes the website
+review toolbar while leaving its tab session behind. The toolbar shows a
+temporary outage message, preserves the session, and rechecks access on
+visibility/focus or the existing 30-second cadence; real denials still end the
+review. Extension 0.4.13 source/package and portal-public/built ZIPs match:
+51,939 bytes, SHA-256
+`62100C9FEFEDB1574891F71B74B40954C42DFC1EAB713630AFEEBC6E082C41C2`,
+manifest 0.4.13. Widget/extension/web lint/typecheck/build passed (7/7 Turbo
+tasks); web build passed again after the ZIP copy. Public rollout, installed
+browser recovery and real-denial acceptance remain pending while API `/health`
+returns Railway fallback 404. See
+[TDR-0130](../tdr/0130-keep-native-toolbar-through-startup-outage.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-24: Portal guest access during API fallback (TDR-0129)
 
 Direct portal guest requests for session status/end, board, and PDF/image

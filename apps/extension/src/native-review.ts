@@ -60,14 +60,20 @@ async function mutateSession(
 }
 
 async function request<T>(auth: NativeReviewAuth, path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    credentials: "omit",
-    headers: {
-      ...(init.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-      ...(auth.kind === "member" ? { Authorization: `Bearer ${auth.token}` } : { "X-Guest-Session": auth.token }),
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      credentials: "omit",
+      headers: {
+        ...(init.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+        ...(auth.kind === "member" ? { Authorization: `Bearer ${auth.token}` } : { "X-Guest-Session": auth.token }),
+      },
+    });
+  } catch (error) {
+    if (init.signal?.aborted) throw error;
+    throw new NativeReviewError("Can't reach Backline right now. This website review will stay open and retry.", 503);
+  }
   if (!response.ok) {
     if (response.status === 404 && response.headers.get("x-railway-fallback") === "true") {
       throw new NativeReviewError("Backline is temporarily unavailable. Your review will stay open; try again shortly.", 503);
@@ -263,6 +269,7 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
       latest.project = { ...latest.project, ...project };
       return latest;
     });
+    readyWaiters.get(session.launchId)?.();
     return { launchId: session.launchId, project };
   }
   if (message.type === "native-review-end") {

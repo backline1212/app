@@ -9,6 +9,10 @@ export function reviewAccessEnded(error: unknown): boolean {
   return error instanceof NativeMessageError && [401, 403, 404, 409].includes(error.status);
 }
 
+export function reviewServiceUnavailable(error: unknown): boolean {
+  return error instanceof NativeMessageError && error.status === 503;
+}
+
 export async function nativeMessage<T>(type: string, fields: Record<string, unknown> = {}): Promise<T> {
   const result = await chrome.runtime.sendMessage({ type, ...fields });
   if (!result?.ok) throw new NativeMessageError(result?.error ?? "Reload this page to reconnect Backline.", Number(result?.status) || 0);

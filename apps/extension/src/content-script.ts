@@ -27,7 +27,7 @@ import {
 import { API_BASE_URL } from "./lib/config";
 import type { AnnotationMode, ExtensionMessage } from "./lib/messages";
 import { getConnection } from "./lib/storage";
-import { captureNativeScreenshot, createNativeApi, installDashboardBridge, nativeMessage, reviewAccessEnded, uploadNativeAttachment, uploadNativeScreenshot } from "./native-client";
+import { captureNativeScreenshot, createNativeApi, installDashboardBridge, nativeMessage, reviewAccessEnded, reviewServiceUnavailable, uploadNativeAttachment, uploadNativeScreenshot } from "./native-client";
 import { createNativeToolbar } from "./native-toolbar";
 
 // Content scripts have direct chrome.storage access once the extension is granted the
@@ -326,6 +326,10 @@ async function startNativeReview(): Promise<void> {
   try {
     await nativeMessage("native-review-ready", { launchId: info.launchId });
   } catch (error) {
+    if (reviewServiceUnavailable(error)) {
+      toolbar?.error("Backline is temporarily unavailable. Keep this tab open; the toolbar will retry when the service returns.");
+      return;
+    }
     clearContext();
     toolbar?.remove();
     toolbar = null;
@@ -396,6 +400,7 @@ if (!isolatedWindow.__backlineExtensionLoaded && window.top === window) {
       const previousRole = info.project.my_role;
       info.project = result.project;
       if (context?.native) context.project = { ...context.project, ...result.project };
+      if (!currentMode) toolbar?.setMode("browse");
       // Reset held callbacks after a project-role change. Re-open tools against the
       // new role; a pending mutation is still authorized independently on the API.
       if (previousRole !== result.project.my_role && context?.native) {
