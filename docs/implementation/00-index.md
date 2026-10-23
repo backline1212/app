@@ -1,5 +1,11 @@
 # Final Draft implementation index
 
+Portal guest outage follow-up (2026-10-24):
+[TDR-0129](../tdr/0129-preserve-portal-guest-access-during-api-fallback.md)
+maps API edge fallback in direct guest session, board and file-review requests
+to retryable unavailability, so an outage does not expire a portal guest review.
+Source checks passed; rollout and browser acceptance remain open.
+
 Website review waiting-state follow-up (2026-10-24):
 [TDR-0128](../tdr/0128-honest-website-review-waiting-state.md) reserves
 "connected" for confirmed toolbar readiness and prevents another launch

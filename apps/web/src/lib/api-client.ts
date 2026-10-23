@@ -289,13 +289,13 @@ function fallbackMessage(status: number): string {
   return `The request failed (${status}).`;
 }
 
-async function toApiError(response: Response): Promise<ApiError> {
+export async function toApiError(response: Response, fallbackCode?: string, fallbackCopy?: string): Promise<ApiError> {
   if (isServiceFallback(response)) {
     return new ApiError(503, "SERVICE_UNAVAILABLE", "Backline is temporarily unavailable. Try again shortly.");
   }
   const body = await response.json().catch(() => null);
-  const code = body?.error?.code ?? (response.status === 422 ? "VALIDATION_ERROR" : "UNKNOWN_ERROR");
-  const message = body?.error?.message || detailMessage(body?.detail) || fallbackMessage(response.status);
+  const code = body?.error?.code ?? fallbackCode ?? (response.status === 422 ? "VALIDATION_ERROR" : "UNKNOWN_ERROR");
+  const message = body?.error?.message || detailMessage(body?.detail) || fallbackCopy || fallbackMessage(response.status);
   return new ApiError(response.status, code, message, body?.error?.details ?? {});
 }
 

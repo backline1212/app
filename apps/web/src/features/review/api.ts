@@ -1,6 +1,6 @@
 import type { Schemas } from "@backline/types";
 
-import { API_BASE_URL, ApiError, apiFetch } from "../../lib/api-client";
+import { API_BASE_URL, apiFetch, toApiError } from "../../lib/api-client";
 
 export type ReviewResolveOut = Schemas["ReviewResolveOut"];
 export type GuestSessionOut = Schemas["GuestSessionOut"];
@@ -10,12 +10,10 @@ export async function getGuestSessionStatus(token: string, signal?: AbortSignal)
   const response = await fetch(`${API_BASE_URL}/api/v1/guest-sessions/current`, {
     credentials: "omit", cache: "no-store", headers: { "X-Guest-Session": token }, signal,
   });
-  const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new ApiError(response.status, body?.error?.code ?? "GUEST_SESSION_ERROR",
-      body?.error?.message ?? "Could not check your review session. Try again.");
+    throw await toApiError(response, "GUEST_SESSION_ERROR", "Could not check your review session. Try again.");
   }
-  return body as Schemas["GuestSessionStatusOut"];
+  return response.json() as Promise<Schemas["GuestSessionStatusOut"]>;
 }
 
 export function resolveShareLink(shareToken: string): Promise<ReviewResolveOut> {
@@ -28,9 +26,7 @@ export async function endGuestSession(token: string): Promise<void> {
     headers: { "X-Guest-Session": token },
   });
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new ApiError(response.status, body?.error?.code ?? "GUEST_SESSION_ERROR",
-      body?.error?.message ?? "Could not end this review session.");
+    throw await toApiError(response, "GUEST_SESSION_ERROR", "Could not end this review session.");
   }
 }
 
@@ -57,9 +53,7 @@ export async function getGuestBoard(projectId: string, guestToken: string): Prom
     credentials: "omit", cache: "no-store", headers: { "X-Guest-Session": guestToken },
   });
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new ApiError(response.status, body?.error?.code ?? "GUEST_BOARD_ERROR",
-      body?.error?.message ?? "Could not load the board. Try again.");
+    throw await toApiError(response, "GUEST_BOARD_ERROR", "Could not load the board. Try again.");
   }
   return response.json() as Promise<GuestBoardOut>;
 }

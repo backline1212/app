@@ -49,10 +49,12 @@ TDR-0127 extends the distinction to native and guest review transports so
 transient edge fallback does not clear valid review sessions; the portal
 package is deployed, while API rollout and access-denial/outage browser
 acceptance remain open.
+TDR-0129 extends the same distinction to direct portal guest session, board
+and PDF/image requests. Source checks pass; web rollout and live acceptance
+remain open.
 
-API `/health` currently reports status/Mongo/Redis OK. This proves health, not the
-newer feature rollout. Web implementation through `ad03bb4` has successful Vercel
-rollout evidence; the later documentation commit is `32c3388`.
+On 2026-10-24, API `/health` returned Railway edge fallback 404. Earlier
+health checks do not prove current availability or newer feature rollout.
 
 ## 2. Known bugs and unfinished reliability changes
 
@@ -86,7 +88,7 @@ The two new digest findings are source-derived from
 | FLOW-04 | P2 | Finish website thread-card actions | Native/standalone text replies exist in newer source. Inline editing/deleting, guest resolution, attachments and mentions do not have parity across every adapter. Keep team content in the authorized portal/isolated surface. |
 | FLOW-05 | P2 | Improve reopen-on-site and reproduction | Locate the reported route/anchor after login; explain different user data, moved elements, viewport and deployment mismatch. Preserve original evidence and support authorized manual reanchor. |
 | FLOW-06 | P2 | Make screenshot quality explicit | TDR-0125 reports saved/failed automatic captures in the on-site composer and thread card; rollout and browser acceptance are pending. Still distinguish approximate DOM capture from native tab capture, and add preview/retry/manual attachment and denial handling that preserve the draft. A generated JPEG alone is not fidelity evidence. |
-| FLOW-07 | P2 | Complete session restart/rejoin recovery | Verify browser restart/update, extension expiry, guest link expiry, revoked access and reconnect without stale overlays or wrong-project data. Standalone extension connection/logout policy needs explicit acceptance. |
+| FLOW-07 | P2 | Complete session restart/rejoin recovery | TDR-0129 keeps portal guest sessions through Railway edge fallback in status, board and file requests; source checks pass, rollout/browser acceptance pending. Verify browser restart/update, extension expiry, guest link expiry, revoked access and reconnect without stale overlays or wrong-project data. Standalone extension connection/logout policy needs explicit acceptance. |
 | FLOW-08 | P2 | Finish narrow, touch and keyboard UX acceptance — file-review shortcut web deployed | TDR-0117 stops global PDF/image shortcuts from taking modified keys or keys in controls/dialogs/tablists. Vercel reports `bce57e8` successful and the public root returns HTTP 200; actual PDF keyboard/browser acceptance, wrapped toolbar/composer, nested focus, date menus, screen-reader labels, file/page/thread controls, upload errors and return/close paths remain. |
 | FLOW-09 | P2 | Keep availability and pricing consistent with actual support | TDR-0124 clarifies native Mobile App's planned status, links existing screenshot review and removes a pricing checkmark from `coming_soon` rows. Remaining: reconcile other capability/readiness labels, limits, legacy guidance and plan comparison. Distinguish implemented features, disabled infrastructure and roadmap features. |
 

@@ -1,5 +1,18 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Portal guest access during API fallback (TDR-0129)
+
+Direct portal guest requests for session status/end, board, and PDF/image
+metadata/content now share the web client's Railway edge-fallback mapping.
+The fallback 404 becomes retryable service unavailability instead of triggering
+guest session expiry or file-review access cleanup; real application 401/403/404
+responses keep their existing behavior. Web lint/typecheck/build passed (3/3
+Turbo tasks), and `git diff --check` passed. The API host still returned edge
+fallback 404 for `/health`. Web rollout and live acceptance for outage,
+recovery and genuine revocation remain pending. See
+[TDR-0129](../tdr/0129-preserve-portal-guest-access-during-api-fallback.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-24: Honest website review waiting state (TDR-0128)
 
 The portal now labels a native review connected only when toolbar readiness
