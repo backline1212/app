@@ -7,8 +7,11 @@ was confirmed. Its waiting dialog keeps the website-opening step active,
 explains how to continue sign-in and disables repeat launch clicks until the
 reviewer closes it and deliberately retries. This prevents a duplicate
 project-token launch from that dialog without cancelling an uncertain
-tab-bound session. Web lint/typecheck/build passed (3/3 Turbo tasks). Rollout
-and browser acceptance remain pending. See
+tab-bound session. Web lint/typecheck/build passed (3/3 Turbo tasks).
+Vercel reported success for `4b38d2d`; the public root returned HTTP 200 and
+the served native-review bundle contains the waiting copy. The API host
+still returned Railway edge fallback 404, so installed browser acceptance
+remains pending. See
 [TDR-0128](../tdr/0128-honest-website-review-waiting-state.md).
 No test suite was written or run under the Codex task instruction.
 

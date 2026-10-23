@@ -1,6 +1,6 @@
 # TDR-0128: Keep website review waiting state honest
 
-Date: 2026-10-24. Status: source implemented; rollout and browser acceptance pending.
+Date: 2026-10-24. Status: web deployed; browser acceptance pending.
 
 ## Problem and decision
 
@@ -21,7 +21,10 @@ active tab-bound session or revoke its scoped token on an uncertain timeout.
 
 ## Verification boundary
 
-Web lint/typecheck/build passed (3/3 Turbo tasks). Served bundle checks remain.
+Web lint/typecheck/build passed (3/3 Turbo tasks). Vercel reported success
+for `4b38d2d`; the public root returned HTTP 200 and the served native-review
+bundle contains the waiting-state copy. The API host still returned Railway
+edge fallback 404, so installed browser acceptance could not be completed.
 Installed
 browser acceptance must cover slow password/SSO return, confirmed readiness,
 uncertain timeout, explicit failure, closing/reopening and token cleanup.

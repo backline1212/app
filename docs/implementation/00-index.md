@@ -3,8 +3,8 @@
 Website review waiting-state follow-up (2026-10-24):
 [TDR-0128](../tdr/0128-honest-website-review-waiting-state.md) reserves
 "connected" for confirmed toolbar readiness and prevents another launch
-while the sign-in/waiting dialog remains open. Web rollout and browser
-acceptance remain open.
+while the sign-in/waiting dialog remains open. Web is deployed; browser
+acceptance remains open while the API host returns edge fallback 404.
 
 Review continuity during API fallback (2026-10-24):
 [TDR-0127](../tdr/0127-preserve-reviews-through-api-edge-fallback.md) keeps
