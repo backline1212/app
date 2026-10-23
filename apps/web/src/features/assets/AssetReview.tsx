@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useDraftNavigationGuard } from "../../lib/draft-navigation";
 import { qk } from "../../lib/query-keys";
 import { useOnlineStatus } from "../../lib/use-online-status";
+import { ApiError } from "../../lib/api-client";
 import { LayerBadge, StatusBadge } from "@backline/ui";
 import { STATUS_COLORS, TAGS } from "../../lib/workflow";
 import * as api from "./api";
@@ -16,6 +17,10 @@ import type { Schemas } from "@backline/types";
 function documentPage(value: string | null): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 200 ? parsed : 1;
+}
+
+function accessDenied(error: unknown): boolean {
+  return error instanceof ApiError && [401, 403, 404, 409].includes(error.status);
 }
 
 export function AssetReview({
@@ -95,24 +100,26 @@ export function AssetReview({
   // refresh, so it stays despite 14-State-Management.md's "no polling for comments"
   // default for the member-only, WS-covered surfaces.
   const assets = useQuery({ queryKey: qk.assetsList(projectId, guest ?? 'member'), queryFn: () => api.listAssets(projectId, guest), refetchInterval: 30000 });
+  const fileAccessDenied = accessDenied(assets.error);
+  const availableAssets = fileAccessDenied ? undefined : assets.data;
   const requestedPageId = viewParams.get("page");
-  const asset = assetId ? assets.data?.find(a => a.id === assetId) : requestedPageId ? assets.data?.find(a => a.page_id === requestedPageId) : assets.data?.[0];
+  const asset = assetId ? availableAssets?.find(a => a.id === assetId) : requestedPageId ? availableAssets?.find(a => a.page_id === requestedPageId) : availableAssets?.[0];
   const requestedAnchor = requestedComment?.id === selected ? requestedComment.anchor as { asset_id?: string; region?: api.Region } : undefined;
-  const requestedFile = requestedAnchor?.asset_id ? assets.data?.find(file => file.id === requestedAnchor.asset_id) : undefined;
+  const requestedFile = requestedAnchor?.asset_id ? availableAssets?.find(file => file.id === requestedAnchor.asset_id) : undefined;
   const resolvingRequested = Boolean(requestedFile && (assetId !== requestedFile.id || page !== Math.min(requestedFile.page_count, documentPage(String(requestedAnchor?.region?.page_number ?? 1)))));
   useEffect(() => {
-    if (!requestedComment || requestedComment.id !== selected || !assets.data || locationProtected) return;
+    if (!requestedComment || requestedComment.id !== selected || !availableAssets || locationProtected) return;
     const anchor = requestedComment.anchor as { asset_id?: string; region?: api.Region };
     if (!anchor.asset_id) return;
-    if (!assets.data.some(file => file.id === anchor.asset_id)) {
+    if (!availableAssets.some(file => file.id === anchor.asset_id)) {
       setNavigationWarning("This comment belongs to an archived or unavailable file. Open Manage files to check it.");
       return;
     }
-    const file = assets.data.find(item => item.id === anchor.asset_id)!;
+    const file = availableAssets.find(item => item.id === anchor.asset_id)!;
     if (resolvingRequested) changeLocation(file, Math.min(file.page_count, documentPage(String(anchor.region?.page_number ?? 1))), requestedComment.id, true);
-  }, [requestedComment, assets.data, selected, resolvingRequested, locationProtected, changeLocation]);
+  }, [requestedComment, availableAssets, selected, resolvingRequested, locationProtected, changeLocation]);
   const mediaKey = `${asset?.id}:${page}`;
-  const mediaReady = readyKey === mediaKey && !assets.error;
+  const mediaReady = readyKey === mediaKey && !fileAccessDenied;
   const onMediaReady = useCallback((ready: boolean) => setReadyKey(ready ? mediaKey : ""), [mediaKey]);
   useEffect(() => {
     if (locationProtected || resolvingRequested || !asset) return;
@@ -121,15 +128,17 @@ export function AssetReview({
   }, [assetId, asset, page, rawFilePage, requestedPageId, selected, resolvingRequested, locationProtected, changeLocation]);
   const commentKey = [...qk.assetComments(asset?.page_id), guest ?? 'member'];
   const comments = useQuery({ queryKey: commentKey, queryFn: () => api.listAssetComments(asset!.page_id, guest), enabled: Boolean(asset), refetchInterval: 10000 });
-  const roots = (comments.data ?? []).filter((c) => !c.parent_id && (c.anchor as { region?: api.Region }).region?.page_number === page);
+  const commentAccessDenied = accessDenied(comments.error);
+  const visibleComments = commentAccessDenied ? undefined : comments.data;
+  const roots = (visibleComments ?? []).filter((c) => !c.parent_id && (c.anchor as { region?: api.Region }).region?.page_number === page);
   const selectedComment = roots.find((c) => c.id === selected);
   useEffect(() => {
     if (locationProtected || resolvingRequested || !asset) return;
-    const chosen = comments.data?.find(comment => comment.id === selected);
+    const chosen = visibleComments?.find(comment => comment.id === selected);
     if (chosen?.parent_id) { changeLocation(asset, page, chosen.parent_id, true); return; }
     const region = chosen?.anchor as { region?: api.Region } | undefined;
     if (region?.region?.page_number && page !== region.region.page_number) changeLocation(asset, Math.min(asset.page_count, region.region.page_number), selected, true);
-  }, [comments.data, selected, asset, page, resolvingRequested, locationProtected, changeLocation]);
+  }, [visibleComments, selected, asset, page, resolvingRequested, locationProtected, changeLocation]);
   function setSelected(commentId: string) { if (asset) changeLocation(asset, page, commentId); }
   function goToDocumentPage(nextPage: number) { if (asset) { changeLocation(asset, nextPage, ""); setDraft(null); } }
   async function refresh() { await cache.invalidateQueries({ queryKey: qk.assetComments(asset?.page_id) }); if (!guest) { await cache.invalidateQueries({ queryKey: qk.projectComments(projectId) }); } }
@@ -314,7 +323,7 @@ export function AssetReview({
         You are offline. New comments will not be saved until you reconnect.
       </div>
     )}
-    <div className="bl-review-tools"><select className="bl-select" aria-label="Review file" disabled={hasDraft || !assets.data?.length} value={asset?.id ?? ''} onChange={(e) => { const file = assets.data?.find(item => item.id === e.target.value); if (!file || keepDraft()) return; changeLocation(file, 1, ""); setDraft(null); setZoomScale(1); setRotation(0); }}><option value="" disabled>Select a file</option>{assets.data?.map((a) => <option key={a.id} value={a.id}>{a.filename}</option>)}</select>{asset && asset.page_count > 1 && <><button className="bl-quiet" disabled={page === 1 || hasDraft} onClick={() => goToDocumentPage(page - 1)}>Previous page</button><select className="bl-select" aria-label="PDF page" disabled={hasDraft} value={Math.min(page, asset.page_count)} onChange={event => { if (!keepDraft()) goToDocumentPage(Number(event.target.value)); }}>{Array.from({ length: asset.page_count }, (_, index) => <option key={index + 1} value={index + 1}>Page {index + 1} of {asset.page_count}</option>)}</select><button className="bl-quiet" disabled={page === asset.page_count || hasDraft} onClick={() => goToDocumentPage(page + 1)}>Next page</button></>}
+    <div className="bl-review-tools"><select className="bl-select" aria-label="Review file" disabled={hasDraft || !availableAssets?.length} value={asset?.id ?? ''} onChange={(e) => { const file = availableAssets?.find(item => item.id === e.target.value); if (!file || keepDraft()) return; changeLocation(file, 1, ""); setDraft(null); setZoomScale(1); setRotation(0); }}><option value="" disabled>Select a file</option>{availableAssets?.map((a) => <option key={a.id} value={a.id}>{a.filename}</option>)}</select>{asset && asset.page_count > 1 && <><button className="bl-quiet" disabled={page === 1 || hasDraft} onClick={() => goToDocumentPage(page - 1)}>Previous page</button><select className="bl-select" aria-label="PDF page" disabled={hasDraft} value={Math.min(page, asset.page_count)} onChange={event => { if (!keepDraft()) goToDocumentPage(Number(event.target.value)); }}>{Array.from({ length: asset.page_count }, (_, index) => <option key={index + 1} value={index + 1}>Page {index + 1} of {asset.page_count}</option>)}</select><button className="bl-quiet" disabled={page === asset.page_count || hasDraft} onClick={() => goToDocumentPage(page + 1)}>Next page</button></>}
       {asset && (
         <div className="bl-segment" style={{ marginLeft: "auto", marginRight: "1rem" }}>
           <button title="Rotate left" onClick={() => setRotation(r => (r - 90) % 360)}>↺</button>
@@ -328,6 +337,8 @@ export function AssetReview({
       )}
       <div className="bl-segment"><button aria-pressed={!commentMode} disabled={hasDraft} onClick={() => { setCommentMode(false); setDraft(null); }}>View</button><button aria-pressed={commentMode && canComment} disabled={!canComment} onClick={() => setCommentMode(true)}>Comment</button></div>{project && <button type="button" className="bl-quiet" disabled={hasDraft} title={draft && body.trim() ? "Save or cancel your comment first" : undefined} onClick={() => setShowFiles(true)}>Manage files</button>}</div>
     {[assets.error?.message, comments.error?.message, reanchorMutation.error?.message].filter(Boolean).map((error) => <p key={error} className="bl-error" role="alert">{error}</p>)}
+    {assets.error && availableAssets && <p role="status" className="bl-inline-warning">Showing the last loaded files. Changes may be missing until the list refreshes.</p>}
+    {comments.error && visibleComments && <div role="status" className="bl-inline-warning">Showing the last loaded feedback. Changes may be missing. <button type="button" className="bl-quiet" disabled={comments.isFetching} onClick={() => void comments.refetch()}>{comments.isFetching ? "Checking…" : "Retry comments"}</button></div>}
     {saveWarning && <p role="status" className="bl-inline-warning">{saveWarning}</p>}
     {assets.error && <button type="button" className="bl-button" disabled={assets.isFetching} onClick={() => void assets.refetch()}>Retry files</button>}
     {navigationPending && <div className="bl-inline-warning" role="status"><p>The address changed while this draft was open. Save or cancel it before following the new location.</p><button type="button" className="bl-quiet" disabled={post.isPending || replyMutation.isPending} onClick={() => setParams(new URLSearchParams(acceptedSearch.current), { replace: true })}>Stay on this file</button></div>}
@@ -424,7 +435,7 @@ export function AssetReview({
         );
       })}
       {mediaReady && draft && <div className="bl-draft-region" style={{ left: `${draft.x*100}%`, top: `${draft.y*100}%`, width: draft.width ? `${draft.width*100}%` : 20, height: draft.height ? `${draft.height*100}%` : 20 }} />}
-    </div><button className="bl-quiet" disabled={!canComment || !mediaReady || hasDraft} onClick={() => { setDraft({ x: .5, y: .5, width: 0, height: 0, page_number: page }); setSelected(''); }}>Add a comment at the center</button></> : <div className="bl-empty"><h2>{assets.isLoading ? 'Loading files…' : assets.error ? 'Files unavailable' : assetId || requestedPageId ? 'This file is unavailable' : 'No files yet'}</h2><p>{assetId || requestedPageId ? 'The file may be archived, removed or outside your current review access. Choose another file above or ask the project team.' : guest ? 'The team has not uploaded a file yet.' : 'Add images or a PDF to begin the review.'}</p>{assets.data?.length ? <button type="button" className="bl-button" disabled={hasDraft} onClick={() => changeLocation(assets.data[0], 1, "")}>Open first available file</button> : null}</div>}</section>
+    </div><button className="bl-quiet" disabled={!canComment || !mediaReady || hasDraft} onClick={() => { setDraft({ x: .5, y: .5, width: 0, height: 0, page_number: page }); setSelected(''); }}>Add a comment at the center</button></> : <div className="bl-empty"><h2>{assets.isLoading ? 'Loading files…' : assets.error ? 'Files unavailable' : assetId || requestedPageId ? 'This file is unavailable' : 'No files yet'}</h2><p>{assetId || requestedPageId ? 'The file may be archived, removed or outside your current review access. Choose another file above or ask the project team.' : guest ? 'The team has not uploaded a file yet.' : 'Add images or a PDF to begin the review.'}</p>{availableAssets?.length ? <button type="button" className="bl-button" disabled={hasDraft} onClick={() => changeLocation(availableAssets[0], 1, "")}>Open first available file</button> : null}</div>}</section>
     <aside className="bl-review-comments">
       {navigationWarning && <p role="status" className="bl-inline-warning">{navigationWarning}</p>}
       {reanchorMutation.isPending && <p role="status" className="bl-inline-warning">Saving comment location…</p>}
@@ -482,7 +493,7 @@ export function AssetReview({
             )}
           </div>
 
-          {comments.data?.filter((c) => c.parent_id === selected).map((c) => (
+          {visibleComments?.filter((c) => c.parent_id === selected).map((c) => (
             <article className="bl-message" key={c.id}>
               <small className="inline-flex items-center gap-2">{c.author_name} <LayerBadge layer={c.layer} /></small>
               <p>{c.body}</p>
@@ -503,7 +514,7 @@ export function AssetReview({
           </form>
         </div>
       ) : (
-        comments.isPending && asset ? <p role="status">Loading comments…</p> : comments.error ? <div role="alert"><p>Saved feedback could not be loaded.</p><button type="button" className="bl-button" disabled={comments.isFetching} onClick={() => void comments.refetch()}>Retry comments</button></div> : selected && comments.isSuccess ? <div className="bl-empty"><h2>Comment unavailable</h2><p>This comment may have been removed or is outside your current review access.</p><button type="button" className="bl-button" disabled={hasDraft} onClick={() => setSelected("")}>Show available comments</button></div> : roots.length > 0 ? (
+        comments.isPending && asset ? <p role="status">Loading comments…</p> : comments.error && !visibleComments ? <div role="alert"><p>Saved feedback could not be loaded.</p><button type="button" className="bl-button" disabled={comments.isFetching} onClick={() => void comments.refetch()}>Retry comments</button></div> : selected && comments.isSuccess ? <div className="bl-empty"><h2>Comment unavailable</h2><p>This comment may have been removed or is outside your current review access.</p><button type="button" className="bl-button" disabled={hasDraft} onClick={() => setSelected("")}>Show available comments</button></div> : roots.length > 0 ? (
           roots.map((c, i) => (
             <button className="bl-review-comment" key={c.id} onClick={() => { if (keepDraft()) return; setSelected(c.id); setDraft(null); }}>
               <small className="inline-flex items-center gap-2">#{i+1} · {c.author_name} <StatusBadge status={c.status} /></small>

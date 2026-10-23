@@ -1,5 +1,17 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Loaded PDF/image review through refresh errors (TDR-0131)
+
+The file-review screen now keeps loaded files, pins, conversations and replies
+visible when a later metadata/comment refresh fails. It labels the view as
+possibly stale and offers retry, instead of disabling annotation or replacing
+saved feedback with an error. API 401/403/404/409 still hide cached file and
+comment content. Web lint/typecheck/build passed (3/3 Turbo tasks), and diff
+check passed. Live PDF/image outage/recovery and revocation acceptance remain
+pending while the API host returns Railway fallback 404. See
+[TDR-0131](../tdr/0131-keep-file-review-visible-through-refresh-errors.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-24: Native toolbar startup outage recovery (TDR-0130)
 
 An initial API edge fallback or network failure no longer removes the website
