@@ -4,7 +4,7 @@ File-review refresh recovery (2026-10-24):
 [TDR-0131](../tdr/0131-keep-file-review-visible-through-refresh-errors.md)
 keeps already loaded PDF/image review and comments visible during a temporary
 refresh failure, while hiding cached content after an explicit access denial.
-Source checks passed; rollout and browser acceptance remain open.
+Source checks passed and web rollout succeeded; browser acceptance remains open.
 
 Website startup outage follow-up (2026-10-24):
 [TDR-0130](../tdr/0130-keep-native-toolbar-through-startup-outage.md)

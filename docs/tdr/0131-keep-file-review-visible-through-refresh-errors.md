@@ -1,6 +1,6 @@
 # TDR-0131: Keep loaded file review visible through refresh errors
 
-Date: 2026-10-24. Status: source verified; web rollout and browser acceptance pending.
+Date: 2026-10-24. Status: web deployed; browser acceptance pending.
 
 ## Problem and decision
 
@@ -21,7 +21,9 @@ changes also clear protected React Query caches through AuthProvider.
 
 ## Verification boundary
 
-Web lint/typecheck/build passed (3/3 Turbo tasks); diff check passed. No test
-suite was written or run under the Codex task instruction. Browser acceptance
-with a loaded PDF/image, temporary outage/recovery and genuine revocation
-remains pending while the API host returns Railway edge fallback 404.
+Web lint/typecheck/build passed (3/3 Turbo tasks); diff check passed. Vercel
+reported success for `e57a0b3`; the public `AssetReview` bundle contains both
+last-loaded-file and last-loaded-feedback guidance. No test suite was written
+or run under the Codex task instruction. Browser acceptance with a loaded
+PDF/image, temporary outage/recovery and genuine revocation remains pending
+while the API host returns Railway edge fallback 404.
