@@ -1,6 +1,6 @@
 # TDR-0132: Isolate guest file-review requests from member cookies
 
-Date: 2026-10-24. Status: source verified; web rollout and browser acceptance pending.
+Date: 2026-10-24. Status: web deployed; browser acceptance pending.
 
 ## Problem and decision
 
@@ -20,7 +20,9 @@ transport hardening, not evidence of a live cross-identity leak.
 
 ## Verification boundary
 
-Web lint/typecheck/build passed (3/3 Turbo tasks), and diff check passed. No
-test suite was written or run under the Codex task instruction. Deployment and
-browser acceptance for guest/member coexistence and private file access remain
+Web lint/typecheck/build passed (3/3 Turbo tasks), and diff check passed.
+Vercel reported success for `c0e0bec`; the public main bundle contains
+`credentials: "omit"` and `cache: "no-store"` alongside the guest-session
+header. No test suite was written or run under the Codex task instruction.
+Browser acceptance for guest/member coexistence and private file access remains
 pending while the API host returns Railway edge fallback 404.

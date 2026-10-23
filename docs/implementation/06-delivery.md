@@ -6,8 +6,10 @@ Direct guest file metadata, comment, mutation and content requests now use
 `credentials: omit` and `cache: no-store`; the guest session header remains
 their only identity. This closes a same-origin/browser-cache transport gap
 without changing member requests or backend authorization. Web lint/typecheck/
-build passed (3/3 Turbo tasks), and diff check passed. No live leak is claimed.
-Rollout and browser acceptance for guest/member coexistence and private file
+build passed (3/3 Turbo tasks), and diff check passed. Vercel reported success
+for `c0e0bec`; the served main bundle contains the explicit guest header,
+credential omission and no-store fetch options. No live leak is claimed.
+Browser acceptance for guest/member coexistence and private file
 access remain pending while API `/health` returns Railway fallback 404. See
 [TDR-0132](../tdr/0132-isolate-guest-file-review-transport.md).
 No test suite was written or run under the Codex task instruction.
