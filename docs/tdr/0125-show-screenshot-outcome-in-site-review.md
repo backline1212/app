@@ -1,6 +1,6 @@
 # TDR-0125: Show screenshot outcome in website review
 
-Date: 2026-10-24. Status: source implemented; rollout and browser acceptance pending.
+Date: 2026-10-24. Status: portal deployed; installed-browser acceptance pending.
 
 ## Problem and decision
 
@@ -31,7 +31,14 @@ Widget, extension and web lint/typecheck/build passed (9/9 Turbo tasks).
 The source, portal-public and built-web ZIPs match at SHA-256
 `4239C81E53A9CB17E6D0C1B2B7C93956C383C3E0AA427F456C5A0F59E59E89E8`.
 The 51,458-byte ZIP contains manifest 0.4.11, the three scripts and popup.
-After rollout, verify an actual native
+Vercel reported success for `2bd0f87`. The public versioned ZIP returned
+HTTP 200 as `application/zip`, with the same size, hash and manifest version;
+the served portal bundle references 0.4.11. The public API host returned a
+Railway fallback 404 for `/health`, auth capabilities and the legacy extension
+manifest at this check, so no end-to-end comment or login acceptance is
+claimed. Railway's platform incident was in monitoring, but the exact cause
+of this service's fallback remains unverified without service access.
+After service recovery, verify an actual native
 capture and a deliberately failed capture on a controlled site, including
 post confirmation, saved pin, portal display and attachment behavior. This
 change reports the outcome; it does not add screenshot preview, retry, or

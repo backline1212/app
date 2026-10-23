@@ -9,6 +9,7 @@ import { useDocumentTitle } from "../../lib/use-document-title";
 import { getAuthCapabilities, startGoogleSignIn } from "./api";
 import { qk } from "../../lib/query-keys";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { ApiError } from "../../lib/api-client";
 
 import type { TranslationKeys } from "../../lib/i18n";
 
@@ -49,6 +50,8 @@ export function LoginPage() {
     retry: 1,
   });
   const googleAvailable = !capabilities.isError && capabilities.data?.google_sign_in === true;
+  const serviceUnreachable = capabilities.error instanceof ApiError
+    && ["NETWORK_ERROR", "SERVICE_UNAVAILABLE"].includes(capabilities.error.code);
   // design/index.html's four panels: #lg-in, #lg-up, #lg-reset, #lg-sent. "help" is
   // the reset panel - it doesn't reset a password (there's no reset-link flow yet),
   // it emails the six-digit code, which is also the way in for the members who predate
@@ -78,7 +81,9 @@ export function LoginPage() {
   const googleStatus = !googleAvailable && (
     <p id="google-signin-status" className="lg-sub" role="status">
       {capabilities.isPending ? "Checking Google sign-in…" : capabilities.isError ? <>
-        Could not check Google sign-in. You can use email below. {" "}
+        {serviceUnreachable
+          ? "Backline is unreachable right now. Password and email-code sign-in may also be unavailable."
+          : "Could not check Google sign-in. You can try email below."} {" "}
         <button type="button" className="lg-forgot" disabled={capabilities.isFetching || isSubmitting} onClick={() => void capabilities.refetch()}>Check again</button>
       </> : "Google sign-in is unavailable. Use email below."}
     </p>

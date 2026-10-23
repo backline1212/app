@@ -1,5 +1,17 @@
 # Delivery and verification ledger
 
+## 2026-10-24: API outage messaging (TDR-0126)
+
+The web client now treats Railway edge fallback 404 as temporary service
+unavailability and does not dispatch workspace-access-lost for it. Browser
+fetch failures now mention either a local connection or service interruption;
+the login page no longer promises email sign-in when the capabilities check
+failed because the service is unreachable. Ordinary application 404/403
+behavior remains. Web lint/typecheck/build passed (3/3 Turbo tasks). Rollout
+and browser acceptance remain pending. See
+[TDR-0126](../tdr/0126-distinguish-api-outage-from-missing-account.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-24: Website screenshot outcome (TDR-0125)
 
 Point and region comment confirmations now report whether the server returned
@@ -12,7 +24,14 @@ lint/typecheck/build passed (9/9 Turbo tasks). The 51,458-byte source,
 portal-public and built-web ZIPs have matching SHA-256
 `4239C81E53A9CB17E6D0C1B2B7C93956C383C3E0AA427F456C5A0F59E59E89E8`;
 its root manifest is 0.4.11 and the three scripts and popup are present.
-Deployment and browser acceptance remain pending. See
+Vercel reported success for `2bd0f87`; the public versioned ZIP returned
+HTTP 200 as `application/zip`, 51,458 bytes, the matching hash and manifest
+0.4.11. The deployed portal bundle references 0.4.11. The API host returned
+Railway fallback 404 for `/health`, auth capabilities and its legacy extension
+manifest, so login/comment/browser acceptance cannot be claimed. Railway's
+[platform incident](https://status.railway.com/incident/QH8L8B3E) was in
+monitoring, but the service-specific cause is unverified; Railway CLI access
+was unauthorized and its dashboard required login. See
 [TDR-0125](../tdr/0125-show-screenshot-outcome-in-site-review.md).
 No test suite was written or run under the Codex task instruction.
 

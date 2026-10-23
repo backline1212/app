@@ -5,6 +5,10 @@ import type { AccessTokenPayload } from "./jwt";
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const REFRESH_PATH = "/api/v1/auth/refresh";
 const SWITCH_PATH = "/api/v1/auth/switch-workspace";
+// Railway's edge returns a 404 before FastAPI when the API service/domain is
+// unavailable. It is not a missing workspace, login or review resource.
+const isServiceFallback = (response: Response): boolean =>
+  response.status === 404 && response.headers.get("x-railway-fallback") === "true";
 // Invalid credentials/codes are final responses, not expired member sessions.
 const SIGN_IN_PATHS = new Set([
   REFRESH_PATH, "/api/v1/auth/login", "/api/v1/auth/signup",
@@ -64,7 +68,7 @@ async function rawRequest(path: string, init?: RequestInit): Promise<Response> {
     // "Failed to fetch", which says nothing to a reviewer.
     if (init?.signal?.aborted) throw init.signal.reason ?? error;
     if (error instanceof DOMException && error.name === "AbortError") throw error;
-    throw new ApiError(0, "NETWORK_ERROR", "Can't reach Backline. Check your connection and try again.");
+    throw new ApiError(0, "NETWORK_ERROR", "Can't reach Backline right now. Check your connection or try again later.");
   }
 }
 
@@ -106,7 +110,7 @@ async function performRefresh(revision: number, previous: AccessTokenPayload | n
       });
       requireCurrentSession();
       if (!scoped.ok) {
-        if (scoped.status === 403 || scoped.status === 404) {
+        if (scoped.status === 403 || (scoped.status === 404 && !isServiceFallback(scoped))) {
           setAccessToken(body.access_token);
           window.dispatchEvent(new Event(WORKSPACE_ACCESS_LOST_EVENT));
         }
@@ -195,7 +199,9 @@ async function reopenWorkspace(): Promise<boolean> {
       });
       requireCurrent();
       if (!response.ok) {
-        if (response.status === 403 || response.status === 404) window.dispatchEvent(new Event(WORKSPACE_ACCESS_LOST_EVENT));
+        if (response.status === 403 || (response.status === 404 && !isServiceFallback(response))) {
+          window.dispatchEvent(new Event(WORKSPACE_ACCESS_LOST_EVENT));
+        }
         throw await toApiError(response);
       }
       const body = (await response.json()) as { access_token: string };
@@ -284,6 +290,9 @@ function fallbackMessage(status: number): string {
 }
 
 async function toApiError(response: Response): Promise<ApiError> {
+  if (isServiceFallback(response)) {
+    return new ApiError(503, "SERVICE_UNAVAILABLE", "Backline is temporarily unavailable. Try again shortly.");
+  }
   const body = await response.json().catch(() => null);
   const code = body?.error?.code ?? (response.status === 422 ? "VALIDATION_ERROR" : "UNKNOWN_ERROR");
   const message = body?.error?.message || detailMessage(body?.detail) || fallbackMessage(response.status);

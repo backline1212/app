@@ -11,7 +11,9 @@ The 0.4.9 dashboard draft still needs replacement; do not submit that older
 draft as the current version. Widget, extension and web lint/typecheck/build
 passed (9/9 Turbo tasks); the source, portal-public and built-web ZIP hashes
 match, and the root manifest and scripts are present. Browser acceptance
-remains pending.
+remains pending. Vercel reported success for `2bd0f87`; the public ZIP returned
+HTTP 200 with the same hash and manifest. The API host was returning Railway
+fallback 404 at the check, so login/comment acceptance remains blocked.
 
 ## 2026-10-23 release update
 
