@@ -51,6 +51,9 @@ export function createApiClient(
     requireOpen();
 
     if (!response.ok) {
+      if (response.status === 404 && response.headers.get("x-railway-fallback") === "true") {
+        throw new WidgetApiError(503, "SERVICE_UNAVAILABLE", "Backline is temporarily unavailable. Keep this review open and try again shortly.");
+      }
       const body = await response.json().catch(() => null);
       if (response.status === 401 && auth["X-Guest-Session"]) onUnauthorized();
       throw new WidgetApiError(
@@ -79,6 +82,9 @@ export function createApiClient(
     });
     requireOpen();
     if (!response.ok) {
+      if (response.status === 404 && response.headers.get("x-railway-fallback") === "true") {
+        throw new WidgetApiError(503, "SERVICE_UNAVAILABLE", "Backline is temporarily unavailable. Keep this review open and try again shortly.");
+      }
       const body = await response.json().catch(() => null);
       if (response.status === 401 && auth["X-Guest-Session"]) onUnauthorized();
       throw new WidgetApiError(

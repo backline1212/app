@@ -1,5 +1,11 @@
 # Final Draft implementation index
 
+Review continuity during API fallback (2026-10-24):
+[TDR-0127](../tdr/0127-preserve-reviews-through-api-edge-fallback.md) keeps
+native and guest review sessions when Railway's edge returns a service-level
+404, while retaining cleanup for real API denials. Extension 0.4.12 rollout
+and browser acceptance remain open.
+
 API outage messaging follow-up (2026-10-24):
 [TDR-0126](../tdr/0126-distinguish-api-outage-from-missing-account.md)
 distinguishes Railway edge fallback and browser network failures from missing

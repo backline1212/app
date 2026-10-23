@@ -2,6 +2,17 @@
 
 Date: 2026-10-20. Original local package: 0.4.5. Store publication: pending.
 
+## 2026-10-24 review-continuity update
+
+TDR-0127 advances the source manifest to 0.4.12 so a Railway edge fallback
+does not revoke an otherwise valid browser review session. Rebuild and verify
+this package before replacing the 0.4.9 Web Store draft. Widget, extension
+and web lint/typecheck/build passed (9/9 Turbo tasks). Its 51,774-byte ZIP
+has SHA-256 `437239BF7173B79132651EB128447CEACE8CF97B03F7BEB9EC59049B0F84607D`;
+source, portal-public and built-web hashes match, and manifest 0.4.12 and
+scripts are present. The 0.4.11 public
+ZIP remains a verified fallback while the API host is unavailable.
+
 ## 2026-10-24 release update
 
 TDR-0125 advances the source manifest and portal download to 0.4.11 so the

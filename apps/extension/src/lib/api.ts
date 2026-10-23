@@ -28,6 +28,9 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 404 && response.headers.get("x-railway-fallback") === "true") {
+      throw new ExtensionApiError(503, "SERVICE_UNAVAILABLE", "Backline is temporarily unavailable. Try again shortly.");
+    }
     const body = await response.json().catch(() => null);
     throw new ExtensionApiError(
       response.status,

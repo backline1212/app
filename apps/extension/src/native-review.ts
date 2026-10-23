@@ -69,6 +69,9 @@ async function request<T>(auth: NativeReviewAuth, path: string, init: RequestIni
     },
   });
   if (!response.ok) {
+    if (response.status === 404 && response.headers.get("x-railway-fallback") === "true") {
+      throw new NativeReviewError("Backline is temporarily unavailable. Your review will stay open; try again shortly.", 503);
+    }
     const body = await response.json().catch(() => null);
     throw new NativeReviewError(response.status === 401
       ? "Review access expired. Return to Backline and open browser review again."

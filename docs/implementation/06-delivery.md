@@ -1,5 +1,20 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Preserve review sessions through API fallback (TDR-0127)
+
+Native review and the guest widget now distinguish Railway's edge fallback
+404 from an application access denial. The former reports service
+unavailability without clearing a valid tab-bound or guest session, while
+real API 401/403/404/409 handling remains. The extension source and portal
+download advance to 0.4.12; the Chrome Web Store draft remains 0.4.9.
+Widget, extension and web lint/typecheck/build passed (9/9 Turbo tasks).
+The 51,774-byte source, portal-public and built-web ZIPs have matching SHA-256
+`437239BF7173B79132651EB128447CEACE8CF97B03F7BEB9EC59049B0F84607D`;
+the archive has manifest 0.4.12, the three scripts and popup. Deployment and
+browser acceptance remain pending. See
+[TDR-0127](../tdr/0127-preserve-reviews-through-api-edge-fallback.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-24: API outage messaging (TDR-0126)
 
 The web client now treats Railway edge fallback 404 as temporary service
