@@ -1,5 +1,17 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Guest PDF/image transport isolation (TDR-0132)
+
+Direct guest file metadata, comment, mutation and content requests now use
+`credentials: omit` and `cache: no-store`; the guest session header remains
+their only identity. This closes a same-origin/browser-cache transport gap
+without changing member requests or backend authorization. Web lint/typecheck/
+build passed (3/3 Turbo tasks), and diff check passed. No live leak is claimed.
+Rollout and browser acceptance for guest/member coexistence and private file
+access remain pending while API `/health` returns Railway fallback 404. See
+[TDR-0132](../tdr/0132-isolate-guest-file-review-transport.md).
+No test suite was written or run under the Codex task instruction.
+
 ## 2026-10-24: Loaded PDF/image review through refresh errors (TDR-0131)
 
 The file-review screen now keeps loaded files, pins, conversations and replies

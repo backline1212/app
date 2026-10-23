@@ -23,7 +23,7 @@ export async function assetRequest<T>(path: string, guest?: string, init?: Reque
   const writing = init?.method && init.method !== 'GET';
   return boundedRequest(30_000, writing ? 'Saving timed out and may already have completed. Retry the original request or check the file before saving again.' : 'Loading this review timed out. Try again.', async signal => {
     if (!guest) return apiFetch<T>(path, { ...init, signal });
-    const response = await fetch(`${API_BASE_URL}${path}`, { ...init, signal, headers: { 'Content-Type': 'application/json', 'X-Guest-Session': guest, ...init?.headers } });
+    const response = await fetch(`${API_BASE_URL}${path}`, { ...init, signal, credentials: 'omit', cache: 'no-store', headers: { 'Content-Type': 'application/json', 'X-Guest-Session': guest, ...init?.headers } });
     if (!response.ok) throw await toApiError(response, "REVIEW_ERROR", "The review could not be loaded.");
     return response.json() as Promise<T>;
   }, init?.signal);
@@ -51,7 +51,7 @@ export async function getAssetContent(projectId: string, assetId: string, guest?
   const path = `/api/v1/projects/${projectId}/assets/${assetId}/content`;
   return boundedRequest(60_000, 'Loading this file timed out. Try Retry file to load it again.', async requestSignal => {
     if (!guest) return apiFetchBlob(path, { signal: requestSignal });
-    const response = await fetch(`${API_BASE_URL}${path}`, { headers: { 'X-Guest-Session': guest }, signal: requestSignal });
+    const response = await fetch(`${API_BASE_URL}${path}`, { headers: { 'X-Guest-Session': guest }, credentials: 'omit', cache: 'no-store', signal: requestSignal });
     if (!response.ok) throw await toApiError(response, "FILE_ERROR", "The file could not be loaded. Try again.");
     return response.blob();
   }, signal);

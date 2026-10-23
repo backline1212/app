@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Guest file-review transport isolation (2026-10-24):
+[TDR-0132](../tdr/0132-isolate-guest-file-review-transport.md) explicitly
+omits member cookies and browser caching from direct guest PDF/image requests.
+Source checks passed; rollout and browser acceptance remain open.
+
 File-review refresh recovery (2026-10-24):
 [TDR-0131](../tdr/0131-keep-file-review-visible-through-refresh-errors.md)
 keeps already loaded PDF/image review and comments visible during a temporary
