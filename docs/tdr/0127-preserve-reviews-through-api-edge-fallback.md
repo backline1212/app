@@ -1,6 +1,6 @@
 # TDR-0127: Preserve review sessions through an API edge fallback
 
-Date: 2026-10-24. Status: source implemented; rollout and browser acceptance pending.
+Date: 2026-10-24. Status: portal deployed; API rollout and browser acceptance pending.
 
 ## Problem and decision
 
@@ -32,8 +32,12 @@ remains 0.4.9 until it is replaced and accepted.
 Widget, extension and web lint/typecheck/build passed (9/9 Turbo tasks).
 The 51,774-byte source, portal-public and built-web ZIPs match at SHA-256
 `437239BF7173B79132651EB128447CEACE8CF97B03F7BEB9EC59049B0F84607D`;
-the archive has manifest 0.4.12, the three scripts and popup. Deployment
-checks remain. When the API recovers,
+the archive has manifest 0.4.12, the three scripts and popup. Vercel reported
+success for `917fd83`; the public ZIP returned HTTP 200 as `application/zip`
+with the same size, hash and manifest, and the served portal bundle references
+0.4.12. The API host still returned Railway edge fallback 404 for `/health`.
+No exact API/worker rollout or installed extension behavior is claimed.
+When the API recovers,
 accept real access revocation and transient outage/rejoin on a controlled
 review, including the guest widget, native access check and comment polling.
 No test suite is written or run under the Codex task instruction.

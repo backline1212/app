@@ -1,6 +1,6 @@
 # TDR-0126: Distinguish an API outage from missing account data
 
-Date: 2026-10-24. Status: source implemented; rollout and browser acceptance pending.
+Date: 2026-10-24. Status: web deployed; browser acceptance pending.
 
 ## Problem and decision
 
@@ -27,8 +27,11 @@ and end-to-end acceptance.
 
 ## Verification boundary
 
-Web lint, typecheck and production build passed (3/3 Turbo tasks). The served
-bundle remains to be checked after deployment. After API routing recovers,
+Web lint, typecheck and production build passed (3/3 Turbo tasks). Vercel
+reported success for `917fd83`; the served login bundle includes the outage
+message and the portal root returned HTTP 200. API `/health` still returned
+Railway edge fallback 404, so actual sign-in and recovery were not accepted.
+After API routing recovers,
 verify a real wrong password, absent
 workspace, expired session and successful sign-in; on another controlled
 outage, verify no false access-lost message. No test suite is written or run

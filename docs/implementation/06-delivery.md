@@ -10,8 +10,12 @@ download advance to 0.4.12; the Chrome Web Store draft remains 0.4.9.
 Widget, extension and web lint/typecheck/build passed (9/9 Turbo tasks).
 The 51,774-byte source, portal-public and built-web ZIPs have matching SHA-256
 `437239BF7173B79132651EB128447CEACE8CF97B03F7BEB9EC59049B0F84607D`;
-the archive has manifest 0.4.12, the three scripts and popup. Deployment and
-browser acceptance remain pending. See
+the archive has manifest 0.4.12, the three scripts and popup. API rollout and
+browser acceptance remain pending. Vercel reported success for `917fd83`;
+the public ZIP returned HTTP 200 as `application/zip`, 51,774 bytes, with
+matching hash and manifest 0.4.12. The deployed portal bundle references
+0.4.12. The API host still returned Railway edge fallback 404 for `/health`;
+exact API/worker rollout and installed browser behavior remain unverified. See
 [TDR-0127](../tdr/0127-preserve-reviews-through-api-edge-fallback.md).
 No test suite was written or run under the Codex task instruction.
 
@@ -22,8 +26,11 @@ unavailability and does not dispatch workspace-access-lost for it. Browser
 fetch failures now mention either a local connection or service interruption;
 the login page no longer promises email sign-in when the capabilities check
 failed because the service is unreachable. Ordinary application 404/403
-behavior remains. Web lint/typecheck/build passed (3/3 Turbo tasks). Rollout
-and browser acceptance remain pending. See
+behavior remains. Web lint/typecheck/build passed (3/3 Turbo tasks). Vercel
+reported success for `917fd83`, and the served login bundle contains the
+service-unreachable copy. The portal root returned HTTP 200. API `/health`
+still returned Railway edge fallback 404, so live sign-in/authorization
+acceptance remains pending. See
 [TDR-0126](../tdr/0126-distinguish-api-outage-from-missing-account.md).
 No test suite was written or run under the Codex task instruction.
 

@@ -38,16 +38,17 @@ affected backend Ruff/mypy/workspace-scope checks, without new test suites.
 | ID | Priority | Pending item | Current evidence / completion condition |
 |---|---|---|---|
 | DEP-01 | P1 | Restore API routing and release the newer API/worker changes together | On 2026-10-24 the API host returned Railway fallback 404 for `/health`, auth capabilities and the legacy extension manifest. Railway's platform incident was in monitoring, but the service-specific cause is unverified. CLI access was unauthorized and the dashboard required login. Reauthorize service access, inspect deployment/domain state and logs, restore routing, then verify exact SHA, contracts, health and jobs. Last successful read-only status had app, worker and cloud-login on `7b25ac3`; later exact-SHA deploy attempts were rejected during a pause. |
-| DEP-02 | P1 | Align extension source, download and installed version | Source, portal-public and built-web ZIPs are **0.4.12** with matching hash/manifest under TDR-0127; live rollout remains to be verified. The verified prior public ZIP is 0.4.11. The API's unversioned ZIP was last fetched at **0.4.4** before the host began returning fallback 404, and the Web Store draft still contains **0.4.9**. Installed Chrome has not been rechecked. Restore API routing, replace the store draft, update installed Chrome and accept replies, snapshots, hash routes and access cleanup. |
+| DEP-02 | P1 | Align extension source, download and installed version | Source and public portal ZIP are **0.4.12** with matching hash/manifest under TDR-0127; Vercel rollout succeeded. The API's unversioned ZIP was last fetched at **0.4.4** before the host began returning fallback 404, and the Web Store draft still contains **0.4.9**. Installed Chrome has not been rechecked. Restore API routing, replace the store draft, update installed Chrome and accept replies, snapshots, hash routes and access cleanup. |
 | DEP-03 | P2 | Complete Chrome Web Store release | Local icon/store preparation exists separately. Publisher registration/agreements/payment, public policy/support information, real listing screenshots, submission, approval and install URL are still pending. Do not count local ZIP preparation as publication. |
 | DEP-04 | P1 | Verify mixed-version rollout and rollback | New web code can meet the older API/SDK. Check capability gates, contract compatibility and preservation of old comments/pages/evidence during upgrade/rollback. |
 
 The web client now distinguishes Railway edge fallback 404 from an application
-resource 404 (TDR-0126), pending rollout and browser acceptance. This changes
+resource 404 (TDR-0126), deployed in the web bundle with browser acceptance pending. This changes
 the user-facing diagnosis; it does not restore a missing API service.
 TDR-0127 extends the distinction to native and guest review transports so
-transient edge fallback does not clear valid review sessions; package rollout
-and access-denial/outage browser acceptance remain open.
+transient edge fallback does not clear valid review sessions; the portal
+package is deployed, while API rollout and access-denial/outage browser
+acceptance remain open.
 
 API `/health` currently reports status/Mongo/Redis OK. This proves health, not the
 newer feature rollout. Web implementation through `ad03bb4` has successful Vercel

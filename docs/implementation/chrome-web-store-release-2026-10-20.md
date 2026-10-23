@@ -12,6 +12,9 @@ has SHA-256 `437239BF7173B79132651EB128447CEACE8CF97B03F7BEB9EC59049B0F84607D`;
 source, portal-public and built-web hashes match, and manifest 0.4.12 and
 scripts are present. The 0.4.11 public
 ZIP remains a verified fallback while the API host is unavailable.
+Vercel reported success for `917fd83`; the public 0.4.12 ZIP returned HTTP
+200 with the same hash, size and manifest. The API host still returned a
+Railway edge fallback 404, and installed-browser acceptance remains open.
 
 ## 2026-10-24 release update
 
