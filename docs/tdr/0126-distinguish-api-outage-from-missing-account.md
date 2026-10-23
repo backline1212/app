@@ -30,7 +30,9 @@ and end-to-end acceptance.
 Web lint, typecheck and production build passed (3/3 Turbo tasks). Vercel
 reported success for `917fd83`; the served login bundle includes the outage
 message and the portal root returned HTTP 200. API `/health` still returned
-Railway edge fallback 404, so actual sign-in and recovery were not accepted.
+Railway edge fallback 404. A signed-out in-app browser visit to `/login`
+displayed the new service-unreachable message and a Check again control after
+the capabilities request failed. Actual sign-in and recovery were not accepted.
 After API routing recovers,
 verify a real wrong password, absent
 workspace, expired session and successful sign-in; on another controlled

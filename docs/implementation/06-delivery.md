@@ -44,8 +44,10 @@ failed because the service is unreachable. Ordinary application 404/403
 behavior remains. Web lint/typecheck/build passed (3/3 Turbo tasks). Vercel
 reported success for `917fd83`, and the served login bundle contains the
 service-unreachable copy. The portal root returned HTTP 200. API `/health`
-still returned Railway edge fallback 404, so live sign-in/authorization
-acceptance remains pending. See
+still returned Railway edge fallback 404. A signed-out in-app browser visit
+to `/login` displayed the new service-unreachable message and Check again
+control after capabilities failed. Live sign-in/authorization acceptance
+remains pending. See
 [TDR-0126](../tdr/0126-distinguish-api-outage-from-missing-account.md).
 No test suite was written or run under the Codex task instruction.
 
