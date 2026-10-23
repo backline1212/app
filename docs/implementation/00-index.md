@@ -4,13 +4,14 @@ Website startup outage follow-up (2026-10-24):
 [TDR-0130](../tdr/0130-keep-native-toolbar-through-startup-outage.md)
 keeps the native website toolbar and tab session through an initial API outage
 and retries access when the service returns. Extension 0.4.13 source/package
-checks passed; rollout and installed-browser acceptance remain open.
+checks passed and the portal ZIP is deployed; installed-browser acceptance
+remains open.
 
 Portal guest outage follow-up (2026-10-24):
 [TDR-0129](../tdr/0129-preserve-portal-guest-access-during-api-fallback.md)
 maps API edge fallback in direct guest session, board and file-review requests
 to retryable unavailability, so an outage does not expire a portal guest review.
-Source checks passed; rollout and browser acceptance remain open.
+Source checks passed and web rollout succeeded; browser acceptance remains open.
 
 Website review waiting-state follow-up (2026-10-24):
 [TDR-0128](../tdr/0128-honest-website-review-waiting-state.md) reserves

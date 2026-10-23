@@ -1,6 +1,6 @@
 # TDR-0129: Preserve portal guest access during an API edge fallback
 
-Date: 2026-10-24. Status: source verified; web rollout and browser acceptance pending.
+Date: 2026-10-24. Status: web deployed; browser acceptance pending.
 
 ## Problem and decision
 
@@ -23,9 +23,10 @@ error; it does not prove access was revoked.
 
 ## Verification boundary
 
-Web lint, typecheck and build passed (3/3 Turbo tasks). Diff check passed. No
-test suite was written or run under the Codex task instruction. The public API
-host still returned Railway edge fallback 404 for `/health` on this date. Web
-rollout and browser acceptance for transient fallback versus genuine guest
-revocation remain pending. The change does not restore API routing or replay a
-comment whose save result is uncertain.
+Web lint, typecheck and build passed (3/3 Turbo tasks). Diff check passed.
+Vercel reported success for `bd1c780`; the later public bundle also contains
+the shared `SERVICE_UNAVAILABLE` mapping. No test suite was written or run
+under the Codex task instruction. The public API host still returned Railway
+edge fallback 404 for `/health` on this date. Browser acceptance for transient
+fallback versus genuine guest revocation remains pending. The change does not
+restore API routing or replay a comment whose save result is uncertain.

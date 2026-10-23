@@ -1,6 +1,6 @@
 # TDR-0130: Keep a website review toolbar through startup API outages
 
-Date: 2026-10-24. Status: source/package verified; web rollout and installed-browser acceptance pending.
+Date: 2026-10-24. Status: portal download deployed; installed-browser acceptance pending.
 
 ## Problem and decision
 
@@ -30,6 +30,9 @@ Widget, extension and web lint/typecheck/build passed (7/7 Turbo tasks); web
 build passed again after the ZIP was copied. Source, portal-public and built
 ZIPs are 51,939 bytes with SHA-256
 `62100C9FEFEDB1574891F71B74B40954C42DFC1EAB713630AFEEBC6E082C41C2`;
-the archive manifest is 0.4.13. No test suite was written or run under the
-Codex task instruction. The API still returns Railway edge fallback 404, so
-live launch, recovery and genuine revocation acceptance remain pending.
+the archive manifest is 0.4.13. Vercel reported success for `16e4020`;
+the public 0.4.13 ZIP downloaded as 51,939 bytes with the same SHA-256 and
+manifest. The served portal bundle includes the unavailability mapping.
+No test suite was written or run under the Codex task instruction. The API
+still returns Railway edge fallback 404, so installed-browser launch, recovery
+and genuine revocation acceptance remain pending.

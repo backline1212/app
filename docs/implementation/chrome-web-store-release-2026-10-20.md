@@ -11,8 +11,9 @@ SHA-256 `62100C9FEFEDB1574891F71B74B40954C42DFC1EAB713630AFEEBC6E082C41C2`
 and root manifest 0.4.13. Widget/extension/web lint/typecheck/build passed
 (7/7 Turbo tasks); web build passed again after copying the ZIP. Replace the
 0.4.9 store draft with this package only after publisher access is restored.
-Public rollout and installed-browser acceptance remain pending. The API host
-still returned Railway fallback 404 during this source verification.
+Vercel reported success for `16e4020`; the public 0.4.13 ZIP returned the same
+size, hash and manifest. Installed-browser acceptance remains pending. The API
+host still returned Railway fallback 404 during release verification.
 
 ## 2026-10-24 review-continuity update
 

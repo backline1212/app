@@ -10,9 +10,11 @@ review. Extension 0.4.13 source/package and portal-public/built ZIPs match:
 51,939 bytes, SHA-256
 `62100C9FEFEDB1574891F71B74B40954C42DFC1EAB713630AFEEBC6E082C41C2`,
 manifest 0.4.13. Widget/extension/web lint/typecheck/build passed (7/7 Turbo
-tasks); web build passed again after the ZIP copy. Public rollout, installed
-browser recovery and real-denial acceptance remain pending while API `/health`
-returns Railway fallback 404. See
+tasks); web build passed again after the ZIP copy. Vercel reported success for
+`16e4020`; the public 0.4.13 ZIP downloaded as 51,939 bytes with matching hash
+and manifest, and the served portal bundle contains the unavailability mapping.
+Installed-browser recovery and real-denial acceptance remain pending while API
+`/health` returns Railway fallback 404. See
 [TDR-0130](../tdr/0130-keep-native-toolbar-through-startup-outage.md).
 No test suite was written or run under the Codex task instruction.
 
@@ -23,8 +25,9 @@ metadata/content now share the web client's Railway edge-fallback mapping.
 The fallback 404 becomes retryable service unavailability instead of triggering
 guest session expiry or file-review access cleanup; real application 401/403/404
 responses keep their existing behavior. Web lint/typecheck/build passed (3/3
-Turbo tasks), and `git diff --check` passed. The API host still returned edge
-fallback 404 for `/health`. Web rollout and live acceptance for outage,
+Turbo tasks), and `git diff --check` passed. Vercel reported success for
+`bd1c780`; the later served bundle contains the unavailability mapping. The
+API host still returned edge fallback 404 for `/health`. Live acceptance for outage,
 recovery and genuine revocation remain pending. See
 [TDR-0129](../tdr/0129-preserve-portal-guest-access-during-api-fallback.md).
 No test suite was written or run under the Codex task instruction.
