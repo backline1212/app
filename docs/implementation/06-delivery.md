@@ -7,7 +7,9 @@ and replacement of an installed outdated/wrong-server extension. Both states
 offer Reload Backline after the browser's extension card is installed or
 reloaded, avoiding a Check again action that cannot detect a newly injected
 content script in the already open tab. Web lint/typecheck/build passed (3/3
-Turbo tasks), and diff check passed. Web rollout and browser acceptance for
+Turbo tasks), and diff check passed. Vercel reported success for `7f4d89b`;
+the served NativeReviewButton bundle contains the update heading and reload
+guidance. Browser acceptance for
 missing/incompatible/reloaded states remain pending while API `/health`
 returns Railway fallback 404. See
 [TDR-0133](../tdr/0133-separate-extension-install-and-update-guidance.md).

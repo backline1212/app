@@ -1,6 +1,6 @@
 # TDR-0133: Separate extension installation from update guidance
 
-Date: 2026-10-24. Status: source verified; web rollout and browser acceptance pending.
+Date: 2026-10-24. Status: web deployed; browser acceptance pending.
 
 ## Problem and decision
 
@@ -22,8 +22,10 @@ for the current versioned ZIP; it does not claim automatic store updates.
 
 ## Verification boundary
 
-Web lint/typecheck/build passed (3/3 Turbo tasks); diff check passed. No test
-suite was written or run under the Codex task instruction. Browser acceptance
-of missing, outdated, wrong-server and successfully reloaded extension states
-remains pending while API `/health` returns Railway fallback 404 and the
-installed browser version is unverified.
+Web lint/typecheck/build passed (3/3 Turbo tasks); diff check passed. Vercel
+reported success for `7f4d89b`; the public NativeReviewButton bundle contains
+the separate update heading, reload guidance and Reload Backline action. No
+test suite was written or run under the Codex task instruction. Browser
+acceptance of missing, outdated, wrong-server and successfully reloaded
+extension states remains pending while API `/health` returns Railway fallback
+404 and the installed browser version is unverified.
