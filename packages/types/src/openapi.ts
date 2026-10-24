@@ -3590,6 +3590,7 @@ export interface components {
             release_sha: string | null;
             /** Deployment Id */
             deployment_id: string | null;
+            worker: components["schemas"]["WorkerHealthOut"];
         };
         /** IntegrationOut */
         IntegrationOut: {
@@ -5564,6 +5565,20 @@ export interface components {
             url: string;
             /** Secret */
             secret?: string | null;
+        };
+        /** WorkerHealthOut */
+        WorkerHealthOut: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "recent" | "unknown";
+            /** Release Sha */
+            release_sha: string | null;
+            /** Deployment Id */
+            deployment_id: string | null;
+            /** Reported At */
+            reported_at: string | null;
         };
         /** WorkspaceCreate */
         WorkspaceCreate: {

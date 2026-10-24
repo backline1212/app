@@ -1,5 +1,24 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Worker revision observation source (TDR-0144)
+
+The Arq worker now schedules a short-lived Redis heartbeat with its validated
+release SHA, deployment ID and UTC observation time. The additive Pydantic
+`/health.worker` object reports a recent or unknown observation without
+changing MongoDB/Redis-based HTTP health status. Saved OpenAPI and generated
+TypeScript declarations were regenerated; the smoke command accepts an
+independent expected worker SHA. See
+[TDR-0144](../tdr/0144-observe-worker-release-in-health.md).
+
+The local release gate passed: Ruff, strict mypy (221 source files),
+workspace-scope lint (25 repository files), saved/current OpenAPI equality
+(132 paths), monorepo lint/typecheck/build (12/12, five cached) and diff
+whitespace. The new worker field and generated declarations typecheck.
+
+Live worker rollout, the first public recent heartbeat and real queued-job
+behavior remain open. No tenant data or migrations are involved. No test suite
+was added or run under AGENTS.md.
+
 ## 2026-10-24: Public component release matrix after TDR-0142
 
 | Component | Observed revision | Evidence and limit |

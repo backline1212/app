@@ -1,12 +1,9 @@
 import asyncio
 import contextlib
-import os
-import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
-from uuid import UUID
 
 import sentry_sdk
 from fastapi import FastAPI, Response
@@ -18,10 +15,12 @@ from app.core.auth_origin import AuthOriginMiddleware
 from app.core.config import get_settings
 from app.core.db import close_client, get_client, get_db
 from app.core.errors import register_exception_handlers
-from app.core.health_schema import HealthOut
+from app.core.health_schema import HealthOut, WorkerHealthOut
 from app.core.indexes import ensure_indexes
 from app.core.redis_client import close_redis, get_redis
+from app.core.release_identity import deployment_id, release_sha
 from app.core.snapshot_body_limit import SnapshotBodyLimitMiddleware
+from app.core.worker_heartbeat import read_worker_heartbeat
 from app.modules.ai.router import router as ai_router
 from app.modules.assets.router import router as assets_router
 from app.modules.auth.router import router as auth_router
@@ -166,8 +165,13 @@ async def health(response: Response) -> HealthOut:
         mongo_ok = "unreachable"
 
     redis_ok: Literal["ok", "unreachable"] = "ok"
+    worker = WorkerHealthOut(
+        status="unknown", release_sha=None, deployment_id=None, reported_at=None
+    )
     try:
-        await get_redis().ping()
+        redis = get_redis()
+        await redis.ping()
+        worker = await read_worker_heartbeat(redis)
     except Exception:
         redis_ok = "unreachable"
 
@@ -179,18 +183,13 @@ async def health(response: Response) -> HealthOut:
     degraded = mongo_ok != "ok" or redis_ok != "ok"
     response.status_code = 503 if degraded else 200
     response.headers["Cache-Control"] = "no-store"
-    raw_sha = os.getenv("RAILWAY_GIT_COMMIT_SHA", "").strip().lower()
-    release_sha = raw_sha if re.fullmatch(r"[0-9a-f]{40}", raw_sha) else None
-    try:
-        deployment_id = str(UUID(os.getenv("RAILWAY_DEPLOYMENT_ID", "")))
-    except ValueError:
-        deployment_id = None
     return HealthOut(
         status="degraded" if degraded else "ok",
         mongo=mongo_ok,
         redis=redis_ok,
-        release_sha=release_sha,
-        deployment_id=deployment_id,
+        release_sha=release_sha(),
+        deployment_id=deployment_id(),
+        worker=worker,
     )
 
 

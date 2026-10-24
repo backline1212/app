@@ -3,7 +3,8 @@
 
 Run from backend with ``uv run python scripts/smoke_test.py [base_url]``.
 Use ``--expected-sha`` to prove which API revision answered and ``--contract``
-to compare its live OpenAPI document with a saved checkout contract.
+to compare its live OpenAPI document with a saved checkout contract. A separate
+``--expected-worker-sha`` proves a recently reporting Arq worker revision.
 """
 
 import argparse
@@ -27,11 +28,16 @@ def main() -> int:
         default=os.environ.get("SMOKE_TEST_BASE_URL", DEFAULT_BASE_URL),
     )
     parser.add_argument("--expected-sha", help="Expected full 40-character API commit SHA")
+    parser.add_argument("--expected-worker-sha", help="Expected full 40-character Arq worker SHA")
     parser.add_argument("--contract", type=Path, help="Saved OpenAPI JSON to compare exactly")
     args = parser.parse_args()
 
-    if args.expected_sha and not re.fullmatch(r"[0-9a-fA-F]{40}", args.expected_sha):
-        parser.error("--expected-sha must be a full 40-character hexadecimal commit SHA")
+    for flag, sha in (
+        ("--expected-sha", args.expected_sha),
+        ("--expected-worker-sha", args.expected_worker_sha),
+    ):
+        if sha and not re.fullmatch(r"[0-9a-fA-F]{40}", sha):
+            parser.error(f"{flag} must be a full 40-character hexadecimal commit SHA")
 
     expected_contract: dict[str, Any] | None = None
     if args.contract:
@@ -64,6 +70,25 @@ def main() -> int:
                 print(f"FAIL: API release {release_sha!r} differs from {args.expected_sha.lower()}")
                 return 1
             print(f"OK: /health (mongo ok, redis ok; release {release_sha or 'unreported'})")
+            worker = body.get("worker")
+            if worker is not None:
+                if not isinstance(worker, dict) or worker.get("status") not in (
+                    "recent",
+                    "unknown",
+                ):
+                    print("FAIL: /health worker observation has an unexpected response")
+                    return 1
+                print(
+                    "OK: worker observation "
+                    f"({worker['status']}; release {worker.get('release_sha') or 'unreported'})"
+                )
+            if args.expected_worker_sha and (
+                not isinstance(worker, dict)
+                or worker.get("status") != "recent"
+                or worker.get("release_sha") != args.expected_worker_sha.lower()
+            ):
+                print("FAIL: recent worker release differs from the expected SHA")
+                return 1
 
             capabilities = client.get("/api/v1/auth/capabilities")
             if capabilities.status_code != 200:

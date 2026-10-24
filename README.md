@@ -173,6 +173,7 @@ cd backend
 # Read-only post-deploy gate; supply the deployed API commit and saved contract
 uv run python scripts/smoke_test.py [base_url]
 uv run python scripts/smoke_test.py https://backlinewidget-production.up.railway.app --expected-sha <full-40-character-sha> --contract ../packages/types/openapi.json
+# Once the worker heartbeat is deployed, add --expected-worker-sha <worker-commit-sha>
 
 # After the matching web build is deployed, compare this SHA with that web commit
 curl -fsS https://backline-qa.vercel.app/release.json

@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Worker release observation follow-up (2026-10-24):
+[TDR-0144](../tdr/0144-observe-worker-release-in-health.md) adds a short-lived
+Arq heartbeat to the Pydantic `/health` contract and regenerated types.
+Static checks and live worker-revision acceptance are recorded separately.
+
 Web release identity follow-up (2026-10-24):
 [TDR-0142](../tdr/0142-web-release-marker.md) emits a non-secret Vite
 `release.json` asset for exact alias-to-commit checks. The public QA alias

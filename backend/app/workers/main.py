@@ -15,6 +15,7 @@ from arq.connections import RedisSettings
 
 from app.core.config import get_settings
 from app.workers.browser_render import render_browser_snapshot_job
+from app.workers.heartbeat import report_worker_heartbeat_job
 from app.workers.integrations import (
     deliver_integration_dispatch_job,
     dispatch_integration_event_job,
@@ -73,6 +74,7 @@ class WorkerSettings:
     # 17.6: the 09:00 UTC daily digest queues durable per-recipient work. The minute
     # sweep recovers interrupted work; new daily windows remain gated to >=09:00 UTC.
     cron_jobs = [
+        cron(report_worker_heartbeat_job, second=0, run_at_startup=True),
         cron(send_daily_digests_job, hour=9, minute=0),
         cron(sweep_daily_digests_job, second=5),
         cron(sweep_snapshot_deliveries_job, second=15),

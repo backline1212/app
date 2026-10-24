@@ -11734,6 +11734,9 @@
               }
             ],
             "title": "Deployment Id"
+          },
+          "worker": {
+            "$ref": "#/components/schemas/WorkerHealthOut"
           }
         },
         "type": "object",
@@ -11742,7 +11745,8 @@
           "mongo",
           "redis",
           "release_sha",
-          "deployment_id"
+          "deployment_id",
+          "worker"
         ],
         "title": "HealthOut"
       },
@@ -16807,6 +16811,60 @@
           "url"
         ],
         "title": "WebhookIntegrationCreate"
+      },
+      "WorkerHealthOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "recent",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "release_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Sha"
+          },
+          "deployment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployment Id"
+          },
+          "reported_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "release_sha",
+          "deployment_id",
+          "reported_at"
+        ],
+        "title": "WorkerHealthOut"
       },
       "WorkspaceCreate": {
         "properties": {
