@@ -1,5 +1,29 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Web release marker source (TDR-0142)
+
+The Vite build now emits `release.json` with a validated Vercel Git commit SHA
+or null when that build variable is unavailable; the Vercel configuration
+requests `Cache-Control: no-store` for the marker. Turbo now hashes/passes the
+public build-time SHA and web/extension configuration inputs. A local build with a
+simulated 40-character Vercel SHA produced the exact JSON value. Web lint,
+typecheck and production build pass; diff check passes. See
+[TDR-0142](../tdr/0142-web-release-marker.md).
+
+The full local release gate also passes: 218 backend source files under strict
+types, 25 repository files under workspace-scope lint, 132 saved OpenAPI paths
+and 12/12 Turbo tasks (five cached). Under Turbo, a simulated Vercel commit
+SHA produced that exact marker value; without it, a fresh build produced
+`{"release_sha":null}`. This confirms the build variable is passed through
+and changes the build cache key.
+
+Public rollout and exact alias mapping remain open. At this source check,
+`backline-qa.vercel.app/release.json` returned HTTP 200 SPA HTML rather than
+the marker, while its root still served the older main bundle; the two
+project aliases redirected to Vercel SSO. The marker cannot establish a
+revision until a live alias serves JSON with a full SHA. No test suite was
+added or run under AGENTS.md.
+
 ## 2026-10-24: Repeatable release gates (TDR-0141)
 
 Added `scripts/check-release.ps1` for the local offline lock, backend lint/
@@ -11,6 +35,11 @@ saved OpenAPI contract. Against the public API it passed `/health` (healthy
 MongoDB/Redis; exact `612e60a19f38dde8846fec941cae2439feb245c9`),
 `/api/v1/auth/capabilities` and exact live-vs-saved OpenAPI equality (132
 paths). See [TDR-0141](../tdr/0141-repeatable-release-checks.md).
+
+Follow-up: the gate-only commit `2730fcf` reached GitHub `main`; GitHub
+reported successful Vercel, Railway API, worker and cloud-login deployments.
+The public smoke command then passed again with the exact `2730fcf` SHA and
+the same 132-path contract. Deployment statuses do not verify worker jobs.
 
 This verifies public API routing and source identity only. Authenticated
 Railway logs/queue behavior, degraded 503, actual sign-in, browser flows and

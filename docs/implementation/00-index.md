@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Web release identity follow-up (2026-10-24):
+[TDR-0142](../tdr/0142-web-release-marker.md) emits a non-secret Vite
+`release.json` asset for exact alias-to-commit checks. Live alias matching
+remains open until its deployment is confirmed.
+
 Release verification follow-up (2026-10-24):
 [TDR-0141](../tdr/0141-repeatable-release-checks.md) adds one local
 lint/typecheck/build command and an exact-SHA/contract post-deploy API smoke

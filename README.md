@@ -174,6 +174,9 @@ cd backend
 uv run python scripts/smoke_test.py [base_url]
 uv run python scripts/smoke_test.py https://backlinewidget-production.up.railway.app --expected-sha <full-40-character-sha> --contract ../packages/types/openapi.json
 
+# After the matching web build is deployed, compare this SHA with that web commit
+curl -fsS https://backline-qa.vercel.app/release.json
+
 # 90-second load test (38 k requests, 8 concurrent workers)
 uv run python scripts/soak_test.py --backend-log <path> --duration 90 --concurrency 8
 ```
