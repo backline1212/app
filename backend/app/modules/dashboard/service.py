@@ -7,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import ValidationError
 from app.core.events import append_event
+from app.core.permissions import Role, role_allows
 from app.core.project_access import can_view_project, session_hidden_project_ids
 from app.core.session import Session
 from app.modules.comments import events as comment_events
@@ -141,6 +142,23 @@ async def search(
                 page_id=comment["page_id"],
                 ticket_number=comment.get("ticket_number"),
             )
+        )
+
+    # Client contact records are for members who manage clients (the Clients page's
+    # own permission), never for every member who can search tickets.
+    if viewer is not None and viewer.role and role_allows("project:manage", Role(viewer.role)):
+        clients = await repo.search_clients(workspace_id, matcher, each_limit)
+        items.extend(
+            SearchResultOut(
+                kind="client",
+                id=str(client["_id"]),
+                title=client["name"],
+                subtitle=" · ".join(
+                    part for part in (client.get("contact_name"), client.get("email")) if part
+                )
+                or "Client",
+            )
+            for client in clients
         )
 
     users = await repo.search_members(workspace_id, matcher, each_limit)

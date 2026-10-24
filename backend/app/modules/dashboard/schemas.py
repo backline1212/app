@@ -95,7 +95,7 @@ class DashboardOut(BaseModel):
 class SearchResultOut(BaseModel):
     """A deliberately small, route-safe projection for the shell search palette."""
 
-    kind: Literal["project", "ticket", "comment", "member"]
+    kind: Literal["project", "ticket", "comment", "member", "client"]
     id: str
     title: str
     subtitle: str

@@ -4739,3 +4739,8 @@ database migration, or production deployment is claimed.
   (default 90 days). Comments can't land on a page deleted at the same moment.
 - Operator follow-up: `python -m scripts.migrate_event_projects` (dry-run), then
   `--apply`.
+
+# 2026-10-24: First-run workspace, client search (TDR-0157)
+
+- New accounts get a prefilled "Create your workspace" step. Search finds clients (for
+  members who manage clients) and labels comment results as tickets.

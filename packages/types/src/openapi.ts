@@ -5262,7 +5262,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "project" | "ticket" | "comment" | "member";
+            kind: "project" | "ticket" | "comment" | "member" | "client";
             /** Id */
             id: string;
             /** Title */

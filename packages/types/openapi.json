@@ -16323,7 +16323,8 @@
               "project",
               "ticket",
               "comment",
-              "member"
+              "member",
+              "client"
             ],
             "title": "Kind"
           },
