@@ -3192,3 +3192,9 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-fix-card{margin-top:10px;padding:10px 12px;border:1px solid var(--mint-deep, #0A6B4B);border-left-width:3px;border-radius:3px;background:var(--mint-tint, #E6F4EE);display:flex;flex-direction:column;gap:8px}
 .bl-fix-card>strong{font-size:12px;color:var(--mint-deep, #0A6B4B)}
 .bl-fix-actions{display:flex;justify-content:flex-end;gap:8px}
+/* Phone pass (TDR-0159): the 44px touch-target rule above also made small chips and
+   tag filters 44px tall boxes; they get a smaller, still tappable height. Table chips
+   broke project names mid-word ("Acme dashbo/ard"). */
+@media (max-width:640px){.bl-chip,a.bl-chip,button.bl-chip{min-height:32px}.bl-tag,.bl-tid,.bl-scope-badge{min-height:0}}
+.bl-tk-tags{align-items:center}
+.bl-table .bl-chip{white-space:nowrap}

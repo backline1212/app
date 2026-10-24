@@ -6,6 +6,7 @@ import "./lib/i18n";
 import App from "./App.tsx";
 import { GlobalErrorFallback } from "./app/GlobalErrorFallback.tsx";
 
+
 // Milestone 12 (docs/tdr/0011): no-op with no DSN configured (no real Sentry project
 // exists for this build) - same credential-gated pattern as every optional integration
 // in this codebase (VITE_GOOGLE_OAUTH_CLIENT_ID, etc.).
