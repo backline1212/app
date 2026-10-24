@@ -4709,3 +4709,10 @@ database migration, or production deployment is claimed.
   Sessions: up to 5 devices. Access logs no longer contain tokens.
 - Operator follow-up: run `python -m scripts.migrate_ticket_numbers --apply` once to
   number legacy/sample tickets.
+
+# 2026-10-24: Realtime fan-out, capture trust, version polling (TDR-0152)
+
+- Realtime events reuse cached access checks (5 s, cleared on access changes) and send
+  concurrently. Guest-supplied near-empty or unrelated page captures no longer detach
+  tickets. Extension 0.5.2 polls a comment-list fingerprint instead of the full list.
+- Operator follow-up: publish extension 0.5.2 to the Chrome Web Store.

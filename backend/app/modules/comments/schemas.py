@@ -238,3 +238,11 @@ class GuestBoardItemOut(BaseModel):
 class GuestBoardOut(BaseModel):
     project_id: str
     items: list[GuestBoardItemOut]
+
+
+class CommentsVersionOut(BaseModel):
+    """Changes whenever a comment the caller can see on the page is added, edited,
+    moved, re-anchored, has its status/layer changed, or is removed."""
+
+    version: str
+    count: int

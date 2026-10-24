@@ -5422,6 +5422,70 @@
         }
       }
     },
+    "/api/v1/pages/{page_id}/comments/version": {
+      "get": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Comments Version",
+        "description": "A cheap fingerprint of what GET /pages/{page_id}/comments would return for this\ncaller, so a polling client (the browser extension) re-downloads the full list only\nwhen something changed.",
+        "operationId": "comments_version_api_v1_pages__page_id__comments_version_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Page Id"
+            }
+          },
+          {
+            "name": "x-guest-session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentsVersionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/comments": {
       "get": {
         "tags": [
@@ -11013,6 +11077,25 @@
         },
         "type": "object",
         "title": "CommentUpdate"
+      },
+      "CommentsVersionOut": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "count"
+        ],
+        "title": "CommentsVersionOut",
+        "description": "Changes whenever a comment the caller can see on the page is added, edited,\nmoved, re-anchored, has its status/layer changed, or is removed."
       },
       "ComparisonCategoryOut": {
         "properties": {

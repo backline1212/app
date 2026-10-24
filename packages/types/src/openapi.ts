@@ -1474,6 +1474,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/pages/{page_id}/comments/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Comments Version
+         * @description A cheap fingerprint of what GET /pages/{page_id}/comments would return for this
+         *     caller, so a polling client (the browser extension) re-downloads the full list only
+         *     when something changed.
+         */
+        get: operations["comments_version_api_v1_pages__page_id__comments_version_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/comments": {
         parameters: {
             query?: never;
@@ -3208,6 +3230,17 @@ export interface components {
             waiting_on_ids?: string[] | null;
             /** Waiting On Client */
             waiting_on_client?: boolean | null;
+        };
+        /**
+         * CommentsVersionOut
+         * @description Changes whenever a comment the caller can see on the page is added, edited,
+         *     moved, re-anchored, has its status/layer changed, or is removed.
+         */
+        CommentsVersionOut: {
+            /** Version */
+            version: string;
+            /** Count */
+            count: number;
         };
         /** ComparisonCategoryOut */
         ComparisonCategoryOut: {
@@ -9159,6 +9192,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    comments_version_api_v1_pages__page_id__comments_version_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-guest-session"?: string | null;
+            };
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentsVersionOut"];
                 };
             };
             /** @description Validation Error */
