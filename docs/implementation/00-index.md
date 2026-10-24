@@ -3,8 +3,9 @@
 API release identity follow-up (2026-10-24):
 [TDR-0140](../tdr/0140-expose-api-release-identity-in-health.md) adds
 nullable Railway commit/deployment identifiers to the Pydantic `/health`
-contract and regenerated types. Source checks pass; matching API rollout,
-worker identification and live acceptance remain open.
+contract and regenerated types. Source checks and the matching API rollout
+pass: `/health` identifies commit `612e60a` live. Worker deployment status
+succeeded; queue and browser acceptance remain open.
 
 Top-level documentation accuracy follow-up (2026-10-24):
 [TDR-0139](../tdr/0139-label-historical-delivery-claims.md) labels M0–M12,
@@ -14,13 +15,14 @@ the README at this index, current inventory and delivery evidence.
 Backend dependency cleanup (2026-10-24):
 [TDR-0138](../tdr/0138-remove-unused-google-genai-dependency.md) removes
 the unused Google Gen AI package from the manifest and lockfile without
-upgrading other dependencies. Local static/lock checks pass; container and
-live AI acceptance remain open.
+upgrading other dependencies. Local static/lock checks and API/worker deployment
+statuses pass; live AI acceptance remains open.
 
 Pricing capture/support wording follow-up (2026-10-24):
 [TDR-0137](../tdr/0137-qualify-pricing-capture-and-support-claims.md)
 qualifies screenshot and optional metadata claims and removes an unverified
-four-hour support promise. Source checks pass; API rollout and acceptance remain open.
+four-hour support promise. Source checks and matching API rollout pass; live
+pricing-page acceptance remains open.
 
 Ticket card/list path privacy follow-up (2026-10-24):
 [TDR-0136](../tdr/0136-redact-ticket-list-page-paths.md) uses the shared
@@ -30,13 +32,15 @@ lint/typecheck/build pass; browser acceptance remains open.
 MCP page URL privacy follow-up (2026-10-24):
 [TDR-0135](../tdr/0135-restrict-mcp-page-url-exports.md) applies the existing
 origin-only export rule to MCP page labels and generated implementation briefs.
-Backend static checks pass; matching API rollout and live acceptance remain open.
+Backend static checks and matching API rollout pass; live MCP/brief acceptance
+remains open.
 
 Current pending-work review (2026-10-24):
 [the refreshed inventory](pending-backlog-2026-10-24.md) reconciles all 53 tracked
 items with current source/delivery evidence and adds 15 implementation/optimization
-recommendations. API routing is still unavailable in read-only health/capability
-probes; source checks pass. See [TDR-0134](../tdr/0134-current-pending-work-review.md).
+recommendations. Its initial API 404 observation is historical; the later
+release check confirmed `/health` and auth capabilities return HTTP 200.
+See [TDR-0134](../tdr/0134-current-pending-work-review.md).
 
 Extension setup and update guidance (2026-10-24):
 [TDR-0133](../tdr/0133-separate-extension-install-and-update-guidance.md)

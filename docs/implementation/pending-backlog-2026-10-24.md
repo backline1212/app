@@ -1,6 +1,7 @@
 # Backline pending work and improvement review — 2026-10-24
 
-Date: 2026-10-24 (Asia/Calcutta). Source baseline: `c583569`.
+Date: 2026-10-24 (Asia/Calcutta). Original review baseline: `c583569`;
+latest confirmed API release: `612e60a`.
 Scope: documentation and selected source review across web, widget, extension,
 API, repositories, workers, contracts, deployment and product plans. This is the
 current consolidated inventory, superseding the 2026-10-22 snapshot where evidence
@@ -23,27 +24,29 @@ Priority: **P1** before a wider pilot; **P2** next reliability/product work;
 
 ## Current evidence and first decision
 
-The first task is restoring the API and aligning the deployed components. During
-this review, read-only HTTP requests returned:
+The first review found an API routing outage. After the 2026-10-24 release,
+read-only HTTP checks now show:
 
 | Endpoint | Result | Interpretation |
 |---|---|---|
-| API `/health` | HTTP 404, JSON `Application not found` | Railway edge/application routing is still unavailable at this hostname; service-specific cause unverified. |
-| API `/api/v1/auth/capabilities` | Same HTTP 404 | Sign-in capability checks cannot reach the application. |
+| API `/health` | HTTP 200; Mongo/Redis `ok`, release SHA `612e60a`, deployment ID present | API routing and the exact source revision are confirmed. Queue jobs and live user flows need separate checks. |
+| API `/api/v1/auth/capabilities` | HTTP 200 | The sign-in capability endpoint is reachable; actual sign-in remains unverified. |
+| API `/openapi.json` | HTTP 200; equal to saved 132-path contract | The running API matches the generated contract for this release. |
 | Web `/login`, `/privacy`, `/support` | HTTP 200 HTML | The SPA document is served; this alone does not verify rendering, sign-in or policy approval. |
 
 The extension source manifest is **0.4.13**. The latest ledger records a matching
-versioned portal ZIP, while the API ZIP was last observed at **0.4.4** before the
-outage and the Web Store draft at **0.4.9**. These last two versions are historical
-observations, not freshly inspected store/installed-browser state. Neither a web
-HTTP 200 nor a successful source build establishes a healthy API/worker release.
+versioned portal ZIP. The API ZIP now also contains the same 0.4.13 files as
+the source build after line-ending normalization. The Web Store draft was
+last observed at **0.4.9**; installed-browser state is not freshly verified.
+GitHub statuses report success for the API, worker and cloud-login on
+`612e60a`. Browser acceptance and worker job behavior remain open.
 
 ## 1. Deployment and release — 4 items
 
 | ID | Priority/status | Remaining work and completion condition |
 |---|---|---|
-| DEP-01 | P1 / Open | Restore authenticated Railway service access; inspect service/domain/deployment state and logs; restore API routing. Release the intended API and Arq worker revisions together. Verify health, exact revisions, OpenAPI, configuration, queues and jobs. Last recorded API/worker/cloud-login revision was `7b25ac3`; do not assume newer commits reached them. |
-| DEP-02 | P1 / Open | Align extension source, portal ZIP, backend ZIP, store draft and installed Chrome. Verify hashes/manifests and actual installed behavior. Current source is 0.4.13; replace the older store draft and retire the stale API download only through a verified rollout. |
+| DEP-01 | P1 / Partial | API routing recovered: `/health` reports commit `612e60a` and healthy Mongo/Redis; live OpenAPI equals the saved contract. GitHub reports API, Arq worker and cloud-login deployment success. Restore authenticated Railway service access to inspect logs/configuration and queue/jobs; verify rollback and live user flows. |
+| DEP-02 | P1 / Partial | Extension source, portal ZIP and API ZIP now contain matching 0.4.13 files (archive hashes differ by build metadata/line endings). Replace the older Web Store draft and verify installed Chrome, actual review behavior and download/link surfaces before closing alignment. |
 | DEP-03 | P2 / Open | Finish Web Store publisher/trader and contact verification, inspect registration/payment state, replace the draft package, capture real screenshots, complete source-matched data declarations and reviewer access, submit, obtain approval and wire the actual install URL into the product. Public privacy/support source now exists; owner certification and browser acceptance remain. |
 | DEP-04 | P1 / Acceptance | Exercise old web/new API, new web/old API and SDK version gates; prove compatible legacy reads and rollback without losing comments, pages or private evidence. Record a component release matrix. |
 
@@ -58,7 +61,7 @@ HTTP 200 nor a successful source build establishes a healthy API/worker release.
 | BUG-05 | P2 / Source | Transactional project/comment integration intents and worker recovery exist in TDR-0108/0109. Verify provider failures, leases, restarts and duplicate/replayed deliveries. Add user-visible delivery outcomes separately; durable intent is not proof of provider receipt. |
 | BUG-06 | P2 / Source + Open | First-party relay avoids creating new signed PUT grants (TDR-0112). Historical/custom-client grants can retain quota. Implement bounded confirmation/reconciliation that accounts for a still-completing upload; URL expiry alone must not release the reservation. |
 | BUG-07 | P2 / Source + Open | Direct relay replay and widget Retry/Remove exist in TDR-0111/0112. Deploy and accept partial failures/lost acknowledgements; finish conservative cleanup for unused evidence, ambiguous signed PUTs and orphaned objects. Asset upload replay does not cover every transport. |
-| BUG-08 | P1 / Partial | URL labels, integration page fields, new private/editable DOM exclusions, proxy egress, guest file transport, MCP page labels/briefs and ticket board/list path labels have source repairs (TDR-0110/0113/0114/0116/0132/0135/0136). Deploy and accept the new API/web changes. Still address initial browser/Backline URLs, snippet bearer handoff, screenshots, historical snapshots, arbitrary visible text, logs and other exports. No cross-tenant disclosure is claimed from the former MCP page fields. |
+| BUG-08 | P1 / Partial | URL labels, integration page fields, new private/editable DOM exclusions, proxy egress, guest file transport, MCP page labels/briefs and ticket board/list path labels have source repairs (TDR-0110/0113/0114/0116/0132/0135/0136); API release is confirmed, while live export and browser acceptance remain. Still address initial browser/Backline URLs, snippet bearer handoff, screenshots, historical snapshots, arbitrary visible text, logs and other exports. No cross-tenant disclosure is claimed from the former MCP page fields. |
 | BUG-09 | P2 / Open investigation | The recorded example.com preview failure has no established network/proxy root cause. Capture supported request/response evidence after API recovery, isolate site vs proxy vs API failure and verify a repair on an authorized target. Existing fallback UI does not close the cause. |
 | BUG-10 | P2 / Source + Open | New `#/` and `#!/` identity exists (TDR-0096), requiring matching API/SDK rollout and acceptance. Old merged hash-route feedback needs an explicitly reviewed reassignment workflow if recovery is required. Do not infer original routes or silently rewrite history. |
 | BUG-11 | P2 / Web + decision | **Corrected stale backlog:** login/signup now link to real `/privacy` and `/support` routes (TDR-0121); these are no longer `#` placeholders. Verify rendering/contact paths and owner approval of service-wide disclosures. There is no standalone Terms route in the current router; decide whether separate terms are required and supply approved content if so. |
@@ -133,7 +136,7 @@ requirements. Some extend tracked items; they must not inflate defect counts.
 
 | ID | Priority | Recommendation, evidence and implementation boundary |
 |---|---|---|
-| SUG-01 | P1 / Partial | **Expose release/config compatibility clearly.** `/health` now has source-level nullable API commit/deployment identifiers and regenerated contracts (TDR-0140). Deploy and verify against the running API. Continue with worker/SDK identifiers, versioned capability reporting, a repeatable local pre-release command and post-deploy smoke evidence for DEP-01/04. TDR-0027 deliberately removed GitHub Actions; do not restore it as an assumed requirement. |
+| SUG-01 | P1 / Partial | **Expose release/config compatibility clearly.** Live `/health` identifies API commit `612e60a` and its deployment ID; the regenerated OpenAPI matches live (TDR-0140). Continue with worker/SDK identifiers, versioned capability reporting, a repeatable local pre-release command and post-deploy smoke evidence for DEP-01/04. TDR-0027 deliberately removed GitHub Actions; do not restore it as an assumed requirement. |
 | SUG-02 | P1 | **Verify operational recovery.** Record uptime/error/queue alerts, active ownership, database backup and isolated restore drill, private-object recovery/retention strategy and rollback evidence. Inspect credential-rotation evidence, including historical JWT/integration-key follow-ups, without logging secrets or assuming current credentials are compromised. These are unverified operational evidence gaps, not a claim that no backups exist. |
 | SUG-03 | P2 | **Show delivery status.** Extend BUG-02/05 with scoped pending/retrying/delivered/failed views, last attempt, safe error text and authorized retry. Include digest/feedback/integration/snapshot backlog age; workers already have outboxes, so build on them. Prevent duplicate manual retry and private payload disclosure. |
 | SUG-04 | P2 | **Make storage maintenance an explicit workflow.** Extend BUG-06/07 with dry-run inventory, reservation reconciliation, referenced-object checks, bounded batches, resumable tombstones and metrics. Never delete a file or release held quota merely because a grant expired. |

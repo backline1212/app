@@ -38,9 +38,9 @@ baseline. They do not certify current production behavior. The [current pending-
 inventory](docs/implementation/pending-backlog-2026-10-24.md) separates source
 implementation, deployment, live acceptance and roadmap scope; the [delivery
 ledger](docs/implementation/06-delivery.md) records verification for each later
-change. As of 2026-10-24, public API health and auth-capability probes return
-Railway's `Application not found` response, so end-to-end acceptance and
-matching API/worker release verification remain open.
+change. On 2026-10-24, the public API recovered and `/health` identified
+release `612e60a` with MongoDB and Redis healthy. Worker deployment status
+succeeded; queue behavior and end-to-end browser acceptance remain open.
 
 ---
 

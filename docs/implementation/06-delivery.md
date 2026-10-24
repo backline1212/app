@@ -1,14 +1,32 @@
 # Delivery and verification ledger
 
+## 2026-10-24: API routing recovered and exact release confirmed
+
+GitHub reports successful Railway deployment statuses for API, worker and
+cloud-login at `612e60a`; Vercel also reports success. The
+public API `/health` now returns HTTP 200 with MongoDB and Redis `ok`, release
+SHA `612e60a19f38dde8846fec941cae2439feb245c9`, deployment ID
+`076a2744-b278-4c77-81bb-406082fbdab2`, and `Cache-Control: no-store`.
+`/api/v1/auth/capabilities` returns HTTP 200; live OpenAPI equals the saved
+132-path contract. This confirms the running API source and restores routing.
+
+The API-hosted extension ZIP and versioned portal ZIP both declare 0.4.13;
+their ten normalized file contents match the local extension build. Archive
+hashes differ because build metadata and Windows/Unix line endings differ.
+The checked `backline-qa.vercel.app` alias still served an older main bundle
+despite the successful Vercel commit status. Authenticated Railway inspection,
+worker queues/jobs, cloud-login runtime behavior, web alias identity, actual sign-in,
+installed extension and browser review remain unverified. No test suite was
+added or run under AGENTS.md.
+
 ## 2026-10-24: API release identity in health (TDR-0140)
 
 `/health` now has a Pydantic response model with optional validated Railway
 commit SHA and deployment ID. The saved OpenAPI JSON and generated TypeScript
 declarations were regenerated from that contract. Existing health status and
 dependency fields remain, and health responses use `Cache-Control: no-store`.
-This is source-only: API rollout, comparison with
-Railway deployment state and worker revision remain open while the API host
-returns edge fallback 404. See
+The later live check above confirms the API rollout and its release identity;
+worker runtime and degraded-health acceptance remain open. See
 [TDR-0140](../tdr/0140-expose-api-release-identity-in-health.md).
 
 Verification: backend Ruff and strict mypy (218 source files), workspace-scope
