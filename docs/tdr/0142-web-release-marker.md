@@ -4,8 +4,8 @@ Date: 2026-10-24 (Asia/Calcutta). Backlog item: SUG-01 / DEP-01.
 
 ## Decision
 
-The API now identifies its source revision, but the public web alias can still
-serve an older build while Vercel reports a successful deployment elsewhere.
+The API now identifies its source revision, but a different public web bundle
+hash from the local build cannot establish which deployment the alias serves.
 Emit a small `release.json` asset from the Vite build with a validated,
 lowercase 40-character `VERCEL_GIT_COMMIT_SHA` or `null` when unavailable.
 Vercel documents that this variable is available at build time when automatic
@@ -31,3 +31,11 @@ matching Vercel release fetch `/release.json` from each intended public alias
 with no cache. Compare its full SHA with the GitHub deployment revision and
 verify the cache header. Record the outcome in the delivery ledger. No test
 suite is written or run under AGENTS.md.
+
+Post-release observation on 2026-10-24: `backline-qa.vercel.app/release.json`
+returned HTTP 200 JSON with full SHA
+`1aeef63a037a57b3466507b84bf239b43d8de5f8` and `Cache-Control: no-store`,
+matching the Vercel deployment commit. The API health SHA remained
+`2730fcf351996caef5f1bbbaa86e69794d743557` because this release changed
+web source only. The exact-SHA API smoke gate passed for that API SHA, and
+worker/browser compatibility remains unverified.

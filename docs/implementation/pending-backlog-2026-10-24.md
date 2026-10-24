@@ -1,7 +1,9 @@
 # Backline pending work and improvement review — 2026-10-24
 
-Date: 2026-10-24 (Asia/Calcutta). Original review baseline: `c583569`;
-latest confirmed API release: `612e60a`.
+Date: 2026-10-24 (Asia/Calcutta). Original review baseline: `c583569`.
+The latest component observations in this inventory are API `2730fcf` and
+public web alias `1aeef63`; later documentation-only commits can move the web
+marker independently of the API.
 Scope: documentation and selected source review across web, widget, extension,
 API, repositories, workers, contracts, deployment and product plans. This is the
 current consolidated inventory, superseding the 2026-10-22 snapshot where evidence
@@ -24,31 +26,33 @@ Priority: **P1** before a wider pilot; **P2** next reliability/product work;
 
 ## Current evidence and first decision
 
-The first review found an API routing outage. After the 2026-10-24 release,
-read-only HTTP checks now show:
+The first review found an API routing outage. Read-only HTTP checks on
+2026-10-24 now show:
 
 | Endpoint | Result | Interpretation |
 |---|---|---|
-| API `/health` | HTTP 200; Mongo/Redis `ok`, release SHA `612e60a`, deployment ID present | API routing and the exact source revision are confirmed. Queue jobs and live user flows need separate checks. |
+| API `/health` | HTTP 200; Mongo/Redis `ok`, release SHA `2730fcf`, deployment ID present | API routing and the exact API source revision are confirmed. Queue jobs and live user flows need separate checks. |
 | API `/api/v1/auth/capabilities` | HTTP 200 | The sign-in capability endpoint is reachable; actual sign-in remains unverified. |
 | API `/openapi.json` | HTTP 200; equal to saved 132-path contract | The running API matches the generated contract for this release. |
+| Web `/release.json` at `backline-qa.vercel.app` | HTTP 200 JSON, `Cache-Control: no-store`, full SHA `1aeef63` | The public alias served that web build. This is a separate component revision from the API. |
 | Web `/login`, `/privacy`, `/support` | HTTP 200 HTML | The SPA document is served; this alone does not verify rendering, sign-in or policy approval. |
 
 The extension source manifest is **0.4.13**. The latest ledger records a matching
 versioned portal ZIP. The API ZIP now also contains the same 0.4.13 files as
 the source build after line-ending normalization. The Web Store draft was
 last observed at **0.4.9**; installed-browser state is not freshly verified.
-GitHub statuses report success for the API, worker and cloud-login on
-`612e60a`. Browser acceptance and worker job behavior remain open.
+GitHub statuses report success for API, worker, cloud-login and Vercel on
+`1aeef63`; the public API remains on `2730fcf` because its source did not
+change. Browser acceptance and worker job behavior remain open.
 
 ## 1. Deployment and release — 4 items
 
 | ID | Priority/status | Remaining work and completion condition |
 |---|---|---|
-| DEP-01 | P1 / Partial | API routing recovered: `/health` reports commit `612e60a` and healthy Mongo/Redis; live OpenAPI equals the saved contract. GitHub reports API, Arq worker and cloud-login deployment success for that release. Local/post-deploy API gates pass (TDR-0141); a web release marker is built but its public alias rollout is unverified (TDR-0142). Restore authenticated Railway and Vercel service access to inspect logs/configuration, queues/jobs and alias mapping; verify rollback and live user flows. |
+| DEP-01 | P1 / Partial | API routing recovered: `/health` reports API commit `2730fcf` and healthy Mongo/Redis; live OpenAPI equals the saved contract. The public QA web alias reports web commit `1aeef63` through `/release.json` with no-store (TDR-0142). The exact-SHA API smoke gate passes for the API commit (TDR-0141). Restore authenticated Railway/Vercel access to inspect logs/configuration and queues/jobs; verify rollback and live user flows. GitHub deployment status alone does not establish worker runtime behavior. |
 | DEP-02 | P1 / Partial | Extension source, portal ZIP and API ZIP now contain matching 0.4.13 files (archive hashes differ by build metadata/line endings). Replace the older Web Store draft and verify installed Chrome, actual review behavior and download/link surfaces before closing alignment. |
 | DEP-03 | P2 / Open | Finish Web Store publisher/trader and contact verification, inspect registration/payment state, replace the draft package, capture real screenshots, complete source-matched data declarations and reviewer access, submit, obtain approval and wire the actual install URL into the product. Public privacy/support source now exists; owner certification and browser acceptance remain. |
-| DEP-04 | P1 / Acceptance | Exercise old web/new API, new web/old API and SDK version gates; prove compatible legacy reads and rollback without losing comments, pages or private evidence. Record a component release matrix. |
+| DEP-04 | P1 / Acceptance | A read-only component release matrix now records distinct API and web revisions in the delivery ledger. Exercise old web/new API, new web/old API and SDK version gates; prove compatible legacy reads and rollback without losing comments, pages or private evidence. |
 
 ## 2. Reliability, privacy and unfinished repairs — 13 items
 
@@ -136,7 +140,7 @@ requirements. Some extend tracked items; they must not inflate defect counts.
 
 | ID | Priority | Recommendation, evidence and implementation boundary |
 |---|---|---|
-| SUG-01 | P1 / Partial | **Expose release/config compatibility clearly.** Live `/health` identifies API commit `612e60a` and its deployment ID; the regenerated OpenAPI matches live (TDR-0140). A repeatable local gate and exact-SHA/contract post-deploy smoke command pass (TDR-0141). A static web `release.json` source marker is built (TDR-0142); verify the public alias after rollout. Continue with worker/SDK identifiers, versioned capability reporting and compatibility evidence for DEP-01/04. TDR-0027 deliberately removed GitHub Actions; do not restore it as an assumed requirement. |
+| SUG-01 | P1 / Partial | **Expose release/config compatibility clearly.** Live `/health` identifies API commit `2730fcf`; the regenerated OpenAPI matches live (TDR-0140). A repeatable local gate and exact-SHA/contract post-deploy smoke command pass (TDR-0141). The public QA alias now serves a full web SHA and no-store marker, `1aeef63` at this observation (TDR-0142). Continue with worker/SDK identifiers, versioned capability reporting and compatibility evidence for DEP-01/04. TDR-0027 deliberately removed GitHub Actions; do not restore it as an assumed requirement. |
 | SUG-02 | P1 | **Verify operational recovery.** Record uptime/error/queue alerts, active ownership, database backup and isolated restore drill, private-object recovery/retention strategy and rollback evidence. Inspect credential-rotation evidence, including historical JWT/integration-key follow-ups, without logging secrets or assuming current credentials are compromised. These are unverified operational evidence gaps, not a claim that no backups exist. |
 | SUG-03 | P2 | **Show delivery status.** Extend BUG-02/05 with scoped pending/retrying/delivered/failed views, last attempt, safe error text and authorized retry. Include digest/feedback/integration/snapshot backlog age; workers already have outboxes, so build on them. Prevent duplicate manual retry and private payload disclosure. |
 | SUG-04 | P2 | **Make storage maintenance an explicit workflow.** Extend BUG-06/07 with dry-run inventory, reservation reconciliation, referenced-object checks, bounded batches, resumable tombstones and metrics. Never delete a file or release held quota merely because a grant expired. |

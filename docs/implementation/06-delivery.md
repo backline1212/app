@@ -1,5 +1,23 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Public component release matrix after TDR-0142
+
+| Component | Observed revision | Evidence and limit |
+|---|---|---|
+| API | `2730fcf351996caef5f1bbbaa86e69794d743557` | `/health` reports this SHA with MongoDB/Redis `ok`; the read-only smoke command passes capabilities and exact saved/live 132-path OpenAPI equality. |
+| Public QA web alias | `1aeef63a037a57b3466507b84bf239b43d8de5f8` | `/release.json` returns HTTP 200 JSON with this full SHA and `Cache-Control: no-store`. This confirms the served web marker, not browser flow acceptance. |
+| Arq worker / cloud-login | Runtime revision unconfirmed | GitHub reports successful deployment statuses for `1aeef63`, but no authenticated process/log/queue or job evidence was available. |
+| Extension | Source/API/portal ZIP version 0.4.13 | Normalized ZIP contents match the source build; installed Chrome and Web Store draft remain unverified. |
+
+The API gate correctly rejected the web commit SHA, then passed with the API
+commit SHA. These components can remain on different Git revisions when only
+web files change. The web HTML still references `index-C9_Lw8YS.js` while the
+local build references `index-Bzwy8iv6.js`; build-time configuration can
+change hashed output, so that difference alone was insufficient evidence that
+the alias was stale. The release marker resolves its web source identity.
+Old/new component compatibility, worker processing, sign-in, browser review
+and rollback remain open. No test suite was added or run under AGENTS.md.
+
 ## 2026-10-24: Web release marker source (TDR-0142)
 
 The Vite build now emits `release.json` with a validated Vercel Git commit SHA
@@ -17,12 +35,11 @@ SHA produced that exact marker value; without it, a fresh build produced
 `{"release_sha":null}`. This confirms the build variable is passed through
 and changes the build cache key.
 
-Public rollout and exact alias mapping remain open. At this source check,
+At this source check before rollout,
 `backline-qa.vercel.app/release.json` returned HTTP 200 SPA HTML rather than
-the marker, while its root still served the older main bundle; the two
-project aliases redirected to Vercel SSO. The marker cannot establish a
-revision until a live alias serves JSON with a full SHA. No test suite was
-added or run under AGENTS.md.
+the marker; the two project aliases redirected to Vercel SSO. The later live
+result is recorded in the component matrix above. No test suite was added or
+run under AGENTS.md.
 
 ## 2026-10-24: Repeatable release gates (TDR-0141)
 
@@ -43,11 +60,12 @@ the same 132-path contract. Deployment statuses do not verify worker jobs.
 
 This verifies public API routing and source identity only. Authenticated
 Railway logs/queue behavior, degraded 503, actual sign-in, browser flows and
-rollback remain open. The public `backline-qa.vercel.app` HTML still references
-older main bundle `index-C9_Lw8YS.js`; the local checked build references
-`index-Bzwy8iv6.js`. Two project aliases redirect to Vercel SSO, so their
-deployment identity cannot be inspected anonymously. No test suite was added
-or run under AGENTS.md.
+rollback remain open. At this earlier observation, the public
+`backline-qa.vercel.app` HTML referenced `index-C9_Lw8YS.js` while the local
+checked build referenced `index-Bzwy8iv6.js`. That hash difference was not
+proof of an older web deployment; the later web marker established its served
+revision. Two project aliases redirected to Vercel SSO. No test suite was
+added or run under AGENTS.md.
 
 ## 2026-10-24: API routing recovered and exact release confirmed
 
