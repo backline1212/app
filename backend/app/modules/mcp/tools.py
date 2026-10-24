@@ -6,6 +6,7 @@ called without an MCP transport. Every function returns Markdown - the agent rea
 so ids are printed next to every name it may need to pass back."""
 
 from typing import Any, Literal, cast, get_args
+from urllib.parse import urlsplit
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -15,7 +16,13 @@ from app.core.rate_limit import check_rate_limit
 from app.core.redis_client import get_redis
 from app.modules.auth.repository import UserRepository
 from app.modules.comments import service as comment_service
-from app.modules.comments.schemas import CommentOut, CommentUpdate, Priority, Status
+from app.modules.comments.schemas import (
+    CommentOut,
+    CommentUpdate,
+    FixSubmissionOut,
+    Priority,
+    Status,
+)
 from app.modules.dashboard import service as dashboard_service
 from app.modules.dashboard.schemas import TicketFilters
 from app.modules.deploy_sync import service as deploy_sync_service
@@ -47,7 +54,7 @@ def _require(actor: McpActor, action: str, what: str) -> None:
     if not actor.can_write:
         raise PermissionDeniedError(
             f"This token is read-only, so it can't {what}. Create a read & write token in "
-            "Backline (Workspace → MCP Server) to allow it."
+            "Backline (Workspace → MCP server) to allow it."
         )
     if not actor.allows(action):
         raise PermissionDeniedError(f"Your workspace role ({actor.role}) can't {what}.")
@@ -269,6 +276,83 @@ async def reply_to_ticket(
     )
     audience = "your team only" if reply.layer == "team" else "the client and your team"
     return f"Replied on {ticket_label(thread.comment)} (visible to {audience}; id `{reply.id}`)."
+
+
+def _link(value: str | None, name: str) -> str | None:
+    if value is None or not value.strip():
+        return None
+    link = value.strip()
+    parsed = urlsplit(link)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc or len(link) > 2_000:
+        raise ValidationError(f"{name} must be an http(s) link.")
+    return link
+
+
+async def submit_fix(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    actor: McpActor,
+    *,
+    ticket: str,
+    summary: str,
+    preview_url: str | None,
+    change_url: str | None,
+) -> str:
+    """One step for "the fix is ready": a team reply that records what changed and where
+    to check it, and the ticket moved to In review for a person to verify (TDR-0158)."""
+    _require(actor, "comment:reply", "report a fix")
+    _require(actor, "comment:update_status", "move the ticket to review")
+    text = summary.strip()
+    if not text:
+        raise ValidationError("Describe what changed.")
+    if len(text) > 4_000:
+        raise ValidationError("Keep the summary under 4,000 characters.")
+    fix = FixSubmissionOut(
+        summary=text,
+        preview_url=_link(preview_url, "preview_url"),
+        change_url=_link(change_url, "change_url"),
+    )
+    settings = get_settings()
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:comment-create:workspace:{actor.workspace_id}",
+        limit=settings.comment_create_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    thread = await load_thread(
+        db,
+        workspace_id=actor.workspace_id,
+        ref=ticket,
+        viewer=actor.session,
+        action="comment:update_status",
+    )
+    lines = ["Fix ready for review", "", text]
+    if fix.preview_url:
+        lines += ["", f"Preview: {fix.preview_url}"]
+    if fix.change_url:
+        lines += [f"Change: {fix.change_url}"]
+    await comment_service.create_reply(
+        db,
+        parent_id=thread.comment.id,
+        actor=actor.session,
+        body="\n".join(lines),
+        layer="team",
+        fix=fix,
+    )
+    updated = await comment_service.update_comment(
+        db,
+        comment_id=thread.comment.id,
+        workspace_id=actor.workspace_id,
+        actor_user_id=actor.user_id,
+        body=None,
+        status="in_review",
+        assignee_id=None,
+        due_at=None,
+        changes=CommentUpdate(status="in_review"),
+    )
+    return (
+        f"Reported the fix on {ticket_label(updated)} and moved it to in review. "
+        "Your team can verify it and resolve or reopen the ticket in Backline."
+    )
 
 
 async def update_ticket(

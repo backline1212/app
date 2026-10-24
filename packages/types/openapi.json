@@ -10915,6 +10915,16 @@
             "type": "boolean",
             "title": "Is Standalone",
             "default": false
+          },
+          "fix": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FixSubmissionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -12267,6 +12277,42 @@
         ],
         "title": "ExternalLinkOut",
         "description": "A ticket filed in a tracker from a Backline comment. Member-only: never part of\nCommentOut, which guests and the guest realtime channel also receive."
+      },
+      "FixSubmissionOut": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "change_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "title": "FixSubmissionOut",
+        "description": "A fix reported on a ticket (by a coding agent over MCP's submit_fix): what changed\nand where to check it. Lives on the reply that reported it, so every attempt stays in\nthe thread's history (TDR-0158)."
       },
       "GeneratePromptRequest": {
         "properties": {
@@ -17456,6 +17502,16 @@
             "type": "boolean",
             "title": "Is Standalone",
             "default": false
+          },
+          "fix": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FixSubmissionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "project_id": {
             "type": "string",

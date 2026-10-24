@@ -27,6 +27,7 @@ import { usePreparedReply } from "../comments/use-prepared-reply";
 import { useReviewDraftGuard } from "../comments/use-review-draft-guard";
 import { uploadReplyFiles } from "../comments/reply-uploads";
 import { CommentDiagnostics, MediaAttachment } from "../comments/RecordButtons";
+import { FixCard } from "../comments/FixCard";
 import { isMediaAttachment } from "../comments/media";
 
 function formatTime(iso: string): string {
@@ -38,7 +39,7 @@ function formatTime(iso: string): string {
   });
 }
 
-function ThreadMessage({ comment, teamOnly = false, children }: { comment: CommentOut; teamOnly?: boolean; children?: React.ReactNode }) {
+function ThreadMessage({ comment, teamOnly = false, children, extra }: { comment: CommentOut; teamOnly?: boolean; children?: React.ReactNode; extra?: React.ReactNode }) {
   return (
     <article className="bl-message">
       <small>
@@ -47,7 +48,9 @@ function ThreadMessage({ comment, teamOnly = false, children }: { comment: Comme
         {comment.edited_at ? " · edited" : ""}
         {teamOnly && <span className="bl-message-layer">Team only</span>}
       </small>
-      {children ?? <p>{renderWithMentions(comment.body)}</p>}
+      {/* A reported fix shows its summary; the links live on the card below. */}
+      {children ?? <p>{renderWithMentions(comment.fix ? comment.fix.summary : comment.body)}</p>}
+      {extra}
       {comment.screenshot_url && (
         <a href={comment.screenshot_url} target="_blank" rel="noreferrer">
           <img className="bl-screenshot" src={comment.screenshot_url} alt="Captured review context" />
@@ -215,6 +218,7 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
     }
   }
 
+  const latestFixId = [...replies].reverse().find((reply) => reply.fix)?.id;
   const closed = isClosed(comment.status);
   const due = dueMeta(comment.due_at, closed);
   const orphaned = comment.recovery_status !== "ok";
@@ -382,7 +386,21 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
           )}
         </ThreadMessage>
         {replies.map((reply) => (
-          <ThreadMessage key={reply.id} comment={reply} teamOnly={comment.layer === "client" && reply.layer === "team"} />
+          <ThreadMessage
+            key={reply.id}
+            comment={reply}
+            teamOnly={comment.layer === "client" && reply.layer === "team"}
+            extra={reply.fix && (
+              <FixCard
+                fix={reply.fix}
+                busy={updateMutation.isPending}
+                {...(canEdit && comment.status === "in_review" && reply.id === latestFixId ? {
+                  onVerify: () => updateMutation.mutate({ status: "resolved", waiting_on_ids: [], waiting_on_client: false }),
+                  onReopen: () => updateMutation.mutate({ status: "in_progress" }),
+                } : {})}
+              />
+            )}
+          />
         ))}
 
         {!canComment ? (

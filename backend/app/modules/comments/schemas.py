@@ -184,6 +184,16 @@ class ReanchorRequest(BaseModel):
     anchor: AnchorIn
 
 
+class FixSubmissionOut(BaseModel):
+    """A fix reported on a ticket (by a coding agent over MCP's submit_fix): what changed
+    and where to check it. Lives on the reply that reported it, so every attempt stays in
+    the thread's history (TDR-0158)."""
+
+    summary: str
+    preview_url: str | None = None
+    change_url: str | None = None
+
+
 class CommentOut(BaseModel):
     id: str
     page_id: str
@@ -216,6 +226,7 @@ class CommentOut(BaseModel):
     waiting_on_ids: list[str] = Field(default_factory=list)
     waiting_on_client: bool = False
     is_standalone: bool = False
+    fix: FixSubmissionOut | None = None
 
 
 class GuestBoardItemOut(BaseModel):
