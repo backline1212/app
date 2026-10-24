@@ -411,7 +411,7 @@ function useReviewBranding(branding: PublicBranding | null | undefined) {
 function BrandHeader({ branding }: { branding: PublicBranding | null | undefined }) {
   if (!branding?.logo_url && !branding?.display_name) return null;
   return <div className="bl-gate-brand">
-    {branding.logo_url && <img className="bl-brand-logo" src={branding.logo_url} alt="" />}
+    {branding.logo_url && <img className="bl-brand-logo" src={branding.logo_url} alt="" onError={(event) => { event.currentTarget.hidden = true; }} />}
     {branding.display_name && <strong>{branding.display_name}</strong>}
     {branding.support_email && <a href={`mailto:${branding.support_email}`}>{branding.support_email}</a>}
   </div>;

@@ -4769,3 +4769,9 @@ database migration, or production deployment is claimed.
 
 - Missing stored files return 404 FILE_MISSING; file projects show Manage files/Retry
   and an accurate status bar instead of an endless "Loading…".
+
+# 2026-10-25: Preview on sites with the snippet (TDR-0162)
+
+- Sites that already embed Backline no longer show "review session ended" / a second
+  toolbar in the preview. Local-only `ALLOW_PRIVATE_NETWORK_TARGETS` for previewing
+  localhost sites in development.
