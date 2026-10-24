@@ -4732,3 +4732,10 @@ database migration, or production deployment is claimed.
 
 - Clients can take existing projects; "N open" links filter to open tickets; extension
   setup leads with Download; toasts no longer cover the top bar.
+
+# 2026-10-24: Sign-in fix, MCP token expiry, page race (TDR-0156)
+
+- Fixed sign-in occasionally revoking itself (wrong sort field). MCP tokens expire
+  (default 90 days). Comments can't land on a page deleted at the same moment.
+- Operator follow-up: `python -m scripts.migrate_event_projects` (dry-run), then
+  `--apply`.

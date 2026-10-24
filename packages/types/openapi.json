@@ -13434,6 +13434,23 @@
             ],
             "title": "Access",
             "default": "read_write"
+          },
+          "expires_in_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "enum": [
+                  30,
+                  90,
+                  365
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires In Days",
+            "default": 90
           }
         },
         "type": "object",
@@ -13489,6 +13506,18 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
           }
         },
         "type": "object",
@@ -13549,6 +13578,18 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
           },
           "last_used_at": {
             "anyOf": [

@@ -302,9 +302,12 @@ class RefreshTokenRepository:
         revokes older families, so the session list stays short without signing a
         member out of their other computer every time they log in (TDR-0151)."""
         families: list[str] = []
+        # Refresh tokens carry `issued_at` (each rotation issues a new one), not
+        # `created_at`: sorting on a missing field left the order arbitrary and could
+        # revoke the sign-in that had just been created.
         cursor = self.db.refresh_tokens.find(
             {"user_id": user_id, "revoked_at": None}, projection={"family_id": 1}
-        ).sort("created_at", -1)
+        ).sort([("issued_at", -1), ("_id", -1)])
         async for doc in cursor:
             if doc["family_id"] not in families:
                 families.append(doc["family_id"])

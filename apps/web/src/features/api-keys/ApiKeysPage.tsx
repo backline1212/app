@@ -25,8 +25,8 @@ import type { WorkspaceOut } from "../workspaces/api";
 // Both kinds act as the member who created them, with that member's role.
 
 type KeyRow =
-  | { kind: "api"; id: string; name: string; createdAt: string; lastUsedAt: string | null }
-  | { kind: "mcp"; id: string; name: string; createdAt: string; lastUsedAt: string | null; detail: string };
+  | { kind: "api"; id: string; name: string; createdAt: string; lastUsedAt: string | null; expiresAt: string | null }
+  | { kind: "mcp"; id: string; name: string; createdAt: string; lastUsedAt: string | null; expiresAt: string | null; detail: string };
 
 const API_ROOT = `${API_BASE_URL.replace(/\/+$/, "")}/api/v1`;
 const KEY_PLACEHOLDER = "<your-api-key>";
@@ -105,6 +105,7 @@ export function ApiKeysPage() {
         name: token.name,
         createdAt: token.created_at,
         lastUsedAt: token.last_used_at ?? null,
+        expiresAt: token.expires_at ?? null,
       })),
     ...(mcpKeys.data ?? [])
       .filter((token) => !token.revoked_at)
@@ -114,6 +115,7 @@ export function ApiKeysPage() {
         name: token.label,
         createdAt: token.created_at,
         lastUsedAt: token.last_used_at ?? null,
+        expiresAt: token.expires_at ?? null,
         detail: [
           token.scopes?.includes(mcpApi.WRITE_SCOPE) ? "read & write" : "read only",
           token.agent_hint ? MCP_CLIENT_BY_ID.get(token.agent_hint)?.name ?? token.agent_hint : null,
@@ -240,7 +242,7 @@ export function ApiKeysPage() {
                   </strong>
                   <span className="bl-mono">
                     Created {formatRelativeTime(row.createdAt)} ·{" "}
-                    {row.lastUsedAt ? `last used ${formatRelativeTime(row.lastUsedAt)}` : "never used"}
+                    {row.lastUsedAt ? `last used ${formatRelativeTime(row.lastUsedAt)}` : "never used"} · {mcpApi.expiryLabel(row.expiresAt, formatRelativeTime)}
                   </span>
                 </div>
                 <button type="button" className="bl-quiet bl-int-danger" onClick={() => setRevokeCandidate(row)}>

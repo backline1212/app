@@ -242,7 +242,7 @@ def _comment_label(comment: dict[str, Any] | None) -> dict[str, Any]:
     return {"ticket_number": comment.get("ticket_number"), "comment_excerpt": excerpt or None}
 
 
-async def _event_projects(
+async def resolve_event_projects(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     workspace_id: str,
     docs: list[dict[str, Any]],
@@ -302,7 +302,7 @@ async def activity(
     hidden = await _hidden(db, viewer)
     repo = DashboardRepository(db)
     docs, total = await repo.activity(workspace_id, user_id, offset, limit, event_type, hidden)
-    event_projects = await _event_projects(db, workspace_id, docs)
+    event_projects = await resolve_event_projects(db, workspace_id, docs)
     if hidden:
         hidden_set = set(hidden)
         docs = [doc for doc in docs if event_projects.get(str(doc["_id"])) not in hidden_set]

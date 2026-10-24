@@ -37,6 +37,7 @@ export function McpServerPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [label, setLabel] = useState("");
   const [access, setAccess] = useState<mcpApi.McpAccess>("read_write");
+  const [expiry, setExpiry] = useState<mcpApi.McpExpiry>(90);
   const [revealed, setRevealed] = useState<mcpApi.McpTokenIssued | null>(null);
   const [revokeCandidate, setRevokeCandidate] = useState<mcpApi.McpTokenOut | null>(null);
   const revealRef = useRef<HTMLDivElement>(null);
@@ -56,7 +57,7 @@ export function McpServerPage() {
 
   const create = useMutation({
     mutationFn: () =>
-      mcpApi.createMcpToken(workspace.id, { label: label.trim() || `My laptop - ${client.name}`, agentHint: client.id, access }),
+      mcpApi.createMcpToken(workspace.id, { label: label.trim() || `My laptop - ${client.name}`, agentHint: client.id, access, expiresInDays: expiry }),
     onSuccess: (issued) => {
       setLabel("");
       setRevealed(issued);
@@ -118,6 +119,12 @@ export function McpServerPage() {
                 Read only
               </button>
             </div>
+            <select className="bl-select" aria-label="Token expires" value={expiry ?? "never"} onChange={(event) => setExpiry(event.target.value === "never" ? null : Number(event.target.value) as 30 | 90 | 365)}>
+              <option value="30">Expires in 30 days</option>
+              <option value="90">Expires in 90 days</option>
+              <option value="365">Expires in 1 year</option>
+              <option value="never">Never expires</option>
+            </select>
             <button type="submit" className="bl-button" disabled={create.isPending}>
               {create.isPending ? "Creating…" : `Create token for ${client.name}`}
             </button>
@@ -260,7 +267,8 @@ export function McpServerPage() {
                   </strong>
                   <span className="bl-mono">
                     Created {formatRelativeTime(item.created_at)} ·{" "}
-                    {item.last_used_at ? `last used ${formatRelativeTime(item.last_used_at)}` : "never used"}
+                    {item.last_used_at ? `last used ${formatRelativeTime(item.last_used_at)}` : "never used"} ·{" "}
+                    {mcpApi.expiryLabel(item.expires_at, formatRelativeTime)}
                   </span>
                 </div>
                 <button

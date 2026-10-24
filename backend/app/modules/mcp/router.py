@@ -42,6 +42,7 @@ async def create_mcp_token(
         label=body.label,
         agent_hint=body.agent_hint,
         access=body.access,
+        expires_in_days=body.expires_in_days,
     )
 
 

@@ -163,6 +163,24 @@ class PageRepository:
                 {"$set": {"sort_order": sort_order}},
             )
 
+    async def mark_referenced(
+        self,
+        workspace_id: str,
+        page_id: str,
+        *,
+        session: AsyncIOMotorClientSession,
+    ) -> bool:
+        """Writes the page inside the caller's transaction before it adds something that
+        points at the page. delete_page's transaction also writes (deletes) this
+        document, so the two conflict and one retries: a comment can no longer land on
+        a page deleted as "empty" in the same instant. False when the page is gone."""
+        result = await self.db.pages.update_one(
+            {"_id": to_object_id(page_id), "workspace_id": workspace_id},
+            {"$set": {"last_referenced_at": datetime.now(UTC)}},
+            session=session,
+        )
+        return result.matched_count == 1
+
     async def reference_counts(
         self,
         workspace_id: str,

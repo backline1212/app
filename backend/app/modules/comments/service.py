@@ -231,6 +231,10 @@ async def _create_with_integration_intent(
     repo = CommentRepository(db)
 
     async def create(session: AsyncIOMotorClientSession) -> dict[str, Any]:
+        if not await PageRepository(db).mark_referenced(
+            workspace_id, str(doc["page_id"]), session=session
+        ):
+            raise NotFoundError("This page was just deleted. Reload the project and try again.")
         created = await repo.create(doc, session=session)
         await append_event(
             db,

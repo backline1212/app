@@ -1,5 +1,6 @@
 import asyncio
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
@@ -98,6 +99,7 @@ def _token_out(doc: dict[str, Any]) -> McpTokenOut:
         created_at=doc["created_at"],
         last_used_at=doc["last_used_at"],
         revoked_at=doc["revoked_at"],
+        expires_at=doc.get("expires_at"),
     )
 
 
@@ -109,9 +111,11 @@ async def issue_token(
     label: str,
     agent_hint: str | None,
     access: McpAccess = "read_write",
+    expires_in_days: int | None = 90,
 ) -> McpTokenIssued:
     raw_token = TOKEN_PREFIX + generate_opaque_token()
     scopes = _scopes_for(access)
+    expires_at = datetime.now(UTC) + timedelta(days=expires_in_days) if expires_in_days else None
     doc = await McpTokenRepository(db).create(
         user_id=ObjectId(user_id),
         workspace_id=workspace_id,
@@ -119,6 +123,7 @@ async def issue_token(
         agent_hint=agent_hint,
         token_hash=hash_secret(raw_token),
         scopes=scopes,
+        expires_at=expires_at,
     )
     await append_event(
         db,
@@ -135,6 +140,7 @@ async def issue_token(
         agent_hint=doc["agent_hint"],
         scopes=scopes,
         created_at=doc["created_at"],
+        expires_at=expires_at,
     )
 
 
@@ -180,6 +186,9 @@ async def verify_bearer_token(
     repo = McpTokenRepository(db)
     doc = await repo.find_by_hash(hash_secret(raw_token))
     if doc is None or doc["revoked_at"] is not None:
+        return None
+    expires_at = doc.get("expires_at")
+    if expires_at is not None and expires_at <= datetime.now(UTC):
         return None
     user_id = str(doc["user_id"])
     try:
