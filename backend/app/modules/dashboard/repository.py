@@ -449,6 +449,24 @@ class DashboardRepository:
     ) -> list[dict[str, Any]]:
         return await self.db.comments.aggregate(pipeline, maxTimeMS=2000).to_list(length=limit)
 
+    async def search_clients(
+        self, workspace_id: str, matcher: dict[str, Any], limit: int
+    ) -> list[dict[str, Any]]:
+        cursor = (
+            self.db.clients.find(
+                {
+                    "workspace_id": workspace_id,
+                    "archived_at": None,
+                    "$or": [{"name": matcher}, {"contact_name": matcher}, {"email": matcher}],
+                },
+                {"name": 1, "contact_name": 1, "email": 1},
+            )
+            .sort([("name", 1), ("_id", 1)])
+            .limit(limit)
+            .max_time_ms(2000)
+        )
+        return [doc async for doc in cursor]
+
     async def search_members(
         self, workspace_id: str, matcher: dict[str, Any], limit: int
     ) -> list[dict[str, Any]]:

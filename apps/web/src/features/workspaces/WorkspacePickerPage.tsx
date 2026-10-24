@@ -27,6 +27,16 @@ export function WorkspacePickerPage() {
   });
   const myRequests = useQuery({ queryKey: qk.myJoinRequests(), queryFn: workspacesApi.listMyJoinRequests });
   const waiting = (myRequests.data ?? []).filter((request) => request.status === "pending");
+  // A brand-new account has nothing to pick: creating its first workspace is the step,
+  // with a name it can accept as-is (renamable later in Settings).
+  const firstRun = workspaces?.length === 0 && waiting.length === 0;
+  const suggested = useRef(false);
+  useEffect(() => {
+    if (!firstRun || suggested.current || newWorkspaceName) return;
+    suggested.current = true;
+    const first = user?.name?.trim().split(/\s+/)[0];
+    setNewWorkspaceName(first ? `${first}'s studio` : "");
+  }, [firstRun, newWorkspaceName, user?.name]);
 
   // Arriving straight from sign-in, skip the picker when the choice is obvious: the
   // workspace used last on this browser, or the only one. Visiting "/" otherwise (to
@@ -70,6 +80,32 @@ export function WorkspacePickerPage() {
     }
   }
 
+  const createForm = (
+    <form className="wsp-form" onSubmit={handleCreate}>
+      {!firstRun && <h2>{t('workspacePicker.newWorkspace' as TranslationKeys)}</h2>}
+      <input
+        type="text"
+        required
+        maxLength={200}
+        aria-label="Workspace name"
+        placeholder="Your studio or company name"
+        value={newWorkspaceName}
+        onChange={(event) => setNewWorkspaceName(event.target.value)}
+        spellCheck="false"
+      />
+      {error && (
+        <p className="wsp-err">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" /></svg>
+          <span>{error}</span>
+        </p>
+      )}
+      <button type="submit" className="wsp-submit" disabled={isSubmitting || !newWorkspaceName.trim()}>
+        {isSubmitting ? <span className="lg-spin" /> : null}
+        Create workspace
+      </button>
+    </form>
+  );
+
   return (
     <main className="wsp">
       <div className="wsp-card">
@@ -82,7 +118,7 @@ export function WorkspacePickerPage() {
         <div className="wsp-body">
           {/* Title + sign out */}
           <div className="wsp-title">
-            <h1>{t('workspacePicker.title' as TranslationKeys)}</h1>
+            <h1>{firstRun ? "Create your workspace" : t('workspacePicker.title' as TranslationKeys)}</h1>
             <button className="wsp-signout" onClick={() => logout()}>
               {t('account.signOut' as TranslationKeys)}
             </button>
@@ -120,11 +156,19 @@ export function WorkspacePickerPage() {
             </div>
           )}
 
-          {workspaces && workspaces.length === 0 && (
+          {firstRun && (
             <p className="wsp-empty">
-              You don't belong to any workspaces yet. Join your team's with a room code, or create one below.
+              A workspace holds your projects, clients and team. You can rename it any time in Settings.
             </p>
           )}
+          {workspaces?.length === 0 && waiting.length > 0 && (
+            <p className="wsp-empty">You'll see the workspace here once someone approves your request. You can also create your own.</p>
+          )}
+
+          {firstRun && <>
+            {createForm}
+            <div className="wsp-div" />
+          </>}
 
           {waiting.length > 0 && (
             <p className="wsp-waiting" role="status">
@@ -146,33 +190,11 @@ export function WorkspacePickerPage() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
           </Link>
 
-          {/* Divider */}
-          <div className="wsp-div" />
+          {!firstRun && <>
+            <div className="wsp-div" />
+            {createForm}
+          </>}
 
-          {/* New workspace form */}
-          <form className="wsp-form" onSubmit={handleCreate}>
-            <h2>{t('workspacePicker.newWorkspace' as TranslationKeys)}</h2>
-            <input
-              type="text"
-              required
-              maxLength={200}
-              aria-label="Workspace name"
-              placeholder="Acme Corp"
-              value={newWorkspaceName}
-              onChange={(event) => setNewWorkspaceName(event.target.value)}
-              spellCheck="false"
-            />
-            {error && (
-              <p className="wsp-err">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" /></svg>
-                <span>{error}</span>
-              </p>
-            )}
-            <button type="submit" className="wsp-submit" disabled={isSubmitting || !newWorkspaceName.trim()}>
-              {isSubmitting ? <span className="lg-spin" /> : null}
-              {t('workspacePicker.newWorkspace' as TranslationKeys)}
-            </button>
-          </form>
         </div>
 
         {/* Footer */}

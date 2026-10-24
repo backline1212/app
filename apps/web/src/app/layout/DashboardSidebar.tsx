@@ -197,7 +197,7 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
     </nav>
     <footer className="bl-rail-foot">
       <div className="bl-plan-card">
-        <div className="bl-plan-top"><span className="bl-plan-name">{workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1)} plan</span><span className="bl-plan-count">{data?.projects ?? "—"} projects</span></div>
+        <div className="bl-plan-top"><span className="bl-plan-name">{workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1)} plan</span><span className="bl-plan-count">{data?.projects ?? "—"} project{data?.projects === 1 ? "" : "s"}</span></div>
         <p>One place for your team's client reviews.</p>
         <Link onClick={onNavigate} className="bl-btn-plan" to={`${base}/billing`}>Compare plans</Link>
       </div>

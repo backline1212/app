@@ -12,9 +12,11 @@ type SearchItem = SearchResults["items"][number];
 
 const SECTION_LABELS: Record<string, string> = {
   project: "PROJECTS",
-  comment: "COMMENTS",
-  ticket: "TICKETS",
+  // Every placed comment is a ticket; "ticket" results are the team's own tickets.
+  comment: "TICKETS",
+  ticket: "TEAM TICKETS",
   member: "PEOPLE",
+  client: "CLIENTS",
 };
 
 // design/index.html runSearch(): a small tile per result kind.
@@ -28,6 +30,8 @@ function ResultIcon({ item }: { item: SearchItem }) {
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         {item.kind === "project" ? (
           <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18" /></>
+        ) : item.kind === "client" ? (
+          <><path d="M3 21h18M5 21V7l7-4 7 4v14" /><path d="M9 21v-6h6v6" /></>
         ) : item.kind === "ticket" ? (
           <><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></>
         ) : (
@@ -39,7 +43,7 @@ function ResultIcon({ item }: { item: SearchItem }) {
 }
 
 function groupResults(items: SearchItem[]): Array<{ section: string; items: SearchItem[] }> {
-  const order = ["project", "ticket", "comment", "member"];
+  const order = ["project", "comment", "ticket", "client", "member"];
   const byKind: Record<string, SearchItem[]> = {};
   for (const item of items) {
     (byKind[item.kind] ??= []).push(item);
@@ -101,6 +105,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
     const base = `/w/${workspaceSlug}`;
     if (result.kind === "project") return `${base}/p/${result.project_id}`;
     if (result.kind === "member") return `${base}/members`;
+    if (result.kind === "client") return `${base}/clients?search=${encodeURIComponent(result.title)}`;
     // comment and ticket both navigate to the tickets view with the comment selected
     if (result.project_id) {
       return `${base}/p/${result.project_id}/board?comment=${encodeURIComponent(result.id)}`;
@@ -138,7 +143,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
           maxLength={200}
           aria-controls="bl-search-results"
           aria-activedescendant={flatItems[activeIndex] ? `bl-sr-${flatItems[activeIndex].id}` : undefined}
-          placeholder="Search tickets, projects and people"
+          placeholder="Search tickets, projects, clients and people"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleInputKeyDown}
