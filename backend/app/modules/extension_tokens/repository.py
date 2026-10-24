@@ -72,6 +72,15 @@ class ExtensionTokenRepository:
         ).sort("created_at", -1)
         return [doc async for doc in cursor]
 
+    async def revoke_all_for_user(self, user_id: ObjectId) -> None:
+        """Sign-out-everywhere and password change end extension connections too."""
+        from datetime import UTC, datetime
+
+        # workspace-scope-exempt: a user's own tokens across workspaces, revoked by user id
+        await self.db.extension_tokens.update_many(
+            {"user_id": user_id, "revoked_at": None}, {"$set": {"revoked_at": datetime.now(UTC)}}
+        )
+
     async def touch_last_used(self, token_id: ObjectId) -> None:
         # workspace-scope-exempt: token_id comes from find_by_hash's own result
         # (core/session.py's _resolve_extension_session), already the verified token's

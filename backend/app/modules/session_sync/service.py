@@ -137,10 +137,10 @@ async def redeem_ticket(
         raise NotFoundError("This review link doesn't exist.")
 
     key = _redis_key(ticket)
-    raw = await redis_client.get(key)
+    # GETDEL: one-time - two concurrent redemptions can't both read it.
+    raw = await redis_client.getdel(key)
     if raw is None:
         raise NotFoundError("This sync link has expired or was already used.")
-    await redis_client.delete(key)
 
     payload = json.loads(raw)
     if payload.get("project_id") != link["project_id"]:

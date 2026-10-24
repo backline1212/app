@@ -378,11 +378,14 @@ async def generate_implementation_prompt(
     workspace_id: str,
     comment_id: str,
     agent: AgentHint,
+    viewer: Session | None = None,
 ) -> GeneratePromptResult:
-    """The dashboard's copy-paste flow and the MCP tool share this."""
+    """The dashboard's copy-paste flow and the MCP tool share this. With a viewer the
+    thread's project must allow them to read team content - the id is also accepted
+    as a ticket number, so the route's own path check can't establish the project."""
     from app.modules.integrations.service import comment_backlink
 
-    thread = await load_thread(db, workspace_id=workspace_id, ref=comment_id)
+    thread = await load_thread(db, workspace_id=workspace_id, ref=comment_id, viewer=viewer)
     backlink = await comment_backlink(db, workspace_id=workspace_id, comment_id=thread.comment.id)
     prompt = build_implementation_prompt(thread, backlink_url=backlink)
     return GeneratePromptResult(agent=agent, implementation_prompt=prompt)

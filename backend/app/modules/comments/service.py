@@ -74,6 +74,38 @@ async def _page_for_broadcast(
     return page
 
 
+def guest_safe_comment(comment: CommentOut) -> CommentOut:
+    """What a guest reviewer may see of a comment: no assignees, due dates, priority,
+    member ids, or other reviewers' browser/device details and console captures - the
+    project's own wording for clients is "comments and statuses, not due dates or
+    assignees". Status, tags, text, evidence and replies are unchanged."""
+    context = comment.context or {}
+    return comment.model_copy(
+        update={
+            "author_id": comment.author_id if comment.author_type == "guest" else "",
+            "assignee_id": None,
+            "assignee_ids": [],
+            "waiting_on_ids": [],
+            "due_at": None,
+            "priority": "medium",
+            "context": {"url": context.get("url", "")} if context.get("url") else {},
+        }
+    )
+
+
+async def _thread_is_client_visible(comment: CommentOut) -> bool:
+    """A reply is visible to guests only while its thread is: a client reply left on a
+    thread that was later moved to team-only must not keep reaching the guest channel."""
+    if comment.layer != "client":
+        return False
+    if comment.parent_id is None:
+        return True
+    from app.core.db import get_db
+
+    parent = await CommentRepository(get_db()).find_by_id(comment.parent_id)
+    return bool(parent and parent.get("deleted_at") is None and parent.get("layer") == "client")
+
+
 async def _broadcast_comment_event(
     *, event_type: str, workspace_id: str, project_id: str, comment: CommentOut
 ) -> None:
@@ -90,12 +122,15 @@ async def _broadcast_comment_event(
         workspace_id=workspace_id,
         payload=payload,
     )
-    if comment.layer == "client":
+    if await _thread_is_client_visible(comment):
         await publish_realtime_event(
             f"project:{project_id}:client",
             event_type=event_type,
             workspace_id=workspace_id,
-            payload=payload,
+            payload={
+                **guest_safe_comment(comment).model_dump(mode="json"),
+                "project_id": project_id,
+            },
         )
 
 
@@ -681,6 +716,10 @@ async def create_reply(
     await resolve_actor_project_access(db, actor, parent_page["project_id"], "comment:reply")
 
     is_guest = isinstance(actor, GuestSession)
+    if is_guest:
+        # Guests have no member picker; ids they send could only be used to push
+        # "mentioned you" notifications at members.
+        mentioned_user_ids = None
     if is_guest and parent["layer"] != "client":
         # A guest can reply "on client-visible threads only" (13-Authentication.md §13.5).
         # Treated as not-found, not forbidden, so a crafted request can't be used to
@@ -920,6 +959,13 @@ async def delete_thread(
     await _require_member_can_comment(db, existing, actor)
 
     replies = await repo.list_replies(comment_id)
+    if isinstance(actor, GuestSession) and (
+        existing["layer"] != "client" or any(r["layer"] != "client" for r in replies)
+    ):
+        # A guest can't see team-only replies, so they can't be the one to delete them.
+        raise PermissionDeniedError(
+            "The team has replied privately on this thread. Ask them to remove it."
+        )
     await repo.soft_delete_many([comment_id, *(str(r["_id"]) for r in replies)])
 
     page = await _page_for_broadcast(db, existing["page_id"])
@@ -1156,9 +1202,9 @@ async def list_comments(
 
     if isinstance(actor, GuestSession):
         docs = await repo.list_for_guest_session(page["workspace_id"], page_id, since=since)
-    else:
-        docs = await repo.list_for_member(page["workspace_id"], page_id, since=since)
-
+        comments = await serialize_comments(db, workspace_id=page["workspace_id"], docs=docs)
+        return [guest_safe_comment(comment) for comment in comments]
+    docs = await repo.list_for_member(page["workspace_id"], page_id, since=since)
     return await serialize_comments(db, workspace_id=page["workspace_id"], docs=docs)
 
 
@@ -1447,6 +1493,10 @@ async def resolve_own_comment(
     if existing is None or existing.get("deleted_at") is not None:
         raise NotFoundError("Comment not found.")
     _require_own_comment(existing, actor)
+    if existing.get("parent_id") is not None or existing["layer"] != "client":
+        # Threads only, and only while they're client-visible: a thread the team moved
+        # to team-only reads as not found to its guest author.
+        raise NotFoundError("Comment not found.")
 
     page = await PageRepository(db).find_by_id(existing["page_id"])
     if page is None:

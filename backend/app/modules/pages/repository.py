@@ -104,7 +104,15 @@ class PageRepository:
             return {}
         rows = await self.db.comments.aggregate(
             [
-                {"$match": {"workspace_id": workspace_id, "page_id": {"$in": page_ids}}},
+                # Threads only, and not deleted ones - the same count every list shows.
+                {
+                    "$match": {
+                        "workspace_id": workspace_id,
+                        "page_id": {"$in": page_ids},
+                        "parent_id": None,
+                        "deleted_at": None,
+                    }
+                },
                 {"$group": {"_id": "$page_id", "count": {"$sum": 1}}},
             ]
         ).to_list(length=None)

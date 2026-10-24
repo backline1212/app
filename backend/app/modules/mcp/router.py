@@ -70,4 +70,5 @@ async def generate_prompt(
         workspace_id=require_workspace_context(session),
         comment_id=comment_id,
         agent=body.agent,
+        viewer=session,
     )

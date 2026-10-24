@@ -16,7 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.config import get_settings
 from app.core.errors import ConflictError, ExternalServiceError, NotFoundError
 from app.core.review_url import review_origin
-from app.core.ssrf_guard import MAX_REDIRECTS, assert_safe_to_fetch
+from app.core.ssrf_guard import MAX_REDIRECTS, assert_safe_to_fetch, guarded_transport
 from app.modules.projects.repository import ProjectRepository
 from app.modules.proxy.interceptor import build_interceptor_script
 from app.modules.proxy.preview_host import preview_cookies_can_be_secure
@@ -128,7 +128,9 @@ def _shared_transport() -> httpx.AsyncHTTPTransport:
     global _transport, _transport_loop
     loop = asyncio.get_running_loop()
     if _transport is None or _transport_loop is not loop:
-        _transport = httpx.AsyncHTTPTransport(
+        # Connect-time address check (ssrf_guard.GuardedNetworkBackend): a host that
+        # re-resolves to an internal address after assert_safe_to_fetch is refused.
+        _transport = guarded_transport(
             retries=1,
             limits=httpx.Limits(
                 max_connections=200, max_keepalive_connections=50, keepalive_expiry=30.0
