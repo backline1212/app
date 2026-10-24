@@ -11,7 +11,7 @@ export function UpgradeToProModal({ onClose, workspaceSlug }: { onClose: () => v
   return (
     <Dialog title="Upgrade your plan" onClose={onClose}>
       <div className="bl-form" style={{ alignItems: "center", textAlign: "center" }}>
-        <p>Paid plans add more projects, team seats and monthly AI credits, plus integrations and cloud login on Team Standard.</p>
+        <p>Paid plans add more projects, team seats and monthly AI credits, plus client branding and review domains on Team Standard.</p>
         {slug && (
           <button
             type="button"

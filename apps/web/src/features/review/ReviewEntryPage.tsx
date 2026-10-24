@@ -9,6 +9,7 @@ import { useOnlineStatus } from "../../lib/use-online-status";
 import * as reviewApi from "./api";
 import { GuestBoard } from "./GuestBoard";
 import { NativeReviewButton } from "./NativeReviewButton";
+import type { PublicBranding } from "../workspaces/branding-api";
 import {
   clearStoredGuestSession,
   getStoredGuestSession,
@@ -58,7 +59,8 @@ export function ReviewEntryPage() {
     enabled: !!shareToken,
     retry: false,
   });
-  useDocumentTitle([resolved?.project_name, "Review"]);
+  useDocumentTitle([resolved?.project_name, resolved?.branding?.display_name ?? "Review"]);
+  useReviewBranding(resolved?.branding);
   const activeToken = sessionMatchesLink ? assetGuest ?? pendingHandoff?.token ?? "" : "";
   const sessionStatus = useQuery({
     queryKey: qk.guestSession(activeToken),
@@ -223,6 +225,7 @@ export function ReviewEntryPage() {
           guestName={displayName}
           onLeave={handleLeave}
           variant={resolved.variant}
+          branding={resolved.branding}
         />
       </Suspense></>
     );
@@ -250,6 +253,7 @@ export function ReviewEntryPage() {
       <div className="bl-gate-scrim">
         <div className="bl-gate-modal" role="dialog" aria-modal="true" aria-labelledby="ggTitle">
           <div className="bl-gate-head">
+            <BrandHeader branding={resolved.branding} />
             <h3 id="ggTitle">Review {resolved.project_name}</h3>
             <p id="ggSub">Joined as {displayName}. Choose how to open the website.</p>
           </div>
@@ -262,7 +266,7 @@ export function ReviewEntryPage() {
             {siteNeedsLogin === null && <p role="status">Choose an option above to continue to the website.</p>}
             {siteNeedsLogin === "yes" && <p>Use your normal browser and website account. We'll guide you through the extension setup if needed.</p>}
             {siteNeedsLogin === "no" && <p>Open the review in a new tab, click an element and save your feedback. Keep this page open to return to your review.</p>}
-            <p className="bl-policy-note">Website sign-in is separate from joining Backline. A review link doesn't give access to the website's private pages.</p>
+            <p className="bl-policy-note">Website sign-in is separate from joining {resolved.branding?.hide_backline_branding ? "this review" : "Backline"}. A review link doesn't give access to the website's private pages.</p>
             {leaveError && <p role="alert" className="bl-error">{leaveError}</p>}
             {!online && <p role="status">You're offline. Reconnect to start or rejoin a review.</p>}
           </div>
@@ -319,6 +323,7 @@ export function ReviewEntryPage() {
     <div className="bl-gate-scrim" id="ggScrim">
       <div className="bl-gate-modal" role="dialog" aria-modal="true" aria-labelledby="ggTitle">
         <div className="bl-gate-head">
+          <BrandHeader branding={resolved.branding} />
           <h3 id="ggTitle">Review {resolved.project_name}</h3>
           <p id="ggSub">Tell us who&apos;s reviewing - no account needed.</p>
         </div>
@@ -388,4 +393,26 @@ function ErrorScreen({ message, onRetry, retryLabel = "Try again", signIn }: { m
       </div>
     </div>
   );
+}
+
+/** Applies a workspace's client branding (TDR-0150) to the review pages: its accent
+ * colour replaces Backline's, for as long as this page is open. */
+function useReviewBranding(branding: PublicBranding | null | undefined) {
+  useEffect(() => {
+    const accent = branding?.accent_color;
+    if (!accent) return;
+    const root = document.documentElement;
+    root.style.setProperty("--bl-brand-accent", accent);
+    root.classList.add("bl-branded");
+    return () => { root.style.removeProperty("--bl-brand-accent"); root.classList.remove("bl-branded"); };
+  }, [branding?.accent_color]);
+}
+
+function BrandHeader({ branding }: { branding: PublicBranding | null | undefined }) {
+  if (!branding?.logo_url && !branding?.display_name) return null;
+  return <div className="bl-gate-brand">
+    {branding.logo_url && <img className="bl-brand-logo" src={branding.logo_url} alt="" />}
+    {branding.display_name && <strong>{branding.display_name}</strong>}
+    {branding.support_email && <a href={`mailto:${branding.support_email}`}>{branding.support_email}</a>}
+  </div>;
 }

@@ -14,10 +14,8 @@ import type { ProjectOut } from "../projects/api";
 import * as shareLinksApi from "../share-links/api";
 import { reviewLinkState, useReviewLinkClock } from "../share-links/link-state";
 import * as workspacesApi from "./api";
+import { reviewLinkUrl, useReviewDomain } from "./review-url";
 
-function reviewUrl(token: string): string {
-  return `${window.location.origin}/review/${token}`;
-}
 
 interface ShareProjectModalProps {
   project: ProjectOut;
@@ -34,6 +32,8 @@ export function ShareProjectModal({ project, workspaceId, workspaceSlug, workspa
   const { role: currentRole } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const reviewDomain = useReviewDomain(workspaceId);
+  const reviewUrl = (token: string) => reviewLinkUrl(token, reviewDomain);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"member" | "admin">("member");
   const [copied, setCopied] = useState(false);

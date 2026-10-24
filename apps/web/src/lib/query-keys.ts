@@ -10,6 +10,8 @@ export const qk = {
   workspaces: () => ["workspaces"] as const,
   workspace: (id: string) => ["workspace", id] as const,
   members: (workspaceId: string | undefined) => ["workspace", workspaceId, "members"] as const,
+  branding: (workspaceId: string | undefined) => ["workspace", workspaceId, "branding"] as const,
+  domains: (workspaceId: string | undefined) => ["workspace", workspaceId, "domains"] as const,
   // TDR-0056 - org chart, project access and joining by room code.
   accessMatrix: (workspaceId: string) => ["workspace", workspaceId, "access-matrix"] as const,
   joinRequests: (workspaceId: string) => ["workspace", workspaceId, "join-requests"] as const,

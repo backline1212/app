@@ -20,6 +20,7 @@ from app.core.security import create_guest_token, generate_share_token, hash_sec
 from app.core.session import GuestSession, Session
 from app.core.verified_identity import require_verified_identity
 from app.modules.auth.repository import UserRepository
+from app.modules.branding.schemas import PublicBrandingOut
 from app.modules.projects import service as project_service
 from app.modules.projects.repository import ProjectRepository
 from app.modules.proxy.preview_host import preview_origin_for_token
@@ -215,6 +216,14 @@ async def revoke_share_link(
     )
 
 
+async def _review_branding(
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str
+) -> "PublicBrandingOut | None":
+    from app.modules.branding.service import public_branding
+
+    return await public_branding(db, workspace_id)
+
+
 async def resolve_share_link(
     db: AsyncIOMotorDatabase[dict[str, Any]], token: str
 ) -> ReviewResolveOut:
@@ -237,6 +246,7 @@ async def resolve_share_link(
         project_name=project["name"],
         project_type=project.get("project_type", "website"),
         variant=project.get("variant"),
+        branding=await _review_branding(db, project["workspace_id"]),
         mode=link["mode"],
         requires_passcode=link["passcode_hash"] is not None,
         target_origin=review_origin(project["target_origin"]),

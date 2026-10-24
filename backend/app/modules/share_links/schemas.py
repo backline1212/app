@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 
+from app.modules.branding.schemas import PublicBrandingOut
+
 ShareLinkMode = Literal["snippet", "proxy"]
 
 
@@ -42,6 +44,8 @@ class ReviewResolveOut(BaseModel):
     project_type: str = "website"
     # "webapp" / "mobile" review flavour (projects/schemas.py ProjectVariant).
     variant: str | None = None
+    # The workspace's client-facing branding (Team+), or null for Backline's own look.
+    branding: PublicBrandingOut | None = None
     project_id: str
     project_name: str
     mode: ShareLinkMode

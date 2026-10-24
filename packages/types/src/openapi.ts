@@ -2177,6 +2177,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Branding */
+        get: operations["get_branding_api_v1_workspaces__workspace_id__branding_get"];
+        /** Update Branding */
+        put: operations["update_branding_api_v1_workspaces__workspace_id__branding_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/branding/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Logo */
+        post: operations["upload_logo_api_v1_workspaces__workspace_id__branding_logo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/domains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Domains */
+        get: operations["list_domains_api_v1_workspaces__workspace_id__domains_get"];
+        put?: never;
+        /** Add Domain */
+        post: operations["add_domain_api_v1_workspaces__workspace_id__domains_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/domains/{domain_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Domain */
+        post: operations["verify_domain_api_v1_workspaces__workspace_id__domains__domain_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/domains/{domain_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Domain */
+        delete: operations["remove_domain_api_v1_workspaces__workspace_id__domains__domain_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/branding/by-host": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Branding By Host
+         * @description Public: the client-facing branding for a verified custom review domain.
+         */
+        get: operations["branding_by_host_api_v1_branding_by_host_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -2680,6 +2787,60 @@ export interface components {
             /** Platform */
             platform?: string | null;
         };
+        /** Body_upload_logo_api_v1_workspaces__workspace_id__branding_logo_post */
+        Body_upload_logo_api_v1_workspaces__workspace_id__branding_logo_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+        };
+        /** BrandingOut */
+        BrandingOut: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Accent Color */
+            accent_color?: string | null;
+            /** Logo Url */
+            logo_url?: string | null;
+            /**
+             * Hide Backline Branding
+             * @default false
+             */
+            hide_backline_branding: boolean;
+            /** Support Email */
+            support_email?: string | null;
+            /**
+             * Can Customize
+             * @default false
+             */
+            can_customize: boolean;
+            /**
+             * Can White Label
+             * @default false
+             */
+            can_white_label: boolean;
+            /**
+             * Can Use Custom Domain
+             * @default false
+             */
+            can_use_custom_domain: boolean;
+            /** Review Domain */
+            review_domain?: string | null;
+        };
+        /** BrandingUpdate */
+        BrandingUpdate: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Accent Color */
+            accent_color?: string | null;
+            /** Hide Backline Branding */
+            hide_backline_branding?: boolean | null;
+            /** Support Email */
+            support_email?: string | null;
+            /** Remove Logo */
+            remove_logo?: boolean | null;
+        };
         /** BugHuntFinding */
         BugHuntFinding: {
             /** Comment Id */
@@ -3156,6 +3317,40 @@ export interface components {
             card_url: string;
             /** Card Id */
             card_id: string;
+        };
+        /** CustomDomainCreate */
+        CustomDomainCreate: {
+            /** Host */
+            host: string;
+        };
+        /** CustomDomainOut */
+        CustomDomainOut: {
+            /** Id */
+            id: string;
+            /** Host */
+            host: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "verified" | "failed";
+            /** Txt Name */
+            txt_name: string;
+            /** Txt Value */
+            txt_value: string;
+            /** Cname Target */
+            cname_target: string;
+            /** Connected */
+            connected: boolean;
+            /** Last Error */
+            last_error?: string | null;
+            /** Verified At */
+            verified_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** DashboardOut */
         DashboardOut: {
@@ -4750,6 +4945,25 @@ export interface components {
             hero_url?: string | null;
             settings?: components["schemas"]["ProjectSettingsUpdate"] | null;
         };
+        /**
+         * PublicBrandingOut
+         * @description What a client sees on a review link: never anything private to the workspace.
+         */
+        PublicBrandingOut: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Accent Color */
+            accent_color?: string | null;
+            /** Logo Url */
+            logo_url?: string | null;
+            /**
+             * Hide Backline Branding
+             * @default false
+             */
+            hide_backline_branding: boolean;
+            /** Support Email */
+            support_email?: string | null;
+        };
         /** ReanchorRequest */
         ReanchorRequest: {
             anchor: components["schemas"]["AnchorIn"];
@@ -4860,6 +5074,7 @@ export interface components {
             project_type: string;
             /** Variant */
             variant?: string | null;
+            branding?: components["schemas"]["PublicBrandingOut"] | null;
             /** Project Id */
             project_id: string;
             /** Project Name */
@@ -10423,6 +10638,266 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvoiceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_branding_api_v1_workspaces__workspace_id__branding_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_branding_api_v1_workspaces__workspace_id__branding_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_logo_api_v1_workspaces__workspace_id__branding_logo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_logo_api_v1_workspaces__workspace_id__branding_logo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_domains_api_v1_workspaces__workspace_id__domains_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomDomainOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_domain_api_v1_workspaces__workspace_id__domains_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomDomainCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomDomainOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_domain_api_v1_workspaces__workspace_id__domains__domain_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomDomainOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_domain_api_v1_workspaces__workspace_id__domains__domain_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    branding_by_host_api_v1_branding_by_host_get: {
+        parameters: {
+            query: {
+                host: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicBrandingOut"] | null;
                 };
             };
             /** @description Validation Error */
