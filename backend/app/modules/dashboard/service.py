@@ -39,6 +39,10 @@ def _page_path(url_normalized: str | None) -> str | None:
     """
     if not url_normalized:
         return None
+    # Image/PDF files are pages with an internal content-hash address; their label is
+    # the file name (page_title), never the hash.
+    if url_normalized.startswith("backline://"):
+        return None
     try:
         parsed = urlparse(url_normalized)
         return (

@@ -129,22 +129,21 @@ export function ShareProjectModal({ project, workspaceId, workspaceSlug, workspa
               <input className="bl-input bl-mono" aria-label="Client review link" readOnly value={reviewUrl(activeLink.token)} onFocus={(event) => event.target.select()} />
               <button type="button" className="bl-quiet" onClick={copyLink}>{copied ? "Copied" : "Copy link"}</button>
               <a className="bl-quiet" href={reviewUrl(activeLink.token)} target="_blank" rel="noopener noreferrer">Try review ↗</a>
-              <button type="button" className="bl-icon-button" aria-expanded={showSettings} aria-label="Review link settings" onClick={() => setShowSettings((value) => !value)}>
+              <button type="button" className="bl-icon-button" aria-expanded={showSettings} aria-label="Review link settings" title="Review link settings" onClick={() => setShowSettings((value) => !value)}>
                 <GearIcon />
               </button>
             </div>
             {copyError && <p role="alert" className="bl-error">{copyError}</p>}
-            <p className="bl-guest-hint">Each project gets its own link. Opening it signs nobody in; guest access follows the safeguards shown below.</p>
+            <p className="bl-guest-hint">Each project gets its own link. Opening it signs nobody in. Passcode, expiry and name prompts are under the settings button next to the link.</p>
             {showSettings && <div className="bl-link-settings-panel">
               <header><span className="bl-link-settings-icon" aria-hidden="true">↗</span><strong>Current link settings</strong><button type="button" onClick={() => setShowSettings(false)}>Done</button></header>
               <dl>
                 <div><dt>Expires</dt><dd>{activeLink.expires_at ? new Date(activeLink.expires_at).toLocaleDateString() : "Never"}</dd></div>
                 <div><dt>Passcode</dt><dd>{activeLink.has_passcode ? "Required" : "Not required"}</dd></div>
                 <div><dt>Reviewer name</dt><dd>{activeLink.ask_reviewer_name ? "Required" : "Optional"}</dd></div>
-                <div><dt>Legacy domain filter</dt><dd>{activeLink.domain_restrictions?.length ? "Replace this link; verified reviewer domains are unavailable" : "None"}</dd></div>
-                <div><dt>Guest export</dt><dd>Not available</dd></div>
+                {!!activeLink.domain_restrictions?.length && <div><dt>Old website filter</dt><dd>Replace this link with a passcode-protected one</dd></div>}
               </dl>
-              <div className="bl-link-danger"><span><strong>Change or revoke this link</strong><small>Link safeguards are immutable. Create a replacement or revoke this address from the full manager.</small></span><Link to={`/w/${workspaceSlug}/p/${project.id}/share-links`} onClick={onClose}>Manage links</Link></div>
+              <div className="bl-link-danger"><span><strong>Change or revoke this link</strong><small>A link's settings can't be changed. Create a new link or revoke this one in the link manager.</small></span><Link to={`/w/${workspaceSlug}/p/${project.id}/share-links`} onClick={onClose}>Manage links</Link></div>
             </div>}
           </> : (
             <form className="bl-create-link" onSubmit={(event) => { event.preventDefault(); createMutation.mutate(); }}>
@@ -152,7 +151,7 @@ export function ShareProjectModal({ project, workspaceId, workspaceSlug, workspa
               <div className="bl-link-settings-header"><strong>Create a review link</strong><span>Backline review with browser fallback</span></div>
               <label>Link expires<select className="bl-input" value={expiration} onChange={(event) => setExpiration(event.target.value as "never" | "7" | "30")}><option value="never">Never</option><option value="7">7 days</option><option value="30">30 days</option></select></label>
               <label>Passcode <span className="bl-optional">Optional, 4–64 characters</span><input className="bl-input" minLength={4} maxLength={64} value={passcode} onChange={(event) => setPasscode(event.target.value)} autoComplete="new-password" /></label>
-              <p className="bl-policy-note">Send any passcode separately. Email-domain verification and guest export are not available.</p>
+              <p className="bl-policy-note">Send any passcode separately from the link.</p>
               <label className="bl-setting-row compact"><span className="bl-setting-copy"><strong>Ask reviewers for a name</strong><span>Required before their first comment.</span></span><input className="bl-switch-input" type="checkbox" checked={askReviewerName} onChange={(event) => setAskReviewerName(event.target.checked)} /><span className="bl-switch" aria-hidden="true"><i /></span></label>
               {createMutation.isError && <p role="alert" className="bl-error">{createMutation.error.message}</p>}
               <button className="bl-button mint" disabled={createMutation.isPending}>{createMutation.isPending ? "Creating…" : "Create review link"}</button>

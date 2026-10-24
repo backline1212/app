@@ -125,17 +125,19 @@ async def seed_sample_project(
     page_id = str(page_doc["_id"])
 
     comment_repo = CommentRepository(db)
-    original = await comment_repo.create(
-        _sample_comment(
-            page_id=page_id,
-            workspace_id=workspace_id,
-            body="Could we try a punchier headline here? Something that leads with the benefit.",
-            layer="client",
-            status="todo",
-            author_type="guest",
-            author_member_id=None,
-        )
+    # Top-level sample tickets get real workspace numbers ("#1", "#2") like any other
+    # ticket - without them they showed as id fragments next to numbered ones.
+    first = _sample_comment(
+        page_id=page_id,
+        workspace_id=workspace_id,
+        body="Could we try a punchier headline here? Something that leads with the benefit.",
+        layer="client",
+        status="todo",
+        author_type="guest",
+        author_member_id=None,
     )
+    first["ticket_number"] = await comment_repo.next_ticket_number(workspace_id)
+    original = await comment_repo.create(first)
     await comment_repo.create(
         _sample_comment(
             page_id=page_id,
@@ -148,14 +150,14 @@ async def seed_sample_project(
             author_member_id=owner_user_id,
         )
     )
-    await comment_repo.create(
-        _sample_comment(
-            page_id=page_id,
-            workspace_id=workspace_id,
-            body="This looks great, thanks for the quick turnaround!",
-            layer="client",
-            status="resolved",
-            author_type="guest",
-            author_member_id=None,
-        )
+    resolved = _sample_comment(
+        page_id=page_id,
+        workspace_id=workspace_id,
+        body="This looks great, thanks for the quick turnaround!",
+        layer="client",
+        status="resolved",
+        author_type="guest",
+        author_member_id=None,
     )
+    resolved["ticket_number"] = await comment_repo.next_ticket_number(workspace_id)
+    await comment_repo.create(resolved)

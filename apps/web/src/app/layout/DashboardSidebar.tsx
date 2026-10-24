@@ -146,7 +146,7 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
         <span className="bl-ws-mark">{workspace.name.slice(0, 1).toUpperCase()}</span>
         <span className="bl-ws-name">
           {workspace.name}
-          <span className="bl-ws-sub">{data?.projects ?? "—"} projects · {people.data?.length ?? "—"} people</span>
+          <span className="bl-ws-sub">{data?.projects ?? "—"} {data?.projects === 1 ? "project" : "projects"} · {people.data?.length ?? "—"} {people.data?.length === 1 ? "person" : "people"}</span>
         </span>
         <span className="bl-ws-switch"><SwitchIcon /></span>
       </button>

@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Avatar } from "@backline/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -29,6 +30,7 @@ export function JoinRequestsPanel({
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [roles, setRoles] = useState<Record<string, WorkspaceMemberRole>>({});
 
   const refresh = () => {
@@ -45,7 +47,8 @@ export function JoinRequestsPanel({
     },
     onError: (error) => {
       const plan = planLimitUpgrade(error);
-      toast(plan ? `${error.message} Upgrade your plan to add more people.` : error.message, "error");
+      // The API message already says to upgrade; offer the way there instead of repeating it.
+      toast(error.message, "error", plan ? { action: { label: "See plans", onClick: () => navigate(`/w/${workspace.slug}/billing`) } } : undefined);
       refresh();
     },
   });

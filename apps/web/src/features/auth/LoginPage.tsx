@@ -102,7 +102,9 @@ function SignInPage() {
   const finishSignIn = useCallback(() => {
     if (redirectStarted.current) return;
     redirectStarted.current = true;
-    navigate(takeReturnPath(), { replace: true });
+    const destination = takeReturnPath();
+    // Straight from sign-in, the picker may open the last-used workspace itself.
+    navigate(destination, { replace: true, state: destination === "/" ? { autoEnter: true } : undefined });
   }, [navigate]);
 
   function beginAuth(): boolean {
@@ -467,7 +469,7 @@ function SignInPage() {
                       readOnly={isSubmitting}
                       value={name}
                       onChange={(event) => setName(event.target.value)}
-                      placeholder="Maitrik Makwana"
+                      placeholder="Your full name"
                     />
                   </span>
                 </div>
@@ -745,7 +747,7 @@ function SignInPage() {
             browser and screen size already captured.</p>
 
           <div className="lg-demo">
-            <div className="lg-demo-bar"><i /><i /><i /><span>www.sarvam.ai/pricing</span></div>
+            <div className="lg-demo-bar"><i /><i /><i /><span>staging.yourclient.com/pricing</span></div>
             <div className="lg-page">
               <div className="lg-sel" />
               <span className="lg-ln h" />

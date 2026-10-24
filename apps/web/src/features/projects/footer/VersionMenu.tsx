@@ -55,7 +55,7 @@ export function VersionMenu({ projectId, currentPageId, onSelectPage }: VersionM
         <div role="menu" className="bl-review-popover bl-version-popover">
           <header>
             <strong>Captured versions</strong>
-            <p>Snapshots created by the existing revision and anchor-recovery pipeline.</p>
+            <p>A version is saved whenever the page changes during review.</p>
           </header>
           {revisions.isLoading && (
             <div className="bl-version-loading" role="status">
@@ -106,7 +106,7 @@ export function VersionMenu({ projectId, currentPageId, onSelectPage }: VersionM
           )}
           <footer>
             <span className="bl-review-unavailable-dot" aria-hidden="true" />
-            Deploy-triggered capture is not connected yet.
+            Connect Deploy sync to label versions with your releases.
           </footer>
         </div>
       )}

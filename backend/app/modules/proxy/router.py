@@ -1,11 +1,13 @@
 import asyncio
 import gzip
+import html
 
 from fastapi import APIRouter, Request, Response
+from fastapi.responses import HTMLResponse
 
 from app.core.config import get_settings
 from app.core.db import get_db
-from app.core.errors import ValidationError
+from app.core.errors import BacklineError, ValidationError
 from app.core.rate_limit import check_rate_limit, get_client_ip
 from app.core.redis_client import get_redis
 from app.modules.proxy import service as proxy_service
@@ -80,26 +82,12 @@ async def _proxy(share_token: str, path: str, request: Request) -> Response:
         limit=settings.proxy_rate_limit_per_minute,
         window_seconds=60,
     )
-    result = await proxy_service.fetch_proxied_resource(
-        get_db(),
-        share_token=share_token,
-        path=path,
-        query_string=request.url.query,
-        incoming=ProxyRequest(
-            method=request.method,
-            body=await _read_body(request),
-            # The whole Cookie header, not a picked-out value: the service is what
-            # decides which of these belong to the reviewed site (only its own
-            # namespaced ones) and strips the rest.
-            cookie_header=request.headers.get("cookie", ""),
-            content_type=request.headers.get("content-type"),
-            referer=request.headers.get("referer"),
-            # The service forwards only an allowlist of these (auth, CSRF, content
-            # negotiation, validators) - see _forwarded_headers.
-            headers=dict(request.headers),
-            preview_host=request.scope.get("state", {}).get(PREVIEW_HOST_STATE_KEY, False),
-        ),
-    )
+    try:
+        result = await _fetch(share_token, path, request)
+    except BacklineError as exc:
+        if _wants_page(request):
+            return _error_page(exc)
+        raise
     body, compressed = await _maybe_compress(request, result)
     response = Response(
         content=body,
@@ -120,6 +108,63 @@ async def _proxy(share_token: str, path: str, request: Request) -> Response:
         if "content-length" in response.headers:
             del response.headers["content-length"]
     return response
+
+
+def _wants_page(request: Request) -> bool:
+    """A browser navigation (the review iframe, or a link opened in it) rather than a
+    script's fetch: it gets a readable page instead of the API's JSON error."""
+    destination = request.headers.get("sec-fetch-dest", "")
+    if destination in ("document", "iframe", "frame"):
+        return True
+    return request.method == "GET" and "text/html" in request.headers.get("accept", "")
+
+
+_ERROR_PAGE_HEAD = """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Website unavailable</title><style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#F4F4F1;
+font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#20231E}
+main{max-width:440px;margin:24px;padding:28px;border:1px solid #D9DCD5;border-radius:6px;
+background:#fff;text-align:center}
+h1{margin:0 0 8px;font-size:17px}p{margin:0 0 10px;color:#5D635A}
+code{font-size:12px;color:#8E3419}</style></head>"""
+
+
+def _error_page(exc: BacklineError) -> HTMLResponse:
+    message = html.escape(exc.message or "The website could not be loaded.")
+    body = (
+        _ERROR_PAGE_HEAD
+        + "<body><main><h1>This website couldn't be loaded for review</h1>"
+        + "<p>The review preview couldn't reach the site. It may be down, private, or "
+        + "blocking embedded previews.</p>"
+        + "<p>Use <b>Open with extension</b> in Backline to review the real website "
+        + "in your browser.</p>"
+        + f"<p><code>{message}</code></p></main></body></html>"
+    )
+    return HTMLResponse(body, status_code=exc.status_code)
+
+
+async def _fetch(share_token: str, path: str, request: Request) -> ProxiedResponse:
+    return await proxy_service.fetch_proxied_resource(
+        get_db(),
+        share_token=share_token,
+        path=path,
+        query_string=request.url.query,
+        incoming=ProxyRequest(
+            method=request.method,
+            body=await _read_body(request),
+            # The whole Cookie header, not a picked-out value: the service is what
+            # decides which of these belong to the reviewed site (only its own
+            # namespaced ones) and strips the rest.
+            cookie_header=request.headers.get("cookie", ""),
+            content_type=request.headers.get("content-type"),
+            referer=request.headers.get("referer"),
+            # The service forwards only an allowlist of these (auth, CSRF, content
+            # negotiation, validators) - see _forwarded_headers.
+            headers=dict(request.headers),
+            preview_host=request.scope.get("state", {}).get(PREVIEW_HOST_STATE_KEY, False),
+        ),
+    )
 
 
 # One function per method rather than one api_route(methods=[...]): FastAPI derives an

@@ -297,6 +297,24 @@ class RefreshTokenRepository:
             {"$set": {"revoked_at": datetime.now(UTC)}},
         )
 
+    async def revoke_families_beyond(self, user_id: ObjectId, keep: int) -> None:
+        """Keeps the `keep` most recently used sign-ins (one per device/browser) and
+        revokes older families, so the session list stays short without signing a
+        member out of their other computer every time they log in (TDR-0151)."""
+        families: list[str] = []
+        cursor = self.db.refresh_tokens.find(
+            {"user_id": user_id, "revoked_at": None}, projection={"family_id": 1}
+        ).sort("created_at", -1)
+        async for doc in cursor:
+            if doc["family_id"] not in families:
+                families.append(doc["family_id"])
+        stale = families[keep:]
+        if stale:
+            await self.db.refresh_tokens.update_many(
+                {"user_id": user_id, "family_id": {"$in": stale}, "revoked_at": None},
+                {"$set": {"revoked_at": datetime.now(UTC)}},
+            )
+
     async def family_belongs_to_user(self, family_id: str, user_id: ObjectId) -> bool:
         """M-01 ownership check for DELETE /auth/sessions/{family_id}: a family_id is an
         opaque token, not derived from user_id, so without this a caller could revoke

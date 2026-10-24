@@ -120,7 +120,7 @@ export function TicketsPage() {
     <main className="bl-wrap">
       <header className="bl-head">
         <div>
-          <h1>{view === "mine" ? "Assigned to me" : "All tickets"}</h1>
+          <h1>{view === "mine" ? "Assigned to me" : view === "all" ? "All tickets" : VIEW_TABS.find((tab) => tab.key === view)?.label ?? "All tickets"}</h1>
           <p>Every comment, plus the work your team raises directly.</p>
         </div>
         <div className="bl-chip-row">
@@ -157,7 +157,7 @@ export function TicketsPage() {
 
 
       <div className="bl-toolbar">
-        <span className="bl-mono">{query.data?.total ?? "—"} TICKETS</span>
+        <span className="bl-mono">{query.data?.total ?? "—"} {query.data?.total === 1 ? "TICKET" : "TICKETS"}</span>
         <div className="bl-tool-right">
           <TicketToolbar
             sort={sort}
