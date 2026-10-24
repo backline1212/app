@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 
 import * as boardApi from "../../board/api";
 import * as pagesApi from "../../pages/api";
+import { listAssets } from "../../assets/api";
 import { qk } from "../../../lib/query-keys";
 import * as workspacesApi from "../../workspaces/api";
 import type { ProjectOut } from "../api";
@@ -50,22 +51,33 @@ export function DetailsTab({
     queryKey: qk.projectComments(project.id),
     queryFn: () => boardApi.listProjectComments(project.id),
   });
+  const isWebsite = (project.project_type ?? "website") === "website";
+  // The pages API lists website pages only; a file project's count comes from its files.
   const pagesQuery = useQuery({
     queryKey: qk.projectPages(project.id),
     queryFn: () => pagesApi.listProjectPages(project.id),
+    enabled: isWebsite,
   });
+  const filesQuery = useQuery({
+    queryKey: qk.assetsList(project.id, "member"),
+    queryFn: () => listAssets(project.id),
+    enabled: !isWebsite,
+  });
+  const sourcesQuery = isWebsite ? pagesQuery : filesQuery;
 
   const members = membersQuery.data ?? [];
   const creator = members.find((member) => member.user_id === project.created_by);
-  const statsLoading = commentsQuery.isLoading || pagesQuery.isLoading;
-  const statsError = commentsQuery.isError || pagesQuery.isError;
-  const totalComments = commentsQuery.data?.length ?? 0;
-  const resolvedComments = (commentsQuery.data ?? []).filter((c) => c.status === "resolved").length;
+  const statsLoading = commentsQuery.isLoading || sourcesQuery.isLoading;
+  const statsError = commentsQuery.isError || sourcesQuery.isError;
+  // Threads, not every reply - the same count the comments list and footer show.
+  const threads = (commentsQuery.data ?? []).filter((c) => !c.parent_id);
+  const totalComments = threads.length;
+  const resolvedComments = threads.filter((c) => c.status === "resolved").length;
 
   return (
     <div className="flex flex-col gap-6 p-4">
       <div>
-        <h3 className="mb-2 text-sm font-semibold">Page overview</h3>
+        <h3 className="mb-2 text-sm font-semibold">Project overview</h3>
         <div className="bl-link-settings-panel">
           {creator && (
             <header>
@@ -79,7 +91,7 @@ export function DetailsTab({
           {statsError ? (
             <div className="bl-inline-error" role="alert" style={{ marginTop: 10 }}>
               <span>Some project stats could not load.</span>
-              <button type="button" onClick={() => { commentsQuery.refetch(); pagesQuery.refetch(); }}>
+              <button type="button" onClick={() => { commentsQuery.refetch(); sourcesQuery.refetch(); }}>
                 Try again
               </button>
             </div>
@@ -94,9 +106,10 @@ export function DetailsTab({
                 <dd>{statsLoading ? "…" : resolvedComments}</dd>
               </div>
               <div>
-                <dt>Versions</dt>
-                <dd>{statsLoading ? "…" : (pagesQuery.data?.length ?? 0)}</dd>
+                <dt>{isWebsite ? "Pages" : "Files"}</dt>
+                <dd>{statsLoading ? "…" : (sourcesQuery.data?.length ?? 0)}</dd>
               </div>
+              {isWebsite && (
               <div>
                 <dt>URL</dt>
                 <dd>
@@ -105,6 +118,7 @@ export function DetailsTab({
                   </a>
                 </dd>
               </div>
+              )}
             </dl>
           )}
           <div className="mt-3 flex gap-2">

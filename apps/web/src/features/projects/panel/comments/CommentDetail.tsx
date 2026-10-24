@@ -18,7 +18,7 @@ import { createPortal } from "react-dom";
 import { ConfirmDialog } from "../../../../components/ConfirmDialog";
 import { patchProjectComment } from "../../../../lib/comment-cache";
 import { qk } from "../../../../lib/query-keys";
-import { reviewPagePath } from "../../../../lib/review-page-path";
+import { isAssetPageAddress, reviewPagePath } from "../../../../lib/review-page-path";
 import { usePreparedReply } from "../../../comments/use-prepared-reply";
 import { useReviewDraftGuard } from "../../../comments/use-review-draft-guard";
 import { uploadReplyFiles } from "../../../comments/reply-uploads";
@@ -34,6 +34,7 @@ import type { CommentLayer, CommentOut, CommentStatus } from "../../../board/api
 import { MentionsInput } from "../../../comments/MentionsInput";
 import type { PageOut } from "../../../pages/api";
 import * as integrationsApi from "../../../integrations/api";
+import { listAssets } from "../../../assets/api";
 import { providerName } from "../../../integrations/providers";
 import { DatePicker } from "../../../tickets/components/DatePicker";
 import type { MemberOut } from "../../../workspaces/api";
@@ -138,7 +139,7 @@ function formatDue(iso: string): string {
 function pagePath(pages: PageOut[], pageId: string): string {
   const page = pages.find((p) => p.id === pageId);
   if (!page) return "Unknown page";
-  return reviewPagePath(page.url_normalized);
+  return isAssetPageAddress(page.url_normalized) ? page.title || "File" : reviewPagePath(page.url_normalized);
 }
 
 // The widget's selector paths are exact but long (every ancestor, with
@@ -566,7 +567,21 @@ export function CommentDetail({
       ? [comment.assignee_id]
       : [];
   const waitingIds = comment.waiting_on_ids ?? [];
-  const page = pagePath(pages, comment.page_id);
+  // Image/PDF comments live on a file, which the pages API deliberately leaves out -
+  // name them from the project's file list instead (the same cached query the file
+  // canvas uses).
+  const assetAnchor = comment.anchor as { asset_id?: string; region?: { page_number?: number } };
+  const filesQuery = useQuery({
+    queryKey: qk.assetsList(projectId, "member"),
+    queryFn: () => listAssets(projectId),
+    enabled: Boolean(assetAnchor?.asset_id),
+  });
+  const commentFile = assetAnchor?.asset_id ? filesQuery.data?.find((file) => file.id === assetAnchor.asset_id) : undefined;
+  const page = assetAnchor?.asset_id
+    ? commentFile
+      ? `${commentFile.filename}${commentFile.page_count > 1 ? ` · page ${assetAnchor.region?.page_number ?? 1}` : ""}`
+      : filesQuery.isLoading ? "Loading file…" : "Archived or unavailable file"
+    : pagePath(pages, comment.page_id);
   const isRegion = (comment.anchor as CommentAnchor).type === "region";
   const priority: CommentPriority = comment.priority ?? "medium";
 
@@ -818,12 +833,12 @@ export function CommentDetail({
         </fieldset>
 
         <div className="bl-cd-row">
-          <span className="bl-cd-label">PAGE</span>
+          <span className="bl-cd-label">{assetAnchor?.asset_id ? "FILE" : "PAGE"}</span>
           <button
             type="button"
             className="bl-cd-page"
             onClick={() => onShowOnPage(comment.id)}
-            title="Show this comment on the page"
+            title={assetAnchor?.asset_id ? "Show this comment on the file" : "Show this comment on the page"}
           >
             {page}
           </button>

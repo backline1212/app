@@ -227,6 +227,9 @@ export function ProjectOverviewPage() {
   const canComment = projectCan(projectQuery.data, "comment");
   const canTriage = projectCan(projectQuery.data, "edit");
   const canManageProject = projectCan(projectQuery.data, "manage");
+  // Image and PDF projects render AssetReview below and never load the website canvas,
+  // its proxy session or the website-only keyboard shortcuts.
+  const isWebsiteProject = (projectQuery.data?.project_type ?? "website") === "website";
   const mode: CanvasMode = canComment ? requestedMode : requestedMode === "browse" ? "browse" : "view";
   // The canvas loads through the project's own canvas link, with a widget session bound
   // to this member (TDR-0057) - not through a client review link, which a viewer is
@@ -234,7 +237,7 @@ export function ProjectOverviewPage() {
   const canvasSessionQuery = useQuery({
     queryKey: qk.canvasSession(projectId ?? ""),
     queryFn: () => shareLinksApi.createCanvasSession(projectId!),
-    enabled: !!projectId && !!projectQuery.data && !projectQuery.data.archived_at,
+    enabled: !!projectId && !!projectQuery.data && !projectQuery.data.archived_at && isWebsiteProject,
     staleTime: Infinity,
   });
   const canvasSession = canvasSessionQuery.data ?? null;
@@ -329,7 +332,7 @@ export function ProjectOverviewPage() {
   });
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
-      if (showShare || showPages || showSettings || showShortcuts) return;
+      if (!isWebsiteProject || showShare || showPages || showSettings || showShortcuts) return;
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) return;
@@ -366,7 +369,7 @@ export function ProjectOverviewPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showShare, showPages, showSettings, showShortcuts, activePageIdParam, pagesQuery.data]);
+  }, [isWebsiteProject, showShare, showPages, showSettings, showShortcuts, activePageIdParam, pagesQuery.data]);
 
   const upsertComment = useCallback(
     (payload: CommentOut & { project_id: string }) => {
@@ -776,8 +779,41 @@ export function ProjectOverviewPage() {
   }
 
   if (project.project_type && project.project_type !== "website") {
+    // Image and PDF projects share the website review's chrome: the same header tools,
+    // the same Details/Comments/MCP/Integrations side panel and the same dialogs.
     return <Suspense fallback={<div className="bl-asset-loading" role="status">Opening file review…</div>}>
-      <AssetReview key={project.id} projectId={project.id} project={project} title={project.name} workspaceSlug={workspace.slug} requestedComment={commentsQuery.data?.find(comment => comment.id === (searchParams.get("thread") ?? searchParams.get("comment")))} />
+      <AssetReview
+        key={project.id}
+        projectId={project.id}
+        project={project}
+        title={project.name}
+        workspaceSlug={workspace.slug}
+        requestedComment={commentsQuery.data?.find(comment => comment.id === (searchParams.get("thread") ?? searchParams.get("comment")))}
+        onShare={() => setShowShare(true)}
+        onSettings={canManageProject ? () => setShowSettings(true) : undefined}
+        renderSidePanel={(panel) => (
+          <ProjectSidePanel
+            project={project}
+            workspaceId={workspace.id}
+            workspaceSlug={workspace.slug}
+            workspaceName={workspace.name}
+            currentPageId={panel.currentPageId}
+            selectedCommentId={panel.selectedCommentId}
+            onRevealComment={panel.onRevealComment}
+            openCommentRequest={panel.openCommentRequest}
+          />
+        )}
+      />
+      {showShare && (
+        <ShareProjectModal
+          project={project}
+          workspaceId={workspace.id}
+          workspaceSlug={workspace.slug}
+          workspaceName={workspace.name}
+          onClose={() => setShowShare(false)}
+        />
+      )}
+      {showSettings && canManageProject && <ProjectForm workspace={workspace} project={project} onClose={() => setShowSettings(false)} />}
     </Suspense>;
   }
 

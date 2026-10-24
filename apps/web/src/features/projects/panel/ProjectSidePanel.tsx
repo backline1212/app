@@ -25,7 +25,7 @@ const TABS: { id: TabId; label: string; icon: typeof DetailsIcon }[] = [
 ];
 
 const TAB_TITLES: Record<TabId, string> = {
-  details: "About this page",
+  details: "About this project",
   comments: "Comments",
   mcp: "MCP Server",
   integrations: "Integrations",
@@ -74,12 +74,14 @@ export function ProjectSidePanel({
   onRevealComment,
   openCommentRequest,
 }: ProjectSidePanelProps) {
+  // BugHunt AI scans a live website; image and PDF projects have nothing for it to load.
+  const isWebsite = (project.project_type ?? "website") === "website";
   // Persist panel choice without replacing the page/thread/filter parameters.
   // Legacy thread/comment links open Comments when no explicit panel was chosen.
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedPanel = searchParams.get("panel");
   const activeTab: TabId | null = requestedPanel === "closed" ? null
-    : requestedPanel && Object.prototype.hasOwnProperty.call(TAB_TITLES, requestedPanel) ? requestedPanel as TabId
+    : requestedPanel && Object.prototype.hasOwnProperty.call(TAB_TITLES, requestedPanel) && (isWebsite || requestedPanel !== "ai") ? requestedPanel as TabId
     : searchParams.get("thread") || searchParams.get("comment") ? "comments" : null;
   const setActiveTab = useCallback((id: TabId | null) => {
     setSearchParams(previous => {
@@ -196,7 +198,7 @@ export function ProjectSidePanel({
           </button>
         ))}
 
-        <button
+        {isWebsite && <button
           onClick={() => toggleTab("ai")}
           aria-pressed={activeTab === "ai"}
           aria-label="BugHunt AI"
@@ -206,7 +208,7 @@ export function ProjectSidePanel({
             <SparkleIcon width={13} height={13} stroke="none" fill="currentColor" />
           </span>
           <span>BugHunt AI</span>
-        </button>
+        </button>}
       </nav>
     </div>
   );
