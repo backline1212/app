@@ -72,6 +72,7 @@ export function TicketsPage() {
     ...(params.get("project_id")
       ? [{ label: projects.data?.find((p) => p.id === params.get("project_id"))?.name ?? "Project", onClear: () => set("project_id", "") }]
       : []),
+    ...(params.get("open") === "1" && !params.get("status") ? [{ label: "Open only", onClear: () => set("open", "") }] : []),
     ...(params.get("priority") ? [{ label: `${params.get("priority")} priority`, onClear: () => set("priority", "") }] : []),
     ...(params.get("tag") ? [{ label: params.get("tag")!, onClear: () => set("tag", "") }] : []),
     ...assignees.map((a) => ({

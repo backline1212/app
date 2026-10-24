@@ -4727,3 +4727,8 @@ database migration, or production deployment is claimed.
 - Activity rows name the client and project, label replies, collapse repeats; the
   Clients filter shows client actions. Sidebar labels match page titles; AI usage moved
   under AI.
+
+# 2026-10-24: Client projects, open filter, extension actions (TDR-0155)
+
+- Clients can take existing projects; "N open" links filter to open tickets; extension
+  setup leads with Download; toasts no longer cover the top bar.

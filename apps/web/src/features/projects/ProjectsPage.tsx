@@ -185,7 +185,7 @@ export function ProjectsPage() {
             {resolved > 0 && <i style={{ flex: resolved, background: STATUS_COLORS.resolved }} />}
           </div>
         )}
-        <div className="bl-project-stats"><Link to={`/w/${workspace.slug}/tickets?project_id=${p.id}`}><strong>{open}</strong> open</Link><span><strong>{resolved}</strong> resolved</span><small>{timeAgo(s?.last_activity_at ?? p.updated_at)}</small></div>
+        <div className="bl-project-stats"><Link to={`/w/${workspace.slug}/tickets?project_id=${p.id}&open=1`}><strong>{open}</strong> open</Link><span><strong>{resolved}</strong> resolved</span><small>{timeAgo(s?.last_activity_at ?? p.updated_at)}</small></div>
       </div>
       <footer className="bl-project-actions">
         <span className="bl-project-client">{clients.data?.find((c) => c.id === p.client_id)?.name ?? "Internal project"}</span>
@@ -214,7 +214,7 @@ export function ProjectsPage() {
         : <Link className="bl-table-name" to={destination}>{p.access.visibility === "private" && <LockIcon className="bl-table-lock" aria-label="Private" role="img" />}{p.name}</Link>}</td>
       <td><span className="bl-table-source" title={displayUrl}>{displayUrl}</span></td>
       <td><ProjectStageChip project={p} /></td>
-      <td className={`bl-col-num${(s?.open ?? 0) > 0 ? " has-value is-strong" : ""}`}>{(s?.open ?? 0) > 0 ? <Link to={`/w/${workspace.slug}/tickets?project_id=${p.id}`}>{s?.open ?? 0}</Link> : 0}</td>
+      <td className={`bl-col-num${(s?.open ?? 0) > 0 ? " has-value is-strong" : ""}`}>{(s?.open ?? 0) > 0 ? <Link to={`/w/${workspace.slug}/tickets?project_id=${p.id}&open=1`}>{s?.open ?? 0}</Link> : 0}</td>
       {count(s?.status_counts?.in_review ?? 0)}
       {count(s?.status_counts?.blocked ?? 0)}
       {count(s?.resolved ?? 0)}

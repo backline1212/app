@@ -156,7 +156,11 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
       </div>
       <footer className="bl-dialog-actions bl-dialog-actions-bordered">
         <button type="button" className="bl-quiet" onClick={close}>{phase === "connected" ? "Done" : "Close"}</button>
-        {(phase === "setup" || phase === "update" || phase === "reload") && <button type="button" className="bl-button" onClick={() => window.location.reload()}>Reload Backline</button>}
+        {(phase === "setup" || phase === "update") && <>
+          <button type="button" className="bl-quiet" onClick={() => window.location.reload()}>{phase === "setup" ? "Installed? Reload Backline" : "Updated? Reload Backline"}</button>
+          <a className="bl-button" href={EXTENSION_DOWNLOAD_URL}>{phase === "setup" ? "Download extension" : "Download update"}</a>
+        </>}
+        {phase === "reload" && <button type="button" className="bl-button" onClick={() => window.location.reload()}>Reload Backline</button>}
         {!busy && phase !== "connected" && phase !== "waiting" && phase !== "reload" && phase !== "setup" && phase !== "update" && (needsRejoin && onGuestSessionExpired
           ? <button type="button" className="bl-button" onClick={() => { close(); onGuestSessionExpired(); }}>Rejoin review</button>
           : <button type="button" className="bl-button" disabled={!online} onClick={() => void start()}>Try again</button>)}
