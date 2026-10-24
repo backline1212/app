@@ -1,14 +1,18 @@
 # Delivery and verification ledger
 
-## 2026-10-24: Local release state after this source batch
+## 2026-10-24: GitHub release state after this source batch
 
-The current privacy, pricing, dependency and documentation slices are committed
-locally. A push to `origin/main` waited in Git Credential Manager and was
-cancelled without updating the remote; the remote head remained `c583569`.
-Public API `/health` still returned Railway HTTP 404 `Application not found`.
-The matching web/API/worker rollout and live acceptance remain open. GitHub
-account access and Railway service access must be restored before release
-verification; do not infer a deployment from this local commit.
+The current privacy, pricing, dependency and documentation slices reached
+GitHub `main` as commit `f5b09fe`. The connected GitHub account published the
+same tree as the locally verified commit after the terminal push waited for
+credentials; the branch update used the expected old head `c583569`.
+Publication confirms source availability, not service deployment. Public API
+`/health` still returned Railway HTTP 404 `Application not found` at release
+time. GitHub reported a successful Vercel status for `f5b09fe`, while the
+public `backline-qa.vercel.app` alias still served its earlier main and ticket
+bundles during the read-only check. Treat that alias's matching deployment and
+browser acceptance as open. API/worker rollout and live acceptance also need
+separate checks; Railway service access remains unavailable in this session.
 
 ## 2026-10-24: Historical delivery claims labeled (TDR-0139)
 
