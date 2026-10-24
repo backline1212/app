@@ -593,6 +593,18 @@ declare global {
 // used to vanish: the page just ignored clicks. Say so in the console and tell the
 // dashboard canvas, which then stops claiming "click the page to place a pin".
 function safeInit(config: BacklineConfig): Promise<void> {
+  const page = window as { __backlineProxyToken?: string; __backlineStarted?: Set<string> };
+  // In Backline's review preview the proxy injects its own widget; a snippet the site
+  // already embeds (another review link) would start a second toolbar whose session
+  // can't match this preview - it stands down.
+  if (page.__backlineProxyToken && config.shareToken !== page.__backlineProxyToken) {
+    console.info("[Backline] This page's own Backline embed is paused inside the review preview.");
+    return Promise.resolve();
+  }
+  // The SDK can be loaded twice (the site's tag and the proxy's); start once per link.
+  page.__backlineStarted ??= new Set();
+  if (page.__backlineStarted.has(config.shareToken)) return Promise.resolve();
+  page.__backlineStarted.add(config.shareToken);
   return init(config).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[Backline] Commenting could not start:", error);

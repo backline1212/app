@@ -1,5 +1,6 @@
 import asyncio
 import http.cookiejar
+import json
 import zlib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -474,6 +475,14 @@ def _widget_sdk_version() -> str:
         return "0"
 
 
+def _proxy_marker(share_token: str) -> str:
+    """Runs before any of the page's own scripts: names the review link this proxy is
+    serving, so a Backline snippet the site already embeds (with its own link) stands
+    down instead of starting a second toolbar that the review session doesn't match."""
+    token = json.dumps(share_token)
+    return f"<script data-backline-proxy>window.__backlineProxyToken={token};</script>"
+
+
 def _widget_script_tag(share_token: str) -> str:
     base = get_settings().public_api_base_url
     return (
@@ -643,7 +652,8 @@ async def fetch_proxied_resource(
             target_origin=target_origin,
             proxy_prefix=proxy_prefix,
             widget_script_tag=_widget_script_tag(share_token),
-            head_script=build_interceptor_script(
+            head_script=_proxy_marker(share_token)
+            + build_interceptor_script(
                 proxy_prefix=proxy_prefix,
                 target_origin=target_origin,
                 cookie_attributes=cookie_attributes,

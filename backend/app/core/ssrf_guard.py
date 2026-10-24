@@ -32,6 +32,11 @@ MAX_REDIRECTS = 5
 
 
 def _is_blocked_ip(ip_str: str) -> bool:
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    if settings.allow_private_network_targets and settings.environment == "local":
+        return False
     ip = ipaddress.ip_address(ip_str.split("%", 1)[0])
     if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
         ip = ip.ipv4_mapped

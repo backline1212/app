@@ -88,6 +88,10 @@ class Settings(BaseSettings):
     # every script, image and API call it makes, so this is sized for a few full page
     # loads a minute rather than for one request per page.
     proxy_rate_limit_per_minute: int = 1200
+    # Local development only: lets the review proxy and other outbound fetches reach
+    # localhost/private addresses, so a site running on this machine can be previewed.
+    # Refused outside ENVIRONMENT=local (check_production_secrets).
+    allow_private_network_targets: bool = False
 
     # Milestone 11 rate-limiting audit (docs/tdr/0010): every write endpoint reachable
     # by an unauthenticated guest session needs its own budget, not just the
@@ -200,6 +204,11 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def check_production_secrets(self) -> "Settings":
+        if self.environment != "local" and self.allow_private_network_targets:
+            raise ValueError(
+                "ALLOW_PRIVATE_NETWORK_TARGETS is for local development only; it would let "
+                "the review proxy reach internal addresses."
+            )
         if self.environment != "local":
             if self.jwt_signing_key == _DEV_JWT_SIGNING_KEY:
                 raise ValueError(
