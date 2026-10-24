@@ -237,3 +237,5 @@ See [`docs/spec/03-System-Architecture.md`](docs/spec/03-System-Architecture.md)
 ---
 
 <p align="center">Built with ♥ by the Backline team</p>
+
+<!-- Push test: README touched from a Claude Code session on 2026-10-24. Safe to remove. -->
