@@ -4756,3 +4756,11 @@ database migration, or production deployment is claimed.
 - Fixed "Failed to fetch dynamically imported module" after deploys: assets aren't
   rewritten to index.html, stale chunks reload into the new build, friendly error page.
   Phone chips/tags no longer stretch to 44px.
+
+# 2026-10-25: Site-loading guidance, store link (TDR-0160)
+
+- YouTube/Google/social sites show an up-front "works best with the extension" banner;
+  preview failure states no longer overlap the frame. Optional `VITE_EXTENSION_STORE_URL`
+  for "Add to Chrome". Extension 0.5.2 store package ready (see Web Store handoff).
+- Operator follow-up: submit 0.5.2 to the Chrome Web Store; set
+  `VITE_EXTENSION_STORE_URL` after approval.

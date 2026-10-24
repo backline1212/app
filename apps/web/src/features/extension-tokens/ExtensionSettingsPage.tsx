@@ -4,7 +4,7 @@ import { Link, useOutletContext } from "react-router-dom";
 
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { LoadingScreen } from "../../components/LoadingScreen";
-import { EXTENSION_DOWNLOAD_URL } from "../review/extension-download";
+import { EXTENSION_DOWNLOAD_URL, EXTENSION_STORE_URL } from "../review/extension-download";
 import { formatRelativeTime } from "../../lib/date-format";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
@@ -113,7 +113,10 @@ export function ExtensionSettingsPage() {
           <h2>1. Install or update the extension</h2>
         </header>
         <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
-          <p>Available for desktop Chrome and Edge. Installation is manual for now.</p>
+          {EXTENSION_STORE_URL
+            ? <p>Install it from the Chrome Web Store; Chrome keeps it up to date. <a className="bl-button" href={EXTENSION_STORE_URL} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>Add to Chrome</a></p>
+            : <p>Available for desktop Chrome and Edge. Installation is manual for now.</p>}
+          {EXTENSION_STORE_URL && <p>For Edge or a manual install:</p>}
           <ol style={{ margin: 0, paddingLeft: "18px", fontSize: "13px", lineHeight: 1.6 }}>
             <li>Download and unzip the file below.</li>
             <li>

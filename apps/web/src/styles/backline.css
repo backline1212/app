@@ -3198,3 +3198,5 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 @media (max-width:640px){.bl-chip,a.bl-chip,button.bl-chip{min-height:32px}.bl-tag,.bl-tid,.bl-scope-badge{min-height:0}}
 .bl-tk-tags{align-items:center}
 .bl-table .bl-chip{white-space:nowrap}
+.bl-iframe-state{background:var(--bl-paper)}
+.bl-review-browser-help.is-recommended{background:var(--mint-tint, #E6F4EE);border-left:3px solid var(--mint-deep, #0A6B4B)}
