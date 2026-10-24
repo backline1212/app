@@ -88,7 +88,7 @@ export function capturePageVersion(api: ApiClient, pageId: string, shadow: Shado
     const panel = document.createElement("div");
     panel.setAttribute("data-backline-capture-notice", "true");
     panel.setAttribute("role", "status");
-    panel.style.cssText = "position:fixed;right:16px;bottom:100px;z-index:2147483646;width:min(320px,calc(100vw - 32px));max-height:180px;overflow:auto;box-sizing:border-box;padding:12px;background:#fff;color:#20231e;border:1px solid #ccd2c8;border-radius:6px;font:12px/1.5 system-ui;box-shadow:0 4px 20px #0002;pointer-events:auto";
+    panel.style.cssText = "position:fixed;right:16px;bottom:100px;z-index:2147482990;width:min(320px,calc(100vw - 32px));max-height:180px;overflow:auto;box-sizing:border-box;padding:12px;background:#fff;color:#20231e;border:1px solid #ccd2c8;border-radius:6px;font:12px/1.5 system-ui;box-shadow:0 4px 20px #0002;pointer-events:auto";
     const text = document.createElement("p");
     text.style.margin = "0 0 8px";
     text.textContent = message;

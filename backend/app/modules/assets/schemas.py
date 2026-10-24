@@ -19,12 +19,20 @@ class AssetOut(BaseModel):
     created_at: datetime
     archived_at: datetime | None = None
     revision: int = 0
+    # Mobile App projects: which build and device a screenshot came from.
+    build_label: str | None = None
+    device: str | None = None
+    platform: str | None = None
 
 
 class AssetUpdate(BaseModel):
     expected_revision: int | None = Field(default=None, ge=0)
     filename: str | None = Field(default=None, min_length=1, max_length=255)
     archived: bool | None = None
+    # Empty string clears a value.
+    build_label: str | None = Field(default=None, max_length=80)
+    device: str | None = Field(default=None, max_length=80)
+    platform: str | None = Field(default=None, max_length=40)
 
     @model_validator(mode="after")
     def valid_name(self) -> "AssetUpdate":

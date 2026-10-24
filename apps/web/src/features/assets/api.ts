@@ -32,13 +32,15 @@ export function listAssets(projectId: string, guest?: string, includeArchived = 
 export function updateAsset(projectId: string, assetId: string, body: Schemas['AssetUpdate']) {
   return assetRequest<Asset>(`/api/v1/projects/${projectId}/assets/${assetId}`, undefined, { method: 'PATCH', body: JSON.stringify(body) });
 }
-export function uploadAsset(projectId: string, file: File) {
+export interface BuildInfo { build_label?: string; device?: string; platform?: string }
+export function uploadAsset(projectId: string, file: File, build?: BuildInfo) {
   let projectRequests = uploadRequests.get(file);
   if (!projectRequests) { projectRequests = new Map(); uploadRequests.set(file, projectRequests); }
   let requestId = projectRequests.get(projectId);
   if (!requestId) { requestId = crypto.randomUUID(); projectRequests.set(projectId, requestId); }
   const form = new FormData(); form.append('file', file);
   form.append('client_request_id', requestId);
+  for (const [field, value] of Object.entries(build ?? {})) if (value?.trim()) form.append(field, value.trim());
   return boundedRequest(120_000, 'Upload confirmation timed out. Retry this batch with the same selected files to recover an upload that may already be saved.', signal => apiFetch<Asset>(`/api/v1/projects/${projectId}/assets`, { method: 'POST', body: form, signal }));
 }
 export function listAssetComments(pageId: string, guest?: string) { return assetRequest<Schemas['CommentOut'][]>(`/api/v1/pages/${pageId}/comments`, guest); }

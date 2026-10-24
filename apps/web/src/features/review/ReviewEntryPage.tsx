@@ -222,6 +222,7 @@ export function ReviewEntryPage() {
           guest={assetGuest}
           guestName={displayName}
           onLeave={handleLeave}
+          variant={resolved.variant}
         />
       </Suspense></>
     );

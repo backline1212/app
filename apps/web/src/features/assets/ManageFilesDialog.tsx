@@ -14,6 +14,9 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
   const busy = useRef(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [filename, setFilename] = useState("");
+  // Mobile App projects also record which build/device each screen came from.
+  const mobile = project.variant === "mobile";
+  const [build, setBuild] = useState({ build_label: "", device: "", platform: "" });
   const [archiveTarget, setArchiveTarget] = useState<api.Asset | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [progress, setProgress] = useState("");
@@ -76,7 +79,9 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
     },
   });
   const pending = update.isPending || upload.isPending;
-  const renamed = editing !== null && filename !== files.data?.find(file => file.id === editing)?.filename;
+  const editingFile = editing !== null ? files.data?.find(file => file.id === editing) : undefined;
+  const renamed = editing !== null && (filename !== editingFile?.filename
+    || (mobile && (build.build_label !== (editingFile?.build_label ?? "") || build.device !== (editingFile?.device ?? "") || build.platform !== (editingFile?.platform ?? ""))));
   const protect = pending || hasPendingBatch || renamed;
   useDraftNavigationGuard({
     name: "file changes", dirty: protect && !pending, pending,
@@ -115,11 +120,16 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
       {!files.isLoading && !files.error && !visible.length && <p>No {showArchived ? "archived" : "active"} files.</p>}
       <ul className="bl-managed-files">
         {visible.map(file => <li key={file.id}>
-          {editing === file.id ? <form onSubmit={event => { event.preventDefault(); if (filename.trim()) submitUpdate(file, { filename: filename.trim() }); }}>
-            <label>File display name<input className="bl-input" required autoFocus maxLength={255} readOnly={pending} value={filename} onChange={event => setFilename(event.target.value)} /></label>
-            <div><button className="bl-button" disabled={pending || !filename.trim()}>Save name</button><button type="button" className="bl-quiet" disabled={pending} onClick={() => setEditing(null)}>Cancel</button></div>
-          </form> : <><div><strong>{file.filename}</strong><small>{(file.size / 1024 / 1024).toFixed(2)} MB · {file.page_count} {file.page_count === 1 ? "page" : "pages"}{file.archived_at ? " · Archived" : ""}</small></div>
-            {canEdit && <div><button type="button" className="bl-quiet" disabled={pending || (renamed && editing !== file.id)} onClick={() => { if (busy.current) return; update.reset(); setFilename(file.filename); setEditing(file.id); }}>Rename</button><button type="button" className="bl-quiet" disabled={pending || renamed || Boolean(file.archived_at && activeCount >= limit)} onClick={() => { if (busy.current) return; update.reset(); if (file.archived_at) submitUpdate(file, { archived: false }); else setArchiveTarget(file); }}>{file.archived_at ? "Restore" : "Archive"}</button></div>}</>}
+          {editing === file.id ? <form onSubmit={event => { event.preventDefault(); if (filename.trim()) submitUpdate(file, { filename: filename.trim(), ...(mobile ? build : {}) }); }}>
+            <label>{mobile ? "Screen name" : "File display name"}<input className="bl-input" required autoFocus maxLength={255} readOnly={pending} value={filename} onChange={event => setFilename(event.target.value)} /></label>
+            {mobile && <div className="bl-build-fields">
+              <label>Build<input className="bl-input" maxLength={80} readOnly={pending} value={build.build_label} placeholder="2.4.0 (311)" onChange={event => setBuild(current => ({ ...current, build_label: event.target.value }))} /></label>
+              <label>Device<input className="bl-input" maxLength={80} readOnly={pending} value={build.device} placeholder="iPhone 15 Pro" onChange={event => setBuild(current => ({ ...current, device: event.target.value }))} /></label>
+              <label>Platform<select className="bl-input" disabled={pending} value={build.platform} onChange={event => setBuild(current => ({ ...current, platform: event.target.value }))}><option value="">—</option><option>iOS</option><option>Android</option><option>iPadOS</option><option>Other</option></select></label>
+            </div>}
+            <div><button className="bl-button" disabled={pending || !filename.trim()}>{mobile ? "Save details" : "Save name"}</button><button type="button" className="bl-quiet" disabled={pending} onClick={() => setEditing(null)}>Cancel</button></div>
+          </form> : <><div><strong>{file.filename}</strong><small>{mobile ? [file.build_label && `Build ${file.build_label}`, file.device, file.platform].filter(Boolean).join(" · ") || "No build or device yet" : `${(file.size / 1024 / 1024).toFixed(2)} MB · ${file.page_count} ${file.page_count === 1 ? "page" : "pages"}`}{file.archived_at ? " · Archived" : ""}</small></div>
+            {canEdit && <div><button type="button" className="bl-quiet" disabled={pending || (renamed && editing !== file.id)} onClick={() => { if (busy.current) return; update.reset(); setFilename(file.filename); setBuild({ build_label: file.build_label ?? "", device: file.device ?? "", platform: file.platform ?? "" }); setEditing(file.id); }}>{mobile ? "Edit details" : "Rename"}</button><button type="button" className="bl-quiet" disabled={pending || renamed || Boolean(file.archived_at && activeCount >= limit)} onClick={() => { if (busy.current) return; update.reset(); if (file.archived_at) submitUpdate(file, { archived: false }); else setArchiveTarget(file); }}>{file.archived_at ? "Restore" : "Archive"}</button></div>}</>}
         </li>)}
       </ul>
       {archiveTarget && <div className="bl-file-confirm" role="group" aria-label="Confirm file archive"><p>Archive <strong>{archiveTarget.filename}</strong>? It will disappear from active file review. Existing feedback is retained.</p><button type="button" className="bl-quiet" disabled={pending} onClick={() => setArchiveTarget(null)}>Keep file</button><button type="button" className="bl-button" disabled={pending || !canEdit} onClick={() => submitUpdate(archiveTarget, { archived: true })}>{update.isPending ? "Archiving…" : "Archive file"}</button></div>}

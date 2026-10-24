@@ -1,14 +1,22 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SnapshotSubmit(BaseModel):
     viewport: dict[str, int] = Field(min_length=2, max_length=2)
     node_tree: dict[str, Any]
     nodes_index: dict[str, Any] = Field(min_length=1, max_length=5000)
-    full_page_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    # The spec's form is "sha256:<64 hex>" (09-Snapshot-Engine.md), which the widget and
+    # extension send; a bare digest is accepted too. Stored in the prefixed form so
+    # hashes from either client compare equal.
+    full_page_hash: str = Field(pattern=r"^(sha256:)?[a-f0-9]{64}$")
+
+    @field_validator("full_page_hash")
+    @classmethod
+    def canonical_hash(cls, value: str) -> str:
+        return value if value.startswith("sha256:") else f"sha256:{value}"
 
     @model_validator(mode="after")
     def complete_bounded_tree(self) -> "SnapshotSubmit":

@@ -232,6 +232,10 @@ const HOST_STYLES = `
   @keyframes bl-rec-pulse { 50% { opacity: .35; } }
   @media (prefers-reduced-motion: reduce) { .bl-card button.bl-cp-record.bl-is-recording svg { animation: none; } }
   .bl-card button.bl-cp-attach:disabled { opacity: .5; cursor: not-allowed; }
+  .bl-card .bl-cp-steps { margin-top: 10px; border: 1px solid var(--bl-line); border-radius: 3px; background: var(--bl-paper); }
+  .bl-card .bl-cp-steps summary { padding: 7px 10px; font-size: 11.5px; font-weight: 600; color: var(--bl-ink-2); cursor: pointer; }
+  .bl-card .bl-cp-steps summary span { margin-left: 4px; font-weight: 400; color: var(--bl-ink-4); }
+  .bl-card .bl-cp-steps textarea { display: block; width: calc(100% - 16px); min-height: 72px; margin: 0 8px 8px; resize: vertical; }
   .bl-card .bl-cp-diag {
     display: flex; align-items: center; gap: 7px; margin-top: 10px; padding: 7px 10px;
     border: 1px solid #F1D6CC; border-radius: 3px; background: #FFF7F4; color: #8A2E17;

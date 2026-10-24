@@ -19,18 +19,20 @@ import { ProjectAccessFields } from "./access/ProjectAccessFields";
 import * as api from "./api";
 
 type ProjectType = "website" | "image" | "pdf";
+// Web App and Mobile App are review flavours of a website and an image project
+// (ProjectOut.variant), so they reuse those review paths end to end.
+type ProjectKind = ProjectType | "webapp" | "mobile";
 
 const PROJECT_TYPES: Array<{
-  id: ProjectType | "webapp" | "mobile";
+  id: ProjectKind;
   label: string;
   description: string;
-  available: boolean;
 }> = [
-  { id: "website", label: "Website", description: "Public or staging websites, including sign-in pages. Use browser review when needed.", available: true },
-  { id: "image", label: "Images", description: "PNG, JPG, WebP or GIF. Comments pin to the artwork itself.", available: true },
-  { id: "pdf", label: "PDF", description: "Pin comments to pages in an uploaded PDF document.", available: true },
-  { id: "webapp", label: "Web App", description: "Application state and diagnostics. Use Website for signed-in review today.", available: false },
-  { id: "mobile", label: "Mobile App", description: "Comment on a TestFlight or APK build from a real device.", available: false },
+  { id: "website", label: "Website", description: "Public or staging websites, including sign-in pages. Use browser review when needed." },
+  { id: "webapp", label: "Web App", description: "Signed-in apps. Comments carry steps to reproduce plus console and network errors." },
+  { id: "mobile", label: "Mobile App", description: "Screens from TestFlight, APK or device builds, grouped by build and device." },
+  { id: "image", label: "Images", description: "PNG, JPG, WebP or GIF. Comments pin to the artwork itself." },
+  { id: "pdf", label: "PDF", description: "Pin comments to pages in an uploaded PDF document." },
 ];
 
 function TypeIcon({ type }: { type: (typeof PROJECT_TYPES)[number]["id"] }) {
@@ -85,7 +87,7 @@ function detectEnvironment(value: string): "live" | "staging" {
 export function ProjectForm({ workspace, project, initialType, initialClientId, onClose }: {
   workspace: WorkspaceOut;
   project?: api.ProjectOut;
-  initialType?: ProjectType;
+  initialType?: ProjectKind;
   /** Preselects the client, for "New project" started from that client's row. */
   initialClientId?: string;
   onClose: () => void;
@@ -97,7 +99,12 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [phase, setPhase] = useState<"type" | "details" | "saving" | "retry" | "complete">(project ? "details" : "type");
   const submitting = useRef(false);
   const close = () => { if (!submitting.current) onClose(); };
-  const [type, setType] = useState<ProjectType>(project?.project_type ?? initialType ?? "website");
+  const [kind, setKind] = useState<ProjectKind>(project?.variant ?? project?.project_type ?? initialType ?? "website");
+  const type: ProjectType = kind === "webapp" ? "website" : kind === "mobile" ? "image" : kind;
+  const variant = kind === "webapp" || kind === "mobile" ? kind : null;
+  const [buildLabel, setBuildLabel] = useState("");
+  const [device, setDevice] = useState("");
+  const [platform, setPlatform] = useState("");
   const [typeChosen, setTypeChosen] = useState(Boolean(project || initialType));
   const [name, setName] = useState(project?.name ?? "");
   const [url, setUrl] = useState(project?.start_url ?? project?.target_origin ?? "");
@@ -138,7 +145,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
 
 
   const selectedClient = useMemo(() => clients.data?.find((item) => item.id === client), [client, clients.data]);
-  const typeLabel = PROJECT_TYPES.find((item) => item.id === type)?.label ?? "Project";
+  const typeLabel = PROJECT_TYPES.find((item) => item.id === kind)?.label ?? "Project";
 
   function selectFiles(selected: File[]) {
     if (submitting.current) return;
@@ -174,7 +181,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         return api.updateProject(project.id, preparedUpdate.current);
       }
       const members = Object.entries(grants).map(([user_id, role]) => ({ user_id, role }));
-      preparedCreate.current ??= { name: name.trim(), target_origin: type === "website" ? url.trim() : "", project_type: type, environment, client_id: clientId, new_client: newClient, visibility, default_role: defaultRole, members, client_request_id: crypto.randomUUID() };
+      preparedCreate.current ??= { name: name.trim(), target_origin: type === "website" ? url.trim() : "", project_type: type, variant, environment, client_id: clientId, new_client: newClient, visibility, default_role: defaultRole, members, client_request_id: crypto.randomUUID() };
       const request = preparedCreate.current;
       const current = createdRef.current ?? await api.createProject(workspace.id, request.name, request.target_origin ?? "", request);
       createdRef.current = current;
@@ -186,7 +193,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
       }
       for (const file of files) {
         const key = `${file.name}:${file.size}:${file.lastModified}`;
-        if (!uploaded.includes(key)) { await uploadAsset(current.id, file); setUploaded((old) => [...old, key]); }
+        if (!uploaded.includes(key)) { await uploadAsset(current.id, file, kind === "mobile" ? { build_label: buildLabel, device, platform } : undefined); setUploaded((old) => [...old, key]); }
       }
       const links = await listShareLinks(current.id).catch(() => []);
       const active = links.find((item) => reviewLinkState(item) === "active");
@@ -282,14 +289,8 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         <div className="bl-dialog-intro"><p>What are you collecting feedback on?</p></div>
         <div className="bl-project-type-body">
           <div className="bl-project-type-grid primary" role="radiogroup" aria-label="Project type">
-            {PROJECT_TYPES.filter((item) => item.available).map((item) => (
-              <button key={item.id} type="button" role="radio" aria-checked={typeChosen && type === item.id} className="bl-project-type-card" onClick={() => { if (type !== item.id) { setFiles([]); setFileError(""); } setType(item.id as ProjectType); setTypeChosen(true); }}><span className="bl-type-icon"><TypeIcon type={item.id} /></span><span><strong>{item.label}</strong><small>{item.description}</small></span></button>
-            ))}
-          </div>
-          <div className="bl-roadmap-label"><span>On the roadmap</span></div>
-          <div className="bl-project-type-grid roadmap">
-            {PROJECT_TYPES.filter((item) => !item.available).map((item) => (
-              <button key={item.id} type="button" className="bl-project-type-card" disabled aria-describedby={`${item.id}-soon`}><span className="bl-type-icon"><TypeIcon type={item.id} /></span><span><strong>{item.label}</strong><small>{item.description}</small><em id={`${item.id}-soon`}>Coming soon</em></span></button>
+            {PROJECT_TYPES.map((item) => (
+              <button key={item.id} type="button" role="radio" aria-checked={typeChosen && kind === item.id} className="bl-project-type-card" onClick={() => { if (kind !== item.id) { setFiles([]); setFileError(""); } setKind(item.id); setTypeChosen(true); }}><span className="bl-type-icon"><TypeIcon type={item.id} /></span><span><strong>{item.label}</strong><small>{item.description}</small></span></button>
             ))}
           </div>
         </div>
@@ -353,8 +354,16 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         {type === "website" ? <>
           <div className="bl-form-section"><label htmlFor="project-url">Review URL <span className="bl-required">Required</span></label><input id="project-url" className="bl-input" required type="text" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); if (!environmentEdited) setEnvironment(detectEnvironment(event.target.value)); }} placeholder="staging.yoursite.com" disabled={Boolean(created) || save.isPending} /><small>Backline loads this page each time a reviewer opens the project. HTTP and HTTPS addresses are supported.</small></div>
           <fieldset className="bl-environment-field" disabled={Boolean(created) || save.isPending}><legend>Environment</legend><div className="bl-segment"><button type="button" aria-pressed={environment === "staging"} onClick={() => { setEnvironment("staging"); setEnvironmentEdited(true); }}>Staging</button><button type="button" aria-pressed={environment === "live"} onClick={() => { setEnvironment("live"); setEnvironmentEdited(true); }}>Live</button></div><small>{environmentEdited ? "Manually selected." : "Detected from the domain — override it here if needed."}</small></fieldset>
-        </> : !project ? <div className="bl-form-section">
-          <label>Files <span className="bl-required">Required</span></label>
+        </> : !project ? <>{kind === "mobile" && <div className="bl-form-section">
+          <label htmlFor="project-build">Build and device <span className="bl-optional">Optional</span></label>
+          <div className="bl-build-fields">
+            <input id="project-build" className="bl-input" maxLength={80} value={buildLabel} onChange={(event) => setBuildLabel(event.target.value)} placeholder="Build, e.g. 2.4.0 (311)" disabled={Boolean(created) || save.isPending} />
+            <input className="bl-input" aria-label="Device" maxLength={80} value={device} onChange={(event) => setDevice(event.target.value)} placeholder="Device, e.g. iPhone 15 Pro" disabled={Boolean(created) || save.isPending} />
+            <select className="bl-input" aria-label="Platform" value={platform} onChange={(event) => setPlatform(event.target.value)} disabled={Boolean(created) || save.isPending}><option value="">Platform</option><option>iOS</option><option>Android</option><option>iPadOS</option><option>Other</option></select>
+          </div>
+          <small>Applied to the screens you add now. Change them per screen later in Manage files.</small>
+        </div>}<div className="bl-form-section">
+          <label>{kind === "mobile" ? "Screens" : "Files"} <span className="bl-required">Required</span></label>
           <button type="button" className={`bl-upload-drop${files.length ? " has-files" : ""}${dragging ? " is-dragging" : ""}`} onClick={() => fileInputRef.current?.click()} onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); selectFiles(Array.from(event.dataTransfer.files)); }} disabled={save.isPending}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 9l5-5 5 5M12 4v12" /></svg>
             {files.length ? <><span className="bl-file-list">{files.slice(0, 6).map((file) => <span key={`${file.name}-${file.lastModified}`}>{file.name}</span>)}{files.length > 6 && <span>+{files.length - 6} more</span>}</span><strong>{files.length} file{files.length === 1 ? "" : "s"} ready</strong><small>Click or drop again to replace the selection.</small></> : <><strong>Drop {type === "pdf" ? "a PDF" : "images"} here, or click to choose</strong><small>{type === "pdf" ? "One document · up to 200 pages · 20 MB" : "PNG, JPG, WebP or GIF · up to 50 files · 20 MB each"}</small></>}
@@ -362,7 +371,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           <input ref={fileInputRef} type="file" hidden multiple={type === "image"} accept={type === "pdf" ? "application/pdf" : "image/png,image/jpeg,image/webp,image/gif"} onChange={(event) => selectFiles(Array.from(event.target.files ?? []))} />
           {files.filter((file) => !uploaded.includes(`${file.name}:${file.size}:${file.lastModified}`)).map((file) => <button type="button" className="bl-quiet" key={`${file.name}:${file.lastModified}`} disabled={save.isPending} onClick={() => { setFiles((old) => old.filter((item) => item !== file)); setFileError(""); }}>Remove {file.name}</button>)}
           {fileError && <p role="alert" className="bl-error">{fileError}</p>}{uploaded.length > 0 && <p className="bl-mono">{uploaded.length} of {files.length} uploaded</p>}
-        </div> : null}
+        </div></> : null}
 
         {project && <fieldset className="bl-review-settings"><legend>Review settings</legend><SettingRow checked={captureDeviceDetails} onChange={setCaptureDeviceDetails} label="Capture browser and device details" description="Saves browser, OS, device and viewport details with new comments. Page URLs and element anchors are saved either way." /><SettingStatusRow label="Automatic anchor recovery" description="Recovery runs for every new revision. The legacy per-project toggle is retained for compatibility but is not an active control." status="Always on" /><SettingRow checked={reviewerCanResolve} onChange={setReviewerCanResolve} label="Let reviewers resolve their own comments" description="Off means only your team can move a guest comment to Resolved." /><SettingRow checked={showBoardToClient} onChange={setShowBoardToClient} label="Show the ticket board to this client" description="Off hides due dates, assignees and the board from guest reviewers." /><SettingStatusRow label="Cross-browser screenshot captures" status="Unavailable" description="Server capture is currently disabled. Resizing the Backline canvas changes the viewport; it does not test another browser engine." /><SettingStatusRow label="Client email digest" description="Client digest delivery has no approved recipient, privacy, or scheduling contract and cannot be enabled." status="Not available" /></fieldset>}
 

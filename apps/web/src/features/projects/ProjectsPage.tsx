@@ -17,14 +17,18 @@ import * as api from "./api";
 import { ProjectForm } from "./ProjectForm";
 import { DuplicateProjectDialog, ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
-import { ComingSoonPanel, type SoonType } from "./ComingSoonPanel";
 import { ProjectArtwork } from "./ProjectArtwork";
 import { LockIcon, PlusIcon, SearchIcon } from "../../components/icons";
 import { projectCan, roleLabel } from "../../lib/project-roles";
 import { redactReviewUrl } from "../../lib/review-page-path";
 import { EmptyArt } from "../../components/illustrations";
 
-const TYPE_LABELS: Record<string, string> = { website: "Website", image: "Images", pdf: "PDF" };
+const TYPE_LABELS: Record<string, string> = { website: "Website", webapp: "Web App", mobile: "Mobile App", image: "Images", pdf: "PDF" };
+type ProjectKind = "website" | "webapp" | "mobile" | "image" | "pdf";
+// Web App / Mobile App are review flavours of website / image projects.
+function projectKind(project: api.ProjectOut): ProjectKind {
+  return project.variant ?? project.project_type ?? "website";
+}
 
 const BAR_STATUSES = ["todo", "in_progress", "in_review", "blocked", "wont_fix"] as const;
 
@@ -95,13 +99,12 @@ export function ProjectsPage() {
   const [params, setParams] = useSearchParams();
   const archived = params.get("archived") === "true", search = params.get("search") ?? "", type = params.get("type") ?? "all", view = params.get("display") ?? "cards", sort = params.get("sort") ?? "activity";
   useDocumentTitle([workspace.name, archived ? "Archived Projects" : "Projects"]);
-  const [createType, setCreateType] = useState<"website" | "image" | "pdf" | null>(null);
+  const [createType, setCreateType] = useState<ProjectKind | null>(null);
   const [share, setShare] = useState<api.ProjectOut | null>(null);
   const [duplicating, setDuplicating] = useState<api.ProjectOut | null>(null);
   const [edit, setEdit] = useState<api.ProjectOut | null>(null);
   const [managePages, setManagePages] = useState<api.ProjectOut | null>(null);
   const [showNewTicket, setShowNewTicket] = useState(false);
-  const soonType: SoonType | null = type === "webapp" || type === "mobile" ? type : null;
   // Live clock (ticks every minute) so the greeting's time-of-day and the head's
   // date/time readout are never more than a minute stale - always the viewer's own
   // local time, so it already reads correctly for whatever timezone they're in.
@@ -123,7 +126,7 @@ export function ProjectsPage() {
   const summary = useQuery({ queryKey: qk.dashboard(workspace.id), queryFn: () => getDashboard(workspace.id) });
   const attention = useQuery({ queryKey: qk.ticketsAttention(workspace.id), queryFn: () => listTickets(workspace.id, new URLSearchParams({ view: "reply", limit: "3" })) });
   const stats = useMemo(() => new Map(summary.data?.project_stats.map((s) => [s.project_id, s]) ?? []), [summary.data]);
-  const visible = useMemo(() => (projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (type === "all" || (p.project_type ?? "website") === type) && (!params.get("client") || p.client_id === params.get("client")) && `${p.name} ${p.target_origin} ${p.start_url ?? ""}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "open" ? (stats.get(b.id)?.open ?? 0) - (stats.get(a.id)?.open ?? 0) : sort === "added" ? b.created_at.localeCompare(a.created_at) : (stats.get(b.id)?.last_activity_at ?? b.updated_at).localeCompare(stats.get(a.id)?.last_activity_at ?? a.updated_at)), [projects.data, archived, type, params, search, sort, stats]);
+  const visible = useMemo(() => (projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (type === "all" || projectKind(p) === type) && (!params.get("client") || p.client_id === params.get("client")) && `${p.name} ${p.target_origin} ${p.start_url ?? ""}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "open" ? (stats.get(b.id)?.open ?? 0) - (stats.get(a.id)?.open ?? 0) : sort === "added" ? b.created_at.localeCompare(a.created_at) : (stats.get(b.id)?.last_activity_at ?? b.updated_at).localeCompare(stats.get(a.id)?.last_activity_at ?? a.updated_at)), [projects.data, archived, type, params, search, sort, stats]);
 
   // The landing state only (no search/type/archived filter active) gets the live
   // greeting; once someone is filtering or searching, a plain, functional heading
@@ -131,7 +134,7 @@ export function ProjectsPage() {
   const firstName = user?.name.trim().split(/\s+/)[0];
   const hour = now.getHours();
   const timeGreeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const headline = archived ? "Archived projects" : search ? `Results for "${search}"` : type !== "all" && !soonType ? `${TYPE_LABELS[type] ?? "Projects"} projects` : firstName ? `${timeGreeting}, ${firstName}` : timeGreeting;
+  const headline = archived ? "Archived projects" : search ? `Results for "${search}"` : type !== "all" ? `${TYPE_LABELS[type] ?? "Projects"} projects` : firstName ? `${timeGreeting}, ${firstName}` : timeGreeting;
   const needsReply = summary.data?.needs_reply ?? 0;
   const fullyResolved = (projects.data ?? []).filter((p) => !p.archived_at && (stats.get(p.id)?.total ?? 0) > 0 && stats.get(p.id)?.resolved === stats.get(p.id)?.total).map((p) => p.name);
 
@@ -140,7 +143,7 @@ export function ProjectsPage() {
     const total = s?.total ?? 0, open = s?.open ?? 0, resolved = s?.resolved ?? 0;
     const isWebsite = (p.project_type ?? "website") === "website";
     const destination = `/w/${workspace.slug}/p/${p.id}`;
-    const displayUrl = isWebsite ? redactReviewUrl(p.start_url ?? p.target_origin).replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
+    const displayUrl = isWebsite ? redactReviewUrl(p.start_url ?? p.target_origin).replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : p.variant === "mobile" ? "App screens" : "Image set";
     // The two preview layouts put the menu in the card's top-right corner, over the
     // artwork; the row layouts (list/table) have no corner to speak of and keep it in
     // the actions column at the end of the row.
@@ -151,7 +154,7 @@ export function ProjectsPage() {
       <div className="bl-project-preview">
         <ProjectArtwork project={p} open={open} total={total} />
         <div className="bl-browser"><span aria-hidden="true"><i /><i /><i /></span><span>{displayUrl}</span></div>
-        <span className="bl-preview-type">{TYPE_LABELS[p.project_type ?? "website"] ?? "Website"}</span>
+        <span className="bl-preview-type">{TYPE_LABELS[projectKind(p)] ?? "Website"}</span>
         {!p.archived_at && <Link className="bl-project-preview-link" to={destination} aria-label={`Open ${p.name}`} />}
         {!p.archived_at && view === "cards" && (
           <div className="bl-project-overlay">
@@ -193,7 +196,7 @@ export function ProjectsPage() {
 
   function newProjectTile(className = "bl-new-card") {
     if (archived || search) return null;
-    return <button className={className} onClick={() => setCreateType(type === "image" || type === "pdf" ? type : "website")}><span className="bl-new-card-plus"><PlusIcon /></span><strong>{type === "image" ? "Upload images to review" : type === "pdf" ? "Upload a PDF to review" : "Add a website to review"}</strong><small>{type === "image" ? "Pin feedback directly to campaign and product artwork." : type === "pdf" ? "Collect precise comments across every page of a document." : "Paste a URL and send your client a review link."}</small></button>;
+    return <button className={className} onClick={() => setCreateType(type in TYPE_LABELS ? type as ProjectKind : "website")}><span className="bl-new-card-plus"><PlusIcon /></span><strong>{type === "image" ? "Upload images to review" : type === "pdf" ? "Upload a PDF to review" : type === "mobile" ? "Upload app screens to review" : type === "webapp" ? "Add a web app to review" : "Add a website to review"}</strong><small>{type === "image" ? "Pin feedback directly to campaign and product artwork." : type === "pdf" ? "Collect precise comments across every page of a document." : type === "mobile" ? "Screens from a TestFlight, APK or device build, grouped by build." : type === "webapp" ? "Steps to reproduce and console errors come with every comment." : "Paste a URL and send your client a review link."}</small></button>;
   }
 
   // The Table layout is a real table (design/index.html's tableRows()), one column per
@@ -203,7 +206,7 @@ export function ProjectsPage() {
     const s = stats.get(p.id);
     const isWebsite = (p.project_type ?? "website") === "website";
     const destination = `/w/${workspace.slug}/p/${p.id}`;
-    const displayUrl = isWebsite ? redactReviewUrl(p.start_url ?? p.target_origin).replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : "Image set";
+    const displayUrl = isWebsite ? redactReviewUrl(p.start_url ?? p.target_origin).replace(/^https?:\/\//, "") : p.project_type === "pdf" ? "PDF document" : p.variant === "mobile" ? "App screens" : "Image set";
     const count = (value: number) => <td className={`bl-col-num${value > 0 ? " has-value" : ""}`}>{value}</td>;
     return <tr key={p.id} className={p.archived_at ? "is-archived" : ""}>
       <td>{p.archived_at
@@ -224,7 +227,7 @@ export function ProjectsPage() {
   return <>
     <main className="bl-wrap">
       <header className="bl-head">
-        <div><h1>{headline}</h1><p>{archived ? "Finished for now. Restore a project to review it again." : search ? `${visible.length} result${visible.length === 1 ? "" : "s"} for "${search}".` : type !== "all" && !soonType ? `Every ${(TYPE_LABELS[type] ?? "project").toLowerCase()} review, all in one place.` : <>{needsReply > 0 ? <><b>{needsReply} comment{needsReply === 1 ? "" : "s"}</b> {needsReply === 1 ? "is" : "are"} waiting on a reply from you</> : <><b>Nothing</b> is waiting on a reply from you</>}{fullyResolved.length > 0 ? `, and ${joinNames(fullyResolved)} ${fullyResolved.length === 1 ? "has" : "have"} been fully resolved.` : "."}</>}</p></div>
+        <div><h1>{headline}</h1><p>{archived ? "Finished for now. Restore a project to review it again." : search ? `${visible.length} result${visible.length === 1 ? "" : "s"} for "${search}".` : type !== "all" ? `Every ${(TYPE_LABELS[type] ?? "project").toLowerCase()} review, all in one place.` : <>{needsReply > 0 ? <><b>{needsReply} comment{needsReply === 1 ? "" : "s"}</b> {needsReply === 1 ? "is" : "are"} waiting on a reply from you</> : <><b>Nothing</b> is waiting on a reply from you</>}{fullyResolved.length > 0 ? `, and ${joinNames(fullyResolved)} ${fullyResolved.length === 1 ? "has" : "have"} been fully resolved.` : "."}</>}</p></div>
         <div className="bl-head-actions">
           <time className="bl-mono bl-head-clock">{now.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}<br />{now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
         </div>
@@ -251,9 +254,9 @@ export function ProjectsPage() {
         </section>
       )}
 
-      <div className="bl-tabs" aria-label="Project types">{[['all', 'All projects'], ['website', 'Website'], ['image', 'Images'], ['pdf', 'PDF']].map(([key, label]) => <button key={key} aria-pressed={type === key} onClick={() => filter("type", key)}>{label}<span className="bl-count">{(projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (key === "all" || (p.project_type ?? "website") === key)).length}</span></button>)}<button type="button" aria-pressed={type === "webapp"} onClick={() => filter("type", "webapp")}>Web App <small>Soon</small></button><button type="button" aria-pressed={type === "mobile"} onClick={() => filter("type", "mobile")}>Mobile App <small>Soon</small></button></div>
+      <div className="bl-tabs" aria-label="Project types">{[['all', 'All projects'], ['website', 'Website'], ['webapp', 'Web App'], ['mobile', 'Mobile App'], ['image', 'Images'], ['pdf', 'PDF']].map(([key, label]) => <button key={key} aria-pressed={type === key} onClick={() => filter("type", key)}>{label}<span className="bl-count">{(projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (key === "all" || projectKind(p) === key)).length}</span></button>)}</div>
 
-      {soonType ? <ComingSoonPanel type={soonType} onReviewWebsite={() => filter("type", "website")} onReviewImages={() => filter("type", "image")} onReviewPdf={() => filter("type", "pdf")} /> : <>
+      <>
 
       {/* One search-styled control on this screen, not two: this is the "filter the
           visible grid" input; the omnisearch in the persistent topbar (⌘K) is the
@@ -322,7 +325,7 @@ export function ProjectsPage() {
         )}
         {!projects.error && visible.length === 0 && <div className="bl-empty"><EmptyArt kind={search || type !== "all" || params.get("client") ? "search" : "projects"} /><h2>{archived ? "No archived projects" : "No projects here yet"}</h2><p>{search || type !== "all" || params.get("client") ? "Try a different search, client or project type." : "Create a project to get a shareable review link."}</p></div>}
       </>}
-      </>}
+      </>
     </main>
     {createType && <ProjectForm workspace={workspace} initialType={createType} onClose={() => setCreateType(null)} />}{edit && <ProjectForm workspace={workspace} project={edit} onClose={() => setEdit(null)} />}
     {duplicating && <DuplicateProjectDialog project={duplicating} workspaceSlug={workspace.slug} onClose={() => setDuplicating(null)} />}

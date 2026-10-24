@@ -2601,6 +2601,12 @@ export interface components {
              * @default 0
              */
             revision: number;
+            /** Build Label */
+            build_label?: string | null;
+            /** Device */
+            device?: string | null;
+            /** Platform */
+            platform?: string | null;
         };
         /** AssetUpdate */
         AssetUpdate: {
@@ -2610,6 +2616,12 @@ export interface components {
             filename?: string | null;
             /** Archived */
             archived?: boolean | null;
+            /** Build Label */
+            build_label?: string | null;
+            /** Device */
+            device?: string | null;
+            /** Platform */
+            platform?: string | null;
         };
         /**
          * AttachmentIn
@@ -2661,6 +2673,12 @@ export interface components {
             file: string;
             /** Client Request Id */
             client_request_id?: string | null;
+            /** Build Label */
+            build_label?: string | null;
+            /** Device */
+            device?: string | null;
+            /** Platform */
+            platform?: string | null;
         };
         /** BugHuntFinding */
         BugHuntFinding: {
@@ -4370,6 +4388,8 @@ export interface components {
              * @enum {string}
              */
             project_type: "website" | "image" | "pdf";
+            /** Variant */
+            variant?: ("webapp" | "mobile") | null;
             /**
              * Environment
              * @default live
@@ -4566,6 +4586,8 @@ export interface components {
              * @enum {string}
              */
             project_type: "website" | "image" | "pdf";
+            /** Variant */
+            variant?: ("webapp" | "mobile") | null;
             /**
              * Environment
              * @default live
@@ -4836,6 +4858,8 @@ export interface components {
              * @default website
              */
             project_type: string;
+            /** Variant */
+            variant?: string | null;
             /** Project Id */
             project_id: string;
             /** Project Name */

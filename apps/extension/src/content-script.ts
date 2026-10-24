@@ -135,6 +135,7 @@ async function buildFreshContext(): Promise<AnnotationContext | null> {
       pagePath,
       browser: parseUserAgent(navigator.userAgent).browser,
       regionSize,
+      askSteps: (info?.project.variant ?? (project as { variant?: string | null }).variant) === "webapp",
     }),
   };
   return context;
@@ -177,7 +178,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
       shadow,
       x,
       y,
-      async ({ body, attachments, tags, diagnostics }) => {
+      async ({ body, attachments, tags, diagnostics, stepsToReproduce }) => {
         try {
           const created = await submission.submit(async () => {
             controls.setStatus("Capturing anchor + screenshot...");
@@ -205,6 +206,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
                 viewport: { width: window.innerWidth, height: window.innerHeight },
                 url: window.location.href,
                 ...(diagnostics ? { diagnostics } : {}),
+                ...(stepsToReproduce ? { steps_to_reproduce: stepsToReproduce } : {}),
               },
               screenshot_key: screenshotKey,
               capture_status: screenshotKey ? "ok" : "failed",
