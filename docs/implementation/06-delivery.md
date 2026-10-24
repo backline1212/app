@@ -1,6 +1,6 @@
 # Delivery and verification ledger
 
-## 2026-10-24: Worker revision observation source (TDR-0144)
+## 2026-10-24: Worker revision observation and live check (TDR-0144)
 
 The Arq worker now schedules a short-lived Redis heartbeat with its validated
 release SHA, deployment ID and UTC observation time. The additive Pydantic
@@ -15,9 +15,20 @@ workspace-scope lint (25 repository files), saved/current OpenAPI equality
 (132 paths), monorepo lint/typecheck/build (12/12, five cached) and diff
 whitespace. The new worker field and generated declarations typecheck.
 
-Live worker rollout, the first public recent heartbeat and real queued-job
-behavior remain open. No tenant data or migrations are involved. No test suite
-was added or run under AGENTS.md.
+GitHub reported successful API, worker, cloud-login and Vercel statuses for
+`22999a07f5310ee00a17ea8e9f94b9f4ee5226b4`. Public `/health` returned
+HTTP 200 with MongoDB/Redis `ok`, the exact API SHA, a `recent` worker
+heartbeat with the same SHA and distinct worker deployment ID. The independent
+API-plus-worker smoke gate passed auth capabilities and exact live/saved
+OpenAPI equality (132 paths). A later read observed the heartbeat advance from
+13:15:03 to 13:16:00 UTC, confirming the periodic report. The public QA web
+alias also returned this full SHA in `/release.json` with
+`Cache-Control: no-store`.
+
+This proves the worker ran its reporting job; queue age, domain jobs, provider
+delivery, degraded/expired-heartbeat behavior and rollback remain open. No
+tenant data or migrations are involved. No test suite was added or run under
+AGENTS.md.
 
 ## 2026-10-24: Public component release matrix after TDR-0142
 

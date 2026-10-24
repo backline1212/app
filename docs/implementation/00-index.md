@@ -3,7 +3,8 @@
 Worker release observation follow-up (2026-10-24):
 [TDR-0144](../tdr/0144-observe-worker-release-in-health.md) adds a short-lived
 Arq heartbeat to the Pydantic `/health` contract and regenerated types.
-Static checks and live worker-revision acceptance are recorded separately.
+The public API and worker both reported `22999a0` live and the independent
+revision smoke gate passed; queued domain-job acceptance remains open.
 
 Web release identity follow-up (2026-10-24):
 [TDR-0142](../tdr/0142-web-release-marker.md) emits a non-secret Vite

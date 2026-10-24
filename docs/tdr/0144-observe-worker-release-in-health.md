@@ -36,3 +36,13 @@ for a recent matching worker SHA and use the separate worker smoke gate.
 Worker-job success, queue age, stale/expired heartbeat handling under an actual
 stop and rolling-replica behavior remain separate operational acceptance.
 No test suite is written or run under AGENTS.md.
+
+Post-release observation on 2026-10-24: GitHub reported successful API,
+worker, cloud-login and Vercel deployment statuses for
+`22999a07f5310ee00a17ea8e9f94b9f4ee5226b4`. The public `/health` response
+reported HTTP 200, healthy MongoDB/Redis, that exact API SHA, and a `recent`
+worker observation with the same full SHA and a distinct worker deployment ID.
+The exact API-plus-worker smoke gate passed, including auth capabilities and
+live equality with the saved 132-path OpenAPI document. A second read showed
+the heartbeat time advance from 13:15:03 to 13:16:00 UTC. This does not prove
+domain job/provider execution or an expired-heartbeat transition.
