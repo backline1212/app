@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Combined component smoke follow-up (2026-10-24):
+[TDR-0145](../tdr/0145-check-web-release-with-component-smoke.md) adds the
+public web alias SHA and no-store check to the optional post-deploy smoke gate.
+API, worker and web revisions remain independently specified.
+
 Worker release observation follow-up (2026-10-24):
 [TDR-0144](../tdr/0144-observe-worker-release-in-health.md) adds a short-lived
 Arq heartbeat to the Pydantic `/health` contract and regenerated types.

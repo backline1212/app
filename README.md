@@ -174,6 +174,7 @@ cd backend
 uv run python scripts/smoke_test.py [base_url]
 uv run python scripts/smoke_test.py https://backlinewidget-production.up.railway.app --expected-sha <full-40-character-sha> --contract ../packages/types/openapi.json
 # Once the worker heartbeat is deployed, add --expected-worker-sha <worker-commit-sha>
+# To verify the web alias too, add --web-base-url https://backline-qa.vercel.app --expected-web-sha <web-commit-sha>
 
 # After the matching web build is deployed, compare this SHA with that web commit
 curl -fsS https://backline-qa.vercel.app/release.json

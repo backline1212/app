@@ -5,6 +5,7 @@ Run from backend with ``uv run python scripts/smoke_test.py [base_url]``.
 Use ``--expected-sha`` to prove which API revision answered and ``--contract``
 to compare its live OpenAPI document with a saved checkout contract. A separate
 ``--expected-worker-sha`` proves a recently reporting Arq worker revision.
+``--web-base-url`` checks the separate web release marker and its cache policy.
 """
 
 import argparse
@@ -29,15 +30,20 @@ def main() -> int:
     )
     parser.add_argument("--expected-sha", help="Expected full 40-character API commit SHA")
     parser.add_argument("--expected-worker-sha", help="Expected full 40-character Arq worker SHA")
+    parser.add_argument("--web-base-url", help="Public web alias with /release.json")
+    parser.add_argument("--expected-web-sha", help="Expected full 40-character web build SHA")
     parser.add_argument("--contract", type=Path, help="Saved OpenAPI JSON to compare exactly")
     args = parser.parse_args()
 
     for flag, sha in (
         ("--expected-sha", args.expected_sha),
         ("--expected-worker-sha", args.expected_worker_sha),
+        ("--expected-web-sha", args.expected_web_sha),
     ):
         if sha and not re.fullmatch(r"[0-9a-fA-F]{40}", sha):
             parser.error(f"{flag} must be a full 40-character hexadecimal commit SHA")
+    if args.expected_web_sha and not args.web_base_url:
+        parser.error("--expected-web-sha requires --web-base-url")
 
     expected_contract: dict[str, Any] | None = None
     if args.contract:
@@ -124,6 +130,40 @@ def main() -> int:
                 print("FAIL: live OpenAPI differs from the saved contract")
                 return 1
             print(f"OK: /openapi.json ({len(live_contract['paths'])} paths)")
+
+        if args.web_base_url:
+            with httpx.Client(
+                base_url=args.web_base_url, timeout=10.0, follow_redirects=False
+            ) as web_client:
+                web_release = web_client.get(
+                    "/release.json", headers={"Cache-Control": "no-cache"}
+                )
+                if web_release.status_code != 200:
+                    print(f"FAIL: web /release.json returned {web_release.status_code}")
+                    return 1
+                try:
+                    web_body = web_release.json()
+                except ValueError:
+                    print("FAIL: web /release.json did not return JSON")
+                    return 1
+                web_sha = web_body.get("release_sha") if isinstance(web_body, dict) else None
+                if not isinstance(web_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", web_sha):
+                    print("FAIL: web /release.json has no valid release SHA")
+                    return 1
+                directives = {
+                    part.split("=", 1)[0].strip().lower()
+                    for part in web_release.headers.get("Cache-Control", "").split(",")
+                }
+                if "no-store" not in directives:
+                    print("FAIL: web /release.json lacks Cache-Control: no-store")
+                    return 1
+                if args.expected_web_sha and web_sha != args.expected_web_sha.lower():
+                    print(
+                        f"FAIL: web release {web_sha} "
+                        f"differs from {args.expected_web_sha.lower()}"
+                    )
+                    return 1
+                print(f"OK: web /release.json (release {web_sha}; no-store)")
     except httpx.HTTPError as exc:
         print(f"FAIL: API request failed - {exc}")
         return 1

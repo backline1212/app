@@ -1,5 +1,22 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Combined component smoke gate (TDR-0145)
+
+The read-only post-deploy command now optionally checks the web alias's
+`/release.json` JSON, full expected SHA and no-store cache policy alongside
+the separate API/worker expected SHAs and saved OpenAPI contract. The public
+command passed with API/worker `22999a0`, web `8f52330`, healthy MongoDB/
+Redis, auth capabilities and 132-path contract equality. See
+[TDR-0145](../tdr/0145-check-web-release-with-component-smoke.md).
+
+The full local release gate passed: backend Ruff, strict mypy (221 files),
+workspace scope (25 repository files), saved/current OpenAPI equality (132
+paths), monorepo lint/typecheck/build (12/12, six cached) and diff whitespace.
+
+This checks release identity and public routing only. Browser sign-in, review,
+queue jobs and provider delivery remain open. No test suite was added or run
+under AGENTS.md.
+
 ## 2026-10-24: Worker revision observation and live check (TDR-0144)
 
 The Arq worker now schedules a short-lived Redis heartbeat with its validated
