@@ -7990,6 +7990,7 @@
             "schema": {
               "type": "integer",
               "maximum": 100,
+              "minimum": 1,
               "default": 20,
               "title": "Limit"
             }
@@ -9120,6 +9121,39 @@
             "type": "integer",
             "title": "Revision",
             "default": 0
+          },
+          "build_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Label"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
           }
         },
         "type": "object",
@@ -9175,6 +9209,42 @@
               }
             ],
             "title": "Archived"
+          },
+          "build_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Label"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
           }
         },
         "type": "object",
@@ -9280,6 +9350,42 @@
               }
             ],
             "title": "Client Request Id"
+          },
+          "build_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Label"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
           }
         },
         "type": "object",
@@ -13863,6 +13969,21 @@
             "title": "Project Type",
             "default": "website"
           },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "webapp",
+                  "mobile"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          },
           "environment": {
             "type": "string",
             "enum": [
@@ -14231,6 +14352,21 @@
             ],
             "title": "Project Type",
             "default": "website"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "webapp",
+                  "mobile"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
           },
           "environment": {
             "type": "string",
@@ -15042,6 +15178,17 @@
             "type": "string",
             "title": "Project Type",
             "default": "website"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
           },
           "project_id": {
             "type": "string",

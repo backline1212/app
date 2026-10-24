@@ -259,7 +259,7 @@ export function InvoiceArt() {
       <g transform="translate(150 92) rotate(-14)">
         <g className="ea-stamp">
           <rect x="-18" y="-10" width="36" height="20" rx="4" className="ea-stamp-box" />
-          <text x="0" y="3.4" textAnchor="middle" className="ea-mono ea-stamp-text">SOON</text>
+          <text x="0" y="3.4" textAnchor="middle" className="ea-mono ea-stamp-text">NEW</text>
         </g>
       </g>
     </svg>

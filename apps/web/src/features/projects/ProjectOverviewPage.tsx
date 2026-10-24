@@ -927,6 +927,7 @@ export function ProjectOverviewPage() {
                 <i aria-hidden="true" />
                 {project.environment}
               </span>
+              {project.variant === "webapp" && <span className="bl-review-environment is-file" title="Comments ask for steps to reproduce and can carry console and network errors"><i aria-hidden="true" />Web app</span>}
             </div>
             <a href={displayUrl} target="_blank" rel="noreferrer" className="bl-review-url" title="Open the live page in a new tab">
               <span>{displayAddress.replace(/^https?:\/\//, "")}</span>

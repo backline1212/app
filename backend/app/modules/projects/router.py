@@ -52,6 +52,7 @@ async def create_project(
         name=body.name,
         target_origin=body.target_origin,
         project_type=body.project_type,
+        variant=body.variant,
         environment=body.environment,
         client_id=body.client_id,
         new_client=body.new_client,

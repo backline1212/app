@@ -15,6 +15,8 @@ export interface ComposerResult {
   tags: ComposerTag[];
   /** Console & network errors the reviewer chose to attach, or null. */
   diagnostics: Diagnostics | null;
+  /** Web App projects: what the reviewer did before the problem, or null. */
+  stepsToReproduce: string | null;
 }
 
 /** What the composer shows about who's commenting and where - the header's avatar and
@@ -25,6 +27,8 @@ export interface ComposerDetails {
   browser: string;
   /** "320 × 140" for a drawn-region comment; omitted for a point comment. */
   regionSize?: string;
+  /** Web App projects ask for reproduction steps alongside the comment. */
+  askSteps?: boolean;
 }
 
 const DEVICE_ICONS = {
@@ -195,6 +199,10 @@ export function openComposer(
     })}
     <div class="bl-cp-body">
       <textarea placeholder="What needs to change here?" required aria-label="Comment"></textarea>
+      ${details.askSteps ? `<details class="bl-cp-steps">
+        <summary>Steps to reproduce <span>optional</span></summary>
+        <textarea class="bl-cp-steps-input" maxlength="4000" aria-label="Steps to reproduce" placeholder="1. Sign in as an admin&#10;2. Open Billing&#10;3. Click Upgrade - nothing happens"></textarea>
+      </details>` : ""}
       <div class="bl-cp-sec">
         <span class="bl-cp-lbl">TAG THIS AS</span>
         <div class="bl-cp-tags" role="group" aria-label="Tag this as">
@@ -242,7 +250,8 @@ export function openComposer(
   const copyButton = composer.querySelector<HTMLButtonElement>(".bl-copy-draft")!;
   const attachLabel = composer.querySelector<HTMLSpanElement>(".bl-cp-attach-label")!;
   const tagButtons = Array.from(composer.querySelectorAll<HTMLButtonElement>(".bl-cp-tag"));
-  const textarea = composer.querySelector("textarea")!;
+  const textarea = composer.querySelector<HTMLTextAreaElement>("textarea[aria-label='Comment']")!;
+  const stepsInput = composer.querySelector<HTMLTextAreaElement>(".bl-cp-steps-input");
   const recordButtons = Array.from(composer.querySelectorAll<HTMLButtonElement>(".bl-cp-record"));
   const diagRow = composer.querySelector<HTMLLabelElement>(".bl-cp-diag")!;
   const diagInput = composer.querySelector<HTMLInputElement>(".bl-cp-diag-input")!;
@@ -292,7 +301,7 @@ export function openComposer(
   const hasDraft = (): boolean =>
     !closed &&
     !posted &&
-    (submitted || recording !== null || textarea.value.trim() !== "" || attachments.getAttachments().length > 0 || attachments.pendingCount() > 0 || attachments.failedCount() > 0);
+    (submitted || recording !== null || textarea.value.trim() !== "" || (stepsInput?.value.trim() ?? "") !== "" || attachments.getAttachments().length > 0 || attachments.pendingCount() > 0 || attachments.failedCount() > 0);
 
   function nudge(): void {
     if (closed) return;
@@ -347,6 +356,7 @@ export function openComposer(
       else button.removeAttribute("disabled");
     }
     textarea.readOnly = disabled || retryLocked;
+    if (stepsInput) stepsInput.readOnly = disabled || retryLocked;
     for (const button of tagButtons) button.disabled = disabled || retryLocked;
     for (const button of recordButtons) button.disabled = disabled || retryLocked || (recording !== null && recording.button !== button);
     diagInput.disabled = disabled || retryLocked;
@@ -382,7 +392,7 @@ export function openComposer(
     // Capture/anchor/upload callbacks can throw before they reach their API error
     // handler. Handle both synchronous throws and rejected promises here so every
     // adapter keeps the draft and restores its controls for an explicit retry.
-    void Promise.resolve().then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null })).then((ok) => {
+    void Promise.resolve().then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null, stepsToReproduce: stepsInput?.value.trim() || null })).then((ok) => {
       if (closed) return;
       if (ok) {
         posted = true;

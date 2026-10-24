@@ -110,7 +110,7 @@ async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<
     if (resolved.project_id !== input.projectId) throw new Error("This review belongs to another project.");
     const current = await request<Schemas["GuestSessionStatusOut"]>(auth, "/api/v1/guest-sessions/current");
     if (current.project_id !== input.projectId || current.share_link_id !== resolved.share_link_id) throw new Error("Rejoin this review in Backline first.");
-    project = { id: resolved.project_id, name: resolved.project_name, target_origin: resolved.target_origin };
+    project = { id: resolved.project_id, name: resolved.project_name, target_origin: resolved.target_origin, variant: resolved.variant ?? null };
     authorName = auth.displayName;
   }
   if (origin(project.target_origin) !== destination.origin) throw new Error("Open a page on this project's website.");
@@ -177,7 +177,7 @@ async function currentReviewProject(session: ReviewSession): Promise<NativeRevie
       if (project.archived_at || project.project_type !== "website" || origin(project.target_origin) !== origin(session.project.target_origin)) {
         throw new NativeReviewError("This project is no longer available for this website review.", 403);
       }
-      return { id: project.id, name: project.name, target_origin: project.target_origin, my_role: project.my_role };
+      return { id: project.id, name: project.name, target_origin: project.target_origin, my_role: project.my_role, variant: project.variant ?? null };
     }
     const current = await request<Schemas["GuestSessionStatusOut"]>(session.auth, "/api/v1/guest-sessions/current", { signal: controller.signal });
     const resolved = await request<Schemas["ReviewResolveOut"]>(session.auth, `/api/v1/review/${encodeURIComponent(session.auth.shareToken)}`, { signal: controller.signal });

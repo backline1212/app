@@ -11,6 +11,10 @@ from app.core.text import Trimmed
 from app.modules.clients.schemas import ClientCreate
 
 ProjectType = Literal["website", "image", "pdf"]
+# A review flavour on top of a project type: a Web App is a website project reviewed
+# with reproduction steps and console/network capture; a Mobile App is an image project
+# of build/device screenshots. Keeps every website/file review path unchanged.
+ProjectVariant = Literal["webapp", "mobile"]
 PreviewStatus = Literal["queued", "ready", "failed"]
 Environment = Literal["live", "staging"]
 # TDR-0056 project-level access. Order matters: each role includes the ones before it.
@@ -112,6 +116,7 @@ class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     target_origin: str = Field(default="", max_length=500)
     project_type: ProjectType = "website"
+    variant: ProjectVariant | None = None
     environment: Environment = "live"
     client_id: str | None = None
     new_client: ClientCreate | None = None
@@ -133,6 +138,10 @@ class ProjectCreate(BaseModel):
             raise ValueError("Choose an existing client or create a new one.")
         if self.project_type == "website" and not self.target_origin:
             raise ValueError("A website project requires a review URL.")
+        if self.variant == "webapp" and self.project_type != "website":
+            raise ValueError("A Web App project reviews a website URL.")
+        if self.variant == "mobile" and self.project_type != "image":
+            raise ValueError("A Mobile App project reviews screenshots.")
         if self.project_type != "website":
             self.target_origin = ""
         return self
@@ -238,6 +247,7 @@ class ProjectOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     project_type: ProjectType = "website"
+    variant: ProjectVariant | None = None
     environment: Environment = "live"
     client_id: str | None = None
     hero_url: str | None = None

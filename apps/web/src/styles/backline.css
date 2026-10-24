@@ -3127,3 +3127,15 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-asset-composer-files .bl-cd-shot-add:hover:not(:disabled){border-color:var(--ink);border-style:solid;color:var(--ink)}
 .bl-asset-composer-files .bl-cd-shot-add:disabled{opacity:.5}
 .bl-asset-attachments{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+
+/* Mobile App projects (AssetReview variant="mobile"): a phone bezel drawn with box
+   shadows so the sheet's own box - and so every pin's coordinates - stay unchanged. */
+.bl-asset-workspace .bl-asset-sheet.is-device{margin-top:14px;border:0;border-radius:30px;background:#0B0B0B;box-shadow:0 0 0 10px #16181A,0 0 0 11px #3A3D40,0 18px 40px rgba(11,11,11,.28)}
+.bl-asset-workspace .bl-asset-sheet.is-device>img{border-radius:22px}
+.bl-asset-workspace .bl-asset-sheet.is-device{max-height:none}
+.bl-asset-tab-meta{margin-left:6px;color:var(--ink-4);font:10px var(--mono);font-weight:400}
+.bl-asset-build-filter{align-self:center;height:28px;margin-right:6px;padding:0 6px;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface);color:var(--ink);font:10.5px var(--mono)}
+.bl-build-fields{display:grid;grid-template-columns:1.2fr 1.2fr .8fr;gap:8px}
+.bl-build-fields label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--ink-3)}
+@media(max-width:560px){.bl-build-fields{grid-template-columns:1fr}}
+.bl-optional{margin-left:6px;color:var(--ink-4);font:10px var(--mono);font-weight:400;text-transform:uppercase;letter-spacing:.05em}

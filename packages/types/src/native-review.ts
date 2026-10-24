@@ -16,7 +16,7 @@ export interface NativeReviewLaunchResult {
 }
 
 export interface NativeReviewInfo {
-  project: { id: string; name: string; target_origin: string; my_role?: "viewer" | "commenter" | "editor" | "manager" | null };
+  project: { id: string; name: string; target_origin: string; my_role?: "viewer" | "commenter" | "editor" | "manager" | null; variant?: string | null };
   authorName: string;
   member: boolean;
   returnUrl: string;

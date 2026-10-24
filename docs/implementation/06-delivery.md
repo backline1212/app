@@ -4685,3 +4685,11 @@ database migration, or production deployment is claimed.
   unbounded notification limit, cross-tenant client-list scans and per-URL boto3
   clients.
 - Verification: ruff/format/mypy/scoping; guarded-connect probe; guest/widget flows.
+
+# 2026-10-24: Web App and Mobile App projects (TDR-0149)
+
+- Web App (website + steps to reproduce + diagnostics) and Mobile App (build/device
+  screens in a phone frame, build filter) replace the last project-type Coming soon
+  items. Fixed snapshot hash validation that made every widget page-version capture
+  fail. Extension 0.5.1.
+- Verification: static checks; Chromium creation and review of both types.

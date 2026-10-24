@@ -94,6 +94,7 @@ export function AssetReview({
   onShare,
   onSettings,
   renderSidePanel,
+  variant,
 }: {
   projectId: string;
   title: string;
@@ -110,6 +111,8 @@ export function AssetReview({
   /** The team's side panel - the same Details/Comments/MCP/Integrations drawer the website
    * review uses. Guests get the built-in comments drawer instead. */
   renderSidePanel?: (context: AssetSidePanelContext) => ReactNode;
+  /** Guests pass the project's review flavour from the share link. */
+  variant?: string | null;
 }) {
   const online = useOnlineStatus();
   const cache = useQueryClient();
@@ -185,6 +188,13 @@ export function AssetReview({
   const requestedPageId = viewParams.get("page");
   const asset = assetId ? availableAssets?.find(a => a.id === assetId) : requestedPageId ? availableAssets?.find(a => a.page_id === requestedPageId) : availableAssets?.[0];
   const isPdf = asset ? asset.content_type === "application/pdf" : project?.project_type === "pdf";
+  // Mobile App projects: screens from app builds, shown in a device frame and
+  // filterable by build.
+  const mobile = (project?.variant ?? variant) === "mobile";
+  const builds = mobile ? Array.from(new Set((availableAssets ?? []).map(file => file.build_label ?? ""))) : [];
+  const [buildFilter, setBuildFilter] = useState<string | null>(null);
+  const tabAssets = mobile && buildFilter !== null ? (availableAssets ?? []).filter(file => (file.build_label ?? "") === buildFilter) : availableAssets;
+  const buildLine = (file: api.Asset) => [file.build_label && `Build ${file.build_label}`, file.device, file.platform].filter(Boolean).join(" · ");
   const requestedAnchor = requestedComment?.id === selected ? requestedComment.anchor as { asset_id?: string; region?: api.Region } : undefined;
   const requestedFile = requestedAnchor?.asset_id ? availableAssets?.find(file => file.id === requestedAnchor.asset_id) : undefined;
   const resolvingRequested = Boolean(requestedFile && (assetId !== requestedFile.id || page !== Math.min(requestedFile.page_count, documentPage(String(requestedAnchor?.region?.page_number ?? 1)))));
@@ -527,7 +537,7 @@ export function AssetReview({
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); submitReply(); }
   }
 
-  const typeLabel = isPdf ? "PDF" : "Image";
+  const typeLabel = isPdf ? "PDF" : mobile ? "Mobile app" : "Image";
   const sidePanel = renderSidePanel?.({
     currentPageId: asset?.page_id ?? null,
     selectedCommentId: selected || null,
@@ -554,7 +564,7 @@ export function AssetReview({
             <span className="bl-review-environment is-file"><i aria-hidden="true" />{typeLabel}</span>
           </div>
           <span className="bl-review-url" title={asset?.filename}>
-            <span>{asset ? `${asset.filename}${isPdf ? ` · ${asset.page_count} page${asset.page_count === 1 ? "" : "s"}` : ""}` : guest ? (guestName ? `Reviewing as ${guestName}` : "Guest review") : "File review"}</span>
+            <span>{asset ? `${asset.filename}${isPdf ? ` · ${asset.page_count} page${asset.page_count === 1 ? "" : "s"}` : ""}${mobile && buildLine(asset) ? ` · ${buildLine(asset)}` : ""}` : guest ? (guestName ? `Reviewing as ${guestName}` : "Guest review") : "File review"}</span>
           </span>
         </div>
       </div>
@@ -589,10 +599,14 @@ export function AssetReview({
         {assets.isLoading && <div className="bl-review-tabs-loading" role="status" aria-label="Loading files"><i /><i /><i /></div>}
         {assets.error && !availableAssets && <div className="bl-review-page-error" role="alert"><span>Files unavailable.</span><button type="button" disabled={assets.isFetching} onClick={() => void assets.refetch()}>Retry</button></div>}
         {!assets.isLoading && !assets.error && !availableAssets?.length && <span className="bl-review-page-empty">No files yet.{project ? " Add images or a PDF from Manage files." : " The team has not uploaded a file yet."}</span>}
-        {availableAssets?.map((file) => (
-          <button key={file.id} type="button" role="tab" aria-selected={asset?.id === file.id} title={file.filename} disabled={hasDraft && asset?.id !== file.id} onClick={() => selectFile(file)}>
+        {mobile && builds.length > 1 && <select className="bl-asset-build-filter" aria-label="Build" value={buildFilter ?? "__all"} disabled={hasDraft} onChange={(event) => setBuildFilter(event.target.value === "__all" ? null : event.target.value)}>
+          <option value="__all">All builds</option>
+          {builds.map(label => <option key={label} value={label}>{label ? `Build ${label}` : "No build"}</option>)}
+        </select>}
+        {tabAssets?.map((file) => (
+          <button key={file.id} type="button" role="tab" aria-selected={asset?.id === file.id} title={mobile && buildLine(file) ? `${file.filename} · ${buildLine(file)}` : file.filename} disabled={hasDraft && asset?.id !== file.id} onClick={() => selectFile(file)}>
             <FileGlyph pdf={file.content_type === "application/pdf"} />
-            <span>{file.filename}</span>
+            <span>{file.filename}{mobile && file.device ? <small className="bl-asset-tab-meta">{file.device}</small> : null}</span>
             {asset?.id === file.id && <i aria-hidden="true" />}
           </button>
         ))}
@@ -613,7 +627,7 @@ export function AssetReview({
     })()}
     <section className="bl-review-main" aria-label="File review canvas">
       <div ref={stageRef} className={`bl-review-stage bl-asset-stage ${annotationMode ? "is-commenting" : "is-browsing"}`} onScroll={draft ? placeComposer : undefined}>
-        {asset ? <div className="bl-asset-frame" style={frameSize}><div ref={sheetRef} className={`bl-asset-sheet ${annotationMode ? 'commenting' : ''}`} style={{ maxWidth: fitWidth ?? undefined, transform: `translate(-50%, -50%) scale(${zoomScale}) rotate(${rotation}deg)` }} onPointerDown={handleContainerDown} onPointerMove={handleContainerMove} onPointerUp={handleContainerUp} onPointerCancel={handleContainerCancel}>
+        {asset ? <div className="bl-asset-frame" style={frameSize}><div ref={sheetRef} className={`bl-asset-sheet ${annotationMode ? 'commenting' : ''}${mobile ? ' is-device' : ''}`} style={{ maxWidth: fitWidth ?? undefined, transform: `translate(-50%, -50%) scale(${zoomScale}) rotate(${rotation}deg)` }} onPointerDown={handleContainerDown} onPointerMove={handleContainerMove} onPointerUp={handleContainerUp} onPointerCancel={handleContainerCancel}>
           <AssetPreview key={asset.id} asset={asset} projectId={projectId} pageNumber={page} guest={guest} onReady={onMediaReady} />
           {mediaReady && roots.map((comment) => {
             const region = tempRegion?.id === comment.id ? tempRegion.region : regionOf(comment)!;

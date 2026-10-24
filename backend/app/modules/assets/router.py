@@ -90,6 +90,9 @@ async def upload_asset(
     request: Request,
     file: UploadFile = File(...),
     client_request_id: str | None = Form(default=None, min_length=1, max_length=64),
+    build_label: str | None = Form(default=None, max_length=80),
+    device: str | None = Form(default=None, max_length=80),
+    platform: str | None = Form(default=None, max_length=40),
     session: Session = Depends(require_project_permission("asset:upload")),
 ) -> AssetOut:
     await check_rate_limit(
@@ -106,6 +109,9 @@ async def upload_asset(
         file.filename or "Untitled",
         data,
         client_request_id=client_request_id,
+        build_label=build_label,
+        device=device,
+        platform=platform,
     )
 
 

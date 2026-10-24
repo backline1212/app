@@ -236,6 +236,7 @@ async def resolve_share_link(
         project_id=str(project["_id"]),
         project_name=project["name"],
         project_type=project.get("project_type", "website"),
+        variant=project.get("variant"),
         mode=link["mode"],
         requires_passcode=link["passcode_hash"] is not None,
         target_origin=review_origin(project["target_origin"]),

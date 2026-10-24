@@ -50,6 +50,15 @@ def _page_path(url_normalized: str | None) -> str | None:
         return None
 
 
+def _project_kind(project: dict[str, Any]) -> str:
+    variant = project.get("variant")
+    if variant == "webapp":
+        return "Web app"
+    if variant == "mobile":
+        return "Mobile app"
+    return {"image": "Image", "pdf": "PDF"}.get(project.get("project_type", "website"), "Website")
+
+
 async def _hidden(db: AsyncIOMotorDatabase[dict[str, Any]], viewer: Session | None) -> list[str]:
     return await session_hidden_project_ids(db, viewer) if viewer is not None else []
 
@@ -82,7 +91,7 @@ async def search(
             kind="project",
             id=str(project["_id"]),
             title=project["name"],
-            subtitle=f"{project.get('project_type', 'website').title()} project",
+            subtitle=f"{_project_kind(project)} project",
             project_id=str(project["_id"]),
         )
         for project in projects

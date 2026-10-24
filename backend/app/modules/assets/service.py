@@ -110,6 +110,9 @@ async def upload_asset(
     data: bytes,
     *,
     client_request_id: str | None = None,
+    build_label: str | None = None,
+    device: str | None = None,
+    platform: str | None = None,
 ) -> AssetOut:
     workspace_id, actor = await _upload_access(db, project_id, actor)
     project = await get_project(db, project_id=project_id, workspace_id=workspace_id)
@@ -202,6 +205,15 @@ async def upload_asset(
                 "created_by": actor.user_id,
                 "client_request_id": client_request_id,
                 "request_fingerprint": fingerprint,
+                **{
+                    field: value.strip()
+                    for field, value in (
+                        ("build_label", build_label),
+                        ("device", device),
+                        ("platform", platform),
+                    )
+                    if value and value.strip()
+                },
             },
             session=session,
         )
@@ -269,6 +281,10 @@ async def update_asset(
         patch: dict[str, Any] = {}
         if body.filename is not None:
             patch["filename"] = body.filename
+        for field in ("build_label", "device", "platform"):
+            value = getattr(body, field)
+            if value is not None:
+                patch[field] = value.strip() or None
         if body.archived is not None:
             if not body.archived and doc.get("archived_at") is not None:
                 limit = 1 if project.project_type == "pdf" else 50

@@ -40,6 +40,8 @@ class ShareLinkOut(BaseModel):
 class ReviewResolveOut(BaseModel):
     share_link_id: str
     project_type: str = "website"
+    # "webapp" / "mobile" review flavour (projects/schemas.py ProjectVariant).
+    variant: str | None = None
     project_id: str
     project_name: str
     mode: ShareLinkMode
