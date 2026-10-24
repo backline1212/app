@@ -170,7 +170,7 @@ export function setupRegionDrawer({
       shadow,
       finalLeft,
       finalTop + finalHeight, // open below the region
-      async ({ body, attachments, tags }) => {
+      async ({ body, attachments, tags, diagnostics }) => {
         try {
           const created = await submission.submit(async () => {
             controls.setStatus("Capturing region anchor + screenshot...");
@@ -201,6 +201,7 @@ export function setupRegionDrawer({
                 device_type: deviceType,
                 viewport: { width: window.innerWidth, height: window.innerHeight },
                 url: window.location.href,
+                ...(diagnostics ? { diagnostics } : {}),
               },
               screenshot_key: screenshotKey,
               capture_status: screenshotKey ? "ok" : "failed",

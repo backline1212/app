@@ -56,3 +56,19 @@ export async function getAssetContent(projectId: string, assetId: string, guest?
     return response.blob();
   }, signal);
 }
+
+/** Comment attachment (file or screen/voice recording) for the file review composer,
+ * through the same-origin relay. Guests authenticate with their review session. */
+export async function uploadReviewAttachment(projectId: string, file: File, guest?: string): Promise<Schemas['AttachmentIn']> {
+  if (!file.size || file.size > 20 * 1024 * 1024) throw new Error(`${file.name} must contain data and be at most 20 MB.`);
+  const form = new FormData();
+  form.append('project_id', projectId);
+  form.append('file', file, file.name);
+  const stored = await boundedRequest(150_000, 'Upload confirmation timed out. Check the attachment before adding it again.', async signal => {
+    if (!guest) return apiFetch<Schemas['StoredUploadOut']>('/api/v1/uploads/direct', { method: 'POST', body: form, signal });
+    const response = await fetch(`${API_BASE_URL}/api/v1/uploads/direct`, { method: 'POST', body: form, signal, credentials: 'omit', headers: { 'X-Guest-Session': guest } });
+    if (!response.ok) throw await toApiError(response, 'UPLOAD_ERROR', 'The attachment could not be uploaded.');
+    return response.json() as Promise<Schemas['StoredUploadOut']>;
+  });
+  return { key: stored.key, filename: file.name, content_type: file.type || 'application/octet-stream' };
+}

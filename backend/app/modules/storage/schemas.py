@@ -16,6 +16,14 @@ _SUPPORTED_CONTENT_TYPES = (
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "text/markdown",
+    # Screen and voice recordings made in the comment composer (MediaRecorder output:
+    # WebM in Chromium/Firefox, MP4 in Safari). Same 20 MiB cap as every upload; the
+    # recorder stops itself before reaching it.
+    "video/webm",
+    "video/mp4",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg",
 )
 _CONTENT_TYPE_PATTERN = (
     "^(" + "|".join(t.replace(".", r"\.") + "$" for t in _SUPPORTED_CONTENT_TYPES) + ")"

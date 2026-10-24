@@ -21,6 +21,9 @@ export { uploadAttachment, uploadScreenshot } from "./attachment-upload";
 
 export { captureScreenshot } from "./screenshot";
 
+export { installDiagnosticsCapture, recordDiagnostic } from "./diagnostics";
+export type { DiagnosticEntry, Diagnostics } from "./diagnostics";
+
 export { parseUserAgent } from "./user-agent";
 
 export { registerCurrentPage, submitPageSnapshot, capturePageVersion } from "./page-registration";

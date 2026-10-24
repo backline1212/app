@@ -15,6 +15,7 @@ from app.core.project_access import can_view_project
 from app.core.session import Actor, GuestSession, Session, actor_identity, validate_member_session
 from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
+from app.modules.comments.diagnostics import sanitize_diagnostics, scrub_text
 from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.schemas import (
@@ -517,9 +518,20 @@ def _redact_context(context: ContextIn, *, capture_device_details: bool) -> dict
     only the browser/OS/device/viewport metadata this project's settings actually
     describe is gated. `url` is kept either way - it identifies which page the
     comment was left on, not a device fingerprint."""
-    if capture_device_details:
-        return context.model_dump()
-    return {"url": context.url, "browser": "", "os": "", "device_type": "", "viewport": {}}
+    base: dict[str, Any] = (
+        context.model_dump(exclude={"diagnostics", "steps_to_reproduce"})
+        if capture_device_details
+        else {"url": context.url, "browser": "", "os": "", "device_type": "", "viewport": {}}
+    )
+    # Console/network evidence and reproduction steps are attached explicitly by the
+    # reviewer for this one comment, so they don't depend on the device-details setting;
+    # they are scrubbed of query strings and obvious secrets before storage.
+    diagnostics = sanitize_diagnostics(context.diagnostics)
+    if diagnostics is not None:
+        base["diagnostics"] = diagnostics
+    if context.steps_to_reproduce and context.steps_to_reproduce.strip():
+        base["steps_to_reproduce"] = scrub_text(context.steps_to_reproduce.strip())
+    return base
 
 
 async def create_comment(

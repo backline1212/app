@@ -287,6 +287,11 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     if (generation !== activationGeneration || !after.active || after.url !== message.url) throw new Error("The page changed during capture. Please retry.");
     return data;
   }
+  if (message.type === "native-review-diagnostics") {
+    // Top frame only, and only for the tab bound to this review.
+    await chrome.scripting.executeScript({ target: { tabId, frameIds: [0] }, world: "MAIN", files: ["main-world.js"] });
+    return;
+  }
   if (message.type === "native-review-upload") {
     const data = message.file as { data: string; name: string; type: string };
     if (!data.data.startsWith("data:") || data.data.length > 28_000_000) throw new Error("Attachment is too large.");

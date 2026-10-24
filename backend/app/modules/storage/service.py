@@ -26,6 +26,11 @@ _EXTENSION_BY_CONTENT_TYPE = {
     "application/vnd.ms-excel": "xls",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
     "text/markdown": "md",
+    "video/webm": "webm",
+    "video/mp4": "mp4",
+    "audio/webm": "weba",
+    "audio/mp4": "m4a",
+    "audio/ogg": "ogg",
 }
 
 

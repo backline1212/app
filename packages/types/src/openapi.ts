@@ -2562,6 +2562,8 @@ export interface components {
             layer: "client" | "team";
             /** Tags */
             tags?: ("Bug" | "Copy" | "Design" | "Responsive" | "Content" | "Accessibility")[];
+            /** Attachments */
+            attachments?: components["schemas"]["AttachmentIn"][];
             /** Client Request Id */
             client_request_id?: string | null;
         };
@@ -3048,6 +3050,25 @@ export interface components {
             /** Enterprise */
             enterprise: string;
         };
+        /**
+         * ConsoleEntryIn
+         * @description One console error/warning (or uncaught error/rejection) the reviewer chose to
+         *     attach. Captured in the reviewed page only while Backline is loaded there.
+         */
+        ConsoleEntryIn: {
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "error" | "warn";
+            /** Message */
+            message: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
         /** ContextIn */
         ContextIn: {
             /** Browser */
@@ -3062,6 +3083,9 @@ export interface components {
             device_type: string;
             /** Url */
             url: string;
+            diagnostics?: components["schemas"]["DiagnosticsIn"] | null;
+            /** Steps To Reproduce */
+            steps_to_reproduce?: string | null;
         };
         /**
          * CookieIn
@@ -3234,6 +3258,13 @@ export interface components {
             name: string;
             /** Group */
             group?: string | null;
+        };
+        /** DiagnosticsIn */
+        DiagnosticsIn: {
+            /** Console */
+            console?: components["schemas"]["ConsoleEntryIn"][];
+            /** Network */
+            network?: components["schemas"]["NetworkEntryIn"][];
         };
         /** DiscordIntegrationCreate */
         DiscordIntegrationCreate: {
@@ -3989,6 +4020,26 @@ export interface components {
             created_at: string;
             /** Decided At */
             decided_at?: string | null;
+        };
+        /**
+         * NetworkEntryIn
+         * @description A failed request seen by the reviewed page: method, address without its query
+         *     string or fragment, and the status (0 for a network error). Never headers or bodies.
+         */
+        NetworkEntryIn: {
+            /** Method */
+            method: string;
+            /** Url */
+            url: string;
+            /** Status */
+            status: number;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
         };
         /** NotificationOut */
         NotificationOut: {

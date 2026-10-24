@@ -3095,3 +3095,35 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 /* The form's fields sit inside a <fieldset> (disabled while saving), which swallowed the
    form's flex gap - Client's help text ran straight into the "Project name" label. */
 .bl-project-form>fieldset{display:flex;flex-direction:column;gap:15px}
+
+/* Screen/voice recording and captured diagnostics (features/comments/RecordButtons.tsx). */
+.bl-record-button{display:inline-flex;align-items:center;gap:6px}
+.bl-record-button.is-recording{border-style:solid!important;border-color:#C2361B!important;background:#FFF4F1!important;color:#A3260F!important;font-variant-numeric:tabular-nums}
+.bl-record-button.is-recording svg{color:#C2361B;animation:bl-rec-pulse 1.2s ease-in-out infinite}
+@keyframes bl-rec-pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.bl-record-button.is-recording svg{animation:none}}
+.bl-record-message{color:var(--ink-3);font-size:11px}
+.bl-media-attachment{display:block;width:100%;max-width:420px;max-height:260px;margin-top:6px;border-radius:3px;background:#0B0B0B}
+.bl-media-attachment.is-audio{height:38px;background:none}
+.bl-diagnostics{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.bl-diagnostics-steps{padding:8px 10px;border:1px solid var(--line);border-radius:3px;background:var(--bl-paper)}
+.bl-diagnostics-steps strong{display:block;margin-bottom:4px;color:var(--ink-3);font:10px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.bl-diagnostics-steps p{margin:0;font-size:12px;line-height:1.5;white-space:pre-wrap}
+.bl-diagnostics details{border:1px solid #F1D6CC;border-radius:3px;background:#FFF7F4}
+.bl-diagnostics summary{display:flex;align-items:center;gap:8px;padding:7px 10px;color:#8A2E17;font-size:11.5px;font-weight:600;cursor:pointer}
+.bl-diagnostics summary span{margin-left:auto;color:#A3260F;font:10px var(--mono);font-weight:400}
+.bl-diagnostics ol{list-style:none;margin:0;padding:0 10px 8px;max-height:260px;overflow:auto}
+.bl-diagnostics li{display:grid;grid-template-columns:auto auto 1fr;gap:7px;align-items:baseline;padding:4px 0;border-top:1px solid #F5E2DA;font-size:11px}
+.bl-diagnostics time{color:var(--ink-4);font:10px var(--mono)}
+.bl-diagnostics em{padding:1px 5px;border-radius:2px;font:9.5px var(--mono);font-style:normal;text-transform:uppercase}
+.bl-diagnostics em.is-error,.bl-diagnostics em.is-network{background:#FBE1D9;color:#A3260F}
+.bl-diagnostics em.is-warn{background:var(--amber-tint);color:var(--amber-ink)}
+.bl-diagnostics code{min-width:0;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--ink-2);font:10.5px/1.45 var(--mono)}
+:root.dark .bl-diagnostics details{background:#2A1A15;border-color:#4A2A20}
+:root.dark .bl-diagnostics summary,:root.dark .bl-diagnostics summary span{color:#F2A58F}
+:root.dark .bl-diagnostics li{border-top-color:#3A231C}
+.bl-asset-composer-files{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px}
+.bl-asset-composer-files .bl-cd-shot-add,.bl-asset-composer-files .bl-record-button{height:28px;padding:0 9px;border:1px dashed var(--line);border-radius:3px;background:var(--bl-surface);color:var(--ink-3);font-size:11.5px}
+.bl-asset-composer-files .bl-cd-shot-add:hover:not(:disabled){border-color:var(--ink);border-style:solid;color:var(--ink)}
+.bl-asset-composer-files .bl-cd-shot-add:disabled{opacity:.5}
+.bl-asset-attachments{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}

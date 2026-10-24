@@ -1,5 +1,7 @@
 import { ATTACHMENT_ACCEPT, setupAttachments, type AttachmentResult } from "./ui-attachments";
 import { cardHeaderHtml, escapeHtml, observeCardPlacement, placeCard, svg, TAG_ICONS } from "./ui-card";
+import { diagnosticsSnapshot, diagnosticsSummary, onDiagnosticsChange, type Diagnostics } from "./diagnostics";
+import { formatDuration, MAX_RECORDING_SECONDS, recordingSupported, startRecording, type RecordingHandle, type RecordingKind } from "./recorder";
 
 // The first four of the backend's Tag vocabulary (comments/schemas.py's Tag literal) -
 // the same four the design's "Tag this as" row offers. Single-select with the first one
@@ -11,6 +13,8 @@ export interface ComposerResult {
   body: string;
   attachments: AttachmentResult[];
   tags: ComposerTag[];
+  /** Console & network errors the reviewer chose to attach, or null. */
+  diagnostics: Diagnostics | null;
 }
 
 /** What the composer shows about who's commenting and where - the header's avatar and
@@ -32,6 +36,10 @@ const GLOBE_ICON = '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 
 const REGION_ICON = '<rect x="3" y="3" width="18" height="18" rx="2"/>';
 const IMAGE_ICON = '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.7"/><path d="M21 15l-5-5L5 20"/>';
 const ARROW_ICON = '<path d="M5 12h14M13 6l6 6-6 6"/>';
+const RECORD_ICON = '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/>';
+const MIC_ICON = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>';
+const STOP_ICON = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>';
+const BUG_ICON = '<path d="M8 6h8M9 3l1.5 3M15 3l-1.5 3"/><rect x="6" y="6" width="12" height="14" rx="6"/><path d="M3 11h3M18 11h3"/>';
 
 // Same width breakpoints the design's devKind() uses.
 function deviceKind(width: number): keyof typeof DEVICE_ICONS {
@@ -199,8 +207,15 @@ export function openComposer(
       <div class="bl-cp-shots">
         <div class="bl-attachments"></div>
         <button type="button" class="bl-attach-button bl-cp-attach">${svg(IMAGE_ICON, 1.8, 14)}<span class="bl-cp-attach-label">Attach a screenshot</span></button>
+        ${recordingSupported("screen") ? `<button type="button" class="bl-cp-attach bl-cp-record" data-kind="screen" title="Record your screen (up to ${MAX_RECORDING_SECONDS / 60} minutes)">${svg(RECORD_ICON, 1.8, 14)}<span>Record screen</span></button>` : ""}
+        ${recordingSupported("voice") ? `<button type="button" class="bl-cp-attach bl-cp-record" data-kind="voice" title="Record a voice note (up to ${MAX_RECORDING_SECONDS / 60} minutes)">${svg(MIC_ICON, 1.8, 14)}<span>Voice note</span></button>` : ""}
         <input type="file" class="bl-attach-input" accept="${ATTACHMENT_ACCEPT}" multiple hidden aria-label="Choose files to attach" />
       </div>
+      <label class="bl-cp-diag" hidden>
+        <input type="checkbox" class="bl-cp-diag-input" />
+        ${svg(BUG_ICON, 1.8, 13)}
+        <span class="bl-cp-diag-label"></span>
+      </label>
       <div class="bl-cp-ctx">
         ${svg(DEVICE_ICONS[device])}${device}
         <span class="bl-cp-sep" aria-hidden="true"></span>${svg(GLOBE_ICON)}${escapeHtml(details.browser)}
@@ -228,6 +243,31 @@ export function openComposer(
   const attachLabel = composer.querySelector<HTMLSpanElement>(".bl-cp-attach-label")!;
   const tagButtons = Array.from(composer.querySelectorAll<HTMLButtonElement>(".bl-cp-tag"));
   const textarea = composer.querySelector("textarea")!;
+  const recordButtons = Array.from(composer.querySelectorAll<HTMLButtonElement>(".bl-cp-record"));
+  const diagRow = composer.querySelector<HTMLLabelElement>(".bl-cp-diag")!;
+  const diagInput = composer.querySelector<HTMLInputElement>(".bl-cp-diag-input")!;
+  const diagLabel = composer.querySelector<HTMLSpanElement>(".bl-cp-diag-label")!;
+  let diagTouched = false;
+  function renderDiagnostics(): void {
+    const { errors, warnings, requests } = diagnosticsSummary();
+    const parts = [
+      errors ? `${errors} console error${errors === 1 ? "" : "s"}` : "",
+      warnings ? `${warnings} warning${warnings === 1 ? "" : "s"}` : "",
+      requests ? `${requests} failed request${requests === 1 ? "" : "s"}` : "",
+    ].filter(Boolean);
+    diagRow.hidden = parts.length === 0;
+    diagLabel.textContent = `Attach ${parts.join(", ")}`;
+    const snapshot = diagnosticsSnapshot();
+    diagRow.title = snapshot
+      ? [...snapshot.console.slice(-5).map(e => `${e.level.toUpperCase()}: ${e.message.slice(0, 140)}`), ...snapshot.network.slice(-5).map(e => `${e.method} ${e.url} → ${e.status || "failed"}`)].join("\n")
+      : "";
+    // Ticked by default when something went wrong; the reviewer can untick it.
+    if (!diagTouched) diagInput.checked = errors + requests > 0;
+  }
+  diagInput.addEventListener("change", () => { diagTouched = true; });
+  renderDiagnostics();
+  const stopDiagnosticsWatch = onDiagnosticsChange(renderDiagnostics);
+  let recording: { handle: RecordingHandle; button: HTMLButtonElement; timer: number } | null = null;
   const attachments = setupAttachments(
     composer,
     uploadFile,
@@ -252,7 +292,7 @@ export function openComposer(
   const hasDraft = (): boolean =>
     !closed &&
     !posted &&
-    (submitted || textarea.value.trim() !== "" || attachments.getAttachments().length > 0 || attachments.pendingCount() > 0 || attachments.failedCount() > 0);
+    (submitted || recording !== null || textarea.value.trim() !== "" || attachments.getAttachments().length > 0 || attachments.pendingCount() > 0 || attachments.failedCount() > 0);
 
   function nudge(): void {
     if (closed) return;
@@ -285,6 +325,8 @@ export function openComposer(
     if (closed) return;
     closed = true;
     if (activeComposer === handle) activeComposer = null;
+    if (recording) { window.clearInterval(recording.timer); recording.handle.cancel(); recording = null; }
+    stopDiagnosticsWatch();
     stopPlacement();
     stopAutoGrow();
     removeOutsideClickListener();
@@ -306,6 +348,8 @@ export function openComposer(
     }
     textarea.readOnly = disabled || retryLocked;
     for (const button of tagButtons) button.disabled = disabled || retryLocked;
+    for (const button of recordButtons) button.disabled = disabled || retryLocked || (recording !== null && recording.button !== button);
+    diagInput.disabled = disabled || retryLocked;
     if (disabled || retryLocked) attachments.disable();
     else attachments.enable();
   }
@@ -316,6 +360,10 @@ export function openComposer(
     if (!body) {
       statusEl.textContent = "Write a comment before posting.";
       textarea.focus({ preventScroll: true });
+      return;
+    }
+    if (recording) {
+      statusEl.textContent = "Stop the recording before posting.";
       return;
     }
     // Posting now would silently leave a still-uploading file off the comment.
@@ -334,7 +382,7 @@ export function openComposer(
     // Capture/anchor/upload callbacks can throw before they reach their API error
     // handler. Handle both synchronous throws and rejected promises here so every
     // adapter keeps the draft and restores its controls for an explicit retry.
-    void Promise.resolve().then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag] })).then((ok) => {
+    void Promise.resolve().then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null })).then((ok) => {
       if (closed) return;
       if (ok) {
         posted = true;
@@ -362,6 +410,53 @@ export function openComposer(
       textarea.focus({ preventScroll: true });
     });
   }
+
+  async function toggleRecording(button: HTMLButtonElement): Promise<void> {
+    if (submitted || retryLocked || closed) return;
+    if (recording) {
+      if (recording.button === button) recording.handle.stop();
+      return;
+    }
+    const kind = button.dataset.kind as RecordingKind;
+    const label = button.querySelector("span")!;
+    const idleLabel = label.textContent ?? "";
+    const idleIcon = button.querySelector("svg")!.outerHTML;
+    for (const other of recordButtons) if (other !== button) other.disabled = true;
+    button.disabled = true;
+    statusEl.textContent = kind === "screen" ? "Choose a tab, window or screen to record…" : "Allow microphone access to record…";
+    let handle: RecordingHandle;
+    try {
+      // Screen recordings also ask for the microphone so the reviewer can talk it
+      // through; declining that prompt still records the screen.
+      handle = await startRecording(kind, true);
+    } catch (error) {
+      for (const other of recordButtons) other.disabled = false;
+      if (!closed) statusEl.textContent = error instanceof Error ? error.message : "Recording could not start.";
+      return;
+    }
+    if (closed) { handle.cancel(); return; }
+    button.disabled = false;
+    button.classList.add("bl-is-recording");
+    button.querySelector("svg")!.outerHTML = svg(STOP_ICON, 1.8, 14);
+    const tick = () => { label.textContent = `Stop · ${formatDuration(handle.elapsedSeconds())} / ${formatDuration(MAX_RECORDING_SECONDS)}`; };
+    tick();
+    statusEl.textContent = kind === "screen" ? "Recording your screen. Press Stop when you're done." : "Recording a voice note. Press Stop when you're done.";
+    recording = { handle, button, timer: window.setInterval(tick, 500) };
+    const file = await handle.done;
+    if (recording?.handle === handle) { window.clearInterval(recording.timer); recording = null; }
+    if (closed) return;
+    button.classList.remove("bl-is-recording");
+    button.querySelector("svg")!.outerHTML = idleIcon;
+    label.textContent = idleLabel;
+    for (const other of recordButtons) other.disabled = false;
+    if (file) {
+      statusEl.textContent = "Recording added. It uploads now and is attached when you post.";
+      attachments.addFiles([file]);
+    } else {
+      statusEl.textContent = "Nothing was recorded.";
+    }
+  }
+  for (const button of recordButtons) button.addEventListener("click", () => void toggleRecording(button));
 
   closeButton.addEventListener("click", cancel);
   cancelButton.addEventListener("click", cancel);
