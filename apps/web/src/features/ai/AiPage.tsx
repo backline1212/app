@@ -28,14 +28,14 @@ const CAPABILITIES: {
     action: "summarize",
     title: "Thread summaries",
     description: "Condenses a long comment thread into a short paragraph: what was asked, what changed and what is still open.",
-    where: "Open a project's ticket board, open a ticket, then choose Summarize.",
+    where: "Open any ticket, then choose Summarize.",
     icon: SparklesIcon,
   },
   {
     action: "suggest_reply",
     title: "Suggested replies",
     description: "Drafts a reply from the thread's context. Send it as it is, edit it first, or throw it away.",
-    where: "In any comment's detail, choose “Write a reply for me”. On the board, choose Suggest Replies.",
+    where: "In any comment's detail, choose “Write a reply for me”. In any ticket, choose Suggest replies.",
     icon: CommentBubbleIcon,
   },
   {

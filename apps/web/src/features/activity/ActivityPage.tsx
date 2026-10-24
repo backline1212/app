@@ -49,20 +49,36 @@ const EVENT_PHRASES: Record<string, string> = {
   "member.removed": "removed",
   "member.role_changed": "changed the role of",
   "page.created": "added a page",
+  "page.registered": "added a page",
   "page.updated": "updated a page",
   "page.deleted": "deleted a page",
   "pages.reordered": "reordered the pages",
   "integration.connected": "connected an integration",
   "integration.disconnected": "disconnected an integration",
   "integration.ticket_created": "filed a tracker issue for",
-  "guest_session.created": "opened a review link",
+  "guest_session.created": "opened the review link",
   "revision.created": "captured a new page version",
   "asset.created": "uploaded a file",
   "workspace.updated": "updated the workspace",
 };
 
-function eventPhrase(type: string) {
-  return EVENT_PHRASES[type] ?? type.replace(/\./g, " ").replace(/_/g, " ");
+type ActivityItem = Schemas["ActivityListOut"]["items"][number];
+
+function eventPhrase(event: ActivityItem) {
+  if (event.is_reply && event.type === "comment.created") return "replied on";
+  return EVENT_PHRASES[event.type] ?? event.type.replace(/\./g, " ").replace(/_/g, " ");
+}
+
+// Back-to-back repeats of the same thing by the same person on the same project
+// (a client reopening a review link five times) read as one row with a count.
+function collapseRepeats(events: ActivityItem[]): { event: ActivityItem; count: number }[] {
+  const rows: { event: ActivityItem; count: number }[] = [];
+  for (const event of events) {
+    const last = rows[rows.length - 1];
+    if (last && !event.comment_id && !event.name && last.event.type === event.type && last.event.actor_id === event.actor_id && last.event.project_id === event.project_id && !last.event.comment_id && !last.event.name) last.count += 1;
+    else rows.push({ event, count: 1 });
+  }
+  return rows;
 }
 
 function eventMeta(type: string) {
@@ -82,7 +98,7 @@ export function ActivityPage() {
   function page(value: number) { setParams({ type: filter, offset: String(value) }); }
 
   const groups = useMemo(() => {
-    const result = new Map<string, Schemas["ActivityListOut"]["items"]>();
+    const result = new Map<string, ActivityItem[]>();
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const yesterday = today - 86400000;
@@ -94,7 +110,7 @@ export function ActivityPage() {
       else if (ts >= yesterday) label = "Yesterday";
       result.set(label, [...(result.get(label) ?? []), event]);
     }
-    return [...result.entries()];
+    return [...result.entries()].map(([label, events]) => [label, collapseRepeats(events)] as const);
   }, [query.data?.items]);
 
   return <main className="bl-wrap">
@@ -108,7 +124,7 @@ export function ActivityPage() {
     <div className="bl-tabs">
       <button aria-pressed={filter === ""} onClick={() => setParams({ type: "", offset: "0" })}>Everything</button>
       {FILTERS.map((t) =>
-        <button key={t} aria-pressed={filter === t} onClick={() => setParams({ type: t, offset: "0" })}>
+        <button key={t} aria-pressed={filter === t} title={t === "clients" ? "What clients did on review links, and changes to client records" : undefined} onClick={() => setParams({ type: t, offset: "0" })}>
           {t.charAt(0).toUpperCase() + t.slice(1)}
         </button>
       )}
@@ -122,8 +138,9 @@ export function ActivityPage() {
         <section key={date}>
           <h2 className="bl-group-title">{date}</h2>
           <div className="bl-activity" style={{ marginBottom: '20px' }}>
-            {events.map((event) => {
+            {events.map(({ event, count }) => {
               const meta = eventMeta(event.type);
+              const project = projects.data?.find((p) => p.id === event.project_id);
               const EventIcon = meta.icon;
               return (
                 <article key={event.id}>
@@ -132,22 +149,24 @@ export function ActivityPage() {
                   </span>
                   <div>
                     <p style={{ margin: 0 }}>
-                      <strong>{members.data?.find((m) => m.user_id === event.actor_id)?.name ?? (event.actor_type === "system" ? "Backline" : event.actor_type === "guest" ? "Reviewer" : "Team member")}</strong>
-                      {" " + eventPhrase(event.type)}
+                      <strong>{members.data?.find((m) => m.user_id === event.actor_id)?.name ?? (event.actor_type === "system" ? "Backline" : event.actor_type === "guest" ? event.actor_name ?? "A client" : "Team member")}</strong>
+                      {event.actor_type === "guest" && <span className="bl-activity-role">Client</span>}
+                      {" " + eventPhrase(event)}
                       {event.name && <> <span className="bl-activity-obj">{event.name}</span></>}
                       {event.ticket_number != null && <> <span className="bl-tid">#{event.ticket_number}</span></>}
                       {event.comment_excerpt && <span className="bl-activity-excerpt"> “{event.comment_excerpt}”</span>}
+                      {project && !event.type.startsWith("project.") && <span className="bl-activity-in"> in {project.name}</span>}
+                      {count > 1 && <span className="bl-activity-count"> ×{count}</span>}
                     </p>
                     {event.project_id && (() => {
                       // An archived project can't be opened (its card has no link either),
                       // so point at the Archived list, where it can be restored; a deleted
                       // one has nowhere to go. Until projects load, keep the normal link.
-                      const project = projects.data?.find((p) => p.id === event.project_id);
                       if (projects.data && !project) return <span className="bl-chip">Project deleted</span>;
                       if (project?.archived_at) return <Link className="bl-chip" to={`/w/${workspace.slug}?archived=true`}>Project archived →</Link>;
                       return (
                         <Link className="bl-chip" to={`/w/${workspace.slug}/p/${event.project_id}/board${event.comment_id ? `?comment=${event.comment_id}` : ''}`}>
-                          {event.comment_id ? "Open comment →" : "View project →"}
+                          {event.comment_id ? "Open ticket →" : "View project →"}
                         </Link>
                       );
                     })()}

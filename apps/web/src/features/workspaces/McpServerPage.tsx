@@ -32,7 +32,7 @@ function useCopy() {
 // that member, within the token's access and the member's role.
 export function McpServerPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle([workspace.name, "MCP Server"]);
+  useDocumentTitle([workspace.name, "MCP server"]);
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [label, setLabel] = useState("");
@@ -86,7 +86,7 @@ export function McpServerPage() {
     <main className="bl-wrap">
       <header className="bl-head">
         <div>
-          <h1>MCP Server</h1>
+          <h1>MCP server</h1>
           <p>
             Connect Claude Code, Cursor, Codex, Antigravity or any MCP client to Backline. Your agent can read open
             feedback, get a ready-to-work brief for any ticket, reply on the thread and move it to review when the fix

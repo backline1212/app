@@ -27,7 +27,7 @@ const TABS: { id: TabId; label: string; icon: typeof DetailsIcon }[] = [
 const TAB_TITLES: Record<TabId, string> = {
   details: "About this project",
   comments: "Comments",
-  mcp: "MCP Server",
+  mcp: "MCP server",
   integrations: "Integrations",
   ai: "BugHunt AI",
 };

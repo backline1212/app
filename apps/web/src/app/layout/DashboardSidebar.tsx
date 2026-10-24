@@ -11,7 +11,7 @@ import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES } from "../../lib/workf
 import {
   ActivityClockIcon, AssignedToMeIcon, BillingIcon, ChevronDownIcon, ClientsIcon, CloseIcon,
   ExtensionsIcon, IntegrationsIcon, KeyIcon, McpIcon, MembersIcon, ProjectsIcon,
-  SettingsIcon, SparklesIcon, SwitchIcon, TicketsIcon, UsageIcon,
+  SettingsIcon, SparklesIcon, SwitchIcon, TicketsIcon,
 } from "./sidebar-icons";
 import { type RailSection, useRailSections } from "./use-rail-sections";
 
@@ -92,15 +92,15 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
 
   const toolLinks: RailItem[] = [
     { to: `${base}/integrations`, label: "Integrations", icon: IntegrationsIcon },
-    { to: `${base}/extensions`, label: "Extensions", icon: ExtensionsIcon },
+    { to: `${base}/extensions`, label: "Browser extension", icon: ExtensionsIcon },
     { to: `${base}/mcp`, label: "MCP server", icon: McpIcon },
-    { to: `${base}/ai`, label: "AI", icon: SparklesIcon },
+    // AI usage is a detail page of AI (linked from it), not a second sidebar entry.
+    { to: `${base}/ai`, label: "AI", icon: SparklesIcon, also: `${base}/usage` },
     { to: `${base}/keys`, label: "API keys", icon: KeyIcon },
-  ].map((item) => ({ ...item, active: onPage(item.to) }));
+  ].map(({ also, ...item }) => ({ ...item, active: onPage(item.to) || (also !== undefined && onPage(also)) }));
 
   const workspaceLinks: RailItem[] = [
-    { to: `${base}/members`, label: "Members", icon: MembersIcon },
-    { to: `${base}/usage`, label: "AI usage", icon: UsageIcon },
+    { to: `${base}/members`, label: "Team", icon: MembersIcon },
     { to: `${base}/billing`, label: "Billing", icon: BillingIcon },
     { to: `${base}/settings`, label: "Settings", icon: SettingsIcon },
   ].map((item) => ({ ...item, active: onPage(item.to) }));

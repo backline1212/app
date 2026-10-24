@@ -113,10 +113,14 @@ class ActivityOut(BaseModel):
     type: str
     actor_type: str
     actor_id: str | None
+    # The name a client gave on the review link; members are named from the member list.
+    actor_name: str | None = None
     created_at: datetime
     project_id: str | None = None
     comment_id: str | None = None
     name: str | None = None
+    # A reply: ticket_number/comment_excerpt then describe the thread it's on.
+    is_reply: bool = False
     # Which ticket a comment event is about: its "#N" and the first line of its text
     # (no excerpt once the comment is deleted). Both None for other events.
     ticket_number: int | None = None

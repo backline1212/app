@@ -81,7 +81,7 @@ function ColumnChart({ points, label, format }: { points: Point[]; label: string
 
 export function UsagePage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle([workspace.name, "AI Usage"]);
+  useDocumentTitle([workspace.name, "AI usage"]);
   const usage = useQuery({ queryKey: qk.aiUsage(workspace.id), queryFn: () => getAiUsage(workspace.id) });
   const data = usage.data;
   const pct = data ? Math.min(100, Math.round((data.used / Math.max(1, data.limit)) * 100)) : 0;
@@ -93,7 +93,8 @@ export function UsagePage() {
     <main className="bl-wrap">
       <header className="bl-head">
         <div>
-          <h1>AI Usage</h1>
+          <p className="bl-eyebrow"><Link to={`/w/${workspace.slug}/ai`}>AI</Link></p>
+          <h1>AI usage</h1>
           <p>Each thread summary, set of suggested replies and BugHunt AI analysis uses one credit from your plan's monthly allowance.</p>
         </div>
       </header>
