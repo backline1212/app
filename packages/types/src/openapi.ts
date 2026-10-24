@@ -3569,6 +3569,28 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HealthOut */
+        HealthOut: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "degraded";
+            /**
+             * Mongo
+             * @enum {string}
+             */
+            mongo: "ok" | "unreachable";
+            /**
+             * Redis
+             * @enum {string}
+             */
+            redis: "ok" | "unreachable";
+            /** Release Sha */
+            release_sha: string | null;
+            /** Deployment Id */
+            deployment_id: string | null;
+        };
         /** IntegrationOut */
         IntegrationOut: {
             /** Id */
@@ -10630,9 +10652,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["HealthOut"];
                 };
             };
         };

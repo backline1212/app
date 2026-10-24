@@ -1,5 +1,23 @@
 # Delivery and verification ledger
 
+## 2026-10-24: API release identity in health (TDR-0140)
+
+`/health` now has a Pydantic response model with optional validated Railway
+commit SHA and deployment ID. The saved OpenAPI JSON and generated TypeScript
+declarations were regenerated from that contract. Existing health status and
+dependency fields remain, and health responses use `Cache-Control: no-store`.
+This is source-only: API rollout, comparison with
+Railway deployment state and worker revision remain open while the API host
+returns edge fallback 404. See
+[TDR-0140](../tdr/0140-expose-api-release-identity-in-health.md).
+
+Verification: backend Ruff and strict mypy (218 source files), workspace-scope
+(25 repository files), offline lock check and wheel/sdist build pass. Current
+OpenAPI equals the regenerated saved JSON (132 paths); `packages/types`
+declarations were regenerated from it. Monorepo lint/typecheck/build passes
+(12/12 tasks, five cached), and diff check passes. No test suite was added or
+run under AGENTS.md.
+
 ## 2026-10-24: GitHub release state after this source batch
 
 The current privacy, pricing, dependency and documentation slices reached

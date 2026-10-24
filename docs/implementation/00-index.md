@@ -1,5 +1,11 @@
 # Final Draft implementation index
 
+API release identity follow-up (2026-10-24):
+[TDR-0140](../tdr/0140-expose-api-release-identity-in-health.md) adds
+nullable Railway commit/deployment identifiers to the Pydantic `/health`
+contract and regenerated types. Source checks pass; matching API rollout,
+worker identification and live acceptance remain open.
+
 Top-level documentation accuracy follow-up (2026-10-24):
 [TDR-0139](../tdr/0139-label-historical-delivery-claims.md) labels M0–M12,
 the launch-readiness audit and original backend plan as historical, and points

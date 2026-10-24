@@ -1,8 +1,12 @@
 import asyncio
 import contextlib
+import os
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
+from uuid import UUID
 
 import sentry_sdk
 from fastapi import FastAPI, Response
@@ -14,6 +18,7 @@ from app.core.auth_origin import AuthOriginMiddleware
 from app.core.config import get_settings
 from app.core.db import close_client, get_client, get_db
 from app.core.errors import register_exception_handlers
+from app.core.health_schema import HealthOut
 from app.core.indexes import ensure_indexes
 from app.core.redis_client import close_redis, get_redis
 from app.core.snapshot_body_limit import SnapshotBodyLimitMiddleware
@@ -152,15 +157,15 @@ if EXTENSION_DIST_DIR.exists():
     app.mount("/extension", StaticFiles(directory=EXTENSION_DIST_DIR), name="extension")
 
 
-@app.get("/health")
-async def health(response: Response) -> dict[str, str]:
-    mongo_ok = "ok"
+@app.get("/health", response_model=HealthOut)
+async def health(response: Response) -> HealthOut:
+    mongo_ok: Literal["ok", "unreachable"] = "ok"
     try:
         await get_client().admin.command("ping")
     except Exception:
         mongo_ok = "unreachable"
 
-    redis_ok = "ok"
+    redis_ok: Literal["ok", "unreachable"] = "ok"
     try:
         await get_redis().ping()
     except Exception:
@@ -173,7 +178,20 @@ async def health(response: Response) -> dict[str, str]:
     # surface as a non-2xx response, not just a body field nothing is reading.
     degraded = mongo_ok != "ok" or redis_ok != "ok"
     response.status_code = 503 if degraded else 200
-    return {"status": "degraded" if degraded else "ok", "mongo": mongo_ok, "redis": redis_ok}
+    response.headers["Cache-Control"] = "no-store"
+    raw_sha = os.getenv("RAILWAY_GIT_COMMIT_SHA", "").strip().lower()
+    release_sha = raw_sha if re.fullmatch(r"[0-9a-f]{40}", raw_sha) else None
+    try:
+        deployment_id = str(UUID(os.getenv("RAILWAY_DEPLOYMENT_ID", "")))
+    except ValueError:
+        deployment_id = None
+    return HealthOut(
+        status="degraded" if degraded else "ok",
+        mongo=mongo_ok,
+        redis=redis_ok,
+        release_sha=release_sha,
+        deployment_id=deployment_id,
+    )
 
 
 # Registered last, deliberately: a true catch-all (`/{full_path:path}`) would swallow
