@@ -363,7 +363,8 @@ class DashboardRepository:
         if event_type == "mine":
             query["actor_id"] = user_id
         elif event_type == "clients":
-            query["type"] = {"$regex": "^client\\."}
+            # What clients did on review links, plus changes to client records.
+            query["$or"] = [{"actor_type": "guest"}, {"type": {"$regex": "^client\\."}}]
         elif event_type == "deploys":
             query["type"] = {"$regex": "^(deploy|revision)\\."}
         elif event_type:
@@ -375,6 +376,27 @@ class DashboardRepository:
             .limit(limit)
         )
         return [doc async for doc in cursor], await self.db.events.count_documents(query)
+
+    async def guest_names(self, workspace_id: str, guest_ids: list[str]) -> dict[str, str]:
+        """Display names reviewers gave when they opened a review link."""
+        object_ids = [oid for oid in (to_object_id(gid) for gid in guest_ids) if oid is not None]
+        if not object_ids:
+            return {}
+        cursor = self.db.guest_sessions.find(
+            {"workspace_id": workspace_id, "_id": {"$in": object_ids}}, {"display_name": 1}
+        )
+        return {
+            str(doc["_id"]): doc["display_name"] async for doc in cursor if doc.get("display_name")
+        }
+
+    async def share_link_projects(self, workspace_id: str, link_ids: list[str]) -> dict[str, str]:
+        object_ids = [oid for oid in (to_object_id(lid) for lid in link_ids) if oid is not None]
+        if not object_ids:
+            return {}
+        cursor = self.db.share_links.find(
+            {"workspace_id": workspace_id, "_id": {"$in": object_ids}}, {"project_id": 1}
+        )
+        return {str(doc["_id"]): str(doc["project_id"]) async for doc in cursor}
 
     async def standalone_page(self, workspace_id: str, project_id: str) -> dict[str, Any]:
         from pymongo import ReturnDocument

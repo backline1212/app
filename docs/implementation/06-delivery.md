@@ -4721,3 +4721,9 @@ database migration, or production deployment is claimed.
 
 - Tickets page, board, search, activity and notifications open the same ticket dialog
   (editable text, delete, live fields, conversation). Search finds "#14".
+
+# 2026-10-24: Activity context, navigation names (TDR-0154)
+
+- Activity rows name the client and project, label replies, collapse repeats; the
+  Clients filter shows client actions. Sidebar labels match page titles; AI usage moved
+  under AI.

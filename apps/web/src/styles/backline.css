@@ -3185,3 +3185,5 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-message-layer{display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;background:var(--bl-paper);border:1px solid var(--bl-line);font-size:10px;color:var(--bl-muted)}
 .bl-message-body{display:flex;align-items:flex-start;gap:10px}.bl-message-body p{flex:1;min-width:0}.bl-message-body .bl-quiet{flex:none;margin-top:4px}
 .bl-message .bl-form{margin-top:8px}
+.bl-activity .bl-activity-in{color:var(--ink-3)}.bl-activity .bl-activity-count{font:11px var(--mono);color:var(--ink-3)}
+.bl-activity .bl-activity-role{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid var(--bl-line);border-radius:999px;font-size:10px;line-height:16px;color:var(--ink-3);vertical-align:1px}

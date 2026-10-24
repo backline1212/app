@@ -313,7 +313,7 @@ async def create_guest_session(
         type=share_link_events.GUEST_SESSION_CREATED,
         actor_type="guest",
         actor_id=str(guest_doc["_id"]),
-        payload={"share_link_id": str(link["_id"])},
+        payload={"share_link_id": str(link["_id"]), "project_id": str(link["project_id"])},
     )
 
     token = create_guest_token(str(guest_doc["_id"]), str(link["_id"]))

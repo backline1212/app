@@ -14,7 +14,7 @@ import * as extensionTokensApi from "./api";
 
 export function ExtensionSettingsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
-  useDocumentTitle([workspace.name, "Browser Extension"]);
+  useDocumentTitle([workspace.name, "Browser extension"]);
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -93,7 +93,7 @@ export function ExtensionSettingsPage() {
     <main className="bl-wrap">
       <header className="bl-head">
         <div>
-          <h1>Browser Extension</h1>
+          <h1>Browser extension</h1>
           <p>
             Review the real website with your normal login. Saved comments and screenshots stay in Backline.
           </p>

@@ -9154,6 +9154,17 @@
             ],
             "title": "Actor Id"
           },
+          "actor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Name"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -9191,6 +9202,11 @@
               }
             ],
             "title": "Name"
+          },
+          "is_reply": {
+            "type": "boolean",
+            "title": "Is Reply",
+            "default": false
           },
           "ticket_number": {
             "anyOf": [

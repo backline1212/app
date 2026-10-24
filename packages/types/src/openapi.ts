@@ -2561,6 +2561,8 @@ export interface components {
             actor_type: string;
             /** Actor Id */
             actor_id: string | null;
+            /** Actor Name */
+            actor_name?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -2572,6 +2574,11 @@ export interface components {
             comment_id?: string | null;
             /** Name */
             name?: string | null;
+            /**
+             * Is Reply
+             * @default false
+             */
+            is_reply: boolean;
             /** Ticket Number */
             ticket_number?: number | null;
             /** Comment Excerpt */

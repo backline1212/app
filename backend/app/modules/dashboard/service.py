@@ -242,45 +242,52 @@ def _comment_label(comment: dict[str, Any] | None) -> dict[str, Any]:
     return {"ticket_number": comment.get("ticket_number"), "comment_excerpt": excerpt or None}
 
 
-async def _drop_hidden_legacy_events(
+async def _event_projects(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     workspace_id: str,
     docs: list[dict[str, Any]],
-    hidden: list[str],
-) -> list[dict[str, Any]]:
-    """Events written before TDR-0056 name only a comment or page. Resolve those to
-    their project and drop the ones in a project the reader can't open."""
-    hidden_set = set(hidden)
-    unresolved = [doc for doc in docs if not doc["payload_json"].get("project_id")]
+) -> dict[str, str]:
+    """The project each event is about, keyed by event id. Events written before
+    TDR-0056 name only a comment or page, and older review-link opens only their share
+    link; those are resolved here."""
+    result: dict[str, str] = {}
+    unresolved: list[dict[str, Any]] = []
+    for doc in docs:
+        project_id = doc["payload_json"].get("project_id")
+        if project_id:
+            result[str(doc["_id"])] = str(project_id)
+        else:
+            unresolved.append(doc)
     if not unresolved:
-        return docs
-    page_ids = {
-        doc["payload_json"]["page_id"]
-        for doc in unresolved
-        if isinstance(doc["payload_json"].get("page_id"), str)
-    }
-    comment_ids = [
-        doc["payload_json"]["comment_id"]
-        for doc in unresolved
-        if isinstance(doc["payload_json"].get("comment_id"), str)
-    ]
+        return result
+
+    def ids(key: str) -> list[str]:
+        return [
+            doc["payload_json"][key]
+            for doc in unresolved
+            if isinstance(doc["payload_json"].get(key), str)
+        ]
+
     comment_pages = {
         str(comment["_id"]): comment["page_id"]
         for comment in await CommentRepository(db).find_many_in_workspace(
-            workspace_id, comment_ids, fields={"page_id": 1}
+            workspace_id, ids("comment_id"), fields={"page_id": 1}
         )
     }
-    page_ids.update(comment_pages.values())
+    page_ids = set(ids("page_id")) | set(comment_pages.values())
     page_projects = await PageRepository(db).project_ids_for(workspace_id, list(page_ids))
-
-    def project_of(doc: dict[str, Any]) -> str | None:
+    link_projects = await DashboardRepository(db).share_link_projects(
+        workspace_id, ids("share_link_id")
+    )
+    for doc in unresolved:
         payload = doc["payload_json"]
-        if payload.get("project_id"):
-            return str(payload["project_id"])
         page_id = payload.get("page_id") or comment_pages.get(str(payload.get("comment_id")))
-        return page_projects.get(page_id) if isinstance(page_id, str) else None
-
-    return [doc for doc in docs if project_of(doc) not in hidden_set]
+        project_id = (page_projects.get(page_id) if isinstance(page_id, str) else None) or (
+            link_projects.get(str(payload.get("share_link_id")))
+        )
+        if project_id:
+            result[str(doc["_id"])] = project_id
+    return result
 
 
 async def activity(
@@ -293,18 +300,29 @@ async def activity(
     viewer: Session | None = None,
 ) -> ActivityListOut:
     hidden = await _hidden(db, viewer)
-    docs, total = await DashboardRepository(db).activity(
-        workspace_id, user_id, offset, limit, event_type, hidden
-    )
+    repo = DashboardRepository(db)
+    docs, total = await repo.activity(workspace_id, user_id, offset, limit, event_type, hidden)
+    event_projects = await _event_projects(db, workspace_id, docs)
     if hidden:
-        docs = await _drop_hidden_legacy_events(db, workspace_id, docs, hidden)
-    comment_ids = [doc["payload_json"].get("comment_id") for doc in docs]
+        hidden_set = set(hidden)
+        docs = [doc for doc in docs if event_projects.get(str(doc["_id"])) not in hidden_set]
+
+    def ticket_id(doc: dict[str, Any]) -> str | None:
+        # A reply's event is about its thread: label it with the parent ticket.
+        payload = doc["payload_json"]
+        value = payload.get("parent_id") or payload.get("comment_id")
+        return value if isinstance(value, str) else None
+
     comments = {
         str(comment["_id"]): comment
         for comment in await CommentRepository(db).find_many_in_workspace(
-            workspace_id, [cid for cid in comment_ids if isinstance(cid, str)]
+            workspace_id, [cid for cid in map(ticket_id, docs) if cid]
         )
     }
+    guest_names = await repo.guest_names(
+        workspace_id,
+        [doc["actor_id"] for doc in docs if doc["actor_type"] == "guest" and doc.get("actor_id")],
+    )
     return ActivityListOut(
         total=total,
         items=[
@@ -313,11 +331,16 @@ async def activity(
                 type=doc["type"],
                 actor_type=doc["actor_type"],
                 actor_id=doc.get("actor_id"),
+                actor_name=guest_names.get(str(doc.get("actor_id")))
+                if doc["actor_type"] == "guest"
+                else None,
                 created_at=doc["created_at"],
-                project_id=doc["payload_json"].get("project_id"),
+                project_id=event_projects.get(str(doc["_id"])),
                 comment_id=doc["payload_json"].get("comment_id"),
                 name=doc["payload_json"].get("name"),
-                **_comment_label(comments.get(str(doc["payload_json"].get("comment_id")))),
+                is_reply=doc["type"].startswith("comment.")
+                and bool(doc["payload_json"].get("parent_id")),
+                **_comment_label(comments.get(ticket_id(doc) or "")),
             )
             for doc in docs
         ],
