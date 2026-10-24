@@ -47,6 +47,7 @@ import { QuickToolsDock } from "./footer/QuickToolsDock";
 import { ShortcutsModal } from "./ShortcutsModal";
 import { loadShortcuts } from "./shortcuts";
 import { NativeReviewButton } from "../review/NativeReviewButton";
+import { reviewLinkUrl, useReviewDomain } from "../workspaces/review-url";
 
 const AssetReview = lazy(() => import("../assets/AssetReview").then(module => ({ default: module.AssetReview })));
 
@@ -76,9 +77,6 @@ function clampZoom(value: number) {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 10) / 10));
 }
 
-function reviewUrl(token: string) {
-  return `${window.location.origin}/review/${token}`;
-}
 
 function pageLabel(page: PageOut) {
   return reviewPageLabel(page);
@@ -171,6 +169,8 @@ export function ProjectOverviewPage() {
   // drag can produce (snapped back to filling the container).
   const [dragWidth, setDragWidth] = useState<number | null | undefined>(undefined);
   const queryClient = useQueryClient();
+  const reviewDomain = useReviewDomain(workspace.id);
+  const reviewUrl = (token: string) => reviewLinkUrl(token, reviewDomain);
   const { user } = useAuth();
 
   useEffect(() => {

@@ -17,6 +17,7 @@ import { listMembers } from "../workspaces/api";
 import type { WorkspaceOut } from "../workspaces/api";
 import { ProjectAccessFields } from "./access/ProjectAccessFields";
 import * as api from "./api";
+import { reviewLinkUrl, useReviewDomain } from "../workspaces/review-url";
 
 type ProjectType = "website" | "image" | "pdf";
 // Web App and Mobile App are review flavours of a website and an image project
@@ -142,6 +143,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [grants, setGrants] = useState<Record<string, ProjectRole>>({});
   const [peopleQuery, setPeopleQuery] = useState("");
   const { role: myRole, user } = useAuth();
+  const reviewDomain = useReviewDomain(workspace.id);
 
 
   const selectedClient = useMemo(() => clients.data?.find((item) => item.id === client), [client, clients.data]);
@@ -197,7 +199,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
       }
       const links = await listShareLinks(current.id).catch(() => []);
       const active = links.find((item) => reviewLinkState(item) === "active");
-      setLink(active ? `${window.location.origin}/review/${active.token}` : "");
+      setLink(active ? reviewLinkUrl(active.token, reviewDomain) : "");
       return current;
     },
     onError: (error) => {

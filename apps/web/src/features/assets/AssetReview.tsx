@@ -95,6 +95,7 @@ export function AssetReview({
   onSettings,
   renderSidePanel,
   variant,
+  branding,
 }: {
   projectId: string;
   title: string;
@@ -113,6 +114,8 @@ export function AssetReview({
   renderSidePanel?: (context: AssetSidePanelContext) => ReactNode;
   /** Guests pass the project's review flavour from the share link. */
   variant?: string | null;
+  /** The workspace's client branding (guests). */
+  branding?: Schemas["PublicBrandingOut"] | null;
 }) {
   const online = useOnlineStatus();
   const cache = useQueryClient();
@@ -557,7 +560,8 @@ export function AssetReview({
       <div className="bl-review-identity">
         {workspaceSlug
           ? <Link to={`/w/${workspaceSlug}`} className="bl-review-icon-button" aria-label="Back to all projects" title="All projects" onClick={event => { if (keepDraft()) event.preventDefault(); }}><ArrowLeftIcon /></Link>
-          : <span className="bl-asset-brand" aria-hidden="true">B</span>}
+          : branding?.logo_url ? <img className="bl-brand-logo" src={branding.logo_url} alt={branding.display_name ?? ""} />
+          : <span className="bl-asset-brand" aria-hidden="true">{branding?.display_name ? branding.display_name.slice(0, 1).toUpperCase() : "B"}</span>}
         <div>
           <div className="bl-review-title-line">
             <h1>{title}</h1>

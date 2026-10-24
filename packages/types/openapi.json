@@ -7970,6 +7970,429 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_id}/branding": {
+      "get": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Get Branding",
+        "operationId": "get_branding_api_v1_workspaces__workspace_id__branding_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Update Branding",
+        "operationId": "update_branding_api_v1_workspaces__workspace_id__branding_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/branding/logo": {
+      "post": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Upload Logo",
+        "operationId": "upload_logo_api_v1_workspaces__workspace_id__branding_logo_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_logo_api_v1_workspaces__workspace_id__branding_logo_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/domains": {
+      "get": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "List Domains",
+        "operationId": "list_domains_api_v1_workspaces__workspace_id__domains_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomDomainOut"
+                  },
+                  "title": "Response List Domains Api V1 Workspaces  Workspace Id  Domains Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Add Domain",
+        "operationId": "add_domain_api_v1_workspaces__workspace_id__domains_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomDomainCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomDomainOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/domains/{domain_id}/verify": {
+      "post": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Verify Domain",
+        "operationId": "verify_domain_api_v1_workspaces__workspace_id__domains__domain_id__verify_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "domain_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomDomainOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/domains/{domain_id}": {
+      "delete": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Remove Domain",
+        "operationId": "remove_domain_api_v1_workspaces__workspace_id__domains__domain_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "domain_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/branding/by-host": {
+      "get": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Branding By Host",
+        "description": "Public: the client-facing branding for a verified custom review domain.",
+        "operationId": "branding_by_host_api_v1_branding_by_host_get",
+        "parameters": [
+          {
+            "name": "host",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 4,
+              "maxLength": 253,
+              "title": "Host"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PublicBrandingOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Branding By Host Api V1 Branding By Host Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notifications": {
       "get": {
         "tags": [
@@ -9394,6 +9817,164 @@
         ],
         "title": "Body_upload_asset_api_v1_projects__project_id__assets_post"
       },
+      "Body_upload_logo_api_v1_workspaces__workspace_id__branding_logo_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_logo_api_v1_workspaces__workspace_id__branding_logo_post"
+      },
+      "BrandingOut": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "accent_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accent Color"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "hide_backline_branding": {
+            "type": "boolean",
+            "title": "Hide Backline Branding",
+            "default": false
+          },
+          "support_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Email"
+          },
+          "can_customize": {
+            "type": "boolean",
+            "title": "Can Customize",
+            "default": false
+          },
+          "can_white_label": {
+            "type": "boolean",
+            "title": "Can White Label",
+            "default": false
+          },
+          "can_use_custom_domain": {
+            "type": "boolean",
+            "title": "Can Use Custom Domain",
+            "default": false
+          },
+          "review_domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Domain"
+          }
+        },
+        "type": "object",
+        "title": "BrandingOut"
+      },
+      "BrandingUpdate": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "accent_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accent Color"
+          },
+          "hide_backline_branding": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hide Backline Branding"
+          },
+          "support_email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 254
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Email"
+          },
+          "remove_logo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remove Logo"
+          }
+        },
+        "type": "object",
+        "title": "BrandingUpdate"
+      },
       "BugHuntFinding": {
         "properties": {
           "comment_id": {
@@ -10690,6 +11271,97 @@
           "card_id"
         ],
         "title": "CreateTrelloCardResult"
+      },
+      "CustomDomainCreate": {
+        "properties": {
+          "host": {
+            "type": "string",
+            "maxLength": 253,
+            "title": "Host"
+          }
+        },
+        "type": "object",
+        "required": [
+          "host"
+        ],
+        "title": "CustomDomainCreate"
+      },
+      "CustomDomainOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "host": {
+            "type": "string",
+            "title": "Host"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "verified",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "txt_name": {
+            "type": "string",
+            "title": "Txt Name"
+          },
+          "txt_value": {
+            "type": "string",
+            "title": "Txt Value"
+          },
+          "cname_target": {
+            "type": "string",
+            "title": "Cname Target"
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "host",
+          "status",
+          "txt_name",
+          "txt_value",
+          "cname_target",
+          "connected",
+          "created_at"
+        ],
+        "title": "CustomDomainOut"
       },
       "DashboardOut": {
         "properties": {
@@ -14910,6 +15582,62 @@
         "type": "object",
         "title": "ProjectUpdate"
       },
+      "PublicBrandingOut": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "accent_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accent Color"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "hide_backline_branding": {
+            "type": "boolean",
+            "title": "Hide Backline Branding",
+            "default": false
+          },
+          "support_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Email"
+          }
+        },
+        "type": "object",
+        "title": "PublicBrandingOut",
+        "description": "What a client sees on a review link: never anything private to the workspace."
+      },
       "ReanchorRequest": {
         "properties": {
           "anchor": {
@@ -15189,6 +15917,16 @@
               }
             ],
             "title": "Variant"
+          },
+          "branding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicBrandingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "project_id": {
             "type": "string",
@@ -15914,7 +16652,7 @@
           },
           "full_page_hash": {
             "type": "string",
-            "pattern": "^[a-f0-9]{64}$",
+            "pattern": "^(sha256:)?[a-f0-9]{64}$",
             "title": "Full Page Hash"
           }
         },

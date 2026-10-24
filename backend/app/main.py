@@ -25,6 +25,7 @@ from app.modules.ai.router import router as ai_router
 from app.modules.assets.router import router as assets_router
 from app.modules.auth.router import router as auth_router
 from app.modules.billing.router import router as billing_router
+from app.modules.branding.router import router as branding_router
 from app.modules.browser_render.router import router as browser_render_router
 from app.modules.clients.router import router as clients_router
 from app.modules.cloud_login.router import router as cloud_login_router
@@ -133,6 +134,7 @@ app.include_router(integrations_router, prefix="/api/v1")
 app.include_router(mcp_router, prefix="/api/v1")
 app.include_router(extension_tokens_router, prefix="/api/v1")
 app.include_router(billing_router, prefix="/api/v1")
+app.include_router(branding_router, prefix="/api/v1")
 app.include_router(notifications_router, prefix="/api/v1")
 app.include_router(session_sync_router, prefix="/api/v1")
 app.include_router(cloud_login_router, prefix="/api/v1")

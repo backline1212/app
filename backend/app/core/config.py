@@ -133,6 +133,13 @@ class Settings(BaseSettings):
     # their own) and off elsewhere; empty is off. Off keeps the legacy `/proxy/{token}/`
     # path mode, so a deploy without the wildcard DNS in place yet is unaffected.
     proxy_preview_domain: str | None = None
+    # Custom review domains (modules/branding). Workspaces point a CNAME here. With a
+    # Vercel token and project id the API also attaches each verified domain to the web
+    # project; without them a verified domain waits for an operator to attach it.
+    custom_domain_cname_target: str = "cname.vercel-dns.com"
+    vercel_api_token: str | None = None
+    vercel_project_id: str | None = None
+    vercel_team_id: str | None = None
     proxy_preview_scheme: str = "http"
 
     # docs/tdr/0042: the cloud login browser is a separate deployable (its own Railway

@@ -12,6 +12,8 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { ApiError } from "../../lib/api-client";
 
 import type { TranslationKeys } from "../../lib/i18n";
+import { ClientPortalLanding } from "../review/ClientPortal";
+import { useClientPortal } from "../review/use-client-portal";
 
 // M-05/UX-AUD-019: matches the backend's actual OTP contract (13-Authentication.md
 // §13.2 - 10-minute expiry) so the countdown never promises a code is valid for longer
@@ -38,6 +40,14 @@ function passwordScore(value: string): number {
 }
 
 export function LoginPage() {
+  // A workspace's own review domain shows its client portal instead of sign-in.
+  const portal = useClientPortal();
+  if (portal.loading) return null;
+  if (portal.branding) return <ClientPortalLanding branding={portal.branding} />;
+  return <SignInPage />;
+}
+
+function SignInPage() {
   const { t } = useTranslation();
   const { status, requestOtp, verifyOtp, signup, verifySignup, loginWithPassword, setPassword: savePassword, user, updateUser } = useAuth();
   // Not the "Sign in to Backline" heading: the hook appends "— Backline" itself.

@@ -178,6 +178,15 @@ class WorkspaceRepository:
         normalize_room_code) and unique among workspaces that have one."""
         return await self.db.workspaces.find_one({"room_code": room_code})
 
+    async def set_fields(self, workspace_id: str, patch: dict[str, Any]) -> None:
+        """A plain $set on the workspace document (dotted paths allowed)."""
+        oid = to_object_id(workspace_id)
+        if oid is None:
+            return
+        await self.db.workspaces.update_one(
+            {"_id": oid}, {"$set": {**patch, "updated_at": datetime.now(UTC)}}
+        )
+
     async def update(
         self,
         workspace_id: str,

@@ -4693,3 +4693,12 @@ database migration, or production deployment is claimed.
   items. Fixed snapshot hash validation that made every widget page-version capture
   fail. Extension 0.5.1.
 - Verification: static checks; Chromium creation and review of both types.
+
+# 2026-10-24: Client branding, review domains, white-label (TDR-0150)
+
+- Team/Enterprise branding on client review pages, TXT-verified review domains with
+  optional Vercel attachment and a branded portal landing, Enterprise white-label.
+  Cloud login removed from pricing (infrastructure-gated, TDR-0065).
+- Verification: static checks; Chromium settings + branded guest review.
+- Operator follow-up: set `VERCEL_API_TOKEN`/`VERCEL_PROJECT_ID` to auto-attach
+  verified domains, or attach them manually in Vercel.

@@ -90,8 +90,7 @@ PLANS: dict[str, dict[str, Any]] = {
             _feature("15 team members"),
             _feature("1,000 AI review credits / month (BugHunt AI)"),
             _feature("Slack, Jira, ClickUp, Asana & Trello integrations"),
-            _feature("Cloud login browser sessions", coming_soon=True),
-            _feature("Custom branding & domains", coming_soon=True),
+            _feature("Custom client branding & review domains"),
             _feature("100 GB storage"),
         ],
     },
@@ -115,14 +114,13 @@ PLANS: dict[str, dict[str, Any]] = {
             _feature("10,000 AI review credits / month"),
             _feature("Support arrangements by agreement"),
             _feature("1,000 GB storage"),
-            _feature("White-label client portals", coming_soon=True),
+            _feature("White-label client portals"),
         ],
     },
 }
 
 _YES = "Yes"
 _NO = "No"
-_SOON = "Coming soon"
 
 
 def _row(name: str, free: str, solo: str, team: str, enterprise: str) -> dict[str, str]:
@@ -162,7 +160,6 @@ COMPARISON_CATEGORIES: list[dict[str, Any]] = [
             # instead of introducing a surprise paywall during the gap repair.
             _all("Slack, Jira, ClickUp, Asana & Trello"),
             _all("MCP server for AI agents"),
-            _row("Cloud login browser sessions", _NO, _NO, _SOON, _SOON),
         ],
     },
     {
@@ -171,8 +168,8 @@ COMPARISON_CATEGORIES: list[dict[str, Any]] = [
             _row("AI review credits / month", "20", "200", "1,000", "10,000"),
             _all("Thread summaries & suggested replies"),
             _all("BugHunt AI project analysis"),
-            _row("Custom branding & domains", _NO, _NO, _SOON, _SOON),
-            _row("White-label client portals", _NO, _NO, _NO, _SOON),
+            _row("Custom client branding & review domains", _NO, _NO, _YES, _YES),
+            _row("White-label client portals", _NO, _NO, _NO, _YES),
             _row("Support", "Community", "Email", "Priority email", "By agreement"),
         ],
     },

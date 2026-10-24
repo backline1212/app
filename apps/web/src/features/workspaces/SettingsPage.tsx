@@ -12,6 +12,7 @@ import { useAuth } from "../auth/AuthContext";
 import * as workspacesApi from "./api";
 import type { WorkspaceOut } from "./api";
 import { RoomCodePanel } from "./team/RoomCodePanel";
+import { BrandingSettings } from "./BrandingSettings";
 import { WORKSPACE_ROLE_LABEL } from "./team/team-utils";
 
 export function SettingsPage() {
@@ -144,6 +145,8 @@ export function SettingsPage() {
           </p>
         </div>
       </section>
+
+      <BrandingSettings workspace={workspace} canEdit={canEdit} />
 
       <section className="ws-card">
         <header>

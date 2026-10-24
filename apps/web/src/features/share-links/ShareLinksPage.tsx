@@ -12,10 +12,8 @@ import { useProject } from "../projects/use-project";
 import * as shareLinksApi from "./api";
 import type { ShareLinkOut } from "./api";
 import { reviewLinkState, useReviewLinkClock } from "./link-state";
+import { reviewLinkUrl, useReviewDomain } from "../workspaces/review-url";
 
-function reviewUrl(token: string): string {
-  return `${window.location.origin}/review/${token}`;
-}
 
 // Full manager for every link a project has ever had (active and revoked), linked to
 // from ShareProjectModal's "Manage all share links" and CollaboratorsModal. The modal
@@ -27,6 +25,8 @@ export function ShareLinksPage() {
   useDocumentTitle([project?.name, "Share Links"]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const reviewDomain = useReviewDomain(project?.workspace_id);
+  const reviewUrl = (token: string) => reviewLinkUrl(token, reviewDomain);
 
   const [mode, setMode] = useState<"snippet" | "proxy">("proxy");
   // Image and PDF projects only ever use a Backline review link - "proxy" and

@@ -401,6 +401,10 @@ async def ensure_indexes(db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
 
     await db.workspaces.create_index("slug", unique=True)
 
+    # Custom review domains (modules/branding): one workspace per host, additive.
+    await db.custom_domains.create_index("host", unique=True)
+    await db.custom_domains.create_index([("workspace_id", 1), ("created_at", 1)])
+
     await db.memberships.create_index([("workspace_id", 1), ("user_id", 1)], unique=True)
     await db.memberships.create_index("user_id")
 

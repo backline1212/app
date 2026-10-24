@@ -3139,3 +3139,32 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-build-fields label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--ink-3)}
 @media(max-width:560px){.bl-build-fields{grid-template-columns:1fr}}
 .bl-optional{margin-left:6px;color:var(--ink-4);font:10px var(--mono);font-weight:400;text-transform:uppercase;letter-spacing:.05em}
+
+/* Client branding & review domains (features/workspaces/BrandingSettings.tsx). */
+.bl-branding-form{display:flex;flex-direction:column;gap:14px}
+.bl-branding-preview{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:4px;background:var(--bl-surface);border-top:3px solid var(--bl-brand)}
+.bl-branding-preview img,.bl-branding-preview>span{width:34px;height:34px;flex:none;border-radius:6px;object-fit:contain}
+.bl-branding-preview>span{display:grid;place-items:center;background:var(--bl-brand);color:#fff;font-weight:700}
+.bl-branding-preview div{display:flex;flex-direction:column}.bl-branding-preview small{color:var(--ink-4);font:10px var(--mono)}
+.bl-branding-preview i{margin-left:auto;width:64px;height:24px;border-radius:4px;background:var(--bl-brand)}
+.bl-branding-form input[type=color]{width:36px;height:32px;padding:2px;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface)}
+.bl-domain-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.bl-domain-list>li{padding:12px;border:1px solid var(--line);border-radius:4px;background:var(--bl-surface)}
+.bl-domain-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bl-domain-actions{margin-left:auto;display:flex;gap:6px}
+.bl-domain-state{padding:2px 7px;border-radius:3px;font:10px var(--mono);text-transform:uppercase;letter-spacing:.04em;background:var(--amber-tint);color:var(--amber-ink)}
+.bl-domain-state.is-live{background:var(--mint-tint);color:var(--mint-deep)}.bl-domain-state.is-verified{background:#E8F0FB;color:#24508F}
+.bl-domain-steps{margin:10px 0 0;padding-left:18px;color:var(--ink-2);font-size:12px;line-height:1.7}
+.bl-domain-steps code{padding:1px 5px;border-radius:3px;background:var(--bl-paper);font:11px var(--mono);word-break:break-all}
+/* Branded client review pages: the workspace's accent replaces Backline mint. */
+.bl-branded{--mint-deep:var(--bl-brand-accent);--bl-accent:var(--bl-brand-accent)}
+.bl-brand-logo{width:32px;height:32px;flex:none;border-radius:6px;object-fit:contain;background:var(--bl-surface)}
+.bl-gate-brand{display:flex;align-items:center;gap:9px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line-soft)}
+.bl-gate-brand strong{font-size:13px}.bl-gate-brand a{margin-left:auto;color:var(--ink-3);font-size:11px}
+.bl-portal{min-height:100svh;display:grid;place-items:center;padding:24px;background:var(--paper)}
+.bl-portal-card{width:min(440px,100%);padding:32px;border:1px solid var(--line);border-top:4px solid var(--mint-deep);border-radius:6px;background:var(--bl-surface);text-align:center;box-shadow:0 10px 40px rgba(11,11,11,.06)}
+.bl-portal-logo{max-width:160px;max-height:56px;object-fit:contain}
+.bl-portal-mark{display:inline-grid;place-items:center;width:48px;height:48px;border-radius:10px;background:var(--mint-deep);color:#fff;font-size:22px;font-weight:700}
+.bl-portal-card h1{margin:16px 0 6px;font-size:20px}.bl-portal-card>p{color:var(--ink-3);font-size:13px;line-height:1.55}
+.bl-portal-card form{display:flex;gap:8px;margin-top:18px}.bl-portal-card form input{flex:1}
+.bl-portal-help{margin-top:16px;font-size:12px}.bl-portal-powered{margin-top:22px;color:var(--ink-4);font:10px var(--mono);letter-spacing:.05em;text-transform:uppercase}

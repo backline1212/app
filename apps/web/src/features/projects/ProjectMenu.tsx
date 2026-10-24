@@ -15,6 +15,7 @@ import type { ProjectOut } from "./api";
 import * as api from "./api";
 import { ManageFilesDialog } from "../assets/ManageFilesDialog";
 import { ApiError } from "../../lib/api-client";
+import { reviewLinkUrl, useReviewDomain } from "../workspaces/review-url";
 
 type MenuIconName = "archive" | "board" | "camera" | "download" | "duplicate" | "link" | "page" | "rename" | "restore" | "settings" | "share" | "trash";
 
@@ -35,9 +36,6 @@ function MenuIcon({ name }: { name: MenuIconName }) {
   </svg>;
 }
 
-function reviewUrl(token: string): string {
-  return `${window.location.origin}/review/${token}`;
-}
 
 export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, onSettings }: {
   project: ProjectOut;
@@ -53,6 +51,8 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
   const cache = useQueryClient();
   const { role } = useAuth();
   const { toast } = useToast();
+  const reviewDomain = useReviewDomain(project.workspace_id);
+  const reviewUrl = (token: string) => reviewLinkUrl(token, reviewDomain);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
