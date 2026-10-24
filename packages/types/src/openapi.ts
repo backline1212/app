@@ -4153,6 +4153,11 @@ export interface components {
              * @enum {string}
              */
             access: "read" | "read_write";
+            /**
+             * Expires In Days
+             * @default 90
+             */
+            expires_in_days: (30 | 90 | 365) | null;
         };
         /**
          * McpTokenIssued
@@ -4176,6 +4181,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
         };
         /** McpTokenOut */
         McpTokenOut: {
@@ -4194,6 +4201,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
             /** Last Used At */
             last_used_at: string | null;
             /** Revoked At */

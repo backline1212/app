@@ -14,13 +14,21 @@ export function listMcpTokens(workspaceId: string): Promise<McpTokenOut[]> {
   return apiFetch<McpTokenOut[]>(`/api/v1/workspaces/${workspaceId}/mcp/tokens`);
 }
 
+export type McpExpiry = 30 | 90 | 365 | null;
+
+/** "expires Jan 3, 2027" / "expired" / "never expires" for a token row. */
+export function expiryLabel(expiresAt: string | null | undefined, format: (iso: string) => string): string {
+  if (!expiresAt) return "never expires";
+  return Date.parse(expiresAt) <= Date.now() ? "expired" : `expires ${format(expiresAt)}`;
+}
+
 export function createMcpToken(
   workspaceId: string,
-  options: { label: string; agentHint: AgentHint | null; access: McpAccess },
+  options: { label: string; agentHint: AgentHint | null; access: McpAccess; expiresInDays: McpExpiry },
 ): Promise<McpTokenIssued> {
   return apiFetch<McpTokenIssued>(`/api/v1/workspaces/${workspaceId}/mcp/tokens`, {
     method: "POST",
-    body: JSON.stringify({ label: options.label, agent_hint: options.agentHint, access: options.access }),
+    body: JSON.stringify({ label: options.label, agent_hint: options.agentHint, access: options.access, expires_in_days: options.expiresInDays }),
   });
 }
 

@@ -25,6 +25,7 @@ class McpTokenRepository:
         agent_hint: str | None,
         token_hash: str,
         scopes: list[str],
+        expires_at: datetime | None = None,
     ) -> dict[str, Any]:
         doc = {
             "user_id": user_id,
@@ -33,6 +34,7 @@ class McpTokenRepository:
             "agent_hint": agent_hint,
             "token_hash": token_hash,
             "scopes": scopes,
+            "expires_at": expires_at,
             "created_at": datetime.now(UTC),
             "last_used_at": None,
             "revoked_at": None,

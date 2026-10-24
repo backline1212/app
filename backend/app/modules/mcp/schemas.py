@@ -29,6 +29,9 @@ class McpTokenCreate(BaseModel):
     label: Trimmed = Field(min_length=1, max_length=200)
     agent_hint: AgentHint | None = None
     access: McpAccess = "read_write"
+    # Days until the token stops working; None never expires. Tokens issued before
+    # expiry existed have none (TDR-0156).
+    expires_in_days: Literal[30, 90, 365] | None = 90
 
 
 class McpTokenIssued(BaseModel):
@@ -42,6 +45,7 @@ class McpTokenIssued(BaseModel):
     agent_hint: AgentHint | None
     scopes: list[str] = Field(default_factory=list)
     created_at: datetime
+    expires_at: datetime | None = None
 
 
 class McpTokenOut(BaseModel):
@@ -53,6 +57,7 @@ class McpTokenOut(BaseModel):
     # they read as read-only.
     scopes: list[str] = Field(default_factory=lambda: [SCOPE_READ])
     created_at: datetime
+    expires_at: datetime | None = None
     last_used_at: datetime | None
     revoked_at: datetime | None
 
