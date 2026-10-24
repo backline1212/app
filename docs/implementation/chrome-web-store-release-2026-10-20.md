@@ -1,6 +1,6 @@
 # Backline Chrome Web Store release preparation
 
-Date: 2026-10-20. Original local package: 0.4.5. Store publication: pending.
+Date: 2026-10-20. Original local package: 0.4.5. Store publication: pending Google review.
 
 ## 2026-10-24 current dashboard update
 
@@ -19,11 +19,19 @@ the guest path saved in Google's private testing instructions; no owner account
 credentials were supplied. Existing `sd` projects remain unchanged.
 
 The owner confirmed all three data-use statements and authorized their boxes;
-saved the certifications. Google's blocker dialog now lists only a required
-screenshot/video. The owner reported updating Chrome, but a fresh portal
-reload/launch still requests 0.4.13. The owner then requested a step-by-step flow
-in the built-in browser only; the tab is left on Store listing > Screenshots.
-Native acceptance, current screenshot, submission and publication remain open.
+saved the certifications. The owner's screenshots revealed Chrome was still
+running 0.4.3 with a background-script error. After loading the current build,
+Chrome rendered the native toolbar and New comment composer on example.com.
+After submission, a Copy-tagged demo comment was saved in the isolated
+Example Project; its on-site thread displayed the text and a captured-screenshot
+link. Page-version capture separately returned HTTP 422.
+
+A genuine 1280x800 browser screenshot of the current toolbar/composer was uploaded
+as Screenshot 1. Google enabled submission, warned that broad host permissions
+may lengthen review, and confirmed Item submitted / Status: Pending review.
+Automatic publication after approval was selected. A later dashboard read still
+showed Pending review. Live publication and page-version capture acceptance
+remain open.
 Affected extension/widget lint/typecheck/build passed (6/6 cached
 Turbo tasks); no suite was added/run. See TDR-0143 for current evidence. Older
 sections below describe historical states, not current submission blockers.

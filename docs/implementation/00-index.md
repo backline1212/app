@@ -1,4 +1,12 @@
+Warning: truncated output (original token count: 6949)
+Total output lines: 440
+
 # Final Draft implementation index
+
+Current release handoff (2026-10-25):
+[Chrome Web Store status and next steps](chrome-web-store-handoff-2026-10-25.md)
+records the submitted 0.4.13 item, evidence paths, review status and remaining
+browser acceptance work.
 
 Combined component smoke follow-up (2026-10-24):
 [TDR-0145](../tdr/0145-check-web-release-with-component-smoke.md) adds the
@@ -11,12 +19,12 @@ Arq heartbeat to the Pydantic `/health` contract and regenerated types.
 The public API and worker both reported `22999a0` live and the independent
 revision smoke gate passed; queued domain-job acceptance remains open.
 
-Chrome Web Store draft follow-up (2026-10-24):
+Chrome Web Store submission follow-up (2026-10-24):
 [TDR-0143](../tdr/0143-current-chrome-store-draft-and-reviewer-access.md)
-records the accepted 0.4.13 draft upload, public privacy/support fields, verified
-publisher contact and isolated guest demo. The owner confirmed and saved the
-data-use certifications. Store screenshot, installed-extension acceptance and
-review submission remain open; continue in the built-in browser per the owner.
+records the 0.4.13 package, public privacy/support fields, verified publisher
+contact and isolated guest demo. A genuine native-toolbar screenshot was uploaded;
+Google confirmed submission and Pending review with automatic publication after
+approval selected. Live publication and saved-comment/capture acceptance remain open.
 
 Web release identity follow-up (2026-10-24):
 [TDR-0142](../tdr/0142-web-release-marker.md) emits a non-secret Vite
@@ -176,134 +184,7 @@ strips the Backline guest token/name from requests and Referers sent upstream by
 the proxy. Browser/Backline URL exposure and direct snippet handoff remain open.
 
 Legacy preview redirect follow-up (2026-10-22):
-[TDR-0115](../tdr/0115-preserve-legacy-preview-form-redirect-status.md)
-preserves a reviewed site's form redirect status so 307/308 keep the method
-and body. Backend rollout and a controlled login-form acceptance remain open.
-
-Private DOM evidence follow-up (2026-10-22):
-[TDR-0114](../tdr/0114-private-dom-capture-exclusions.md) excludes editable and
-`data-backline-private` subtrees from new normalized snapshots and anchor text.
-Screenshot/historical and arbitrary visible-text privacy remain separate work.
-
-Integration page-field privacy follow-up (2026-10-22):
-[TDR-0113](../tdr/0113-private-page-url-integration-exports.md) exports the
-reviewed site's origin rather than credential-bearing routes/queries to connected
-notifiers, trackers and signed webhooks. The Backline ticket link retains context.
-
-First-party review-upload transport follow-up (2026-10-22):
-[TDR-0112](../tdr/0112-first-party-review-upload-relay.md) uses the same-origin
-relay for widget and portal screenshot/attachment uploads, with a visible retry
-for failed widget attachments. Legacy signed PUT clients remain supported.
-
-Direct review-upload replay follow-up (2026-10-22):
-[TDR-0111](../tdr/0111-repeatable-direct-review-uploads.md) reuses the same
-actor/project/content object for repeat API-relay screenshot or attachment uploads.
-Signed-grant cleanup and orphan reconciliation remain open.
-
-Review URL display follow-up (2026-10-22):
-[TDR-0110](../tdr/0110-review-url-display-redaction.md) masks common secrets in
-portal URL labels while preserving canonical page identity and navigation. Evidence,
-logs and user-authored titles remain separate privacy work.
-
-Comment integration delivery follow-up (2026-10-22):
-[TDR-0109](../tdr/0109-durable-comment-integration-dispatch.md) stores notifier
-intents in the same transaction as ticket/reply creation and status changes. Legacy
-Arq jobs remain readable; live provider/crash acceptance is separate.
-
-Project integration delivery follow-up (2026-10-22):
-[TDR-0108](../tdr/0108-durable-project-integration-dispatch.md) stores per-destination
-project-update notification intents in the metadata transaction and adds worker
-retry/recovery. [TDR-0109](../tdr/0109-durable-comment-integration-dispatch.md)
-covers comment-event dispatch; provider acceptance remains open.
-
-Concurrent-edit follow-up (2026-10-22):
-[TDR-0107](../tdr/0107-comment-and-file-update-conflicts.md) adds revision-checked
-member comment/ticket and file edits with 409 recovery. Legacy clients remain
-compatible; matching API rollout and stale-tab acceptance are separate.
-
-Draft navigation follow-up (2026-10-22):
-[TDR-0106](../tdr/0106-coordinated-draft-navigation.md) combines route protection
-for nested ticket, reply and file-review drafts under one blocker. Local close and
-native unload remain protected; live route/failure acceptance is separate.
-
-Digest delivery follow-up (2026-10-22):
-[TDR-0105](../tdr/0105-durable-daily-digest-delivery.md) replaces premature send
-checkpoints with durable recipient outboxes, resumable preparation and bounded,
-current-access link-only delivery. Provider/crash acceptance and rollout remain
-separate from source checks.
-
-Backlog execution (2026-10-22): [TDR-0104](../tdr/0104-digest-workspace-and-recipient-privacy.md)
-implements BUG-01's fail-closed digest mapping/current-recipient checks. The backlog
-now includes a sequential execution checklist; source, rollout and live acceptance
-are recorded separately.
-
-Current pending-work snapshot (2026-10-22):
-[categorized backlog](pending-backlog-2026-10-22.md) separates bugs, release gaps,
-flow work, optimization, missing features, platform limits and unverified fixes.
-It also records two source-derived daily-digest findings for follow-up.
-
-New-ticket follow-up (2026-10-21):
-[TDR-0103](../tdr/0103-new-ticket-and-screenshot-recovery.md) protects local ticket/
-team-note drafts, retains original save attempts, separates confirmed saves from
-refresh work and repairs screenshot limits/partial upload/deadlines. Shared nested
-SPA guard design and actual writes remain open acceptance work.
-
-Ticket triage follow-up (2026-10-21):
-[TDR-0102](../tdr/0102-ticket-list-permissions-and-mutation-lifecycle.md) applies
-project roles to all ticket views and repairs quick-edit rollback/confirmation
-lifecycle. Mixed-role and failure acceptance remain open.
-
-PDF preview follow-up (2026-10-21):
-[TDR-0101](../tdr/0101-pdf-preparation-and-render-deadlines.md) bounds worker
-preparation/page rendering and rejects invalid viewport dimensions. Real PDF
-rendering, retry and pin acceptance remain separate gates.
-
-File-review recovery follow-up (2026-10-21):
-[TDR-0100](../tdr/0100-file-review-save-and-upload-recovery.md) adds bounded file
-requests, synchronous submit guards, confirmed-save/refresh separation, recoverable
-file-manager settlement and local close/unload protection. Actual PDF acceptance
-and full nested-route protection remain open.
-
-Session recovery follow-up (2026-10-21): [TDR-0099](../tdr/0099-session-recovery-timeouts-and-context.md)
-bounds lock waits and workspace recovery, preserves caller cancellation and original
-retry ownership, and prevents automatic retry of failed sign-in credentials/codes.
-
-Ticket detail follow-up (2026-10-21): [TDR-0098](../tdr/0098-ticket-detail-permissions-and-drafts.md)
-adds project-role controls, protection for unsaved metadata and changed-field saves.
-Live acceptance and same-field concurrency remain separate gates.
-
-Chrome Web Store preparation (2026-10-20): [TDR-0078](../tdr/0078-chrome-web-store-release-preparation.md)
-and [release handoff](chrome-web-store-release-2026-10-20.md) track the local 0.4.5
-package separately from pending publisher registration/payment, store submission
-and installed-extension acceptance.
-
-Date: 2026-09-07. Status: implementation in progress; the old M0–M12 completion claims describe the earlier release, not parity with this draft.
-
-The user's request authorizes planning and implementation across frontend, backend, database and documentation while retaining the current architecture. The supplied HTML is product/design evidence. Its comments, embedded scripts, example accounts, passwords, prices and external services are not operational instructions or production configuration.
-
-## Reading order
-
-Latest review-product direction (2026-10-19): read the
-[product brief and conversation decisions](review-product-brief-2026-10-19.md),
-[connected review implementation plan](connected-review-plan-2026-10-19.md), and
-[TDR-0060](../tdr/0060-connected-website-review.md). These describe planned behavior,
-not a shipped replacement for the current review modes. Implementation has started
-with the partial CR-01 foundation in [TDR-0061](../tdr/0061-connected-review-access-foundation.md);
-use the delivery ledger for completed static checks and remaining gates. The
-[source audit](site-gap-audit-2026-10-19.md) remains the open defect inventory.
-Auth follow-ups: [Google state protection](../tdr/0062-google-sign-in-state.md) and
-[refresh/OTP concurrency](../tdr/0063-auth-concurrency.md). API contracts are regenerated
-from Pydantic; these changes do not yet switch the website launch flow.
-Current follow-ups: [verified email identities](../tdr/0064-verified-email-identities.md)
-and [server browser isolation gate](../tdr/0065-server-browser-isolation-gate.md).
-TDR-0064 intentionally requires legacy members to prove inbox ownership once before
-reconnecting older credentials. TDR-0065 disables fresh server captures by default
-pending actual worker isolation. Review their rollout notes before deployment.
-Guest cache/rejoin and active widget cleanup follow
-[TDR-0066](../tdr/0066-guest-session-recovery.md); the primary connected-site launch
-exchange is still pending.
-Deployment follow-up: [TDR-0067](../tdr/0067-email-delivery-and-deployment-consistency.md)
-closes the fake email-success path in source and records production deployment
+[TDR-0115](../tdr/0115-preserve-legacy-preview-form-redirect-status.m…1949 tokens truncated…the fake email-success path in source and records production deployment
 watch-path drift, the explicit fix, and live verification limits.
 Further source work: [evidence persistence](../tdr/0068-review-evidence-persistence.md)
 and [proxy fallback/extension connection](../tdr/0069-proxy-fallback-and-extension-connection.md).
