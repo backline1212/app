@@ -306,12 +306,14 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     const method = String(message.method ?? "GET");
     const body = message.body ? JSON.parse(String(message.body)) : null;
     const pageMatch = /^\/api\/v1\/pages\/([a-f0-9]{24})\/comments$/.exec(path);
+    const versionMatch = /^\/api\/v1\/pages\/([a-f0-9]{24})\/comments\/version$/.exec(path);
     const snapshotMatch = /^\/api\/v1\/pages\/([a-f0-9]{24})\/snapshots$/.exec(path);
     const commentMatch = /^\/api\/v1\/comments\/([a-f0-9]{24})$/.exec(path);
     const replyMatch = /^\/api\/v1\/comments\/([a-f0-9]{24})\/replies$/.exec(path);
     const register = path === "/api/v1/pages" && method === "POST" && body?.project_id === session.project.id
       && typeof body.url === "string" && origin(body.url) === origin(session.project.target_origin);
     const comments = pageMatch && session.pageIds.includes(pageMatch[1]) && ["GET", "POST"].includes(method);
+    const version = versionMatch && session.pageIds.includes(versionMatch[1]) && method === "GET";
     const update = commentMatch && session.member && session.commentIds.includes(commentMatch[1]) && method === "PATCH";
     const snapshot = snapshotMatch && session.pageIds.includes(snapshotMatch[1]) && method === "POST";
     const reply = replyMatch && session.commentIds.includes(replyMatch[1]) && method === "POST"
@@ -320,7 +322,7 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
       && ["body", "layer", "client_request_id"].every(field => Object.prototype.hasOwnProperty.call(body, field))
       && Object.keys(body).every(field => ["body", "layer", "client_request_id"].includes(field))
       && ["client", "team"].includes(body.layer) && (session.member || body.layer === "client");
-    if (!register && !comments && !update && !snapshot && !reply) throw new Error("Request is outside this review.");
+    if (!register && !comments && !version && !update && !snapshot && !reply) throw new Error("Request is outside this review.");
     const requestController = reply || comments && method === "GET" ? new AbortController() : null;
     const requestTimer = requestController ? setTimeout(() => requestController.abort(), 30_000) : null;
     let result: Record<string, unknown> | Record<string, unknown>[];

@@ -156,6 +156,7 @@ async def submit_snapshot(
             full_page_hash=full_page_hash,
             actor_type=actor_type,
             actor_id=actor_id,
+            trusted_capture=isinstance(actor, Session) or bool(actor.member_user_id),
         )
         await page_repo.update_latest_revision(
             page["workspace_id"],

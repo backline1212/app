@@ -383,11 +383,26 @@ if (!isolatedWindow.__backlineExtensionLoaded && window.top === window) {
     }
   }, 500);
   let commentsLoading = false;
+  // The cheap fingerprint is polled; the full list (with signed evidence URLs) is only
+  // fetched when it changes. An API without the fingerprint route falls back to the list.
+  let seenVersion: { pageId: string; version: string } | null = null;
+  async function changedSinceLastPoll(ctx: AnnotationContext): Promise<boolean> {
+    try {
+      const { version } = await ctx.api.request<{ version: string }>(`/api/v1/pages/${ctx.pageId}/comments/version`);
+      const changed = seenVersion?.pageId !== ctx.pageId || seenVersion.version !== version;
+      seenVersion = { pageId: ctx.pageId, version };
+      return changed;
+    } catch {
+      // Includes an older API without this route: the full list decides access.
+      return true;
+    }
+  }
   setInterval(() => {
     const ctx = context;
     if (commentsLoading || !ctx || !ctx.native || document.hidden || composerHasDraft() || location.href !== ctx.pageUrl) return;
     commentsLoading = true;
-    void ctx.api.request<CommentRecord[]>(`/api/v1/pages/${ctx.pageId}/comments`).then(comments => {
+    void changedSinceLastPoll(ctx).then(changed => changed ? ctx.api.request<CommentRecord[]>(`/api/v1/pages/${ctx.pageId}/comments`) : null).then(comments => {
+      if (!comments) return;
       if (context !== ctx) return;
       const ids = new Set(comments.map(comment => comment.id));
       for (const id of ctx.threadManager.threadMessages.keys()) {

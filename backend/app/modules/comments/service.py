@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import logging
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -23,6 +24,7 @@ from app.modules.comments.schemas import (
     AttachmentIn,
     AttachmentOut,
     CommentOut,
+    CommentsVersionOut,
     CommentUpdate,
     ContextIn,
     GuestBoardItemOut,
@@ -1206,6 +1208,35 @@ async def list_comments(
         return [guest_safe_comment(comment) for comment in comments]
     docs = await repo.list_for_member(page["workspace_id"], page_id, since=since)
     return await serialize_comments(db, workspace_id=page["workspace_id"], docs=docs)
+
+
+async def comments_version(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, page_id: str, actor: Actor
+) -> CommentsVersionOut:
+    page = await _resolve_page_and_access(db, actor, page_id)
+    repo = CommentRepository(db)
+    if isinstance(actor, GuestSession):
+        docs = await repo.list_for_guest_session(page["workspace_id"], page_id, since=None)
+    else:
+        docs = await repo.list_for_member(page["workspace_id"], page_id, since=None)
+    digest = hashlib.sha256()
+    for doc in sorted(docs, key=lambda item: str(item["_id"])):
+        digest.update(
+            "|".join(
+                str(value)
+                for value in (
+                    doc["_id"],
+                    doc.get("revision", 0),
+                    doc.get("status"),
+                    doc.get("layer"),
+                    doc.get("recovery_status"),
+                    doc.get("edited_at"),
+                    len(doc.get("attachments") or []),
+                )
+            ).encode()
+            + b"\n"
+        )
+    return CommentsVersionOut(version=digest.hexdigest()[:32], count=len(docs))
 
 
 async def list_comments_for_project(

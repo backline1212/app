@@ -133,6 +133,7 @@ class RevisionRepository:
         full_page_hash: str,
         actor_type: str,
         actor_id: str,
+        trusted_capture: bool = True,
     ) -> tuple[dict[str, Any], bool]:
         current = await self.find_current(workspace_id, page_id, session=session)
         if current and current["full_page_hash"] == full_page_hash and current.get("snapshot_key"):
@@ -170,6 +171,9 @@ class RevisionRepository:
             "delivery_after": datetime.now(UTC),
             "actor_type": actor_type,
             "actor_id": actor_id,
+            # A team member or the dashboard canvas captured it (not an outside
+            # reviewer) - recovery_engine trusts drastic page changes only from these.
+            "trusted_capture": trusted_capture,
         }
         if current is None:
             doc["previous_revision_id"] = None

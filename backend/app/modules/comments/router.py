@@ -13,6 +13,7 @@ from app.modules.comments.schemas import (
     CommentBodyEdit,
     CommentCreate,
     CommentOut,
+    CommentsVersionOut,
     CommentUpdate,
     GuestBoardOut,
     LayerToggleRequest,
@@ -30,6 +31,17 @@ async def list_comments(
     actor: Actor = Depends(get_current_actor),
 ) -> list[CommentOut]:
     return await comment_service.list_comments(get_db(), page_id=page_id, actor=actor, since=since)
+
+
+@router.get("/pages/{page_id}/comments/version", response_model=CommentsVersionOut)
+async def comments_version(
+    page_id: str,
+    actor: Actor = Depends(get_current_actor),
+) -> CommentsVersionOut:
+    """A cheap fingerprint of what GET /pages/{page_id}/comments would return for this
+    caller, so a polling client (the browser extension) re-downloads the full list only
+    when something changed."""
+    return await comment_service.comments_version(get_db(), page_id=page_id, actor=actor)
 
 
 @router.get("/projects/{project_id}/comments", response_model=list[CommentOut])

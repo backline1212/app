@@ -20,6 +20,30 @@ logger = logging.getLogger("backline.recovery")
 # until a human manually reanchors (PATCH /comments/{id}/reanchor). A distinct status
 # from plain `orphaned` so the dashboard can show "still trying" vs. "gave up" (P4).
 PERMANENTLY_ORPHANED_THRESHOLD = 2
+# Fewer nodes than this is a blank, loading or error page, not a real version.
+MIN_CAPTURE_NODES = 5
+# From an untrusted (outside reviewer) capture, less shared structure than this with the
+# previous version is not accepted as a reason to move or orphan pins.
+MIN_UNTRUSTED_OVERLAP = 0.1
+
+
+def _unreliable_capture(
+    old_nodes_index: dict[str, Any], new_nodes_index: dict[str, Any], revision: dict[str, Any]
+) -> bool:
+    if len(new_nodes_index) < MIN_CAPTURE_NODES:
+        return True
+    if revision.get("trusted_capture", True):
+        return False
+    old_hashes = {
+        node.get("node_hash") for node in old_nodes_index.values() if isinstance(node, dict)
+    }
+    new_hashes = {
+        node.get("node_hash") for node in new_nodes_index.values() if isinstance(node, dict)
+    }
+    old_hashes.discard(None)
+    if not old_hashes:
+        return False
+    return len(old_hashes & new_hashes) / len(old_hashes) < MIN_UNTRUSTED_OVERLAP
 
 
 def _rebuild_anchor(old_anchor: dict[str, Any], matched_node: dict[str, Any]) -> dict[str, Any]:
@@ -143,6 +167,16 @@ async def run_recovery_pipeline(
             old_nodes_index=old_nodes_index,
             new_nodes_index=new_nodes_index,
         )
+
+    # A capture that shares almost nothing with the previous version is either a page
+    # caught mid-load / on an error screen, or - from an outside reviewer's link - a
+    # forged snapshot. Either way it must not count against every pin on the page:
+    # two such captures used to mark all of them permanently orphaned.
+    if _unreliable_capture(old_nodes_index, new_nodes_index, new_revision):
+        logger.info(
+            "Skipping pin recovery for unreliable capture %s on page %s.", revision_id, page_id
+        )
+        return {"skipped_unreliable_capture": 1}
 
     comment_repo = CommentRepository(db)
     log_repo = RecoveryLogRepository(db)
