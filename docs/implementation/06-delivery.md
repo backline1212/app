@@ -47,6 +47,37 @@ delivery, degraded/expired-heartbeat behavior and rollback remain open. No
 tenant data or migrations are involved. No test suite was added or run under
 AGENTS.md.
 
+## 2026-10-24: Current Chrome Web Store draft and publisher contact (TDR-0143)
+
+The intended publisher `contact.dwarkesh@gmail.com` is signed in in the in-app
+browser. Replaced draft item `kdijhbgnbpjoaalbpnimfomemeheokca` version 0.4.9 with
+0.4.13; Google's Package table confirms the new version and unchanged permissions.
+Saved the rendered public privacy/support URLs and source-backed collection
+categories. Added the public contact email; the owner verified Google's link and
+Settings now confirms Verified email address. Trader verification remains pending.
+
+Created the separate Backline Store Demo workspace with its automatically created
+Example Project, and saved a guest demonstration path in Google's private testing
+instructions. An earlier demo-create attempt in `sd` hit its two-project limit;
+no existing project was archived or changed. No private account credentials were
+shared. The guest entry renders the name-only join form without a member login.
+
+Extension/widget lint, typecheck and build pass (6/6 cached Turbo tasks). The
+51,939-byte uploaded ZIP has manifest 0.4.13 and SHA-256
+`704885DDCF562B877C0160118888648AF91CDBFF3F8CF12DEFB597740D8DB2D6`.
+The full local release gate also passed on 2026-10-24: Ruff, mypy, workspace
+scope, saved OpenAPI parity, and all 12 Turbo lint/typecheck/build tasks. No
+suite added/run. See [TDR-0143](../tdr/0143-current-chrome-store-draft-and-reviewer-access.md).
+The owner reported updating Chrome, but a fresh portal reload and launch still
+request 0.4.13; requested the actual extension-card version/duplicate-copy check.
+The owner explicitly confirmed the three data-use statements and authorized their
+checkboxes; saved all three. Google's Unable to publish dialog now lists only
+At least one screenshot or video is required. The owner requested a step-by-step
+flow using only the built-in browser; it is left on Store listing > Screenshots.
+Current-version native acceptance, screenshot/video, review submission and
+publication remain open. No payment was made or verified. Evidence:
+`.tools/verification/2026-10-24-store-screenshot-required.jpg`.
+
 ## 2026-10-24: Public component release matrix after TDR-0142
 
 | Component | Observed revision | Evidence and limit |

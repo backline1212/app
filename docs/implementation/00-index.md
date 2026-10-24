@@ -11,6 +11,13 @@ Arq heartbeat to the Pydantic `/health` contract and regenerated types.
 The public API and worker both reported `22999a0` live and the independent
 revision smoke gate passed; queued domain-job acceptance remains open.
 
+Chrome Web Store draft follow-up (2026-10-24):
+[TDR-0143](../tdr/0143-current-chrome-store-draft-and-reviewer-access.md)
+records the accepted 0.4.13 draft upload, public privacy/support fields, verified
+publisher contact and isolated guest demo. The owner confirmed and saved the
+data-use certifications. Store screenshot, installed-extension acceptance and
+review submission remain open; continue in the built-in browser per the owner.
+
 Web release identity follow-up (2026-10-24):
 [TDR-0142](../tdr/0142-web-release-marker.md) emits a non-secret Vite
 `release.json` asset for exact alias-to-commit checks. The public QA alias

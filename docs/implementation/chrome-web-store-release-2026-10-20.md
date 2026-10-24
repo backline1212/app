@@ -2,6 +2,32 @@
 
 Date: 2026-10-20. Original local package: 0.4.5. Store publication: pending.
 
+## 2026-10-24 current dashboard update
+
+The in-app browser is signed in as `contact.dwarkesh@gmail.com`. Replaced the
+existing item's older 0.4.9 package with the source-checked 0.4.13 ZIP; Google's
+Package table confirms 0.4.13. Uploaded ZIP: 51,939 bytes, SHA-256
+`704885DDCF562B877C0160118888648AF91CDBFF3F8CF12DEFB597740D8DB2D6`.
+The source build's normalized contents match the earlier deployment checks;
+archive-byte hashes can vary with build metadata.
+
+Saved the publicly rendered privacy/support URLs and data categories. The
+publisher contact is now `contact.dwarkesh@gmail.com` and Google confirms it is
+verified after the owner clicked the verification email. Trader verification
+independently remains pending. A dedicated Backline Store Demo workspace supplies
+the guest path saved in Google's private testing instructions; no owner account
+credentials were supplied. Existing `sd` projects remain unchanged.
+
+The owner confirmed all three data-use statements and authorized their boxes;
+saved the certifications. Google's blocker dialog now lists only a required
+screenshot/video. The owner reported updating Chrome, but a fresh portal
+reload/launch still requests 0.4.13. The owner then requested a step-by-step flow
+in the built-in browser only; the tab is left on Store listing > Screenshots.
+Native acceptance, current screenshot, submission and publication remain open.
+Affected extension/widget lint/typecheck/build passed (6/6 cached
+Turbo tasks); no suite was added/run. See TDR-0143 for current evidence. Older
+sections below describe historical states, not current submission blockers.
+
 ## 2026-10-24 startup-outage update
 
 TDR-0130 advances the source manifest and versioned portal ZIP to 0.4.13 so
