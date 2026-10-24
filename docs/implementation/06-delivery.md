@@ -4675,3 +4675,13 @@ database migration, or production deployment is claimed.
 - Image/PDF comments now take attachments (files and recordings).
 - Verification: ruff, mypy, lint/typecheck/build; Chromium end-to-end on a local stack
   (widget capture + recording upload, dashboard playback and diagnostics display).
+
+# 2026-10-24: Backend access/SSRF hardening (TDR-0148)
+
+- Fixed private-project bypass on the implementation-prompt route, DNS-rebinding SSRF
+  in the proxy/webhooks/GitLab, guest exposure of staff ticket fields and team-thread
+  replies, guest mention/delete/resolve gaps, extension tokens surviving sign-out,
+  owner-role races, one-time ticket double redemption, inflated page comment counts,
+  unbounded notification limit, cross-tenant client-list scans and per-URL boto3
+  clients.
+- Verification: ruff/format/mypy/scoping; guarded-connect probe; guest/widget flows.

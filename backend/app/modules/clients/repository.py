@@ -55,7 +55,14 @@ class ClientRepository:
                         }
                     },
                     "pipeline": [
-                        {"$match": {"$expr": {"$in": ["$project_id", "$$project_ids"]}}},
+                        # workspace_id outside $expr can use its index; without it this
+                        # scanned every tenant's pages for each client.
+                        {
+                            "$match": {
+                                "workspace_id": workspace_id,
+                                "$expr": {"$in": ["$project_id", "$$project_ids"]},
+                            }
+                        },
                         {"$project": {"_id": 1}},
                     ],
                     "as": "_pages",
@@ -72,6 +79,7 @@ class ClientRepository:
                     "pipeline": [
                         {
                             "$match": {
+                                "workspace_id": workspace_id,
                                 "$expr": {"$in": ["$page_id", "$$page_ids"]},
                                 "parent_id": None,
                                 "deleted_at": None,

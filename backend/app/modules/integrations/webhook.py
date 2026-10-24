@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from app.core.encryption import decrypt_secret
+from app.core.ssrf_guard import guarded_client
 from app.modules.comments.schemas import CommentOut
 from app.modules.integrations.base import (
     EventContext,
@@ -123,7 +124,7 @@ class WebhookIntegration:
         try:
             # follow_redirects stays off (httpx's default): a redirect could point the
             # request at an internal address after assert_public_url already passed.
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with guarded_client(timeout=10.0) as client:
                 response = await client.post(url, content=body, headers=headers)
         except httpx.HTTPError as exc:
             raise IntegrationDeliveryError(f"Webhook request failed: {exc}") from exc

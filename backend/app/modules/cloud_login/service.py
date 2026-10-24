@@ -107,10 +107,10 @@ async def redeem_session_ticket(
     connects - one-time, same reasoning as session_sync's own ticket (a stolen URL must
     not be replayable once the real session has already started)."""
     key = _redis_key(ticket)
-    raw = await redis_client.get(key)
+    # GETDEL: one-time - two concurrent redemptions can't both read it.
+    raw = await redis_client.getdel(key)
     if raw is None:
         return None
-    await redis_client.delete(key)
     payload = json.loads(raw)
     return CloudLoginTarget(
         workspace_id=payload["workspace_id"],

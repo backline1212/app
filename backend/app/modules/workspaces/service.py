@@ -443,9 +443,13 @@ async def update_member_role(
     if membership["role"] == "owner":
         raise ValidationError("Cannot change the owner's role.")
 
-    await membership_repo.update_role(
-        workspace_id=workspace_id, membership_id=membership_id, role=role
-    )
+    if not await membership_repo.update_role(
+        workspace_id=workspace_id,
+        membership_id=membership_id,
+        role=role,
+        expected_role={"$ne": "owner"},
+    ):
+        raise ValidationError("Cannot change the owner's role.")
     await append_event(
         db,
         workspace_id=workspace_id,
@@ -495,7 +499,10 @@ async def remove_member(
     if membership["role"] == "owner":
         raise ValidationError("Cannot remove the workspace owner.")
 
-    await membership_repo.delete(workspace_id=workspace_id, membership_id=membership_id)
+    if not await membership_repo.delete(
+        workspace_id=workspace_id, membership_id=membership_id, protect_owner=True
+    ):
+        raise ValidationError("Cannot remove the workspace owner.")
     await append_event(
         db,
         workspace_id=workspace_id,
@@ -516,7 +523,10 @@ async def leave_workspace(
         raise NotFoundError("You aren't a member of this workspace.")
     if membership["role"] == "owner":
         raise ValidationError("Make someone else the owner before you leave.")
-    await membership_repo.delete(workspace_id=workspace_id, membership_id=str(membership["_id"]))
+    if not await membership_repo.delete(
+        workspace_id=workspace_id, membership_id=str(membership["_id"]), protect_owner=True
+    ):
+        raise ValidationError("Make someone else the owner before you leave.")
     await append_event(
         db,
         workspace_id=workspace_id,
@@ -552,12 +562,29 @@ async def transfer_ownership(
         "invited"
     ]:
         raise ValidationError("They need to sign in once before they can own the workspace.")
-    await membership_repo.update_role(
-        workspace_id=workspace_id, membership_id=membership_id, role="owner"
-    )
-    await membership_repo.update_role(
-        workspace_id=workspace_id, membership_id=str(current["_id"]), role="admin"
-    )
+
+    # Both role changes commit together, each as a compare-and-set: two concurrent
+    # transfers (or a removal racing one) can't leave zero or two owners.
+    async def swap_roles(session: Any) -> None:
+        if not await membership_repo.update_role(
+            workspace_id=workspace_id,
+            membership_id=str(current["_id"]),
+            role="admin",
+            expected_role="owner",
+            session=session,
+        ):
+            raise ConflictError("Ownership changed while you were transferring it. Reload.")
+        if not await membership_repo.update_role(
+            workspace_id=workspace_id,
+            membership_id=membership_id,
+            role="owner",
+            expected_role={"$ne": "owner"},
+            session=session,
+        ):
+            raise ConflictError("That member changed or left. Reload and try again.")
+
+    async with await db.client.start_session() as session:
+        await session.with_transaction(swap_roles)
     await append_event(
         db,
         workspace_id=workspace_id,

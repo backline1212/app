@@ -198,6 +198,9 @@ class CommentRepository:
             "workspace_id": workspace_id,
             "page_id": {"$in": page_ids},
             "layer": "client",
+            # Threads only: the board's items are tickets, and a reply's own layer
+            # says nothing about whether its thread is still client-visible.
+            "parent_id": None,
             "deleted_at": None,
         }
         cursor = self.db.comments.find(query).sort("created_at", 1)

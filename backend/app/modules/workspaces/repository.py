@@ -298,20 +298,40 @@ class MembershipRepository:
         cursor = self.db.memberships.find({"user_id": user_id})
         return [doc async for doc in cursor]
 
-    async def update_role(self, *, workspace_id: str, membership_id: str, role: str) -> None:
+    async def update_role(
+        self,
+        *,
+        workspace_id: str,
+        membership_id: str,
+        role: str,
+        expected_role: dict[str, Any] | str | None = None,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> bool:
+        """`expected_role` turns the write into a compare-and-set (a role, or a query
+        such as {"$ne": "owner"}), so a concurrent ownership change can't be undone by
+        a decision made on a stale read. Returns whether a membership matched."""
         oid = to_object_id(membership_id)
         if oid is None:
-            return
-        await self.db.memberships.update_one(
-            {"workspace_id": workspace_id, "_id": oid},
-            {"$set": {"role": role}},
+            return False
+        query: dict[str, Any] = {"workspace_id": workspace_id, "_id": oid}
+        if expected_role is not None:
+            query["role"] = expected_role
+        result = await self.db.memberships.update_one(
+            query, {"$set": {"role": role}}, session=session
         )
+        return result.matched_count == 1
 
-    async def delete(self, *, workspace_id: str, membership_id: str) -> None:
+    async def delete(
+        self, *, workspace_id: str, membership_id: str, protect_owner: bool = False
+    ) -> bool:
         oid = to_object_id(membership_id)
         if oid is None:
-            return
-        await self.db.memberships.delete_one({"workspace_id": workspace_id, "_id": oid})
+            return False
+        query: dict[str, Any] = {"workspace_id": workspace_id, "_id": oid}
+        if protect_owner:
+            query["role"] = {"$ne": "owner"}
+        result = await self.db.memberships.delete_one(query)
+        return result.deleted_count == 1
 
     async def count_by_role(self, *, workspace_id: str, role: str) -> int:
         return await self.db.memberships.count_documents(

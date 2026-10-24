@@ -491,6 +491,11 @@ async def revoke_all_sessions(db: AsyncIOMotorDatabase[dict[str, Any]], user_id:
         {"user_id": user_object_id, "revoked_at": None},
         {"$set": {"revoked_at": datetime.now(UTC)}},
     )
+    # Browser-extension connections are long-lived bearer tokens; "sign out of all
+    # sessions" must end them as well.
+    from app.modules.extension_tokens.repository import ExtensionTokenRepository
+
+    await ExtensionTokenRepository(db).revoke_all_for_user(user_object_id)
 
 
 # How long after an emailed-code sign-in the "Set a password" step stays open.
@@ -602,6 +607,10 @@ async def change_password(
     )
     if current_sid:
         await RefreshTokenRepository(db).revoke_other_families(user_doc["_id"], current_sid)
+    # A changed password also ends extension connections made with the old one.
+    from app.modules.extension_tokens.repository import ExtensionTokenRepository
+
+    await ExtensionTokenRepository(db).revoke_all_for_user(user_doc["_id"])
 
 
 def _email_change_purpose(user_id: str) -> str:

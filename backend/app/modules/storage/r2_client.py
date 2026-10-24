@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from typing import TYPE_CHECKING
 
 import boto3
@@ -61,7 +62,7 @@ async def generate_presigned_put(
     settings = get_settings()
 
     def _generate() -> str:
-        client = _make_client()
+        client = _presign_client()
         url: str = client.generate_presigned_url(
             "put_object",
             Params={
@@ -77,6 +78,22 @@ async def generate_presigned_put(
     return await asyncio.to_thread(_generate)
 
 
+_signing_client: S3Client | None = None
+_signing_lock = threading.Lock()
+
+
+def _presign_client() -> S3Client:
+    """One reused client for URL signing - generate_presigned_url is local computation
+    and thread-safe, while building a boto3 client is the expensive part (list_assets
+    used to build up to 50 of them per request)."""
+    global _signing_client
+    if _signing_client is None:
+        with _signing_lock:
+            if _signing_client is None:
+                _signing_client = _make_client()
+    return _signing_client
+
+
 async def generate_presigned_get(key: str, expires_in: int = 3600) -> str:
     """18-Storage-Deployment.md §18.2: screenshots are never served from a public
     bucket - a signed GET (1 hour TTL) is generated on-demand whenever a comment is
@@ -87,7 +104,7 @@ async def generate_presigned_get(key: str, expires_in: int = 3600) -> str:
     settings = get_settings()
 
     def _generate() -> str:
-        client = _make_client()
+        client = _presign_client()
         url: str = client.generate_presigned_url(
             "get_object",
             Params={
@@ -110,7 +127,7 @@ async def generate_presigned_gets(keys: list[str], expires_in: int = 3600) -> di
     settings = get_settings()
 
     def _generate() -> dict[str, str]:
-        client = _make_client()
+        client = _presign_client()
         return {
             key: client.generate_presigned_url(
                 "get_object",

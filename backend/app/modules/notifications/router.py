@@ -13,7 +13,7 @@ router = APIRouter(tags=["notifications"])
 
 @router.get("/notifications", response_model=list[NotificationOut])
 async def list_notifications(
-    limit: int = Query(default=20, le=100),
+    limit: int = Query(default=20, ge=1, le=100),
     before: datetime | None = None,
     session: Session = Depends(require_permission("notification:manage")),
 ) -> list[NotificationOut]:

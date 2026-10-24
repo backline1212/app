@@ -5,6 +5,7 @@ import httpx
 
 from app.core.encryption import decrypt_secret
 from app.core.errors import ExternalServiceError
+from app.core.ssrf_guard import guarded_client
 from app.modules.comments.schemas import CommentOut
 from app.modules.integrations.base import (
     Destination,
@@ -46,7 +47,7 @@ class GitLabIntegration:
     async def list_destinations(self, ctx: IntegrationContext) -> list[Destination]:
         await _guard(ctx.config)
         try:
-            async with httpx.AsyncClient(timeout=15.0, headers=_headers(ctx.config)) as client:
+            async with guarded_client(timeout=15.0, headers=_headers(ctx.config)) as client:
                 response = await client.get(
                     f"{_base(ctx.config)}/api/v4/projects",
                     params={
@@ -83,7 +84,7 @@ class GitLabIntegration:
         project = quote(str(config["project_id"]), safe="")
         api = f"{_base(config)}/api/v4/projects/{project}"
         try:
-            async with httpx.AsyncClient(timeout=20.0, headers=_headers(config)) as client:
+            async with guarded_client(timeout=20.0, headers=_headers(config)) as client:
                 image_md = ""
                 if comment.screenshot_url:
                     try:
@@ -119,7 +120,7 @@ class GitLabIntegration:
     async def test_connection(self, ctx: IntegrationContext) -> bool:
         try:
             await _guard(ctx.config)
-            async with httpx.AsyncClient(timeout=10.0, headers=_headers(ctx.config)) as client:
+            async with guarded_client(timeout=10.0, headers=_headers(ctx.config)) as client:
                 response = await client.get(f"{_base(ctx.config)}/api/v4/user")
             return response.status_code == 200
         except (ExternalServiceError, httpx.HTTPError):
