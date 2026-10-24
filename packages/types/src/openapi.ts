@@ -3214,6 +3214,7 @@ export interface components {
              * @default false
              */
             is_standalone: boolean;
+            fix?: components["schemas"]["FixSubmissionOut"] | null;
         };
         /** CommentUpdate */
         CommentUpdate: {
@@ -3702,6 +3703,20 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * FixSubmissionOut
+         * @description A fix reported on a ticket (by a coding agent over MCP's submit_fix): what changed
+         *     and where to check it. Lives on the reply that reported it, so every attempt stays in
+         *     the thread's history (TDR-0158).
+         */
+        FixSubmissionOut: {
+            /** Summary */
+            summary: string;
+            /** Preview Url */
+            preview_url?: string | null;
+            /** Change Url */
+            change_url?: string | null;
         };
         /**
          * GeneratePromptRequest
@@ -5704,6 +5719,7 @@ export interface components {
              * @default false
              */
             is_standalone: boolean;
+            fix?: components["schemas"]["FixSubmissionOut"] | null;
             /** Project Id */
             project_id: string;
             /** Project Name */

@@ -196,6 +196,7 @@ export const MCP_TOOLS: McpToolInfo[] = [
   { name: "generate_implementation_prompt", write: false, description: "A ready-to-work brief for fixing one ticket." },
   { name: "reply_to_ticket", write: true, description: "Post a reply - team-only by default, client-visible on request." },
   { name: "update_ticket", write: true, description: "Change status (e.g. in review, resolved) or priority." },
+  { name: "submit_fix", write: true, description: "Report a fix with its preview and PR links; moves the ticket to in review for your team to verify." },
   { name: "send_ticket_to_tracker", write: true, description: "File the ticket in a connected Jira, Linear, GitHub… once." },
   { name: "fix_ticket (prompt)", write: false, description: "A prompt/slash command: load a ticket's brief and report back when done." },
 ];

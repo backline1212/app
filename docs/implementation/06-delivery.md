@@ -4744,3 +4744,9 @@ database migration, or production deployment is claimed.
 
 - New accounts get a prefilled "Create your workspace" step. Search finds clients (for
   members who manage clients) and labels comment results as tickets.
+
+# 2026-10-24: MCP fix-and-verify loop (TDR-0158)
+
+- Agents report fixes with `submit_fix` (summary, preview and PR links → In review);
+  the team verifies from a fix card (Verified – resolve / Reopen). Partially closes
+  FEAT-12 (no automated verification run).

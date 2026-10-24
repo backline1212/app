@@ -238,6 +238,39 @@ async def update_ticket(
 
 
 @mcp.tool(
+    title="Submit fix",
+    annotations=ToolAnnotations(destructiveHint=False, idempotentHint=False, openWorldHint=False),
+)
+async def submit_fix(
+    ticket: TicketRef,
+    summary: Annotated[
+        str, Field(description="What you changed and how to check it, in plain text.")
+    ],
+    preview_url: Annotated[
+        str | None,
+        Field(description="Where the fix can be seen (staging/preview URL), if deployed."),
+    ] = None,
+    change_url: Annotated[
+        str | None, Field(description="Pull request, merge request or commit URL.")
+    ] = None,
+) -> str:
+    """Report that a ticket is fixed: posts a team reply with the summary and links and
+    moves the ticket to "in review" so a person can verify and resolve or reopen it.
+    Needs a read & write token."""
+    actor = await _actor()
+    return await _run(
+        tools.submit_fix(
+            get_db(),
+            actor,
+            ticket=ticket,
+            summary=summary,
+            preview_url=preview_url,
+            change_url=change_url,
+        )
+    )
+
+
+@mcp.tool(
     title="Send ticket to tracker",
     annotations=ToolAnnotations(destructiveHint=False, idempotentHint=True, openWorldHint=True),
 )
@@ -265,9 +298,9 @@ async def fix_ticket(ticket: TicketRef) -> str:
     brief = await _run(tools.implementation_prompt(get_db(), actor, ticket))
     if actor.can_write:
         closing = (
-            "When the change is made, call reply_to_ticket on this ticket with a short "
-            'summary of what changed (visibility "team"), then update_ticket with status '
-            '"in_review".'
+            "When the change is made, call submit_fix on this ticket with a short summary "
+            "of what changed, plus the preview URL and pull request/commit URL if there "
+            "are any. That moves it to in review for your team to verify."
         )
     else:
         closing = (

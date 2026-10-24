@@ -27,6 +27,7 @@ from app.modules.comments.schemas import (
     CommentsVersionOut,
     CommentUpdate,
     ContextIn,
+    FixSubmissionOut,
     GuestBoardItemOut,
     GuestBoardOut,
     RecoveryStatus,
@@ -91,6 +92,9 @@ def guest_safe_comment(comment: CommentOut) -> CommentOut:
             "due_at": None,
             "priority": "medium",
             "context": {"url": context.get("url", "")} if context.get("url") else {},
+            # Preview/change links are the team's; a client-visible fix reply still
+            # carries its plain-text summary in the body.
+            "fix": None,
         }
     )
 
@@ -467,6 +471,7 @@ async def _comment_out(
         waiting_on_ids=doc.get("waiting_on_ids", []),
         waiting_on_client=doc.get("waiting_on_client", False),
         is_standalone=doc.get("is_standalone", False),
+        fix=FixSubmissionOut.model_validate(doc["fix"]) if doc.get("fix") else None,
         assignee_id=doc.get("assignee_id"),
         due_at=doc.get("due_at"),
         anchor=anchor,
@@ -710,6 +715,7 @@ async def create_reply(
     attachments: list[AttachmentIn] | None = None,
     client_request_id: str | None = None,
     mentioned_user_ids: list[str] | None = None,
+    fix: FixSubmissionOut | None = None,
 ) -> CommentOut:
     repo = CommentRepository(db)
     parent = await repo.find_by_id(parent_id)
@@ -779,6 +785,8 @@ async def create_reply(
         "created_at": datetime.now(UTC),
         "edited_at": None,
     }
+    if fix is not None and not is_guest:
+        doc["fix"] = fix.model_dump()
     if client_request_id is not None:
         existing_reply = await repo.find_by_client_request_id(
             parent["workspace_id"], client_request_id

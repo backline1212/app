@@ -39,6 +39,7 @@ import * as integrationsApi from "../../../integrations/api";
 import { listAssets } from "../../../assets/api";
 import { providerName } from "../../../integrations/providers";
 import { DatePicker } from "../../../tickets/components/DatePicker";
+import { FixCard } from "../../../comments/FixCard";
 import type { MemberOut } from "../../../workspaces/api";
 import {
   COMMENT_TAGS,
@@ -269,7 +270,7 @@ function MenuOption({
   );
 }
 
-function Message({ comment, showContext }: { comment: CommentOut; showContext: boolean }) {
+function Message({ comment, showContext, extra }: { comment: CommentOut; showContext: boolean; extra?: React.ReactNode }) {
   const anchor = comment.anchor as CommentAnchor;
   const selector = anchor.dom_fingerprint?.selector_path;
   const tech = techLine(comment);
@@ -284,7 +285,7 @@ function Message({ comment, showContext }: { comment: CommentOut; showContext: b
           </span>
           {comment.layer === "team" && <span className="bl-cd-tag">Team only</span>}
         </div>
-        <p>{renderWithMentions(comment.body)}</p>
+        <p>{renderWithMentions(comment.fix ? comment.fix.summary : comment.body)}</p>
         {(comment.screenshot_url || comment.attachments.length > 0) && (
           <div className="bl-cd-att">
             {comment.screenshot_url && (
@@ -324,6 +325,7 @@ function Message({ comment, showContext }: { comment: CommentOut; showContext: b
           </div>
         )}
         {showContext && <CommentDiagnostics context={comment.context} />}
+        {extra}
       </div>
     </div>
   );
@@ -519,6 +521,8 @@ export function CommentDetail({
   useEffect(() => {
     if (comment.layer === "team") setLayer("team");
   }, [comment.layer]);
+
+  const latestFixId = [...replies].reverse().find((reply) => reply.fix)?.id;
 
   function setStatus(status: CommentStatus) {
     update.mutate({
@@ -879,7 +883,21 @@ export function CommentDetail({
       <div className="bl-cd-msgs">
         <Message comment={comment} showContext />
         {replies.map((item) => (
-          <Message key={item.id} comment={item} showContext={false} />
+          <Message
+            key={item.id}
+            comment={item}
+            showContext={false}
+            extra={item.fix && (
+              <FixCard
+                fix={item.fix}
+                busy={update.isPending}
+                {...(canEdit && comment.status === "in_review" && item.id === latestFixId ? {
+                  onVerify: () => setStatus("resolved"),
+                  onReopen: () => setStatus("in_progress"),
+                } : {})}
+              />
+            )}
+          />
         ))}
         {devTask && (
           <div className="bl-cd-out" role="region" aria-label="Dev task">
