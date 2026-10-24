@@ -2,11 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { ApiError } from "../../lib/api-client";
 import { qk } from "../../lib/query-keys";
 import { getAssetContent, type Asset } from "./api";
 
-export function AssetPreview({ asset, projectId, pageNumber, guest, onReady }: {
+export function AssetPreview({ asset, projectId, pageNumber, guest, onReady, onFailed, onManageFiles }: {
   asset: Asset; projectId: string; pageNumber: number; guest?: string; onReady: (ready: boolean) => void;
+  /** The file couldn't be shown (message), or is loading/shown again (null). */
+  onFailed?: (message: string | null) => void;
+  /** Offered when the stored file is gone, for people who can replace it. */
+  onManageFiles?: () => void;
 }) {
   const content = useQuery({
     queryKey: qk.assetContent(projectId, asset.id, guest ?? "member"),
@@ -24,8 +29,19 @@ export function AssetPreview({ asset, projectId, pageNumber, guest, onReady }: {
     return () => URL.revokeObjectURL(url);
   }, [content.data, asset.content_type, onReady]);
 
+  const failure = content.error ? content.error.message : imageError ? "This image could not be displayed." : null;
+  useEffect(() => { onFailed?.(failure); }, [failure, onFailed]);
   if (content.isLoading) return <div className="bl-asset-loading" role="status">Loading {asset.filename}…</div>;
-  if (content.error || imageError) return <div className="bl-asset-loading" role="alert"><p>{content.error?.message ?? "This image could not be displayed."}</p><button type="button" className="bl-button" onClick={() => { onReady(false); setImageError(false); void content.refetch(); }}>Retry file</button></div>;
+  if (failure) {
+    const missing = content.error instanceof ApiError && content.error.code === "FILE_MISSING";
+    return <div className="bl-asset-loading" role="alert">
+      <p>{missing ? `${asset.filename} is missing from storage. Upload it again from Manage files; its comments stay in the Comments panel.` : failure}</p>
+      <div className="bl-asset-loading-actions">
+        {missing && onManageFiles && <button type="button" className="bl-button" onClick={onManageFiles}>Manage files</button>}
+        <button type="button" className={missing && onManageFiles ? "bl-quiet" : "bl-button"} onClick={() => { onReady(false); setImageError(false); void content.refetch(); }}>Retry file</button>
+      </div>
+    </div>;
+  }
   if (!content.data) return null;
   if (asset.content_type === "application/pdf") return <PdfCanvas blob={content.data} pageNumber={pageNumber} onReady={onReady} />;
   return imageUrl ? <img draggable={false} src={imageUrl} alt={asset.filename} onLoad={() => onReady(true)} onError={() => { onReady(false); setImageError(true); }} /> : null;

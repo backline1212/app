@@ -215,6 +215,7 @@ export function AssetReview({
   const mediaKey = `${asset?.id}:${page}`;
   const mediaReady = readyKey === mediaKey && !fileAccessDenied;
   const onMediaReady = useCallback((ready: boolean) => setReadyKey(ready ? mediaKey : ""), [mediaKey]);
+  const [mediaFailure, setMediaFailure] = useState<string | null>(null);
   useEffect(() => {
     if (locationProtected || resolvingRequested || !asset) return;
     const safePage = Math.min(asset.page_count, page);
@@ -548,6 +549,7 @@ export function AssetReview({
     openCommentRequest,
   });
   const statusText = !asset ? (assets.isLoading ? "Loading files…" : "No file open")
+    : mediaFailure && !mediaReady ? `${asset.filename} couldn't be shown — comments are still available`
     : !mediaReady ? `Loading ${asset.filename}…`
     : draft ? "Write your comment, then post it — or press Esc to cancel"
     : annotationMode ? (canEdit ? "Comment mode — click to pin, drag to select an area, drag a pin to move it" : "Comment mode — click to pin a comment, or drag to select an area")
@@ -632,7 +634,7 @@ export function AssetReview({
     <section className="bl-review-main" aria-label="File review canvas">
       <div ref={stageRef} className={`bl-review-stage bl-asset-stage ${annotationMode ? "is-commenting" : "is-browsing"}`} onScroll={draft ? placeComposer : undefined}>
         {asset ? <div className="bl-asset-frame" style={frameSize}><div ref={sheetRef} className={`bl-asset-sheet ${annotationMode ? 'commenting' : ''}${mobile ? ' is-device' : ''}`} style={{ maxWidth: fitWidth ?? undefined, transform: `translate(-50%, -50%) scale(${zoomScale}) rotate(${rotation}deg)` }} onPointerDown={handleContainerDown} onPointerMove={handleContainerMove} onPointerUp={handleContainerUp} onPointerCancel={handleContainerCancel}>
-          <AssetPreview key={asset.id} asset={asset} projectId={projectId} pageNumber={page} guest={guest} onReady={onMediaReady} />
+          <AssetPreview key={asset.id} asset={asset} projectId={projectId} pageNumber={page} guest={guest} onReady={onMediaReady} onFailed={setMediaFailure} onManageFiles={project ? () => setShowFiles(true) : undefined} />
           {mediaReady && roots.map((comment) => {
             const region = tempRegion?.id === comment.id ? tempRegion.region : regionOf(comment)!;
             const area = hasArea(region);
@@ -887,7 +889,7 @@ export function AssetReview({
         {annotationMode && <button type="button" className="bl-review-control bl-asset-center-pin" disabled={!mediaReady || hasDraft} onClick={() => { setDraft({ x: .5, y: .5, width: 0, height: 0, page_number: page }); setSelected(''); }}>Pin at center</button>}
       </div>
       <span className="bl-review-source-status" role="status">
-        <i className={`bl-review-source-dot ${!asset ? "" : mediaReady ? "is-loaded" : "is-loading"}`} aria-hidden="true" />
+        <i className={`bl-review-source-dot ${!asset ? "" : mediaReady ? "is-loaded" : mediaFailure ? "is-error" : "is-loading"}`} aria-hidden="true" />
         <span>{statusText}</span>
       </span>
       <div className="bl-review-status-actions">

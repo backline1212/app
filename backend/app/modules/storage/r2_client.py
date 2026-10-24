@@ -212,6 +212,12 @@ async def download_bytes_limited(key: str, max_bytes: int) -> bytes:
     try:
         return await asyncio.to_thread(_download)
     except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound"):
+            from app.core.errors import StoredFileMissingError
+
+            raise StoredFileMissingError(
+                "This file is missing from storage. Upload it again from Manage files."
+            ) from exc
         raise ExternalServiceError("The file could not be loaded from storage. Try again.") from exc
 
 

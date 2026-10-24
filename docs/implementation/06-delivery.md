@@ -4764,3 +4764,8 @@ database migration, or production deployment is claimed.
   for "Add to Chrome". Extension 0.5.2 store package ready (see Web Store handoff).
 - Operator follow-up: submit 0.5.2 to the Chrome Web Store; set
   `VITE_EXTENSION_STORE_URL` after approval.
+
+# 2026-10-25: File load failure states (TDR-0161)
+
+- Missing stored files return 404 FILE_MISSING; file projects show Manage files/Retry
+  and an accurate status bar instead of an endless "Loading…".

@@ -17,6 +17,13 @@ class NotFoundError(BacklineError):
     status_code = status.HTTP_404_NOT_FOUND
 
 
+class StoredFileMissingError(NotFoundError):
+    """The record exists but its object is gone from storage (deleted or never finished
+    uploading) - retrying can't help; the file has to be uploaded again."""
+
+    code = "FILE_MISSING"
+
+
 class AuthenticationError(BacklineError):
     """Missing, malformed, expired, or revoked credentials - distinct from
     PermissionDeniedError (a valid session that simply isn't authorized for the
