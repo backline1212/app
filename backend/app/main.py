@@ -17,6 +17,7 @@ from app.core.db import close_client, get_client, get_db
 from app.core.errors import register_exception_handlers
 from app.core.health_schema import HealthOut, WorkerHealthOut
 from app.core.indexes import ensure_indexes
+from app.core.log_redaction import install as install_log_redaction
 from app.core.redis_client import close_redis, get_redis
 from app.core.release_identity import deployment_id, release_sha
 from app.core.snapshot_body_limit import SnapshotBodyLimitMiddleware
@@ -91,6 +92,9 @@ if settings.sentry_dsn:
     sentry_sdk.init(
         dsn=settings.sentry_dsn, environment=settings.environment, traces_sample_rate=0.1
     )
+
+# Access-log lines must never carry the realtime socket's ?token= (log_redaction.py).
+install_log_redaction()
 
 app = FastAPI(title="Backline API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(SnapshotBodyLimitMiddleware)

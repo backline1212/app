@@ -145,7 +145,7 @@ export function ShareLinksPage() {
                       <td>
                         <span className="bl-mono">{link.token}</span>
                         {link.has_passcode && <small>Passcode required</small>}
-                        {!!link.domain_restrictions?.length && <small className="bl-error">Legacy request-origin filter. This does not verify reviewer identity. Create a replacement with a passcode.</small>}
+                        {!!link.domain_restrictions?.length && <small className="bl-error">Old website filter - it doesn't check who the reviewer is. Replace this link with a passcode-protected one.</small>}
                         {link.comment_export_permission && <small>Guest export is unavailable.</small>}
                       </td>
                       <td>{modeLabel(link.mode)}</td>
@@ -218,7 +218,7 @@ export function ShareLinksPage() {
             <input className="bl-switch-input" type="checkbox" checked={askReviewerName} onChange={(event) => setAskReviewerName(event.target.checked)} />
             <span className="bl-switch" aria-hidden="true"><i /></span>
           </label>
-          <p className="bl-policy-note">Email-domain verification and guest export are not available. Use a passcode to protect this review link.</p>
+          <p className="bl-policy-note">Use a passcode to protect this review link, and send it separately.</p>
           {createMutation.isError && (
             <p role="alert" className="bl-error">
               {createMutation.error instanceof Error ? createMutation.error.message : "Could not create share link."}

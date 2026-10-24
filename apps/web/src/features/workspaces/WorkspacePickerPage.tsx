@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../auth/AuthContext";
@@ -8,6 +8,8 @@ import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import * as workspacesApi from "./api";
 import type { TranslationKeys } from "../../lib/i18n";
+
+const LAST_WORKSPACE_KEY = "backline:last-workspace";
 
 export function WorkspacePickerPage() {
   const { t } = useTranslation();
@@ -26,10 +28,27 @@ export function WorkspacePickerPage() {
   const myRequests = useQuery({ queryKey: qk.myJoinRequests(), queryFn: workspacesApi.listMyJoinRequests });
   const waiting = (myRequests.data ?? []).filter((request) => request.status === "pending");
 
+  // Arriving straight from sign-in, skip the picker when the choice is obvious: the
+  // workspace used last on this browser, or the only one. Visiting "/" otherwise (to
+  // switch workspaces) always shows the list.
+  const location = useLocation();
+  const autoEnter = Boolean((location.state as { autoEnter?: boolean } | null)?.autoEnter);
+  const autoEntered = useRef(false);
+  useEffect(() => {
+    if (!autoEnter || autoEntered.current || !workspaces?.length) return;
+    let last: string | null = null;
+    try { last = localStorage.getItem(LAST_WORKSPACE_KEY); } catch { /* ignore */ }
+    const target = workspaces.find((workspace) => workspace.id === last) ?? (workspaces.length === 1 ? workspaces[0] : undefined);
+    if (!target) return;
+    autoEntered.current = true;
+    void enterWorkspace(target.id, target.slug);
+  });
+
   async function enterWorkspace(workspaceId: string, slug: string) {
     setError(null);
     try {
       await switchWorkspace(workspaceId);
+      try { localStorage.setItem(LAST_WORKSPACE_KEY, workspaceId); } catch { /* storage may be blocked */ }
       navigate(`/w/${slug}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not open that workspace.");
@@ -159,9 +178,8 @@ export function WorkspacePickerPage() {
         {/* Footer */}
         <div className="wsp-foot">
           <span className="c">&copy; {new Date().getFullYear()} Backline</span>
-          <a href="#">Privacy</a>
-          <a href="#">Terms</a>
-          <a href="#">Support</a>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/support">Support</Link>
         </div>
       </div>
     </main>

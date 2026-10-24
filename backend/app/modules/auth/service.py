@@ -122,9 +122,9 @@ async def _issue_tokens(
         auth_method=auth_method,
         authenticated_at=authenticated_at,
     )
-    # A member works from one active session at a time: signing in anywhere signs out
-    # every other device (TDR-0034).
-    await refresh_repo.revoke_other_families(user_doc["_id"], family_id)
+    # Up to MAX_ACTIVE_SESSIONS devices stay signed in at once; the least recently used
+    # beyond that are signed out (TDR-0151, replacing TDR-0034's single session).
+    await refresh_repo.revoke_families_beyond(user_doc["_id"], keep=MAX_ACTIVE_SESSIONS)
 
     return IssuedTokens(
         access_token=access_token, refresh_token=raw_refresh, user=_user_out(user_doc)
@@ -497,6 +497,8 @@ async def revoke_all_sessions(db: AsyncIOMotorDatabase[dict[str, Any]], user_id:
 
     await ExtensionTokenRepository(db).revoke_all_for_user(user_object_id)
 
+
+MAX_ACTIVE_SESSIONS = 5
 
 # How long after an emailed-code sign-in the "Set a password" step stays open.
 PASSWORD_RESET_WINDOW = timedelta(minutes=15)

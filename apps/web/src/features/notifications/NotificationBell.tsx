@@ -120,8 +120,9 @@ export function NotificationBell() {
       setOpen(false);
       if (project) {
         try {
+          // The project check covers access; a removed comment is handled by the
+          // page it opens (there is no single-comment GET endpoint).
           await apiFetch(`/api/v1/projects/${encodeURIComponent(project)}`);
-          if (comment) await apiFetch(`/api/v1/comments/${encodeURIComponent(comment)}`);
         } catch (error) {
           toast(error instanceof ApiError && [403, 404].includes(error.status) ? "This notification target is no longer available." : "Could not open the notification target. Try again.", "error");
           navigate(base);

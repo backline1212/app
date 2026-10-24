@@ -3168,3 +3168,16 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-portal-card h1{margin:16px 0 6px;font-size:20px}.bl-portal-card>p{color:var(--ink-3);font-size:13px;line-height:1.55}
 .bl-portal-card form{display:flex;gap:8px;margin-top:18px}.bl-portal-card form input{flex:1}
 .bl-portal-help{margin-top:16px;font-size:12px}.bl-portal-powered{margin-top:22px;color:var(--ink-4);font:10px var(--mono);letter-spacing:.05em;text-transform:uppercase}
+
+/* Review-reported layout fixes (2026-10-24). */
+.bl-tk-tags{align-items:center}
+@media(max-width:760px){
+  /* The quick-tools dock sat on top of the mobile side-panel tab bar. */
+  .bl-quick-dock-wrapper{bottom:72px}
+}
+@media(max-width:560px){
+  .bl-review-gate{flex-direction:column;align-items:stretch;text-align:left;padding:24px 16px}
+  .bl-review-gate-copy{min-width:0}
+}
+.bl-form-missing{margin:0;color:var(--ink-3);font-size:11.5px;text-align:right}
+.bl-plan-full{margin:0 20px 4px}

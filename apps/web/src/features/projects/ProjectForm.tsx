@@ -18,6 +18,7 @@ import type { WorkspaceOut } from "../workspaces/api";
 import { ProjectAccessFields } from "./access/ProjectAccessFields";
 import * as api from "./api";
 import { reviewLinkUrl, useReviewDomain } from "../workspaces/review-url";
+import { getSubscription } from "../billing/api";
 
 type ProjectType = "website" | "image" | "pdf";
 // Web App and Mobile App are review flavours of a website and an image project
@@ -144,6 +145,10 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [peopleQuery, setPeopleQuery] = useState("");
   const { role: myRole, user } = useAuth();
   const reviewDomain = useReviewDomain(workspace.id);
+  // Said on the first step, before anything is filled in, when the plan is full.
+  const subscription = useQuery({ queryKey: qk.subscription(workspace.id), queryFn: () => getSubscription(workspace.id), enabled: !project });
+  const projectUsage = subscription.data?.usage;
+  const atProjectLimit = Boolean(projectUsage && projectUsage.projects_limit !== null && projectUsage.projects_used >= projectUsage.projects_limit);
 
 
   const selectedClient = useMemo(() => clients.data?.find((item) => item.id === client), [client, clients.data]);
@@ -224,6 +229,13 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
     },
   });
   const upgradePlan = planLimitUpgrade(save.error);
+  // Said next to the disabled Create button, so it never sits there unexplained.
+  const missingFields = [
+    !name.trim() && "a project name",
+    type === "website" && !url.trim() && "a review URL",
+    type !== "website" && !project && files.length === 0 && (kind === "mobile" ? "at least one screen" : type === "pdf" ? "a PDF" : "images"),
+    client === "new" && !newClientName.trim() && "the client's name",
+  ].filter((item): item is string => Boolean(item));
   function projectDraftText() {
     return JSON.stringify({
       name, project_type: type, ...(type === "website" ? { url, environment } : {}),
@@ -289,6 +301,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
       <Dialog title="New project" onClose={close}>
         <div className="bl-dialog-progress" aria-label="Step 1 of 3"><i className="is-on" /><i /><i /></div>
         <div className="bl-dialog-intro"><p>What are you collecting feedback on?</p></div>
+        {atProjectLimit && projectUsage && <p className="bl-inline-warning bl-plan-full" role="status">{subscription.data?.plan_name ?? "Your plan"} includes {projectUsage.projects_limit} active projects and they're all in use. Archive one or <Link to={`/w/${workspace.slug}/billing`} onClick={onClose}>upgrade your plan</Link> to add another.</p>}
         <div className="bl-project-type-body">
           <div className="bl-project-type-grid primary" role="radiogroup" aria-label="Project type">
             {PROJECT_TYPES.map((item) => (
@@ -321,9 +334,9 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           <small>This groups the project under a client. Team access is managed below; guest access uses its review link.</small>
         </div>
 
-        {client === "new" && <div className="bl-new-client-fields"><label>Client name<input className="bl-input" required maxLength={200} placeholder="Sarvam AI" value={newClientName} onChange={(event) => setNewClientName(event.target.value)} disabled={Boolean(created) || save.isPending} /></label><div className="bl-two-fields"><label>Main contact<input className="bl-input" maxLength={200} placeholder="Ravi Kulkarni" value={newClientContact} onChange={(event) => setNewClientContact(event.target.value)} disabled={Boolean(created) || save.isPending} /></label><label>Their email<input className="bl-input" type="email" placeholder="ravi@client.com" value={newClientEmail} onChange={(event) => setNewClientEmail(event.target.value)} disabled={Boolean(created) || save.isPending} /></label></div></div>}
+        {client === "new" && <div className="bl-new-client-fields"><label>Client name<input className="bl-input" required maxLength={200} placeholder="Client name" value={newClientName} onChange={(event) => setNewClientName(event.target.value)} disabled={Boolean(created) || save.isPending} /></label><div className="bl-two-fields"><label>Main contact<input className="bl-input" maxLength={200} placeholder="Main contact" value={newClientContact} onChange={(event) => setNewClientContact(event.target.value)} disabled={Boolean(created) || save.isPending} /></label><label>Their email<input className="bl-input" type="email" placeholder="name@client.com" value={newClientEmail} onChange={(event) => setNewClientEmail(event.target.value)} disabled={Boolean(created) || save.isPending} /></label></div></div>}
 
-        <div className="bl-form-section"><label htmlFor="project-name">Project name</label><input id="project-name" className="bl-input" required maxLength={200} value={name} onChange={(event) => setName(event.target.value)} placeholder={type === "website" ? "Sarvam AI redesign" : "Launch creative"} disabled={Boolean(created) || save.isPending} /></div>
+        <div className="bl-form-section"><label htmlFor="project-name">Project name <span className="bl-required">Required</span></label><input id="project-name" className="bl-input" required maxLength={200} value={name} onChange={(event) => setName(event.target.value)} placeholder={type === "website" ? "Website redesign" : kind === "mobile" ? "App 2.4 release" : "Launch creative"} disabled={Boolean(created) || save.isPending} /></div>
 
         {project ? (
           <div className="bl-form-section">
@@ -354,7 +367,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         )}
 
         {type === "website" ? <>
-          <div className="bl-form-section"><label htmlFor="project-url">Review URL <span className="bl-required">Required</span></label><input id="project-url" className="bl-input" required type="text" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); if (!environmentEdited) setEnvironment(detectEnvironment(event.target.value)); }} placeholder="staging.yoursite.com" disabled={Boolean(created) || save.isPending} /><small>Backline loads this page each time a reviewer opens the project. HTTP and HTTPS addresses are supported.</small></div>
+          <div className="bl-form-section"><label htmlFor="project-url">Review URL <span className="bl-required">Required</span></label><input id="project-url" className="bl-input" required type="text" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); if (!environmentEdited) setEnvironment(detectEnvironment(event.target.value)); }} onBlur={() => { if (!name.trim() && url.trim()) { try { setName(new URL(/^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`).hostname.replace(/^www\./, "")); } catch { /* leave the name for the reviewer to type */ } } }} placeholder="staging.yoursite.com" disabled={Boolean(created) || save.isPending} /><small>Backline loads this page each time a reviewer opens the project. HTTP and HTTPS addresses are supported.</small></div>
           <fieldset className="bl-environment-field" disabled={Boolean(created) || save.isPending}><legend>Environment</legend><div className="bl-segment"><button type="button" aria-pressed={environment === "staging"} onClick={() => { setEnvironment("staging"); setEnvironmentEdited(true); }}>Staging</button><button type="button" aria-pressed={environment === "live"} onClick={() => { setEnvironment("live"); setEnvironmentEdited(true); }}>Live</button></div><small>{environmentEdited ? "Manually selected." : "Detected from the domain — override it here if needed."}</small></fieldset>
         </> : !project ? <>{kind === "mobile" && <div className="bl-form-section">
           <label htmlFor="project-build">Build and device <span className="bl-optional">Optional</span></label>
@@ -375,7 +388,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           {fileError && <p role="alert" className="bl-error">{fileError}</p>}{uploaded.length > 0 && <p className="bl-mono">{uploaded.length} of {files.length} uploaded</p>}
         </div></> : null}
 
-        {project && <fieldset className="bl-review-settings"><legend>Review settings</legend><SettingRow checked={captureDeviceDetails} onChange={setCaptureDeviceDetails} label="Capture browser and device details" description="Saves browser, OS, device and viewport details with new comments. Page URLs and element anchors are saved either way." /><SettingStatusRow label="Automatic anchor recovery" description="Recovery runs for every new revision. The legacy per-project toggle is retained for compatibility but is not an active control." status="Always on" /><SettingRow checked={reviewerCanResolve} onChange={setReviewerCanResolve} label="Let reviewers resolve their own comments" description="Off means only your team can move a guest comment to Resolved." /><SettingRow checked={showBoardToClient} onChange={setShowBoardToClient} label="Show the ticket board to this client" description="Off hides due dates, assignees and the board from guest reviewers." /><SettingStatusRow label="Cross-browser screenshot captures" status="Unavailable" description="Server capture is currently disabled. Resizing the Backline canvas changes the viewport; it does not test another browser engine." /><SettingStatusRow label="Client email digest" description="Client digest delivery has no approved recipient, privacy, or scheduling contract and cannot be enabled." status="Not available" /></fieldset>}
+        {project && <fieldset className="bl-review-settings"><legend>Review settings</legend><SettingRow checked={captureDeviceDetails} onChange={setCaptureDeviceDetails} label="Capture browser and device details" description="Saves browser, OS, device and viewport details with new comments. Page URLs and element anchors are saved either way." /><SettingStatusRow label="Automatic anchor recovery" description="When the page changes, pins move with the element they were left on." status="Always on" /><SettingRow checked={reviewerCanResolve} onChange={setReviewerCanResolve} label="Let reviewers resolve their own comments" description="Off means only your team can move a guest comment to Resolved." /><SettingRow checked={showBoardToClient} onChange={setShowBoardToClient} label="Show the ticket board to this client" description="Off hides due dates, assignees and the board from guest reviewers." /></fieldset>}
 
         </fieldset>
         {phase === "saving" && <p role="status">{files.length ? `${uploaded.length} of ${files.length} files uploaded. Processing remaining files…` : "Saving project…"}</p>}
@@ -387,6 +400,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           if (!navigator.clipboard) { setDraftCopy("Select the details below to copy them manually."); return; }
           void navigator.clipboard.writeText(draft).then(() => setDraftCopy("Details copied.")).catch(() => setDraftCopy("Select the details below to copy them manually."));
         }}>Copy details</button><textarea className="bl-input" readOnly aria-label="Project details to copy" value={projectDraftText()} onFocus={(event) => event.target.select()} />{draftCopy && <p>{draftCopy}</p>}</div>}
+        {!project && !retryLocked && !canSubmit && !save.isPending && missingFields.length > 0 && <p className="bl-form-missing" role="status">To create the project, add {missingFields.join(", ")}.</p>}
         <footer className="bl-dialog-actions bl-dialog-actions-in-form"><button type="button" className="bl-quiet" disabled={save.isPending || loadingLatest || Boolean(created)} onClick={retryLocked || project ? close : () => setPhase("type")}>{retryLocked ? "Close" : project ? "Cancel" : "Back"}</button><button className="bl-button mint" disabled={save.isPending || loadingLatest || updateConflict || (!retryLocked && !canSubmit)}>{save.isPending ? (uploaded.length ? `Uploading ${uploaded.length + 1} of ${files.length}…` : "Saving…") : retryLocked ? "Retry save" : project ? "Save changes" : created ? "Finish uploads" : "Create project"}</button></footer>
       </form>
     </Dialog>

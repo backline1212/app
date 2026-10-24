@@ -103,7 +103,7 @@ export function ProjectPagesModal({ project, activePageId, onClose, onOpenPage }
               ))}
             </ol>
           )}
-          <p className="bl-pages-hint">Order changes save immediately. Removal is allowed only when the page has no comments, revisions, diffs, or asset references.</p>
+          <p className="bl-pages-hint">Order changes save immediately. A page can be removed only while it has no comments or saved versions.</p>
         </div>
         <footer className="bl-dialog-actions bl-dialog-actions-bordered"><button type="button" className="bl-quiet" onClick={onClose}>Done</button></footer>
       </Dialog>
@@ -111,7 +111,7 @@ export function ProjectPagesModal({ project, activePageId, onClose, onOpenPage }
         <Dialog title="Remove empty page?" onClose={() => setRemoveTarget(null)}>
           <div className="bl-confirm-body">
             <span className="bl-confirm-icon warning"><PageIcon /></span>
-            <div><p>Remove <strong>{removeTarget.title || redactReviewUrl(removeTarget.url_normalized)}</strong> from this project?</p><small>Backline checks that it has no comments, revisions, diffs, or asset references. Review history is never cascaded by this action.</small></div>
+            <div><p>Remove <strong>{removeTarget.title || redactReviewUrl(removeTarget.url_normalized)}</strong> from this project?</p><small>This only works for a page with no comments or saved versions. No feedback is deleted.</small></div>
           </div>
           {removePage.error && <p role="alert" className="bl-error bl-confirm-error">{removePage.error.message}</p>}
           <footer className="bl-dialog-actions bl-dialog-actions-bordered"><button type="button" className="bl-quiet" onClick={() => setRemoveTarget(null)}>Cancel</button><button type="button" className="bl-button danger" disabled={removePage.isPending} onClick={() => removePage.mutate(removeTarget.id)}>{removePage.isPending ? "Checking…" : "Remove page"}</button></footer>

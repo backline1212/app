@@ -4702,3 +4702,10 @@ database migration, or production deployment is claimed.
 - Verification: static checks; Chromium settings + branded guest review.
 - Operator follow-up: set `VERCEL_API_TOKEN`/`VERCEL_PROJECT_ID` to auto-attach
   verified domains, or attach them manually in Vercel.
+
+# 2026-10-24: Review-driven fixes, multi-device sessions (TDR-0151)
+
+- Fixed ~20 dashboard/backend issues found by a full product walk-through (see TDR).
+  Sessions: up to 5 devices. Access logs no longer contain tokens.
+- Operator follow-up: run `python -m scripts.migrate_ticket_numbers --apply` once to
+  number legacy/sample tickets.

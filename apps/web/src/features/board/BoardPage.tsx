@@ -280,7 +280,12 @@ export function BoardPage() {
     return map;
   }, [comments]);
 
-  const openThreadComment = (comments ?? []).find((c) => c.id === openThreadId) ?? null;
+  // A link to a reply (activity, notifications, search) opens its thread: the reply
+  // itself is not a ticket and has no status, assignee or priority of its own.
+  const linkedComment = (comments ?? []).find((c) => c.id === openThreadId) ?? null;
+  const openThreadComment = linkedComment?.parent_id
+    ? (comments ?? []).find((c) => c.id === linkedComment.parent_id) ?? null
+    : linkedComment;
 
   const filtered = useMemo(() => {
     return (comments ?? []).filter((comment) => {

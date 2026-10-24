@@ -56,7 +56,7 @@ export function McpServerPage() {
 
   const create = useMutation({
     mutationFn: () =>
-      mcpApi.createMcpToken(workspace.id, { label: label.trim(), agentHint: client.id, access }),
+      mcpApi.createMcpToken(workspace.id, { label: label.trim() || `My laptop - ${client.name}`, agentHint: client.id, access }),
     onSuccess: (issued) => {
       setLabel("");
       setRevealed(issued);
@@ -74,7 +74,8 @@ export function McpServerPage() {
 
   function handleCreate(event: FormEvent) {
     event.preventDefault();
-    if (label.trim()) create.mutate();
+    // An empty name uses the suggested one shown in the field.
+    create.mutate();
   }
 
   const token = revealed?.token ?? TOKEN_PLACEHOLDER;
@@ -102,7 +103,6 @@ export function McpServerPage() {
         <div className="bl-mcp-body">
           <form className="bl-mcp-form" onSubmit={handleCreate}>
             <input
-              required
               maxLength={200}
               placeholder={`My laptop - ${client.name}`}
               value={label}
@@ -118,7 +118,7 @@ export function McpServerPage() {
                 Read only
               </button>
             </div>
-            <button type="submit" className="bl-button" disabled={create.isPending || !label.trim()}>
+            <button type="submit" className="bl-button" disabled={create.isPending}>
               {create.isPending ? "Creating…" : `Create token for ${client.name}`}
             </button>
           </form>

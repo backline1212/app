@@ -262,7 +262,7 @@ export function ProjectsPage() {
           visible grid" input; the omnisearch in the persistent topbar (⌘K) is the
           different, more powerful "find anything in this workspace" one. */}
       <div className="bl-toolbar wrap">
-        <span className="bl-mono">{visible.length} PROJECTS</span>{(search || type !== "all" || params.get("client")) && <button className="bl-quiet" onClick={() => { const next = new URLSearchParams(params); ["search", "type", "client"].forEach((key) => next.delete(key)); setParams(next); }}>Clear filters</button>}
+        <span className="bl-mono">{visible.length} {visible.length === 1 ? "PROJECT" : "PROJECTS"}</span>{(search || params.get("client")) && <button className="bl-quiet" onClick={() => { const next = new URLSearchParams(params); ["search", "type", "client"].forEach((key) => next.delete(key)); setParams(next); }}>Clear filters</button>}
         <label className="bl-search"><span className="bl-search-icon" aria-hidden="true"><SearchIcon /></span><input aria-label="Filter projects" placeholder="Filter by name or URL…" value={search} onChange={(e) => filter("search", e.target.value)} /></label>
         <select aria-label="Filter by client" className="bl-select" value={params.get("client") ?? ""} onChange={(e) => filter("client", e.target.value)}><option value="">All clients</option>{clients.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         <div className="bl-tool-right">
@@ -323,7 +323,9 @@ export function ProjectsPage() {
             {newProjectTile()}
           </div>
         )}
-        {!projects.error && visible.length === 0 && <div className="bl-empty"><EmptyArt kind={search || type !== "all" || params.get("client") ? "search" : "projects"} /><h2>{archived ? "No archived projects" : "No projects here yet"}</h2><p>{search || type !== "all" || params.get("client") ? "Try a different search, client or project type." : "Create a project to get a shareable review link."}</p></div>}
+        {/* A project-type tab with nothing in it already shows its "add" tile; only a
+            search/client filter or the archive gets a separate empty state. */}
+        {!projects.error && visible.length === 0 && (archived || search || params.get("client")) && <div className="bl-empty"><EmptyArt kind={search || params.get("client") ? "search" : "projects"} /><h2>{archived && !search ? "No archived projects" : "No matching projects"}</h2><p>{search || params.get("client") ? "Try a different search or client." : "Archived projects appear here. Restore one to review it again."}</p></div>}
       </>}
       </>
     </main>
