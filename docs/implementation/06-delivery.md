@@ -4716,3 +4716,8 @@ database migration, or production deployment is claimed.
   concurrently. Guest-supplied near-empty or unrelated page captures no longer detach
   tickets. Extension 0.5.2 polls a comment-list fingerprint instead of the full list.
 - Operator follow-up: publish extension 0.5.2 to the Chrome Web Store.
+
+# 2026-10-24: One ticket view (TDR-0153)
+
+- Tickets page, board, search, activity and notifications open the same ticket dialog
+  (editable text, delete, live fields, conversation). Search finds "#14".

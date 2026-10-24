@@ -3,19 +3,22 @@ import { roleLabel } from "../../lib/project-roles";
 import { useProjectRole } from "../projects/use-project";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import type { Schemas } from "@backline/types";
 import { Dialog } from "../../components/Dialog";
 import { PaperclipIcon } from "../../components/icons";
+import { ApiError } from "../../lib/api-client";
 import { patchProjectComment } from "../../lib/comment-cache";
 import { renderWithMentions } from "../../lib/mentions";
-import { qk } from "../../lib/query-keys";
+import { invalidateTicketsAndDashboard, qk } from "../../lib/query-keys";
+import { ticketRef } from "../../lib/ticket-ref";
 import { isClosed, STATUS_LABELS, WORKFLOW_STATUSES } from "../../lib/workflow";
 import { MentionsInput } from "../comments/MentionsInput";
 import { COMMENT_TAGS, PRIORITY_META, PRIORITY_ORDER, dueMeta } from "../projects/panel/comments/types";
 import { DatePicker } from "../tickets/components/DatePicker";
 import { PeoplePicker } from "../tickets/components/PeoplePicker";
+import { DeleteTicketDialog, TrashIcon } from "../tickets/components/DeleteTicket";
 import * as workspaceApi from "../workspaces/api";
 import * as boardApi from "./api";
 import type { CommentLayer, CommentOut } from "./api";
@@ -35,14 +38,16 @@ function formatTime(iso: string): string {
   });
 }
 
-function ThreadMessage({ comment }: { comment: CommentOut }) {
+function ThreadMessage({ comment, teamOnly = false, children }: { comment: CommentOut; teamOnly?: boolean; children?: React.ReactNode }) {
   return (
     <article className="bl-message">
       <small>
-        {comment.author_name} · {comment.author_type === "guest" ? "Guest" : "Member"} ·{" "}
+        {comment.author_name} · {comment.author_type === "guest" ? "Client" : "Team"} ·{" "}
         {formatTime(comment.created_at)}
+        {comment.edited_at ? " · edited" : ""}
+        {teamOnly && <span className="bl-message-layer">Team only</span>}
       </small>
-      <p>{renderWithMentions(comment.body)}</p>
+      {children ?? <p>{renderWithMentions(comment.body)}</p>}
       {comment.screenshot_url && (
         <a href={comment.screenshot_url} target="_blank" rel="noreferrer">
           <img className="bl-screenshot" src={comment.screenshot_url} alt="Captured review context" />
@@ -68,15 +73,16 @@ interface CommentThreadPanelProps {
   comment: CommentOut;
   replies: CommentOut[];
   projectId: string;
+  /** Shown as a chip where the project isn't already obvious (the Tickets page). */
+  projectName?: string;
   onClose: () => void;
 }
 
-// A full thread view (16-Dashboard.md's "Thread view"): reply list, a layer-aware
-// composer, and the same status/priority/tags/assignee/due-date/waiting-on controls
-// TicketDetail.tsx already uses for the same underlying comment record - so a comment
-// edited from the workspace ticket board and one edited from here never drift into two
-// different sets of fields or two different visual languages.
-export function CommentThreadPanel({ comment, replies, projectId, onClose }: CommentThreadPanelProps) {
+// The one ticket view (16-Dashboard.md's "Thread view"), opened from the project board,
+// the workspace Tickets page, search, activity and notifications (TDR-0153): the ticket
+// text (editable by editors), status/priority/tags/assignee/due-date/waiting-on fields
+// that save as they change, the conversation and a layer-aware reply composer.
+export function CommentThreadPanel({ comment, replies, projectId, projectName, onClose }: CommentThreadPanelProps) {
   // TDR-0056: commenters reply, editors and managers also triage.
   const { canComment, canEdit, role } = useProjectRole(projectId);
   const { workspaceSlug } = useParams();
@@ -92,6 +98,9 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draftBody, setDraftBody] = useState(comment.body);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const queryClient = useQueryClient();
 
   // We need the workspace ID to list members. We can get it from the workspace object if available.
@@ -132,19 +141,32 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
       setSuggestError(null);
     },
   });
+  const editDirty = editing && draftBody.trim() !== comment.body;
   const guard = useReviewDraftGuard({
-    dirty: Boolean(body.trim() || attachments.length || suggestedReplies.length), pending: replyMutation.isPending || isUploading || isSuggesting,
+    draftName: editDirty ? "ticket text and reply" : "reply",
+    dirty: Boolean(body.trim() || attachments.length || suggestedReplies.length || editDirty), pending: replyMutation.isPending || isUploading || isSuggesting,
     unconfirmed: replyMutation.locked,
-    discard: () => { replyMutation.reset(); setBody(""); setAttachments([]); setMentionedUserIds([]); setSuggestedReplies([]); },
+    discard: () => { replyMutation.reset(); setBody(""); setAttachments([]); setMentionedUserIds([]); setSuggestedReplies([]); setEditing(false); setDraftBody(comment.body); },
   });
 
   const updateMutation = useMutation({
     mutationFn: (patch: Schemas["CommentUpdate"]) => boardApi.updateComment(comment.id, patch, comment.revision ?? 0),
     onSuccess: (updated) => {
       patchProjectComment(queryClient, projectId, updated.id, updated);
+      if (editing && updated.body === draftBody.trim()) setEditing(false);
+      // The Tickets list and dashboard counts show the same fields.
+      if (workspaceQuery.data?.id) void invalidateTicketsAndDashboard(queryClient, workspaceQuery.data.id);
     },
     onError: () => { void queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId) }); },
   });
+  const conflict = updateMutation.error instanceof ApiError && updateMutation.error.status === 409;
+
+  function saveBody() {
+    const next = draftBody.trim();
+    if (!canEdit || updateMutation.isPending || !next || next.length > 10_000) return;
+    if (next === comment.body) { setEditing(false); return; }
+    updateMutation.mutate({ body: next });
+  }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const files = event.target.files;
@@ -198,14 +220,22 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
   const orphaned = comment.recovery_status !== "ok";
 
   return (
-    <Dialog title="Thread" onClose={() => guard.requestLeave(onClose)}>
+    <Dialog title={`Ticket ${ticketRef(comment)}`} onClose={() => guard.requestLeave(onClose)}>
       {guard.dialog}
       <div className="bl-form">
-        {updateMutation.error && <p role="alert" className="bl-error">{updateMutation.error.message} Review the current thread before trying again.</p>}
         <div className="bl-chip-row">
+          {projectName && <span className="bl-chip">{projectName}</span>}
           <LayerBadge layer={comment.layer} />
           {orphaned && <RecoveryBadge status={comment.recovery_status} />}
+          {!comment.is_standalone && workspaceSlug && (
+            <Link className="bl-chip" to={`/w/${workspaceSlug}/p/${projectId}?comment=${comment.id}`}>Open in review ↗</Link>
+          )}
         </div>
+        {updateMutation.error && (
+          <p role="alert" className="bl-error">
+            {conflict ? "Someone else changed this ticket at the same time. The latest version is shown; make your change again." : `${updateMutation.error.message} Check the ticket before trying again.`}
+          </p>
+        )}
 
         {!canEdit && role && (
           <p className="bl-cd-readonly">You're a {roleLabel(role).toLowerCase()} on this project. Editors and managers change these.</p>
@@ -309,17 +339,11 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
 
         </fieldset>
 
-        {updateMutation.isError && (
-          <p role="alert" className="bl-error">
-            Could not save that change.
-          </p>
-        )}
-
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 className="bl-group-title">Conversation</h2>
           {canComment && (
             <button type="button" className="bl-quiet" onClick={handleSummarize} disabled={isSummarizing}>
-              {isSummarizing ? "Summarizing..." : "✨ Summarize"}
+              {isSummarizing ? "Summarizing…" : "✨ Summarize"}
             </button>
           )}
         </div>
@@ -331,9 +355,34 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
           </div>
         )}
 
-        <ThreadMessage comment={comment} />
+        <ThreadMessage comment={comment}>
+          {editing ? (
+            <form className="bl-form bl-flush" onSubmit={(event) => { event.preventDefault(); saveBody(); }}>
+              <textarea
+                className="bl-input"
+                aria-label="Ticket text"
+                rows={4}
+                required
+                maxLength={10_000}
+                value={draftBody}
+                readOnly={updateMutation.isPending}
+                onChange={(event) => setDraftBody(event.target.value)}
+                autoFocus
+              />
+              <div className="bl-form-actions">
+                <button type="button" className="bl-quiet" disabled={updateMutation.isPending} onClick={() => { setEditing(false); setDraftBody(comment.body); }}>Cancel</button>
+                <button className="bl-button" disabled={updateMutation.isPending || !draftBody.trim()}>{updateMutation.isPending ? "Saving…" : "Save text"}</button>
+              </div>
+            </form>
+          ) : (
+            <div className="bl-message-body">
+              <p>{renderWithMentions(comment.body)}</p>
+              {canEdit && <button type="button" className="bl-quiet" onClick={() => { setDraftBody(comment.body); setEditing(true); }}>Edit</button>}
+            </div>
+          )}
+        </ThreadMessage>
         {replies.map((reply) => (
-          <ThreadMessage key={reply.id} comment={reply} />
+          <ThreadMessage key={reply.id} comment={reply} teamOnly={comment.layer === "client" && reply.layer === "team"} />
         ))}
 
         {!canComment ? (
@@ -344,7 +393,7 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               Reply
               <button type="button" className="bl-quiet" onClick={handleSuggestReply} disabled={isSuggesting || replyMutation.locked || replyMutation.isPending}>
-                {isSuggesting ? "Suggesting..." : "✨ Suggest Replies"}
+                {isSuggesting ? "Suggesting…" : "✨ Suggest replies"}
               </button>
             </div>
             {suggestError && (
@@ -436,7 +485,22 @@ export function CommentThreadPanel({ comment, replies, projectId, onClose }: Com
           {replyMutation.completionWarning && <p role="status">{replyMutation.completionWarning}</p>}
         </form>
         )}
+        {canEdit && workspaceQuery.data && (
+          <div className="bl-form-actions bl-detail-actions">
+            <button type="button" className="bl-quiet bl-danger-text" disabled={updateMutation.isPending || replyMutation.isPending} onClick={() => guard.requestLeave(() => setConfirmDelete(true))}>
+              <TrashIcon /> Delete ticket
+            </button>
+          </div>
+        )}
       </div>
+      {confirmDelete && workspaceQuery.data && (
+        <DeleteTicketDialog
+          ticket={{ id: comment.id, project_id: projectId, body: comment.body, ticket_number: comment.ticket_number }}
+          workspaceId={workspaceQuery.data.id}
+          onCancel={() => setConfirmDelete(false)}
+          onDeleted={onClose}
+        />
+      )}
     </Dialog>
   );
 }

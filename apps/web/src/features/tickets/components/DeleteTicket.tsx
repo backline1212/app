@@ -9,7 +9,7 @@ import type * as api from "../api";
 
 // Deleting a ticket removes the whole thread (its replies too), through the same
 // moderation endpoint the review board uses; the API enforces comment:delete.
-export function DeleteTicketDialog({ ticket, workspaceId, onCancel, onDeleted }: { ticket: api.Ticket; workspaceId: string; onCancel: () => void; onDeleted: () => void }) {
+export function DeleteTicketDialog({ ticket, workspaceId, onCancel, onDeleted }: { ticket: Pick<api.Ticket, "id" | "project_id" | "body" | "ticket_number">; workspaceId: string; onCancel: () => void; onDeleted: () => void }) {
   const cache = useQueryClient();
   const { canEdit, loaded } = useProjectRole(ticket.project_id);
   const submitting = useRef(false);

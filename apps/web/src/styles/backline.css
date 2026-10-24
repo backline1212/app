@@ -3181,3 +3181,7 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 }
 .bl-form-missing{margin:0;color:var(--ink-3);font-size:11.5px;text-align:right}
 .bl-plan-full{margin:0 20px 4px}
+/* Unified ticket view (TDR-0153) */
+.bl-message-layer{display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;background:var(--bl-paper);border:1px solid var(--bl-line);font-size:10px;color:var(--bl-muted)}
+.bl-message-body{display:flex;align-items:flex-start;gap:10px}.bl-message-body p{flex:1;min-width:0}.bl-message-body .bl-quiet{flex:none;margin-top:4px}
+.bl-message .bl-form{margin-top:8px}

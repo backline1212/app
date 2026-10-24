@@ -5257,6 +5257,8 @@ export interface components {
             project_id?: string | null;
             /** Page Id */
             page_id?: string | null;
+            /** Ticket Number */
+            ticket_number?: number | null;
         };
         /** SearchResultsOut */
         SearchResultsOut: {

@@ -101,6 +101,7 @@ class SearchResultOut(BaseModel):
     subtitle: str
     project_id: str | None = None
     page_id: str | None = None
+    ticket_number: int | None = None
 
 
 class SearchResultsOut(BaseModel):

@@ -138,7 +138,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
           maxLength={200}
           aria-controls="bl-search-results"
           aria-activedescendant={flatItems[activeIndex] ? `bl-sr-${flatItems[activeIndex].id}` : undefined}
-          placeholder="Search comments, projects and people"
+          placeholder="Search tickets, projects and people"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleInputKeyDown}
@@ -176,7 +176,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
                   >
                     <ResultIcon item={result} />
                     <span className="bl-sr-b">
-                      <strong>{result.title}</strong>
+                      <strong>{result.ticket_number != null && <span className="bl-tid">#{result.ticket_number}</span>}{result.title}</strong>
                       <small>{result.subtitle}</small>
                     </span>
                   </button>
