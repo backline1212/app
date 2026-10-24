@@ -101,18 +101,19 @@ async def search(
         for project in projects
     )
 
+    comment_match: list[dict[str, Any]] = [
+        {"body": matcher},
+        {"_project.name": matcher},
+        page_title_match(matcher),
+    ]
+    # "#14" or "14" finds ticket 14, the reference every ticket view prints.
+    number = re.fullmatch(r"#?(\d{1,9})", query.strip())
+    if number:
+        comment_match.append({"ticket_number": int(number.group(1))})
     pipeline = root_pipeline(workspace_id, hidden)
     pipeline.extend(
         [
-            {
-                "$match": {
-                    "$or": [
-                        {"body": matcher},
-                        {"_project.name": matcher},
-                        page_title_match(matcher),
-                    ]
-                }
-            },
+            {"$match": {"$or": comment_match}},
             {"$sort": {"created_at": -1, "_id": -1}},
             {"$limit": each_limit},
         ]
@@ -138,6 +139,7 @@ async def search(
                 ),
                 project_id=comment["_page"]["project_id"],
                 page_id=comment["page_id"],
+                ticket_number=comment.get("ticket_number"),
             )
         )
 

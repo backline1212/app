@@ -276,7 +276,7 @@ export function TicketsPage() {
 
       {showCreate && <NewTicket key={workspace.id} workspace={workspace} members={members.data ?? []} onClose={() => setShowCreate(false)} />}
       {deleting && update.canEdit(deleting) && <DeleteTicketDialog ticket={deleting} workspaceId={workspace.id} onCancel={() => setDeleting(null)} onDeleted={() => setDeleting(null)} />}
-      {selected && <TicketDetail id={selected} workspace={workspace} members={members.data ?? []} onClose={closeDetail} />}
+      {selected && <TicketDetail id={selected} workspace={workspace} onClose={closeDetail} />}
     </main>
   );
 }
