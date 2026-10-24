@@ -41,6 +41,8 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     const value = params.get(key);
     if (value && (!ALLOWED[key] || ALLOWED[key].includes(value))) request.set(key, value);
   }
+  // "N open" on a project card: leave out resolved and won't-fix tickets.
+  if (params.get("open") === "1" && !params.get("status")) request.set("open_only", "true");
   // "Show work for" can pick several people; the API matches any of them.
   for (const person of assignees) request.append("assignees", person);
   request.set("offset", String(offset));

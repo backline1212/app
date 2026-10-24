@@ -37,6 +37,7 @@ export function ExtensionReadiness() {
     <button type="button" className="bl-quiet" disabled={phase === "checking"} onClick={() => void check()}>
       {phase === "checking" ? "Checking…" : "Check again"}
     </button>
-    {phase !== "ready" && phase !== "checking" && <button type="button" className="bl-button" onClick={() => window.location.reload()}>Reload Backline</button>}
+    {phase === "setup" && <button type="button" className="bl-quiet" onClick={() => window.location.reload()}>Installed? Reload this tab</button>}
+    {phase === "reload" && <button type="button" className="bl-button" onClick={() => window.location.reload()}>Reload Backline</button>}
   </div>;
 }

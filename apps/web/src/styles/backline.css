@@ -136,7 +136,7 @@ body{font-family:var(--sans);background:var(--bl-paper);color:var(--bl-ink)}
 @media(max-width:900px){.bl-app{grid-template-columns:200px minmax(0,1fr)}.bl-wrap{padding:22px 18px 50px}.bl-topbar{padding:10px 18px}.bl-projects.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.bl-projects.list .bl-project,.bl-projects.table .bl-project{flex-wrap:wrap}.bl-attention>div{grid-template-columns:1fr}.bl-attention>div>a{border-bottom:1px solid var(--bl-line)}.bl-activity time{white-space:normal}}
 @media(max-width:640px){.bl-app{display:block}.bl-rail{position:relative;height:auto;border-right:0;border-bottom:1px solid var(--bl-line)}.bl-workspace{padding:12px}.bl-nav{flex-direction:row;overflow-x:auto;padding:6px}.bl-nav>a{white-space:nowrap}.bl-nav .bl-eyebrow,.bl-nav>a:has(.bl-dot),.bl-rail-footer{display:none}.bl-projects,.bl-projects.compact{grid-template-columns:1fr}.bl-topbar{padding:10px;gap:8px}.bl-wrap{padding:20px 14px 40px}.bl-fields{grid-template-columns:1fr}.bl-head{gap:12px}.bl-head h1{font-size:24px}.bl-calendar{grid-template-columns:repeat(7,minmax(50px,1fr))}.bl-calendar>div{padding:4px}.bl-tool-right{margin-left:0}.bl-segment button{padding:6px}.bl-activity>article{flex-wrap:wrap}.bl-board{grid-template-columns:1fr;overflow-x:visible}.bl-board>section{min-height:0}}
 /* ── Toast system (UX-AUD-008) ─────────────────────────────────────────── */
-.bl-toasts{position:fixed;top:16px;right:16px;z-index:9000;display:flex;flex-direction:column;gap:8px;width:340px;max-width:calc(100vw - 32px);pointer-events:none}
+.bl-toasts{position:fixed;top:72px;right:16px;z-index:9000;display:flex;flex-direction:column;gap:8px;width:340px;max-width:calc(100vw - 32px);pointer-events:none}
 /* Portaled into the topmost open <dialog> instead of document.body when one is open
    (Toast.tsx) - a dialog's own overflow-y:auto clips anything appended to it that
    renders outside its own box, so this has to stay within the dialog's box (below its
@@ -3187,3 +3187,4 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-message .bl-form{margin-top:8px}
 .bl-activity .bl-activity-in{color:var(--ink-3)}.bl-activity .bl-activity-count{font:11px var(--mono);color:var(--ink-3)}
 .bl-activity .bl-activity-role{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid var(--bl-line);border-radius:999px;font-size:10px;line-height:16px;color:var(--ink-3);vertical-align:1px}
+.bl-attach-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto}.bl-attach-list small{color:var(--bl-muted)}

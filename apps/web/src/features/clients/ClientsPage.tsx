@@ -7,11 +7,11 @@ import { LoadingScreen } from "../../components/LoadingScreen";
 import { useToast } from "../../components/Toast";
 import { PlusIcon, SearchIcon } from "../../components/icons";
 import { EmptyArt } from "../../components/illustrations";
-import { qk } from "../../lib/query-keys";
+import { invalidateProjectMutation, qk } from "../../lib/query-keys";
 import { ApiError } from "../../lib/api-client";
 import { timeAgo } from "../../lib/time";
 import { useDocumentTitle } from "../../lib/use-document-title";
-import { listProjects } from "../projects/api";
+import { listProjects, updateProject, type ProjectOut } from "../projects/api";
 import { ProjectForm } from "../projects/ProjectForm";
 import type { WorkspaceOut } from "../workspaces/api";
 import * as api from "./api";
@@ -36,6 +36,7 @@ export function ClientsPage() {
   const [archive, setArchive] = useState<api.Client | null>(null);
   const [restore, setRestore] = useState<api.Client | null>(null);
   const [newProjectFor, setNewProjectFor] = useState<api.Client | null>(null);
+  const [attachFor, setAttachFor] = useState<api.Client | null>(null);
   const clients = useQuery({
     queryKey: qk.clientsList(workspace.id, showArchived),
     queryFn: () => api.listClients(workspace.id, showArchived),
@@ -125,7 +126,7 @@ export function ClientsPage() {
                     </td>
                     <td>
                       <div className="bl-chip-row">
-                        {clientProjects.length === 0 && <span className="bl-chip">No projects yet</span>}
+                        {clientProjects.length === 0 && <button type="button" className="bl-chip" onClick={() => setAttachFor(client)}>+ Add projects</button>}
                         {clientProjects.slice(0, 3).map((p) => <Link className="bl-chip" key={p.id} to={`/w/${workspace.slug}/p/${p.id}`}>{p.name}</Link>)}
                         {clientProjects.length > 3 && <span className="bl-chip">+{clientProjects.length - 3} more</span>}
                       </div>
@@ -142,11 +143,13 @@ export function ClientsPage() {
                           if (v === 'edit') setEdit(client);
                           else if (v === 'archive') setArchive(client);
                           else if (v === 'new') setNewProjectFor(client);
+                          else if (v === 'attach') setAttachFor(client);
                         }}
                       >
                         <option value="" disabled>Options…</option>
                         <option value="edit">Rename / edit</option>
                         <option value="new">New project</option>
+                        <option value="attach">Add existing projects</option>
                         <option value="archive">Archive</option>
                       </select>
                     </td>
@@ -197,6 +200,8 @@ export function ClientsPage() {
 
     {newProjectFor && <ProjectForm workspace={workspace} initialClientId={newProjectFor.id} onClose={() => setNewProjectFor(null)} />}
 
+    {attachFor && <AttachProjectsDialog workspaceId={workspace.id} client={attachFor} clients={clients.data ?? []} projects={(projects.data ?? []).filter((p) => !p.archived_at)} onClose={() => setAttachFor(null)} />}
+
     {edit && <ClientForm key={edit === "new" ? "new" : edit.id} workspaceId={workspace.id} client={edit === "new" ? undefined : edit} onClose={() => setEdit(null)} />}
 
     {archive &&
@@ -229,6 +234,52 @@ export function ClientsPage() {
       </Dialog>
     }
   </main>;
+}
+
+/** Moves existing projects under a client - the other half of "New project" for
+ * agencies that set up projects before adding the client record. */
+function AttachProjectsDialog({ workspaceId, client, clients, projects, onClose }: { workspaceId: string; client: api.Client; clients: api.Client[]; projects: ProjectOut[]; onClose: () => void }) {
+  const cache = useQueryClient();
+  const { toast } = useToast();
+  const candidates = projects.filter((p) => p.client_id !== client.id);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [failures, setFailures] = useState<string[]>([]);
+  const clientName = (id: string | null | undefined) => clients.find((c) => c.id === id)?.name;
+  const attach = useMutation({
+    mutationFn: async () => {
+      const chosen = candidates.filter((p) => picked.has(p.id));
+      const results = await Promise.allSettled(chosen.map((p) => updateProject(p.id, { client_id: client.id, expected_metadata_version: p.metadata_version, client_request_id: crypto.randomUUID() })));
+      return chosen.flatMap((p, index) => {
+        const result = results[index];
+        return result.status === "rejected" ? [`${p.name}: ${result.reason instanceof Error ? result.reason.message : "could not be moved"}`] : [];
+      });
+    },
+    onSuccess: async (failed) => {
+      await invalidateProjectMutation(cache, workspaceId);
+      if (failed.length) { setFailures(failed); setPicked(new Set()); return; }
+      toast(`${picked.size === 1 ? "Project" : `${picked.size} projects`} added to ${client.name}.`, "success");
+      onClose();
+    },
+  });
+  return <Dialog title={`Add projects to ${client.name}`} onClose={() => { if (!attach.isPending) onClose(); }}>
+    <div className="bl-form">
+      {candidates.length === 0
+        ? <p>Every active project already belongs to {client.name}. Create a new one from the client's options.</p>
+        : <fieldset className="bl-attach-list" disabled={attach.isPending}>
+          <legend>Projects</legend>
+          {candidates.map((p) => <label key={p.id} className="bl-check">
+            <input type="checkbox" checked={picked.has(p.id)} onChange={(event) => setPicked((current) => { const next = new Set(current); if (event.target.checked) next.add(p.id); else next.delete(p.id); return next; })} />
+            <span>{p.name}{clientName(p.client_id) && <small> · now with {clientName(p.client_id)}</small>}</span>
+          </label>)}
+        </fieldset>}
+      {failures.length > 0 && <div role="alert" className="bl-error">{failures.map((f) => <p key={f}>{f}</p>)}</div>}
+      {attach.error && <p role="alert" className="bl-error">{attach.error.message}</p>}
+      <div className="bl-form-actions">
+        <button type="button" className="bl-quiet" disabled={attach.isPending} onClick={onClose}>Cancel</button>
+        <button type="button" className="bl-button" disabled={attach.isPending || picked.size === 0} onClick={() => attach.mutate()}>{attach.isPending ? "Adding…" : picked.size > 1 ? `Add ${picked.size} projects` : "Add project"}</button>
+      </div>
+    </div>
+  </Dialog>;
 }
 
 function ClientForm({ workspaceId, client, onClose }: { workspaceId: string; client?: api.Client; onClose: () => void }) {
