@@ -1,5 +1,10 @@
 # Final Draft implementation index
 
+Release verification follow-up (2026-10-24):
+[TDR-0141](../tdr/0141-repeatable-release-checks.md) adds one local
+lint/typecheck/build command and an exact-SHA/contract post-deploy API smoke
+gate. Worker/web identity and browser acceptance remain separate.
+
 API release identity follow-up (2026-10-24):
 [TDR-0140](../tdr/0140-expose-api-release-identity-in-health.md) adds
 nullable Railway commit/deployment identifiers to the Pydantic `/health`

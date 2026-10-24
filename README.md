@@ -165,10 +165,14 @@ pnpm test:a11y    # or test:perf, or test:e2e (full suite)
 ### Deploy readiness (`backend/scripts`)
 
 ```bash
+# Local source gate on Windows (from the repository root; lint/typecheck/build only)
+powershell -File scripts/check-release.ps1
+
 cd backend
 
-# Post-deploy health gate (/health + /openapi.json)
+# Read-only post-deploy gate; supply the deployed API commit and saved contract
 uv run python scripts/smoke_test.py [base_url]
+uv run python scripts/smoke_test.py https://backlinewidget-production.up.railway.app --expected-sha <full-40-character-sha> --contract ../packages/types/openapi.json
 
 # 90-second load test (38 k requests, 8 concurrent workers)
 uv run python scripts/soak_test.py --backend-log <path> --duration 90 --concurrency 8

@@ -1,5 +1,25 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Repeatable release gates (TDR-0141)
+
+Added `scripts/check-release.ps1` for the local offline lock, backend lint/
+strict types/workspace-scope, current-vs-saved OpenAPI, monorepo lint/typecheck/
+build and patch whitespace gate. The command passed: 218 backend source files,
+25 repository files, 132 OpenAPI paths and 12/12 Turbo tasks (six cached).
+The existing read-only smoke command now accepts a full expected API SHA and
+saved OpenAPI contract. Against the public API it passed `/health` (healthy
+MongoDB/Redis; exact `612e60a19f38dde8846fec941cae2439feb245c9`),
+`/api/v1/auth/capabilities` and exact live-vs-saved OpenAPI equality (132
+paths). See [TDR-0141](../tdr/0141-repeatable-release-checks.md).
+
+This verifies public API routing and source identity only. Authenticated
+Railway logs/queue behavior, degraded 503, actual sign-in, browser flows and
+rollback remain open. The public `backline-qa.vercel.app` HTML still references
+older main bundle `index-C9_Lw8YS.js`; the local checked build references
+`index-Bzwy8iv6.js`. Two project aliases redirect to Vercel SSO, so their
+deployment identity cannot be inspected anonymously. No test suite was added
+or run under AGENTS.md.
+
 ## 2026-10-24: API routing recovered and exact release confirmed
 
 GitHub reports successful Railway deployment statuses for API, worker and

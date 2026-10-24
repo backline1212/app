@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""Post-deploy smoke test (18-Storage-Deployment.md §18.8): "smoke test hits /health and
-a read-only API endpoint post-deploy before marking the deploy healthy." Exits non-zero
-on any failure - a CI/deploy pipeline step, not a human-read report.
+"""Read-only post-deploy API check; exits non-zero on a failed release gate.
 
-Usage: python scripts/smoke_test.py [base_url]  (defaults to $SMOKE_TEST_BASE_URL, then
-http://localhost:8000)
+Run from backend with ``uv run python scripts/smoke_test.py [base_url]``.
+Use ``--expected-sha`` to prove which API revision answered and ``--contract``
+to compare its live OpenAPI document with a saved checkout contract.
 """
 
+import argparse
+import json
 import os
+import re
 import sys
+from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -16,45 +20,88 @@ DEFAULT_BASE_URL = "http://localhost:8000"
 
 
 def main() -> int:
-    env_base_url = os.environ.get("SMOKE_TEST_BASE_URL", DEFAULT_BASE_URL)
-    base_url = sys.argv[1] if len(sys.argv) > 1 else env_base_url
-    print(f"Smoke testing {base_url}")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "base_url",
+        nargs="?",
+        default=os.environ.get("SMOKE_TEST_BASE_URL", DEFAULT_BASE_URL),
+    )
+    parser.add_argument("--expected-sha", help="Expected full 40-character API commit SHA")
+    parser.add_argument("--contract", type=Path, help="Saved OpenAPI JSON to compare exactly")
+    args = parser.parse_args()
 
-    with httpx.Client(base_url=base_url, timeout=10.0) as client:
+    if args.expected_sha and not re.fullmatch(r"[0-9a-fA-F]{40}", args.expected_sha):
+        parser.error("--expected-sha must be a full 40-character hexadecimal commit SHA")
+
+    expected_contract: dict[str, Any] | None = None
+    if args.contract:
         try:
-            health = client.get("/health")
-        except httpx.HTTPError as exc:
-            print(f"FAIL: /health unreachable - {exc}")
-            return 1
+            expected_contract = json.loads(args.contract.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            parser.error(f"cannot read --contract: {exc}")
+        if not isinstance(expected_contract, dict) or "paths" not in expected_contract:
+            parser.error("--contract must be an OpenAPI JSON object with paths")
 
-        if health.status_code != 200:
-            print(f"FAIL: /health returned {health.status_code}")
-            return 1
-        body = health.json()
-        if body.get("status") != "ok":
-            print(f"FAIL: /health status is not ok - {body}")
-            return 1
-        if body.get("mongo") != "ok":
-            print(f"FAIL: /health reports Mongo unreachable - {body}")
-            return 1
-        if body.get("redis") != "ok":
-            print(f"FAIL: /health reports Redis unreachable - {body}")
-            return 1
-        print("OK: /health (mongo ok, redis ok)")
+    print(f"Smoke testing {args.base_url}")
+    try:
+        with httpx.Client(base_url=args.base_url, timeout=10.0, follow_redirects=False) as client:
+            health = client.get("/health", headers={"Cache-Control": "no-cache"})
+            if health.status_code != 200:
+                print(f"FAIL: /health returned {health.status_code}")
+                return 1
+            try:
+                body = health.json()
+            except ValueError:
+                print("FAIL: /health did not return JSON")
+                return 1
+            if not isinstance(body, dict) or any(
+                body.get(key) != "ok" for key in ("status", "mongo", "redis")
+            ):
+                print("FAIL: /health did not report healthy API, MongoDB and Redis")
+                return 1
+            release_sha = body.get("release_sha")
+            if args.expected_sha and release_sha != args.expected_sha.lower():
+                print(f"FAIL: API release {release_sha!r} differs from {args.expected_sha.lower()}")
+                return 1
+            print(f"OK: /health (mongo ok, redis ok; release {release_sha or 'unreported'})")
 
-        # A read-only endpoint that exercises the full route table, not just the raw
-        # process being up - no fixture data exists post-deploy to hit a real domain
-        # endpoint (e.g. /review/{token}) with, so FastAPI's own generated schema is the
-        # least-arbitrary "the API is genuinely routing requests" check available.
-        try:
+            capabilities = client.get("/api/v1/auth/capabilities")
+            if capabilities.status_code != 200:
+                print(f"FAIL: /api/v1/auth/capabilities returned {capabilities.status_code}")
+                return 1
+            try:
+                capability_body = capabilities.json()
+            except ValueError:
+                print("FAIL: /api/v1/auth/capabilities did not return JSON")
+                return 1
+            if not isinstance(capability_body, dict) or not isinstance(
+                capability_body.get("google_sign_in"), bool
+            ):
+                print("FAIL: /api/v1/auth/capabilities has an unexpected response")
+                return 1
+            print("OK: /api/v1/auth/capabilities")
+
             openapi = client.get("/openapi.json")
-        except httpx.HTTPError as exc:
-            print(f"FAIL: /openapi.json unreachable - {exc}")
-            return 1
-        if openapi.status_code != 200 or "paths" not in openapi.json():
-            print(f"FAIL: /openapi.json returned {openapi.status_code}")
-            return 1
-        print(f"OK: /openapi.json ({len(openapi.json()['paths'])} routes)")
+            if openapi.status_code != 200:
+                print(f"FAIL: /openapi.json returned {openapi.status_code}")
+                return 1
+            try:
+                live_contract = openapi.json()
+            except ValueError:
+                print("FAIL: /openapi.json did not return JSON")
+                return 1
+            if not isinstance(live_contract, dict) or not isinstance(
+                live_contract.get("paths"), dict
+            ):
+                print("FAIL: /openapi.json has no paths object")
+                return 1
+            if expected_contract is not None and live_contract != expected_contract:
+                print("FAIL: live OpenAPI differs from the saved contract")
+                return 1
+            print(f"OK: /openapi.json ({len(live_contract['paths'])} paths)")
+    except httpx.HTTPError as exc:
+        print(f"FAIL: API request failed - {exc}")
+        return 1
 
     print("Smoke test passed.")
     return 0
