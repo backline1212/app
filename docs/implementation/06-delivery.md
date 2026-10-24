@@ -4648,3 +4648,21 @@ database migration, or production deployment is claimed.
   forbids Chromium/MongoDB sockets and the permission escalation was rejected.
   The owner declined a GitHub Actions gate; the temporary workflow was removed.
   Do not mark the feature production verified on the basis of the local checks.
+
+# 2026-10-24: File review parity and product fixes (TDR-0146)
+
+- Image/PDF review rebuilt on the website review workspace (header, file tabs, canvas,
+  side panel, footer, floating composer). Team triage now works in place on files.
+- Fixed: stray "0" rendered beside point pins; new comment not selected after posting
+  (draft guard swallowed the navigation); panel and file canvas disagreed on the
+  thread URL parameter; file projects created a website canvas session on every open;
+  website hotkeys (C/B/D, page keys, ?) ran on file projects; zoom clipped the top of
+  the file; composer autofocus failed so Esc/typing missed it; pin numbers were
+  per-page indexes instead of ticket numbers; comment count covered only one PDF page.
+- Fixed in shared UI: comment detail showed "Unknown page" / internal asset address
+  for file comments; Details tab counted replies as comments, showed "Versions" and an
+  empty URL link, and "Files 0" for file projects; AI tab offered for files; legacy
+  projects without a type showed "Manage files"; file projects showed a website
+  live/staging chip; share-links page offered website link types for files; project
+  form fields had no spacing inside the fieldset.
+- Verification: web typecheck, lint, build; manual Chromium checks on a local stack.

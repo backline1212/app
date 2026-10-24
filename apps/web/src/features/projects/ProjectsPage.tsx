@@ -79,6 +79,15 @@ const VIEW_ICONS: Record<string, React.ReactNode> = {
   table: <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1" /><path d="M3 10h18M3 15h18M10 4v16" /></svg>,
 };
 
+// Live/staging describes a website's environment; image and PDF projects have none, so
+// they only carry a chip once archived.
+function ProjectStageChip({ project }: { project: api.ProjectOut }) {
+  if (project.archived_at) return <span className="bl-chip">Archived</span>;
+  if ((project.project_type ?? "website") !== "website") return null;
+  const environment = project.environment ?? "live";
+  return <span className={`bl-chip ${environment}`}>{environment === "live" && <i className="bl-live-dot" aria-hidden="true" />}{environment}</span>;
+}
+
 export function ProjectsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
   const { user } = useAuth();
@@ -159,7 +168,7 @@ export function ProjectsPage() {
         )}
       </div>
       <div className="bl-project-body">
-        <div className="bl-project-title">{p.archived_at ? <h2>{p.name}</h2> : <Link to={destination}><h2>{p.name}</h2></Link>}<span className={`bl-chip ${p.archived_at ? "" : (p.environment ?? "live")}`}>{!p.archived_at && (p.environment ?? "live") === "live" && <i className="bl-live-dot" aria-hidden="true" />}{p.archived_at ? "Archived" : p.environment ?? "live"}</span></div>
+        <div className="bl-project-title">{p.archived_at ? <h2>{p.name}</h2> : <Link to={destination}><h2>{p.name}</h2></Link>}<ProjectStageChip project={p} /></div>
         <p className="bl-project-url">{displayUrl}</p>
         {(p.access.visibility === "private" || (p.my_role && p.my_role !== "manager")) && (
           <p className="bl-project-access">
@@ -201,7 +210,7 @@ export function ProjectsPage() {
         ? <span className="bl-table-name is-archived">{p.name}<span className="bl-arch-tag">Archived</span></span>
         : <Link className="bl-table-name" to={destination}>{p.access.visibility === "private" && <LockIcon className="bl-table-lock" aria-label="Private" role="img" />}{p.name}</Link>}</td>
       <td><span className="bl-table-source" title={displayUrl}>{displayUrl}</span></td>
-      <td><span className={`bl-chip ${p.archived_at ? "" : (p.environment ?? "live")}`}>{!p.archived_at && (p.environment ?? "live") === "live" && <i className="bl-live-dot" aria-hidden="true" />}{p.archived_at ? "Archived" : p.environment ?? "live"}</span></td>
+      <td><ProjectStageChip project={p} /></td>
       <td className={`bl-col-num${(s?.open ?? 0) > 0 ? " has-value is-strong" : ""}`}>{(s?.open ?? 0) > 0 ? <Link to={`/w/${workspace.slug}/tickets?project_id=${p.id}`}>{s?.open ?? 0}</Link> : 0}</td>
       {count(s?.status_counts?.in_review ?? 0)}
       {count(s?.status_counts?.blocked ?? 0)}

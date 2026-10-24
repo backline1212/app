@@ -38,8 +38,17 @@ export function redactReviewUrl(address: string): string {
   }
 }
 
+// Image and PDF files are stored as pages with an internal `backline://assets/<hash>`
+// address - an identity key, never something to show a reviewer.
+const ASSET_PAGE_PREFIX = "backline://assets/";
+
+export function isAssetPageAddress(address: string): boolean {
+  return address.startsWith(ASSET_PAGE_PREFIX);
+}
+
 /** Keep nonsecret route/query context visible when pages share a pathname. */
 export function reviewPagePath(address: string): string {
+  if (isAssetPageAddress(address)) return "File";
   try {
     const url = new URL(redactReviewUrl(address));
     return url.pathname + url.search + url.hash;
@@ -60,6 +69,7 @@ export function hasReviewHashRoute(address: string): boolean {
 }
 
 export function reviewPageLabel(page: { title: string | null; url_normalized: string }): string {
+  if (isAssetPageAddress(page.url_normalized)) return page.title || "Untitled file";
   const path = reviewPagePath(page.url_normalized);
   try {
     const url = new URL(page.url_normalized);

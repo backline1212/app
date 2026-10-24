@@ -29,6 +29,11 @@ export function ShareLinksPage() {
   const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<"snippet" | "proxy">("proxy");
+  // Image and PDF projects only ever use a Backline review link - "proxy" and
+  // "snippet" are website delivery modes with nothing to choose between for a file.
+  const isWebsite = (project?.project_type ?? "website") === "website";
+  const linkMode = isWebsite ? mode : "proxy";
+  const modeLabel = (value: string) => !isWebsite ? "File review" : value === "snippet" ? "Website tools" : "Backline review";
   const [passcode, setPasscode] = useState("");
   const [askReviewerName, setAskReviewerName] = useState(true);
   const [expiration, setExpiration] = useState<"never" | "7" | "30">("never");
@@ -46,7 +51,7 @@ export function ShareLinksPage() {
   const createMutation = useMutation({
     mutationFn: () =>
       shareLinksApi.createShareLink(projectId!, {
-        mode,
+        mode: linkMode,
         passcode: passcode.trim() || undefined,
         askReviewerName,
         expiresAt: expiration === "never" ? undefined : new Date(Date.now() + Number(expiration) * 24 * 60 * 60 * 1000).toISOString(),
@@ -124,7 +129,7 @@ export function ShareLinksPage() {
               <thead>
                 <tr>
                   <th>Link</th>
-                  <th>Mode</th>
+                  <th>Type</th>
                   <th>Status</th>
                   <th>Expires</th>
                   <th>Created</th>
@@ -143,7 +148,7 @@ export function ShareLinksPage() {
                         {!!link.domain_restrictions?.length && <small className="bl-error">Legacy request-origin filter. This does not verify reviewer identity. Create a replacement with a passcode.</small>}
                         {link.comment_export_permission && <small>Guest export is unavailable.</small>}
                       </td>
-                      <td style={{ textTransform: "capitalize" }}>{link.mode}</td>
+                      <td>{modeLabel(link.mode)}</td>
                       <td>
                         <span className={`bl-access-state${state === "active" ? " is-on" : ""}`}><i />{state === "revoked" ? "Revoked" : state === "expired" ? "Expired" : "Active"}</span>
                       </td>
@@ -188,13 +193,13 @@ export function ShareLinksPage() {
             createMutation.mutate();
           }}
         >
-          <label>
+          {isWebsite && <label>
             Link type
             <select className="bl-input" value={mode} onChange={(event) => setMode(event.target.value as "snippet" | "proxy")}>
               <option value="proxy">Backline review (browser fallback available)</option>
               <option value="snippet">Website tools (existing installation required)</option>
             </select>
-          </label>
+          </label>}
           <label>
             Link expires
             <select className="bl-input" value={expiration} onChange={(event) => setExpiration(event.target.value as "never" | "7" | "30")}>

@@ -102,7 +102,7 @@
   --bl-art-line-light:#D9DDD8; --bl-art-stroke:#CDD2CC;
   --bl-art-ink:#C9CECA; --bl-art-ink-soft:#D7DDD8; --bl-art-ink-dark:#C5CBC4;
 }
-.bl-review{height:100vh;display:flex;flex-direction:column}.bl-review-head{display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--bl-surface);border-bottom:1px solid var(--bl-line)}.bl-review-head h1{font-weight:600;font-size:14px;flex:1}.bl-review-tools{padding:10px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--bl-line);flex-wrap:wrap}.bl-review-body{display:grid;grid-template-columns:minmax(0,1fr) 340px;flex:1;min-height:0}.bl-asset-stage{overflow:auto;padding:24px;text-align:center}.bl-asset-stage>.bl-mono{margin-bottom:18px}.bl-asset-stage>.bl-quiet{margin-top:16px}.bl-asset-sheet{position:relative;display:inline-block;max-width:100%;box-shadow:0 4px 30px #0001;background:var(--bl-surface);vertical-align:top;touch-action:pan-y}.bl-asset-sheet.commenting{cursor:crosshair;touch-action:none}.bl-asset-sheet>img,.bl-asset-sheet>canvas{display:block;max-width:100%;height:auto;max-height:none;width:900px;user-select:none}.bl-asset-sheet>img{width:auto}.bl-asset-pin{position:absolute;min-width:22px;min-height:22px;border:2px solid;border-radius:3px;text-align:left;background:#69DEB214;z-index:3}.bl-asset-pin>span{display:grid;place-items:center;position:absolute;top:-12px;left:-12px;width:23px;height:23px;border:1px solid #fff;border-radius:50%;font:600 10px var(--bl-mono);color:#0B0B0B}.bl-asset-pin.selected{outline:2px solid #0B0B0B;outline-offset:2px}.bl-draft-region{position:absolute;border:2px solid #0A6B4B;background:#69DEB233;pointer-events:none;z-index:4}.bl-review-comments{overflow:auto;border-left:1px solid var(--bl-line);background:var(--bl-surface)}.bl-review-comments>header{padding:16px;border-bottom:1px solid var(--bl-line)}.bl-review-comments h2{font-size:14px;font-weight:600}.bl-review-comments .bl-form{padding:16px}.bl-review-comment{display:block;text-align:left;width:100%;padding:16px;border-bottom:1px solid var(--bl-line)}.bl-review-comment:hover{background:var(--bl-paper)}.bl-review-comment small{font-size:10px;color:var(--bl-muted)}.bl-review-comment p{font-size:12px;margin:8px 0;line-height:1.6}.bl-review-comments .bl-form>p{color:var(--bl-ink);white-space:pre-wrap}.bl-review .bl-form-actions{flex-wrap:wrap}@media(max-width:800px){.bl-review{height:auto;min-height:100vh}.bl-review-body{grid-template-columns:1fr}.bl-review-comments{border-left:0;border-top:1px solid var(--bl-line)}.bl-asset-stage{padding:16px}}
+.bl-review{height:100vh;display:flex;flex-direction:column}.bl-review-head{display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--bl-surface);border-bottom:1px solid var(--bl-line)}.bl-review-head h1{font-weight:600;font-size:14px;flex:1}.bl-review .bl-form-actions{flex-wrap:wrap}@media(max-width:800px){.bl-review{height:auto;min-height:100vh}}
 body{font-family:var(--sans);background:var(--bl-paper);color:var(--bl-ink)}
 .bl-app{display:grid;grid-template-columns:264px minmax(0,1fr);min-height:100vh}
 .bl-rail{background:var(--bl-surface);border-right:1px solid var(--bl-line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
@@ -1494,23 +1494,6 @@ button{letter-spacing:inherit}
 .bl-guest-bar b{font-weight:700}
 .bl-guest-bar-out{margin-left:auto;border:1px solid rgba(255,255,255,.3);border-radius:var(--r);padding:4px 10px;font-size:12px;color:var(--bl-invert-fg);flex:none}
 .bl-guest-bar-out:hover{background:color-mix(in srgb,var(--bl-invert-fg) 15%,transparent)}
-
-/* ── Asset/guest comment composer tag picker (Slice 08) ─────────────────
-   Scoped under .bl-review-comments so these short reference-HTML class names
-   (cp-*) stay local to this composer instead of leaking as bare globals. */
-.bl-review-comments .cp-sec{margin-top:12px}
-.bl-review-comments .cp-sec>.cp-lbl{display:block;margin-bottom:7px}
-.bl-review-comments .cp-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.07em;color:var(--ink-4);text-transform:uppercase}
-.bl-review-comments .cp-tags{display:flex;flex-wrap:wrap;gap:6px}
-.bl-review-comments .cp-tag{display:inline-flex;align-items:center;height:28px;padding:0 11px;border:1px solid var(--line);border-radius:20px;background:var(--surface);font-size:12px;color:var(--ink-2);font-weight:500}
-.bl-review-comments .cp-tag:hover{border-color:var(--ink-4)}
-.bl-review-comments .cp-tag[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bl-invert-fg)}
-.bl-review-comments .cp-foot{display:flex;align-items:center;gap:8px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line-soft)}
-.bl-review-comments .cp-post{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:var(--bl-invert-fg);border-radius:var(--r);padding:8px 14px;font-size:12.5px;font-weight:600}
-.bl-review-comments .cp-post:hover:not(:disabled){background:#232523}
-.bl-review-comments .cp-post:disabled{opacity:.5;cursor:not-allowed}
-.bl-review-comments .cp-cancel{padding:8px 12px;font-size:12.5px;color:var(--ink-3);border-radius:var(--r)}
-.bl-review-comments .cp-cancel:hover{background:var(--paper);color:var(--ink)}
 
 /* ── Generic small popover shell + DatePicker calendar (was inline hex styles
    that never participated in theming - see apps/web/src/features/tickets/components/DatePicker.tsx) ── */
@@ -3009,3 +2992,106 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-review-question label { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; }
 .bl-setup-checklist { margin: 14px 0; padding-left: 22px; line-height: 1.7; }
 @media (max-width: 480px) { .bl-browser-flow { padding: 8px 16px 16px; } .bl-browser-flow .bl-link-row { flex-wrap: wrap; } }
+
+/* ---------------------------------------------------------------------------
+   Image & PDF review (features/assets/AssetReview.tsx). Shares the website review's
+   workspace chrome (.bl-review-header/-pagebar/-main/-statusbar and the side panel);
+   only the canvas, pins, floating composer and the guest comments drawer live here.
+   --------------------------------------------------------------------------- */
+.bl-asset-workspace .bl-review-stage{text-align:initial}
+.bl-asset-workspace .bl-review-page-tabs>[role="tab"]{gap:7px}
+.bl-asset-workspace .bl-review-page-tabs>[role="tab"]>svg{flex:none;color:var(--ink-4)}
+.bl-asset-workspace .bl-review-page-tabs>[role="tab"][aria-selected="true"]>svg{color:var(--mint-deep)}
+.bl-asset-workspace .bl-review-page-tabs>[role="tab"]:disabled{opacity:.45;cursor:not-allowed}
+.bl-review-environment.is-file{background:var(--mint-tint);color:var(--mint-deep)}.bl-review-environment.is-file i{background:var(--mint-deep)}
+.bl-asset-brand{display:grid;place-items:center;width:32px;height:32px;flex:none;border-radius:3px;background:var(--ink);color:var(--mint);font:700 14px var(--sans)}
+.bl-asset-notices{display:flex;flex-direction:column;gap:6px;padding:8px 14px;background:var(--bl-surface);border-bottom:1px solid var(--line)}
+.bl-asset-notices>*{margin:0}.bl-asset-notices .bl-quiet{margin-left:6px}
+.bl-asset-frame{position:relative;flex:none;margin:0 auto}
+.bl-asset-workspace .bl-asset-sheet{position:absolute;left:50%;top:50%;display:block;width:max-content;max-width:none;border:1px solid #C9CBC6;border-radius:3px;background:var(--bl-surface);box-shadow:0 3px 16px rgba(11,11,11,.07);transform-origin:center center;transition:transform .18s ease;touch-action:pan-y;user-select:none}
+.bl-asset-workspace .bl-asset-sheet.commenting{cursor:crosshair;touch-action:none}
+.bl-asset-workspace .bl-asset-sheet>img,.bl-asset-workspace .bl-asset-sheet>canvas{display:block;max-width:100%;height:auto;border-radius:2px}
+.bl-asset-workspace .bl-asset-sheet>img{width:auto}
+.bl-asset-workspace .bl-asset-sheet>canvas{width:900px}
+.bl-asset-workspace .bl-asset-sheet>canvas[hidden]{display:none}
+.bl-asset-workspace .bl-asset-loading{width:min(560px,70vw);padding:48px 24px;text-align:center}
+@media (prefers-reduced-motion:reduce){.bl-asset-workspace .bl-asset-sheet{transition:none}}
+/* Pins and areas mirror the website widget's (.bl-pin/.bl-region in widget/ui-styles.ts):
+   a dark teardrop whose square corner sits on the spot, quieter once resolved. */
+.bl-asset-pin-container{position:absolute;z-index:3;pointer-events:none}
+.bl-asset-pin-border{position:absolute;inset:0;border:2px solid var(--mint-deep);border-radius:2px;background:rgba(105,222,178,.14)}
+.bl-asset-pin-container.selected .bl-asset-pin-border{background:rgba(105,222,178,.26)}
+.bl-asset-pin-container.is-closed .bl-asset-pin-border{border-color:var(--ink-4);border-style:dotted;background:rgba(105,110,104,.06)}
+.bl-asset-workspace .bl-asset-pin{position:absolute;left:0;top:0;display:grid;place-items:center;min-width:24px;height:24px;padding:0 5px;border:2px solid #fff;border-radius:12px 12px 12px 3px;background:#0B0B0B;color:#fff;font:700 11px/1 var(--sans);transform:translateY(-100%);box-shadow:0 2px 5px rgba(11,11,11,.22);cursor:pointer;pointer-events:auto;outline:0;min-height:0;text-align:center;z-index:2}
+.bl-asset-workspace .bl-asset-pin:hover{transform:translateY(-100%) scale(1.08)}
+.bl-asset-workspace .bl-asset-pin:focus-visible{outline:3px solid #14141A;outline-offset:3px}
+.bl-asset-pin-container.selected .bl-asset-pin{box-shadow:0 0 0 3px var(--mint),0 2px 5px rgba(11,11,11,.22);z-index:4}
+.bl-asset-pin-container.is-closed .bl-asset-pin{background:#fff;color:var(--ink-3);border-color:var(--line);opacity:.85}
+.bl-asset-pin-container.selected{z-index:5}
+.bl-asset-pin-resize-handle{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;border:2px solid var(--mint-deep);border-radius:2px;background:var(--bl-surface);cursor:nwse-resize;pointer-events:auto;z-index:3}
+.bl-asset-workspace .bl-draft-region{position:absolute;z-index:6;pointer-events:none;border:0;background:none}
+.bl-asset-workspace .bl-draft-region.has-area{border:2px dashed var(--mint-deep);background:rgba(105,222,178,.2);border-radius:2px}
+.bl-asset-pin.is-ghost{background:var(--mint)!important;color:#0B0B0B!important;outline:2px dashed #0B0B0B!important;outline-offset:2px}
+/* The new-comment card - the website widget's composer card, fixed beside the draft pin. */
+.bl-asset-composer{position:fixed;z-index:70;width:min(344px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;border:1px solid var(--line);border-radius:6px;background:var(--bl-surface);box-shadow:0 20px 48px rgba(11,11,11,.18);color:var(--ink);text-align:left;animation:bl-review-drawer-in .14s ease}
+.bl-asset-composer-head{display:flex;align-items:center;gap:8px;padding:9px 10px 9px 12px;background:#0B0B0B;color:#fff;border-radius:5px 5px 0 0}
+.bl-asset-composer-head strong{font-size:12.5px;font-weight:650;white-space:nowrap}
+.bl-asset-composer-av{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:50%;background:var(--mint);color:#0B0B0B;font:700 9.5px var(--sans)}
+.bl-asset-composer-loc{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.75);font:10px var(--mono)}
+.bl-asset-composer-close{display:grid;place-items:center;width:24px;height:24px;flex:none;border-radius:3px;color:rgba(255,255,255,.75);font-size:17px}.bl-asset-composer-close:hover{background:rgba(255,255,255,.12);color:#fff}
+.bl-asset-composer>fieldset{margin:0;padding:12px 12px 0;border:0;min-width:0}
+.bl-asset-composer textarea.bl-input{width:100%;min-height:76px;max-height:240px;resize:vertical}
+.bl-asset-composer>.bl-error,.bl-asset-composer>.bl-asset-composer-note,.bl-asset-composer>.bl-quiet,.bl-asset-composer>textarea{margin:8px 12px 0}
+.bl-asset-composer-note{font-size:11.5px;color:var(--ink-3);line-height:1.45}
+.bl-asset-composer-ctx{margin-top:12px;color:var(--ink-4);font:10px var(--mono)}
+.bl-asset-composer .cp-sec{margin-top:12px}
+.bl-asset-composer .cp-lbl{display:block;margin-bottom:7px;font-family:var(--mono);font-size:10px;letter-spacing:.07em;color:var(--ink-4);text-transform:uppercase}
+.bl-asset-composer .cp-tags{display:flex;flex-wrap:wrap;gap:6px}
+.bl-asset-composer .cp-tag{display:inline-flex;align-items:center;height:26px;padding:0 10px;border:1px solid var(--line);border-radius:20px;background:var(--surface);font-size:11.5px;color:var(--ink-2);font-weight:500}
+.bl-asset-composer .cp-tag:hover{border-color:var(--ink-4)}
+.bl-asset-composer .cp-tag[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bl-invert-fg)}
+.bl-asset-composer .cp-foot{display:flex;align-items:center;gap:8px;margin:12px 0 0;padding:10px 12px 12px;border-top:1px solid var(--line-soft)}
+.bl-asset-composer .cp-post{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:var(--bl-invert-fg);border-radius:var(--r);padding:8px 14px;font-size:12.5px;font-weight:600}
+.bl-asset-composer .cp-post:disabled{opacity:.5;cursor:not-allowed}
+.bl-asset-composer .cp-cancel{padding:8px 10px;font-size:12.5px;color:var(--ink-3);border-radius:var(--r)}.bl-asset-composer .cp-cancel:hover{background:var(--paper);color:var(--ink)}
+.bl-asset-visibility button{font-size:11px;padding:0 10px}
+.bl-cp-hint{margin-right:auto;color:var(--ink-4);font-size:10px;white-space:nowrap}
+.bl-cp-hint kbd{display:inline-block;min-width:16px;padding:1px 4px;border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;background:var(--bl-paper);color:var(--ink-3);font:10px var(--mono);text-align:center}
+/* Footer controls */
+.bl-asset-pager select{height:28px;padding:0 6px;border:0;border-right:1px solid var(--line);background:var(--bl-surface);color:var(--ink);font:10.5px var(--mono)}
+.bl-asset-pager button{font-size:15px;line-height:1}
+.bl-asset-center-pin{height:30px}
+/* Guest comments drawer */
+.bl-asset-thread-pane{min-height:0;flex:1;overflow-y:auto}
+.bl-asset-pane-note{padding:16px;color:var(--ink-3);font-size:12px}.bl-asset-pane-note .bl-button{margin-top:10px}
+.bl-asset-pane-empty{margin-top:24px}
+.bl-asset-comment-list{list-style:none;margin:0;padding:10px;display:flex;flex-direction:column;gap:8px}
+.bl-asset-comment{display:flex;gap:10px;width:100%;padding:11px;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface);text-align:left;transition:border-color .14s ease,background .14s ease}
+.bl-asset-comment:hover{border-color:var(--ink-4)}
+.bl-asset-comment.is-other-page{background:var(--bl-paper)}
+.bl-asset-comment-pin{display:grid;place-items:center;min-width:22px;height:22px;flex:none;padding:0 4px;border-radius:11px 11px 11px 3px;color:#0B0B0B;font:700 10px var(--sans)}
+.bl-asset-comment-main{display:flex;min-width:0;flex:1;flex-direction:column;gap:6px}
+.bl-asset-comment-meta{display:flex;align-items:baseline;gap:7px;font-size:11.5px}.bl-asset-comment-meta time{color:var(--ink-4);font:10px var(--mono)}
+.bl-asset-comment-body{display:-webkit-box;overflow:hidden;color:var(--ink-2);font-size:12.5px;line-height:1.5;-webkit-line-clamp:3;-webkit-box-orient:vertical;white-space:pre-wrap;word-break:break-word}
+.bl-asset-thread{display:flex;flex-direction:column;gap:12px;padding:12px 14px 16px}
+.bl-asset-back{align-self:flex-start;padding:4px 6px;border-radius:3px;color:var(--ink-3);font-size:11.5px}.bl-asset-back:hover{background:var(--paper);color:var(--ink)}
+.bl-asset-thread-root{padding:12px;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface)}
+.bl-asset-thread-root>header,.bl-asset-replies header{display:flex;align-items:center;gap:8px}
+.bl-asset-thread-root>header>div{display:flex;min-width:0;flex:1;flex-direction:column}
+.bl-asset-thread-root strong,.bl-asset-replies strong{font-size:12px;font-weight:650}
+.bl-asset-thread-root time,.bl-asset-replies time{color:var(--ink-4);font:10px var(--mono)}
+.bl-asset-thread-root>p{margin:10px 0;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.bl-asset-replies{list-style:none;margin:0;padding:0 0 0 12px;display:flex;flex-direction:column;gap:10px;border-left:2px solid var(--line-soft)}
+.bl-asset-replies p{margin:5px 0 0 30px;font-size:12.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.bl-asset-replies header{flex-wrap:wrap}
+.bl-asset-reply{display:flex;flex-direction:column;gap:8px}
+.bl-asset-reply textarea{width:100%;resize:vertical}
+.bl-asset-reply-foot{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+@media(max-width:760px){
+  .bl-asset-workspace .bl-review-stage{padding-bottom:140px}
+  .bl-asset-composer{left:12px!important;right:12px;top:auto!important;bottom:12px;width:auto}
+  .bl-asset-center-pin{display:none}
+}
+/* The form's fields sit inside a <fieldset> (disabled while saving), which swallowed the
+   form's flex gap - Client's help text ran straight into the "Project name" label. */
+.bl-project-form>fieldset{display:flex;flex-direction:column;gap:15px}
