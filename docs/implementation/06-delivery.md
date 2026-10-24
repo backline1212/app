@@ -4750,3 +4750,9 @@ database migration, or production deployment is claimed.
 - Agents report fixes with `submit_fix` (summary, preview and PR links → In review);
   the team verifies from a fix card (Verified – resolve / Reopen). Partially closes
   FEAT-12 (no automated verification run).
+
+# 2026-10-25: Stale build recovery (TDR-0159)
+
+- Fixed "Failed to fetch dynamically imported module" after deploys: assets aren't
+  rewritten to index.html, stale chunks reload into the new build, friendly error page.
+  Phone chips/tags no longer stretch to 44px.

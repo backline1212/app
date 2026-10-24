@@ -9,6 +9,7 @@ import { WorkspaceLayout } from "./layout/WorkspaceLayout";
 import { rememberReturnPath } from "../lib/return-path";
 import { DraftNavigationProvider } from "../lib/draft-navigation";
 import { ScrollToTop } from "../lib/ScrollToTop";
+import { RouteError } from "./RouteError";
 
 function RootLayout() {
   return (
@@ -38,6 +39,8 @@ function RequireAuth() {
 // eagerly, every screen - the canvas, the ticket views and pdf.js with them - was one
 // bundle a reviewer downloaded before even the sign-in page could render.
 function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) {
+  // A chunk that fails to load (an old tab after a deploy) lands in RouteError at the
+  // destination URL, which reloads into the new build there.
   return async () => ({ Component: (await load())[name] });
 }
 
@@ -46,6 +49,7 @@ function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, n
 const router = createBrowserRouter([
   {
     element: <RootLayout />,
+    errorElement: <RouteError />,
     children: [
       { path: "/login", lazy: page(() => import("../features/auth/LoginPage"), "LoginPage") },
       { path: "/privacy", lazy: page(() => import("../features/pages/PublicInfoPages"), "PrivacyPage") },
