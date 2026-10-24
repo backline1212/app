@@ -3,7 +3,7 @@ import { type Ref, useEffect, useRef, useState } from "react";
 
 import { Dialog } from "../../components/Dialog";
 import { ApiError } from "../../lib/api-client";
-import { EXTENSION_DOWNLOAD_URL } from "./extension-download";
+import { EXTENSION_DOWNLOAD_URL, EXTENSION_STORE_URL } from "./extension-download";
 import { useOnlineStatus } from "../../lib/use-online-status";
 import { createExtensionToken, revokeExtensionToken } from "../extension-tokens/api";
 import { ExtensionError, extensionRequest, isExtensionContextInvalidated, reviewExtensionProblem } from "./review-extension";
@@ -131,7 +131,9 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
         </ol>
         {busy && <p role="status">{phase === "checking" ? "Checking your browser extension…" : "Opening the website and waiting for its Backline toolbar…"}</p>}
         {phase === "setup" && <>
-          <p>{message}</p><p>One-time setup in desktop Chrome or Edge:</p>
+          <p>{message}</p>
+          {EXTENSION_STORE_URL && <p><a href={EXTENSION_STORE_URL} target="_blank" rel="noreferrer">Add Backline to Chrome</a> from the Chrome Web Store, then reload this Backline tab. Or set it up manually:</p>}
+          <p>One-time setup in desktop Chrome or Edge:</p>
           <ol><li><a href={EXTENSION_DOWNLOAD_URL}>Download the extension</a> and unzip it.</li>
             <li>Open the extensions page below, turn on Developer mode and choose Load unpacked.</li>
             <li>Select the unzipped folder, then reload this Backline tab and open website review again.</li></ol>
@@ -158,7 +160,9 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
         <button type="button" className="bl-quiet" onClick={close}>{phase === "connected" ? "Done" : "Close"}</button>
         {(phase === "setup" || phase === "update") && <>
           <button type="button" className="bl-quiet" onClick={() => window.location.reload()}>{phase === "setup" ? "Installed? Reload Backline" : "Updated? Reload Backline"}</button>
-          <a className="bl-button" href={EXTENSION_DOWNLOAD_URL}>{phase === "setup" ? "Download extension" : "Download update"}</a>
+          {phase === "setup" && EXTENSION_STORE_URL
+            ? <a className="bl-button" href={EXTENSION_STORE_URL} target="_blank" rel="noreferrer">Add to Chrome</a>
+            : <a className="bl-button" href={EXTENSION_DOWNLOAD_URL}>{phase === "setup" ? "Download extension" : "Download update"}</a>}
         </>}
         {phase === "reload" && <button type="button" className="bl-button" onClick={() => window.location.reload()}>Reload Backline</button>}
         {!busy && phase !== "connected" && phase !== "waiting" && phase !== "reload" && phase !== "setup" && phase !== "update" && (needsRejoin && onGuestSessionExpired

@@ -563,6 +563,7 @@ Optional, add later if you set them up:
 |---|---|
 | `VITE_GOOGLE_OAUTH_CLIENT_ID` | from Part 12 |
 | `VITE_SENTRY_DSN` | from Part 13 |
+| `VITE_EXTENSION_STORE_URL` | Chrome Web Store listing URL, after Google approves the extension (optional) |
 
 ### 9.3 Deploy
 

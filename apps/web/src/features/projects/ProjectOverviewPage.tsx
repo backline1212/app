@@ -48,6 +48,7 @@ import { ShortcutsModal } from "./ShortcutsModal";
 import { loadShortcuts } from "./shortcuts";
 import { NativeReviewButton } from "../review/NativeReviewButton";
 import { reviewLinkUrl, useReviewDomain } from "../workspaces/review-url";
+import { realBrowserSiteName } from "../../lib/real-browser-sites";
 
 const AssetReview = lazy(() => import("../assets/AssetReview").then(module => ({ default: module.AssetReview })));
 
@@ -908,6 +909,7 @@ export function ProjectOverviewPage() {
     : widgetConnected ? iframeStatus : "loading";
   const canvasToolsReady = effectiveFrameStatus === "loaded" && !isCrossBrowserRenderActive;
   const previewFailed = effectiveFrameStatus === "error";
+  const realBrowserSite = realBrowserSiteName(project.target_origin);
   const toolsUnavailableReason = previewFailed
     ? "Open with extension or retry the preview to leave feedback."
     : isCrossBrowserRenderActive ? "Switch to the live preview to leave feedback."
@@ -1002,10 +1004,12 @@ export function ProjectOverviewPage() {
         </div>
       </header>
 
-      {!previewFailed && !widgetConnected && <div className="bl-review-browser-help">
+      {((!previewFailed && !widgetConnected) || realBrowserSite) && <div className={`bl-review-browser-help${realBrowserSite ? " is-recommended" : ""}`}>
         <div>
-          <strong>Trouble loading this site or signing in?</strong>
-          <p>If the preview or website sign-in doesn't work, Open with extension uses the real website. Your saved feedback stays in Backline.</p>
+          <strong>{realBrowserSite ? `${realBrowserSite} works best with the extension` : "Trouble loading this site or signing in?"}</strong>
+          <p>{realBrowserSite
+            ? `${realBrowserSite} blocks embedded previews and sign-in, so the preview may be blank or limited. Open with extension reviews the real site in your own browser, signed in as you. Your saved feedback stays in Backline.`
+            : "If the preview or website sign-in doesn't work, Open with extension uses the real website. Your saved feedback stays in Backline."}</p>
         </div>
         {user && canComment && activePageRequest && <button type="button" className="bl-button" onClick={() => nativeReviewTrigger.current?.click()}>Open with extension</button>}
       </div>}

@@ -37,3 +37,6 @@ infra/local/*.pid
 
 # Claude
 .claude/
+
+# Local Redis snapshot
+dump.rdb

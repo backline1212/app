@@ -17,6 +17,23 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
+## Update ready: 0.5.2 (2026-10-25)
+
+Source and the dashboard's download are at **0.5.2** (screen/voice recording, console &
+network capture, steps to reproduce, snapshot hash fix for the 422, version-first
+polling). Package: `apps/extension/dist/backline-extension.zip` from `pnpm --filter
+@backline/extension build` (58658 bytes, SHA-256 `84c9d56e0e6e4e2fd1d20ee7d34dcf8ca684278f5f58fa185a3cb6fae15279e8`); it targets the production
+API `backlinewidget-production.up.railway.app` and dashboard `backline-qa.vercel.app`.
+Permissions are unchanged from 0.4.13 (`storage`, `activeTab`, `scripting`,
+`<all_urls>`), so no new permission warning.
+
+To ship it: while 0.4.13 is still *Pending review*, either wait for that result and then
+upload 0.5.2 as an update (Package → Upload new package → Submit for review), or cancel
+the pending review and submit 0.5.2 directly (review restarts). 0.4.13 keeps working with
+the dashboard (`MIN_EXTENSION_VERSION`), which offers 0.5.2 as an update. Once the
+listing is public, set `VITE_EXTENSION_STORE_URL` in Vercel so setup shows "Add to
+Chrome" (TDR-0160).
+
 ## Key paths and identifiers
 
 - Chrome Web Store item: `kdijhbgnbpjoaalbpnimfomemeheokca`
