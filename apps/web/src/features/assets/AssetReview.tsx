@@ -15,6 +15,8 @@ import { projectCan } from "../../lib/project-roles";
 import { ManageFilesDialog } from "./ManageFilesDialog";
 import { AssetPreview } from "./AssetPreview";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { MediaAttachment, RecordButtons } from "../comments/RecordButtons";
+import { isMediaAttachment } from "../comments/media";
 import { ProjectMenu } from "../projects/ProjectMenu";
 import { ArrowLeftIcon, CommentsIcon, PointerIcon, ShareIcon, ZoomInIcon, ZoomOutIcon } from "../projects/panel/icons";
 import type { Schemas } from "@backline/types";
@@ -71,6 +73,15 @@ function FileGlyph({ pdf }: { pdf: boolean }) {
     : <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9.5" r="1.7" /><path d="M21 15l-5-5L5 20" /></svg>;
 }
 
+function AttachmentList({ attachments }: { attachments: Comment["attachments"] }) {
+  if (!attachments.length) return null;
+  return <div className="bl-asset-attachments">
+    {attachments.map((file) => isMediaAttachment(file.content_type)
+      ? <MediaAttachment key={file.url} url={file.url} filename={file.filename} contentType={file.content_type} />
+      : <a key={file.url} className="bl-chip" href={file.url} target="_blank" rel="noreferrer">{file.filename} ↗</a>)}
+  </div>;
+}
+
 export function AssetReview({
   projectId,
   title,
@@ -112,6 +123,11 @@ export function AssetReview({
   const [reply, setReply] = useState("");
   const [tag, setTag] = useState<(typeof TAGS)[number]>("Design");
   const [layer, setLayer] = useState<"client" | "team">("client");
+  const [files, setFiles] = useState<Schemas["AttachmentIn"][]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(0);
+  const [recording, setRecording] = useState(false);
+  const [fileError, setFileError] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
   const [showFiles, setShowFiles] = useState(false);
   // Open beside the file on desktop; on a phone the drawer would cover the file.
   const [guestPanelOpen, setGuestPanelOpen] = useState(() => typeof window === "undefined" || window.innerWidth > 760);
@@ -130,7 +146,7 @@ export function AssetReview({
   const prepared = useRef<{ assetId: string; payload: Parameters<typeof api.createAssetComment>[2] } | null>(null);
   // URL state drives file/page/thread navigation. While a draft or uncertain save
   // exists, keep rendering its original location even if Back/Forward changes URL.
-  const locationProtected = Boolean((draft && body.trim()) || reply.trim() || retryLocked || replyLocked || posting.current || replying.current);
+  const locationProtected = Boolean((draft && (body.trim() || files.length || uploadingFiles || recording)) || reply.trim() || retryLocked || replyLocked || posting.current || replying.current);
   const acceptedSearch = useRef(params.toString());
   if (!locationProtected) acceptedSearch.current = params.toString();
   const viewParams = new URLSearchParams(acceptedSearch.current);
@@ -232,7 +248,7 @@ export function AssetReview({
     onSuccess: comment => {
       if (!mounted.current) return;
       posting.current = false;
-      prepared.current = null; ambiguous.current = false; setRetryLocked(false); setBody(""); setDraft(null); setCopyStatus("");
+      prepared.current = null; ambiguous.current = false; setRetryLocked(false); setBody(""); setDraft(null); setCopyStatus(""); setFiles([]); setFileError("");
       setNavigationWarning("");
       const warn = () => setSaveWarning("Comment saved. Some feedback could not refresh; reload the review to check it.");
       try {
@@ -262,11 +278,29 @@ export function AssetReview({
     onSettled: () => { replying.current = false; },
   });
   function submitComment() {
-    if (posting.current || !canComment || !body.trim() || body.trim().length > 10_000 || (!prepared.current && (!asset || !draft || !mediaReady))) return;
-    prepared.current ??= { assetId: asset!.id, payload: { body: body.trim(), region: { ...draft! }, layer, tags: [tag], client_request_id: crypto.randomUUID() } };
+    if (posting.current || !canComment || !body.trim() || body.trim().length > 10_000 || uploadingFiles > 0 || recording || (!prepared.current && (!asset || !draft || !mediaReady))) return;
+    prepared.current ??= { assetId: asset!.id, payload: { body: body.trim(), region: { ...draft! }, layer, tags: [tag], attachments: files, client_request_id: crypto.randomUUID() } };
     posting.current = true; setSaveWarning(""); post.mutate();
   }
+  async function addFiles(selected: File[]) {
+    if (!selected.length || posting.current || retryLocked) return;
+    if (files.length + uploadingFiles + selected.length > 10) { setFileError("A comment can carry up to 10 attachments."); return; }
+    setFileError("");
+    setUploadingFiles(count => count + selected.length);
+    for (const file of selected) {
+      try {
+        const uploaded = await api.uploadReviewAttachment(projectId, file, guest);
+        if (mounted.current) setFiles(current => [...current, uploaded]);
+      } catch (error) {
+        if (mounted.current) setFileError(error instanceof Error ? error.message : `${file.name} could not be uploaded.`);
+      } finally {
+        if (mounted.current) setUploadingFiles(count => count - 1);
+      }
+    }
+  }
   function cancelComment() {
+    if (recording) return;
+    setFiles([]); setFileError("");
     setDraft(null); setBody(""); prepared.current = null; ambiguous.current = false; setRetryLocked(false); setNavigationWarning(""); setCopyStatus("");
   }
   function submitReply() {
@@ -680,6 +714,7 @@ export function AssetReview({
                       <StatusBadge status={selectedComment.status} />
                     </header>
                     <p>{selectedComment.body}</p>
+                    <AttachmentList attachments={selectedComment.attachments} />
                     <div className="bl-chip-row">
                       <span className="bl-chip">{ticketRef(selectedComment)}</span>
                       {isPdf && <span className="bl-chip">Page {regionOf(selectedComment)?.page_number ?? 1}</span>}
@@ -691,6 +726,7 @@ export function AssetReview({
                       <li key={c.id}>
                         <header><Avatar name={c.author_name} size={22} /><strong>{c.author_name}</strong><time dateTime={c.created_at}>{formatRelativeTime(c.created_at)}</time>{!guest && <LayerBadge layer={c.layer} />}</header>
                         <p>{c.body}</p>
+                        <AttachmentList attachments={c.attachments} />
                       </li>
                     ))}
                   </ol>}
@@ -781,6 +817,20 @@ export function AssetReview({
               </div>
             </div>
           )}
+          <div className="bl-asset-composer-files">
+            {files.map((file) => (
+              <span key={file.key} className="bl-chip">
+                {file.content_type.startsWith("video/") ? "▶ " : file.content_type.startsWith("audio/") ? "♪ " : ""}{file.filename}
+                <button type="button" className="bl-cd-chip-x" aria-label={`Remove ${file.filename}`} onClick={() => setFiles(current => current.filter(item => item.key !== file.key))}>×</button>
+              </span>
+            ))}
+            <button type="button" className="bl-cd-shot-add" disabled={uploadingFiles > 0 || recording} onClick={() => fileInput.current?.click()}>
+              {uploadingFiles > 0 ? `Uploading ${uploadingFiles}…` : "Attach file"}
+            </button>
+            <RecordButtons disabled={uploadingFiles > 0} onRecordingChange={setRecording} onRecorded={(file) => void addFiles([file])} />
+            <input ref={fileInput} type="file" hidden multiple accept="image/*,application/pdf,video/webm,video/mp4,audio/webm,audio/mp4,audio/ogg" onChange={(event) => { const selected = Array.from(event.target.files ?? []); event.target.value = ""; void addFiles(selected); }} />
+          </div>
+          {fileError && <p className="bl-error" role="alert">{fileError}</p>}
           <p className="bl-asset-composer-ctx">{hasArea(draft) ? "Area comment" : "Pin comment"} · {typeLabel}{isPdf ? ` page ${draft.page_number}` : ""} · {Math.round(zoomScale * 100)}% zoom</p>
         </fieldset>
         {post.error && <p className="bl-error" role="alert">{post.error.message}</p>}
@@ -791,7 +841,7 @@ export function AssetReview({
         <div className="cp-foot">
           <span className="bl-cp-hint"><kbd>{isMac ? "⌘" : "Ctrl"}</kbd> <kbd>↵</kbd> to post</span>
           <button className="cp-cancel" type="button" disabled={post.isPending} onClick={cancelComment}>{retryLocked ? "Close" : "Cancel"}</button>
-          <button className="cp-post" disabled={post.isPending || !body.trim() || !canComment || (!mediaReady && !retryLocked)}>{post.isPending ? "Saving…" : retryLocked ? "Retry save" : "Post comment"}</button>
+          <button className="cp-post" disabled={post.isPending || !body.trim() || !canComment || uploadingFiles > 0 || recording || (!mediaReady && !retryLocked)}>{post.isPending ? "Saving…" : retryLocked ? "Retry save" : "Post comment"}</button>
         </div>
       </form>
     )}

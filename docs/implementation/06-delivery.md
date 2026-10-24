@@ -4666,3 +4666,12 @@ database migration, or production deployment is claimed.
   live/staging chip; share-links page offered website link types for files; project
   form fields had no spacing inside the fieldset.
 - Verification: web typecheck, lint, build; manual Chromium checks on a local stack.
+
+# 2026-10-24: Screen/voice recording and console & network capture (TDR-0147)
+
+- Shipped the two Solo "Coming soon" capture features on every plan: Record screen /
+  Voice note in all comment composers, and opt-in console/network failure capture
+  in the widget and extension 0.5.0, scrubbed client- and server-side.
+- Image/PDF comments now take attachments (files and recordings).
+- Verification: ruff, mypy, lint/typecheck/build; Chromium end-to-end on a local stack
+  (widget capture + recording upload, dashboard playback and diagnostics display).

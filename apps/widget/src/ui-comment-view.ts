@@ -57,6 +57,12 @@ function replyHtml(reply: CommentViewReply): string {
 function attachmentHtml(attachment: AttachmentInfo): string {
   const href = escapeHtml(attachment.url);
   const name = escapeHtml(attachment.filename);
+  if (attachment.content_type.startsWith("video/")) {
+    return `<video class="bl-cv-media" controls preload="metadata" src="${href}" title="${name}"></video>`;
+  }
+  if (attachment.content_type.startsWith("audio/")) {
+    return `<audio class="bl-cv-media" controls preload="metadata" src="${href}" title="${name}"></audio>`;
+  }
   if (attachment.content_type.startsWith("image/")) {
     return `<a class="bl-attachment-link bl-cv-thumb" href="${href}" target="_blank" rel="noopener noreferrer" title="${name}"><img src="${href}" alt="${name}" /></a>`;
   }

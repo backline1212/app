@@ -1,7 +1,7 @@
 import type { NativeReviewLaunch, NativeReviewStatus } from "@backline/types";
 
 import { API_BASE_URL } from "../../lib/api-client";
-import { EXTENSION_VERSION } from "./extension-download";
+import { EXTENSION_VERSION, MIN_EXTENSION_VERSION } from "./extension-download";
 
 export class ExtensionError extends Error {
   constructor(message: string, readonly status = 0, readonly timedOut = false) { super(message); }
@@ -17,7 +17,7 @@ export function reviewExtensionProblem(status: NativeReviewStatus): string | nul
   }
   const parts = typeof status.extensionVersion === "string" && /^\d+(\.\d+){2,3}$/.test(status.extensionVersion)
     ? status.extensionVersion.split(".").map(Number) : [];
-  const minimum = EXTENSION_VERSION.split(".").map(Number);
+  const minimum = MIN_EXTENSION_VERSION.split(".").map(Number);
   let supported = parts.length >= 3;
   for (let i = 0; supported && i < minimum.length; i += 1) {
     if (parts[i] === minimum[i]) continue;

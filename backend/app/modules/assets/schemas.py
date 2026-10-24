@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.modules.comments.schemas import Layer, Tag
+from app.modules.comments.schemas import AttachmentIn, Layer, Tag
 
 
 class AssetOut(BaseModel):
@@ -54,4 +54,6 @@ class AssetCommentCreate(BaseModel):
     region: Region
     layer: Layer = "client"
     tags: list[Tag] = Field(default_factory=list, max_length=6)
+    # Screenshots, files and screen/voice recordings uploaded first through POST /uploads.
+    attachments: list[AttachmentIn] = Field(default_factory=list, max_length=10)
     client_request_id: str | None = Field(default=None, min_length=1, max_length=64)

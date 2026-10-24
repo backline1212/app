@@ -32,6 +32,8 @@ import { aiErrorMessage, suggestReply } from "../../../ai/api";
 import * as boardApi from "../../../board/api";
 import type { CommentLayer, CommentOut, CommentStatus } from "../../../board/api";
 import { MentionsInput } from "../../../comments/MentionsInput";
+import { CommentDiagnostics, MediaAttachment, RecordButtons } from "../../../comments/RecordButtons";
+import { isMediaAttachment } from "../../../comments/media";
 import type { PageOut } from "../../../pages/api";
 import * as integrationsApi from "../../../integrations/api";
 import { listAssets } from "../../../assets/api";
@@ -291,7 +293,9 @@ function Message({ comment, showContext }: { comment: CommentOut; showContext: b
               </a>
             )}
             {comment.attachments.map((attachment) =>
-              attachment.content_type.startsWith("image/") ? (
+              isMediaAttachment(attachment.content_type) ? (
+                <MediaAttachment key={attachment.url} url={attachment.url} filename={attachment.filename} contentType={attachment.content_type} />
+              ) : attachment.content_type.startsWith("image/") ? (
                 <a key={attachment.url} href={attachment.url} target="_blank" rel="noreferrer" className="bl-cd-shot">
                   <img src={attachment.url} alt={attachment.filename} />
                 </a>
@@ -319,6 +323,7 @@ function Message({ comment, showContext }: { comment: CommentOut; showContext: b
             {selector && <div title={selector}>{shortSelector(selector)}</div>}
           </div>
         )}
+        {showContext && <CommentDiagnostics context={comment.context} />}
       </div>
     </div>
   );
@@ -355,6 +360,7 @@ export function CommentDetail({
   const [attachments, setAttachments] = useState<Schemas["AttachmentIn"][]>([]);
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const uploading = useRef(false);
   const [devTask, setDevTask] = useState<string | null>(null);
@@ -468,7 +474,7 @@ export function CommentDetail({
     },
   });
   const guard = useReviewDraftGuard({
-    dirty: Boolean(body.trim() || attachments.length || replySuggestion), pending: reply.isPending || isUploading || draft.isPending,
+    dirty: Boolean(body.trim() || attachments.length || replySuggestion || recording), pending: reply.isPending || isUploading || draft.isPending,
     unconfirmed: reply.locked,
     discard: () => { reply.reset(); setBody(""); setAttachments([]); setMentionedUserIds([]); setReplySuggestion(null); },
   });
@@ -526,7 +532,7 @@ export function CommentDetail({
     return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
   }
 
-  async function onFilesPicked(files: FileList | null) {
+  async function onFilesPicked(files: FileList | File[] | null) {
     if (!files || files.length === 0 || uploading.current || reply.isFrozen()) return;
     uploading.current = true;
     setIsUploading(true);
@@ -1017,6 +1023,11 @@ export function CommentDetail({
             <ImageIcon />
             {isUploading ? "Uploading…" : "Attach a screenshot"}
           </button>
+          <RecordButtons
+            disabled={isUploading || reply.locked || reply.isPending}
+            onRecordingChange={setRecording}
+            onRecorded={(file) => void onFilesPicked([file])}
+          />
           <input
             ref={fileRef}
             type="file"
@@ -1034,7 +1045,7 @@ export function CommentDetail({
           </p>
         )}
         <div className="bl-cd-actions">
-          <button type="submit" className="bl-button" disabled={reply.isPending || isUploading || draft.isPending || !body.trim()}>
+          <button type="submit" className="bl-button" disabled={reply.isPending || isUploading || recording || draft.isPending || !body.trim()}>
             {reply.isPending ? "Posting…" : reply.locked ? "Retry reply save" : "Post reply"}
           </button>
           {canEdit && (

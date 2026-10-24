@@ -283,7 +283,7 @@ export function CommentRow({
               className="bl-chip"
               title={attachment.filename}
             >
-              {attachment.filename}
+              {attachment.content_type.startsWith("video/") ? "▶ " : attachment.content_type.startsWith("audio/") ? "♪ " : ""}{attachment.filename}
             </a>
           ))}
         </div>

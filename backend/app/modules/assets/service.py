@@ -32,6 +32,7 @@ from app.modules.storage.r2_client import (
     download_bytes_limited,
     generate_presigned_get,
 )
+from app.modules.storage.service import require_project_upload
 from app.modules.workspaces.repository import MembershipRepository
 
 MAX_ASSET_SIZE = 20 * 1024 * 1024
@@ -394,6 +395,8 @@ async def create_comment(
         raise ValidationError("The selected page does not exist.")
     if not body.body.strip():
         raise ValidationError("Comment text is required.")
+    for attachment in body.attachments:
+        require_project_upload(attachment.key, workspace_id, project_id)
     actor_type, actor_id = actor_identity(actor)
     candidate: dict[str, Any] = {
         "workspace_id": workspace_id,
@@ -414,7 +417,7 @@ async def create_comment(
         "anchor": {"kind": "asset", "asset_id": asset_id, "region": body.region.model_dump()},
         "recovery_status": "ok",
         "context_json": {"asset_id": asset_id, "page_number": body.region.page_number},
-        "attachments": [],
+        "attachments": [a.model_dump() for a in body.attachments],
         "screenshot_key": None,
         "capture_status": "ok",
         "created_at": datetime.now(UTC),

@@ -9014,6 +9014,14 @@
             "maxItems": 6,
             "title": "Tags"
           },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentIn"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Attachments"
+          },
           "client_request_id": {
             "anyOf": [
               {
@@ -10373,6 +10381,36 @@
         ],
         "title": "ComparisonRowOut"
       },
+      "ConsoleEntryIn": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warn"
+            ],
+            "title": "Level"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Message"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "level",
+          "message",
+          "at"
+        ],
+        "title": "ConsoleEntryIn",
+        "description": "One console error/warning (or uncaught error/rejection) the reviewer chose to\nattach. Captured in the reviewed page only while Backline is loaded there."
+      },
       "ContextIn": {
         "properties": {
           "browser": {
@@ -10397,6 +10435,28 @@
           "url": {
             "type": "string",
             "title": "Url"
+          },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiagnosticsIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps_to_reproduce": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps To Reproduce"
           }
         },
         "type": "object",
@@ -10887,6 +10947,28 @@
           "name"
         ],
         "title": "DestinationOut"
+      },
+      "DiagnosticsIn": {
+        "properties": {
+          "console": {
+            "items": {
+              "$ref": "#/components/schemas/ConsoleEntryIn"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Console"
+          },
+          "network": {
+            "items": {
+              "$ref": "#/components/schemas/NetworkEntryIn"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Network"
+          }
+        },
+        "type": "object",
+        "title": "DiagnosticsIn"
       },
       "DiscordIntegrationCreate": {
         "properties": {
@@ -12842,6 +12924,53 @@
           "created_at"
         ],
         "title": "MyJoinRequestOut"
+      },
+      "NetworkEntryIn": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Method"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Url"
+          },
+          "status": {
+            "type": "integer",
+            "maximum": 999.0,
+            "minimum": 0.0,
+            "title": "Status"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3600000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "method",
+          "url",
+          "status",
+          "at"
+        ],
+        "title": "NetworkEntryIn",
+        "description": "A failed request seen by the reviewed page: method, address without its query\nstring or fragment, and the status (0 for a network error). Never headers or bodies."
       },
       "NotificationOut": {
         "properties": {
@@ -16441,7 +16570,7 @@
           },
           "content_type": {
             "type": "string",
-            "pattern": "^(image/jpeg$|image/png$|image/webp$|image/gif$|application/pdf$|application/msword$|application/vnd\\.openxmlformats-officedocument\\.wordprocessingml\\.document$|application/vnd\\.ms-excel$|application/vnd\\.openxmlformats-officedocument\\.spreadsheetml\\.sheet$|text/markdown$)",
+            "pattern": "^(image/jpeg$|image/png$|image/webp$|image/gif$|application/pdf$|application/msword$|application/vnd\\.openxmlformats-officedocument\\.wordprocessingml\\.document$|application/vnd\\.ms-excel$|application/vnd\\.openxmlformats-officedocument\\.spreadsheetml\\.sheet$|text/markdown$|video/webm$|video/mp4$|audio/webm$|audio/mp4$|audio/ogg$)",
             "title": "Content Type"
           },
           "content_length": {

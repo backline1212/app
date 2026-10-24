@@ -13,6 +13,7 @@ import {
   nudgeComposer,
   openComposer,
   parseUserAgent,
+  recordDiagnostic,
   registerCurrentPage,
   capturePageVersion,
   renderPin,
@@ -176,7 +177,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
       shadow,
       x,
       y,
-      async ({ body, attachments, tags }) => {
+      async ({ body, attachments, tags, diagnostics }) => {
         try {
           const created = await submission.submit(async () => {
             controls.setStatus("Capturing anchor + screenshot...");
@@ -203,6 +204,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
                 device_type: deviceType,
                 viewport: { width: window.innerWidth, height: window.innerHeight },
                 url: window.location.href,
+                ...(diagnostics ? { diagnostics } : {}),
               },
               screenshot_key: screenshotKey,
               capture_status: screenshotKey ? "ok" : "failed",
@@ -310,6 +312,9 @@ async function startNativeReview(): Promise<void> {
   toolbar?.remove();
   nativeAccessClosed = false;
   nativeInfo = info;
+  // Console/network failures for "Attach console & network errors". Best effort: a
+  // page that blocks injection simply offers no diagnostics.
+  void nativeMessage("native-review-diagnostics").catch(() => undefined);
   toolbar = createNativeToolbar(info, async mode => {
     if (nativeInfo !== info) throw new Error("This review changed. Open it again from Backline.");
     if (composerHasDraft()) throw new Error("Finish or cancel your current comment first.");
@@ -342,6 +347,13 @@ const isolatedWindow = window as Window & { __backlineExtensionLoaded?: boolean 
 if (!isolatedWindow.__backlineExtensionLoaded && window.top === window) {
   isolatedWindow.__backlineExtensionLoaded = true;
   installDashboardBridge();
+  // Entries relayed from main-world.ts. Only same-window messages are accepted; the page
+  // could forge one, but it can only describe its own console, which it already owns.
+  window.addEventListener("message", (event) => {
+    const data = event.data as { __backlineDiagnostic?: boolean; entry?: Parameters<typeof recordDiagnostic>[0] } | null;
+    if (event.source !== window || !data?.__backlineDiagnostic || !data.entry || !nativeInfo) return;
+    recordDiagnostic(data.entry);
+  });
   chrome.runtime.onMessage.addListener((message: ExtensionMessage | { type: "native-review-start" | "native-review-stop" }, _sender, respond) => {
     const action = message.type === "native-review-start" ? startNativeReview()
       : message.type === "native-review-stop" ? Promise.resolve().then(() => {

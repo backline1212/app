@@ -48,6 +48,18 @@ await esbuild.build({
   define,
 });
 
+// Console/network failure capture, injected into the page's main world only while a
+// review is active (native-review.ts) - a content script's isolated world can't see
+// the site's own console or fetch calls.
+await esbuild.build({
+  entryPoints: [path.join(rootDir, "src/main-world.ts")],
+  bundle: true,
+  format: "iife",
+  outfile: path.join(distDir, "main-world.js"),
+  target: "chrome110",
+  define,
+});
+
 await esbuild.build({
   entryPoints: [path.join(rootDir, "src/popup.ts")],
   bundle: true,

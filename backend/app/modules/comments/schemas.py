@@ -65,12 +65,41 @@ class AnchorIn(BaseModel):
     text_fingerprint: TextFingerprintIn
 
 
+class ConsoleEntryIn(BaseModel):
+    """One console error/warning (or uncaught error/rejection) the reviewer chose to
+    attach. Captured in the reviewed page only while Backline is loaded there."""
+
+    level: Literal["error", "warn"]
+    message: str = Field(max_length=2_000)
+    at: datetime
+
+
+class NetworkEntryIn(BaseModel):
+    """A failed request seen by the reviewed page: method, address without its query
+    string or fragment, and the status (0 for a network error). Never headers or bodies."""
+
+    method: str = Field(max_length=16)
+    url: str = Field(max_length=2_000)
+    status: int = Field(ge=0, le=999)
+    duration_ms: int | None = Field(default=None, ge=0, le=3_600_000)
+    at: datetime
+
+
+class DiagnosticsIn(BaseModel):
+    console: list[ConsoleEntryIn] = Field(default_factory=list, max_length=50)
+    network: list[NetworkEntryIn] = Field(default_factory=list, max_length=50)
+
+
 class ContextIn(BaseModel):
     browser: str
     os: str
     viewport: dict[str, int]
     device_type: str
     url: str
+    # Opt-in per comment from the composer ("Attach console & network errors").
+    diagnostics: DiagnosticsIn | None = None
+    # Web App projects: what the reviewer did before the problem appeared.
+    steps_to_reproduce: str | None = Field(default=None, max_length=4_000)
 
 
 class AttachmentIn(BaseModel):

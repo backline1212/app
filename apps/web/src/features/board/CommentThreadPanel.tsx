@@ -23,6 +23,8 @@ import { aiErrorMessage, summarizeThread, suggestReply } from "../ai/api";
 import { usePreparedReply } from "../comments/use-prepared-reply";
 import { useReviewDraftGuard } from "../comments/use-review-draft-guard";
 import { uploadReplyFiles } from "../comments/reply-uploads";
+import { CommentDiagnostics, MediaAttachment } from "../comments/RecordButtons";
+import { isMediaAttachment } from "../comments/media";
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -48,13 +50,16 @@ function ThreadMessage({ comment }: { comment: CommentOut }) {
       )}
       {comment.attachments.length > 0 && (
         <div className="bl-chip-row" style={{ marginTop: 7 }}>
-          {comment.attachments.map((a) => (
+          {comment.attachments.map((a) => isMediaAttachment(a.content_type) ? (
+            <MediaAttachment key={a.url} url={a.url} filename={a.filename} contentType={a.content_type} />
+          ) : (
             <a key={a.url} className="bl-chip" href={a.url} target="_blank" rel="noreferrer">
               {a.filename} ↗
             </a>
           ))}
         </div>
       )}
+      {!comment.parent_id && <CommentDiagnostics context={comment.context} />}
     </article>
   );
 }

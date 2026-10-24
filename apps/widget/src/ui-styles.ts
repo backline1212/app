@@ -227,6 +227,21 @@ const HOST_STYLES = `
   .bl-card button.bl-cp-attach svg { color: var(--bl-ink-4); }
   .bl-card button.bl-cp-attach:hover { border-color: var(--bl-ink); border-style: solid; color: var(--bl-ink); }
   .bl-card button.bl-cp-attach:hover svg { color: var(--bl-ink); }
+  .bl-card button.bl-cp-record.bl-is-recording { border-style: solid; border-color: #C2361B; background: #FFF4F1; color: #A3260F; font-variant-numeric: tabular-nums; }
+  .bl-card button.bl-cp-record.bl-is-recording svg { color: #C2361B; animation: bl-rec-pulse 1.2s ease-in-out infinite; }
+  @keyframes bl-rec-pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .bl-card button.bl-cp-record.bl-is-recording svg { animation: none; } }
+  .bl-card button.bl-cp-attach:disabled { opacity: .5; cursor: not-allowed; }
+  .bl-card .bl-cp-diag {
+    display: flex; align-items: center; gap: 7px; margin-top: 10px; padding: 7px 10px;
+    border: 1px solid #F1D6CC; border-radius: 3px; background: #FFF7F4; color: #8A2E17;
+    font-size: 11.5px; cursor: pointer;
+  }
+  .bl-card .bl-cp-diag[hidden] { display: none; }
+  .bl-card .bl-cp-diag input { margin: 0; accent-color: #0B0B0B; }
+  .bl-card .bl-cp-diag svg { color: #C2361B; flex: none; }
+  .bl-card .bl-cv-media { display: block; width: 100%; max-height: 220px; margin-top: 8px; border-radius: 3px; background: #0B0B0B; }
+  .bl-card audio.bl-cv-media { height: 36px; background: none; }
   .bl-card .bl-cp-ctx {
     display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 12px;
     padding: 8px 10px; background: var(--bl-paper); border-radius: 3px;

@@ -23,6 +23,7 @@ import { composerHasDraft, nudgeComposer, discardComposerForTeardown } from "./u
 import { postThreadReply } from "./thread-reply";
 import { parseUserAgent } from "./user-agent";
 import { setupRegionDrawer } from "./region-drawer";
+import { installDiagnosticsCapture } from "./diagnostics";
 import type { Schemas } from "../../../packages/types/src/index";
 
 // "view" is the dashboard canvas for a member whose project role can't comment
@@ -48,6 +49,9 @@ async function withRetry<T>(run: () => Promise<T>, delays = [800, 2500]): Promis
 }
 
 async function init(config: BacklineConfig): Promise<void> {
+  // Start collecting console/network failures straight away so they are available to
+  // "Attach console & network errors" in the composer. Kept in memory only.
+  installDiagnosticsCapture({ ignoreUrlPrefix: config.apiBaseUrl });
   // Set once ensureGuestSession resolves below - the api client is constructed first
   // since ensureGuestSession itself needs it to call /guest-sessions, before any guest
   // token exists yet. getAuthHeader reads this variable by closure reference on every
@@ -438,7 +442,7 @@ async function init(config: BacklineConfig): Promise<void> {
       shadow,
       x,
       y,
-      async ({ body, attachments, tags }) => {
+      async ({ body, attachments, tags, diagnostics }) => {
         try {
           const created = await submission.submit(async () => {
             controls.setStatus("Capturing anchor + screenshot...");
@@ -470,6 +474,7 @@ async function init(config: BacklineConfig): Promise<void> {
                 device_type: deviceType,
                 viewport: { width: window.innerWidth, height: window.innerHeight },
                 url: window.location.href,
+                ...(diagnostics ? { diagnostics } : {}),
               },
               screenshot_key: screenshotKey,
               capture_status: screenshotKey ? "ok" : "failed",

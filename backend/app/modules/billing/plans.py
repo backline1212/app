@@ -44,6 +44,8 @@ PLANS: dict[str, dict[str, Any]] = {
             _feature("20 AI review credits / month"),
             _feature("Unlimited guest & client reviewers"),
             _feature("Live site, proxy & extension review"),
+            _feature("Screen & voice recording on comments"),
+            _feature("Console & network error capture"),
             _feature("5 GB storage"),
         ],
     },
@@ -66,8 +68,6 @@ PLANS: dict[str, dict[str, Any]] = {
             _feature("5 team members"),
             _feature("200 AI review credits / month"),
             _feature("Unlimited guest & client reviewers"),
-            _feature("Video & audio screen recording", coming_soon=True),
-            _feature("Browser console replay", coming_soon=True),
             _feature("20 GB storage"),
         ],
     },
@@ -150,8 +150,8 @@ COMPARISON_CATEGORIES: list[dict[str, Any]] = [
         "rows": [
             _all("Screenshot capture when available"),
             _all("Optional browser & device details"),
-            _row("Video & audio screen recording", _NO, _SOON, _SOON, _SOON),
-            _row("Browser console replay", _NO, _SOON, _SOON, _SOON),
+            _all("Screen & voice recording on comments"),
+            _all("Console & network error capture"),
         ],
     },
     {
