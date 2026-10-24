@@ -1,5 +1,10 @@
 # Backend and API implementation plan
 
+This is the original Final Draft implementation plan. Check the
+[current inventory](pending-backlog-2026-10-24.md) and
+[delivery ledger](06-delivery.md) for later source, rollout and acceptance
+status before treating planned routes or provider behavior as unfinished.
+
 ## Boundaries
 
 Keep FastAPI routers thin; services authorize/validate/orchestrate; repositories alone query MongoDB. Reuse `Session`, `require_permission`, `require_workspace_match`, typed errors, events and Redis channels. Add `clients` and `dashboard` modules; dashboard composes read models for project summaries, workspace tickets and activity rather than implementing a second comment system.

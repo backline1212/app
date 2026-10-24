@@ -20,6 +20,7 @@ from app.modules.dashboard import service as dashboard_service
 from app.modules.dashboard.schemas import TicketFilters
 from app.modules.deploy_sync import service as deploy_sync_service
 from app.modules.integrations import service as integration_service
+from app.modules.integrations.base import page_site
 from app.modules.mcp.service import (
     McpActor,
     build_implementation_prompt,
@@ -66,9 +67,11 @@ async def list_projects(db: AsyncIOMotorDatabase[dict[str, Any]], actor: McpActo
     for project in projects:
         row = stats.get(project.id)
         counts = f"{row.open} open / {row.total} total" if row else "no tickets"
+        project_url = project.start_url or project.target_origin
+        site = page_site({"url": project_url}) if project_url else "no site"
         lines.append(
             f"- **{project.name}** (project_id: `{project.id}`) · {project.project_type} · "
-            f"{project.start_url or project.target_origin or 'no URL'} · {counts}"
+            f"{site} · {counts}"
         )
     lines.extend(["", "Pass a project_id to list_tickets to see one project's tickets."])
     return "\n".join(lines)
@@ -105,7 +108,7 @@ async def list_tickets(
     end = filters.offset + len(result.items)
     lines = [f"Tickets {filters.offset + 1}-{end} of {result.total}:", ""]
     for ticket in result.items:
-        where = ticket.page_path or ticket.page_title
+        where = page_site(ticket.context) if ticket.page_path else "standalone ticket"
         lines.append(
             f"- **{ticket_label(ticket)}** [{ticket.status} · {ticket.priority}] "
             f"{ticket.project_name} › {where} — {_first_line(ticket.body)} "
@@ -170,6 +173,7 @@ async def get_ticket(db: AsyncIOMotorDatabase[dict[str, Any]], actor: McpActor, 
     )
     comment = thread.comment
     context = comment.context or {}
+    site = page_site(context) if context.get("url") else "standalone ticket, no page"
     names = await _member_names(db, comment.assignee_ids)
     assignees = ", ".join(names.get(uid, uid) for uid in comment.assignee_ids) or "nobody"
     backlink = await integration_service.comment_backlink(
@@ -181,7 +185,7 @@ async def get_ticket(db: AsyncIOMotorDatabase[dict[str, Any]], actor: McpActor, 
         f"- id: `{comment.id}`",
         f"- Project: {thread.project_name}"
         + (f" (project_id: `{thread.project_id}`)" if thread.project_id else ""),
-        f"- Page: {context.get('url') or 'standalone ticket, no page'}",
+        f"- Page site: {site}",
         f"- Status: {comment.status} · Priority: {comment.priority}"
         + (f" · Tags: {', '.join(comment.tags)}" if comment.tags else ""),
         f"- Assigned to: {assignees}",

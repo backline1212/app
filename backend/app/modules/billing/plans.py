@@ -113,7 +113,7 @@ PLANS: dict[str, dict[str, Any]] = {
             _feature("Unlimited projects"),
             _feature("100 team members"),
             _feature("10,000 AI review credits / month"),
-            _feature("Dedicated 4-hour SLA support"),
+            _feature("Support arrangements by agreement"),
             _feature("1,000 GB storage"),
             _feature("White-label client portals", coming_soon=True),
         ],
@@ -146,10 +146,10 @@ COMPARISON_CATEGORIES: list[dict[str, Any]] = [
         ],
     },
     {
-        "category": "Video & Replay Capture",
+        "category": "Capture & Review Context",
         "rows": [
-            _all("Screenshot on every comment"),
-            _all("Browser & device details"),
+            _all("Screenshot capture when available"),
+            _all("Optional browser & device details"),
             _row("Video & audio screen recording", _NO, _SOON, _SOON, _SOON),
             _row("Browser console replay", _NO, _SOON, _SOON, _SOON),
         ],
@@ -173,7 +173,7 @@ COMPARISON_CATEGORIES: list[dict[str, Any]] = [
             _all("BugHunt AI project analysis"),
             _row("Custom branding & domains", _NO, _NO, _SOON, _SOON),
             _row("White-label client portals", _NO, _NO, _NO, _SOON),
-            _row("Support", "Community", "Email", "Priority email", "Dedicated 4-hour SLA"),
+            _row("Support", "Community", "Email", "Priority email", "By agreement"),
         ],
     },
 ]

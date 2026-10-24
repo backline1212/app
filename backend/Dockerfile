@@ -143,9 +143,8 @@ CMD ["sh", "-c", "arq app.workers.main.WorkerSettings"]
 # including the API service, which has never set one - silently built the *worker* image
 # instead. That's why this stage previously claimed the untargeted build "keeps building
 # the base stage": it doesn't, and the API service broke the moment `uv sync --frozen`
-# could no longer paper over `worker`'s `RUN playwright install` failing (see
-# backend/pyproject.toml's pypdf/google-genai/pillow comments - the stale lock had been
-# silently skipping playwright and google-genai entirely).
+# could no longer paper over `worker`'s `RUN playwright install` failing; the stale
+# lock had previously skipped that explicit dependency.
 #
 # This stage is a trivial alias back to `base` so the default (untargeted) build - i.e.
 # the API service, and anything else that doesn't set a target - produces the

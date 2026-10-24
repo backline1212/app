@@ -1,5 +1,11 @@
 # Launch Readiness (Milestone 12)
 
+> Historical M12 audit. Later source, deployment and acceptance evidence is tracked
+> in the [delivery ledger](implementation/06-delivery.md); current open work is in
+> the [2026-10-24 inventory](implementation/pending-backlog-2026-10-24.md).
+> Statements about tests, CI, provider setup and production readiness below
+> describe that earlier milestone and should not be read as current certification.
+
 Per `20-Build-Plan.md` M12's DoD: "every acceptance criterion listed anywhere in this
 spec has a corresponding passing automated test or a documented manual verification;
 production deploy succeeds with a clean smoke test." This document is that audit, plus

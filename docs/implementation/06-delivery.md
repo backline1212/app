@@ -1,5 +1,104 @@
 # Delivery and verification ledger
 
+## 2026-10-24: Local release state after this source batch
+
+The current privacy, pricing, dependency and documentation slices are committed
+locally. A push to `origin/main` waited in Git Credential Manager and was
+cancelled without updating the remote; the remote head remained `c583569`.
+Public API `/health` still returned Railway HTTP 404 `Application not found`.
+The matching web/API/worker rollout and live acceptance remain open. GitHub
+account access and Railway service access must be restored before release
+verification; do not infer a deployment from this local commit.
+
+## 2026-10-24: Historical delivery claims labeled (TDR-0139)
+
+README no longer presents old CI/test/milestone badges or local OTP fallback
+as current production evidence. It links to the current inventory and this
+ledger, and the older launch-readiness/backend-plan pages carry historical
+context. No application or deployment behavior changed. See
+[TDR-0139](../tdr/0139-label-historical-delivery-claims.md).
+
+Verification: all relative links in the 12 changed/current Markdown documents
+resolve locally, obsolete README claims are absent, and diff check passes.
+No test suite was added or run under AGENTS.md.
+
+## 2026-10-24: Remove unused Google Gen AI dependency (TDR-0138)
+
+The backend manifest and lockfile no longer include `google-genai==0.3.0`;
+the AI module already calls Groq over `httpx`. Google sign-in and direct
+Pillow use retain their dependencies. The offline lock resolution removed only
+the unused package. API/worker container builds and live AI acceptance remain
+open while API routing is unavailable. See
+[TDR-0138](../tdr/0138-remove-unused-google-genai-dependency.md).
+
+Verification: `uv lock --check --offline`, backend wheel/sdist build, Ruff,
+strict mypy (217 source files), workspace-scope (25 repository files) and
+diff checks pass.
+No test suite was added or run under AGENTS.md.
+
+## 2026-10-24: Qualified pricing capture and support copy (TDR-0137)
+
+Plan comparison rows now say screenshot capture is conditional and browser/
+device details are optional. The unverified four-hour enterprise support SLA
+claim is replaced with support arrangements by agreement. Prices and
+entitlements are unchanged. Matching API rollout and live pricing-page
+acceptance remain open during the API outage; support operations and billing
+policy decisions remain SUG-13 follow-ups. See
+[TDR-0137](../tdr/0137-qualify-pricing-capture-and-support-claims.md).
+
+Verification: backend Ruff and strict mypy pass (217 source files), workspace-
+scope passes (25 repository files), and diff check passes. No test suite was
+added or run under AGENTS.md.
+
+## 2026-10-24: Ticket board/list page path redaction (TDR-0136)
+
+Ticket board cards and dense list rows now format `page_path` through the
+existing display-only URL redactor, closing two raw-path label gaps. Stored
+page URLs, ticket navigation and API contracts are unchanged. Live browser
+acceptance of query/hash credential labels and ordinary routes remains open
+while the API hostname returns Railway's fallback response. See
+[TDR-0136](../tdr/0136-redact-ticket-list-page-paths.md).
+
+Verification: web lint, typecheck and production build pass. The first
+typecheck surfaced an optional-path type mismatch; the helper was corrected
+and all three checks passed on rerun. Diff check passes. No test suite was
+added or run under AGENTS.md.
+
+## 2026-10-24: Origin-only MCP page labels and implementation briefs (TDR-0135)
+
+MCP project/ticket lists, ticket detail and both MCP/dashboard-generated
+implementation briefs now use the existing HTTP(S) origin formatter for
+reviewed-page labels. The authenticated Backline ticket link remains for exact
+context; stored review URLs and API schemas are unchanged. This is a BUG-08
+source slice. Matching API deployment and live verification with a credential-
+bearing review URL remain pending while the API hostname returns Railway's
+`Application not found` edge response. See
+[TDR-0135](../tdr/0135-restrict-mcp-page-url-exports.md).
+
+Verification: backend Ruff passes, strict mypy passes (217 source files),
+workspace-scope passes (25 repository files), and diff check passes. No test
+suite was added or run under AGENTS.md.
+
+## 2026-10-24: Comprehensive pending-work and improvement review (TDR-0134)
+
+Published [the current inventory](pending-backlog-2026-10-24.md), retaining all 53
+tracked release/reliability/flow/optimization/feature/acceptance items and adding
+15 labeled recommendations. These overlap and are not 68 unresolved bugs.
+Reconciled stale privacy/support placeholders, deferred PDF bundles, real provider/
+billing/AI/MCP implementations and the deliberate removal of GitHub Actions.
+The current API `/health` and auth capabilities still return HTTP 404 Railway
+`Application not found`; web login/privacy/support return the SPA HTML with HTTP 200.
+No service-specific outage cause or browser acceptance is inferred.
+
+Passed: `pnpm exec turbo run lint typecheck build` (12/12 tasks; 5 cached), backend
+`ruff check app`, `mypy app` (217 source files), workspace-scoping check (25 repository
+files), and read-only comparison of current OpenAPI JSON to the stored contract
+(equal; 132 path entries). Documentation diff and local Markdown link checks passed;
+the inventory contains 53 unique tracked IDs and 15 unique recommendation IDs.
+No application source/generated declarations changed; no test suite was written or
+run, and no deploy/provider/shared-data mutation or migration was performed.
+Unfinished work and proposed execution order are explicit in the inventory.
+
 ## 2026-10-24: Extension install/update guidance (TDR-0133)
 
 Website review now shows separate steps for first-time Load unpacked setup

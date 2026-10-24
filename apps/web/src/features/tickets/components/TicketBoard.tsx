@@ -3,6 +3,7 @@ import { useState, type CSSProperties } from "react";
 import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES, isClosed } from "../../../lib/workflow";
 import { PRIORITY_META, dueMeta } from "../../projects/panel/comments/types";
 import { ticketRef } from "../../../lib/ticket-ref";
+import { reviewTicketPath } from "../../../lib/review-page-path";
 import type { MemberOut } from "../../workspaces/api";
 import * as api from "../api";
 import type { TicketUpdateMutation } from "./types";
@@ -98,7 +99,7 @@ export function TicketBoard({
                       <span className="bl-tc-prio" style={{ color: priority.color }}>● {priority.label}</span>
                     </span>
                     <span className="bl-tc-t">{t.body}</span>
-                    <span className="bl-tc-s">{t.project_name} · {t.is_standalone ? "Team ticket" : (t.page_path ?? t.page_title)}</span>
+                    <span className="bl-tc-s">{t.project_name} · {t.is_standalone ? "Team ticket" : (reviewTicketPath(t.page_path) ?? t.page_title)}</span>
                     <span className="bl-tc-foot">
                       {t.tags?.slice(0, 1).map((tag) => <span className="bl-chip" key={tag}>{tag}</span>)}
                       {due && (

@@ -3,11 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/backline/app/actions"><img src="https://img.shields.io/badge/CI-passing-4ade80?style=flat-square&logo=github-actions&logoColor=white" alt="CI" /></a>
   <a href="docs/spec/00-README.md"><img src="https://img.shields.io/badge/spec-v1.0-7c3aed?style=flat-square" alt="Spec v1.0" /></a>
   <a href="DEPLOYMENT.md"><img src="https://img.shields.io/badge/deploy-Railway%20%2F%20Vercel-2563eb?style=flat-square" alt="Deployment" /></a>
-  <img src="https://img.shields.io/badge/milestones-M0–M12%20complete-22c55e?style=flat-square" alt="Milestones" />
-  <img src="https://img.shields.io/badge/tests-168%20backend%20green-22c55e?style=flat-square" alt="Tests" />
   <img src="https://img.shields.io/badge/stack-FastAPI%20%7C%20React%20%7C%20MongoDB-f59e0b?style=flat-square" alt="Stack" />
 </p>
 
@@ -25,34 +22,25 @@
 |---|---|
 | [`docs/spec/00-README.md`](docs/spec/00-README.md) | Master engineering specification (source of truth) |
 | [`docs/implementation/00-index.md`](docs/implementation/00-index.md) | Final Draft product amendment, flow matrix & implementation plan |
+| [`docs/implementation/pending-backlog-2026-10-24.md`](docs/implementation/pending-backlog-2026-10-24.md) | Current open work and optimization inventory |
+| [`docs/implementation/06-delivery.md`](docs/implementation/06-delivery.md) | Dated source, rollout and acceptance evidence |
 | [`docs/spec/20-Build-Plan.md`](docs/spec/20-Build-Plan.md) | Milestone build order & Definition of Done |
-| [`docs/launch-readiness.md`](docs/launch-readiness.md) | Acceptance-criteria traceability, rollback plan, on-call runbook |
+| [`docs/launch-readiness.md`](docs/launch-readiness.md) | Historical M12 acceptance audit and runbook; check the current ledger for later changes |
 | [`RUNNING_LOCALLY.md`](RUNNING_LOCALLY.md) | Click-by-click local dev guide (non-developer friendly) |
 | [`DEPLOYMENT.md`](DEPLOYMENT.md) | Production deployment guide |
 
 ---
 
-## ✅ Milestone Status
+## Current delivery state
 
-All **13 milestones (M0–M12)** are complete.
-
-| Milestone | Feature | Status |
-|---|---|---|
-| M0 | Monorepo + CI | ✅ |
-| M1 | Auth & Workspaces | ✅ |
-| M2 | Projects & Share Links | ✅ |
-| M3 | Review SDK v1 + Snapshot Engine v1 | ✅ |
-| M4 | Comments Core + Dual Layer | ✅ |
-| M5 | Anchor Engine v1 (tiered matching + SimHash) | ✅ |
-| M6 | Dashboard Board (kanban + list, bulk actions) | ✅ |
-| M7 | Realtime Layer (WebSocket + Redis pub/sub) | ✅ |
-| M8 | Revision Engine + Recovery Pipeline v1 | ✅ |
-| M9 | Proxy Mode + Onboarding Polish | ✅ |
-| M10 | Notifications & Integrations (Slack, ClickUp, Trello) | ✅ |
-| M11 | Security, Performance & Accessibility Hardening | ✅ |
-| M12 | Launch Readiness (reply UI, Playwright journeys, Sentry, smoke/soak tests) | ✅ |
-
-> 168 backend tests, all green. Full Playwright e2e suite covering every dashboard screen and the widget's shadow-DOM UI.
+The M0–M12 build plan and launch-readiness audit describe an earlier milestone
+baseline. They do not certify current production behavior. The [current pending-work
+inventory](docs/implementation/pending-backlog-2026-10-24.md) separates source
+implementation, deployment, live acceptance and roadmap scope; the [delivery
+ledger](docs/implementation/06-delivery.md) records verification for each later
+change. As of 2026-10-24, public API health and auth-capability probes return
+Railway's `Application not found` response, so end-to-end acceptance and
+matching API/worker release verification remain open.
 
 ---
 
@@ -133,12 +121,14 @@ python3 -m http.server 4173
 | Service | Required for | Setup |
 |---|---|---|
 | Google OAuth | Member sign-in via Google | See `.env.example` |
-| Resend | OTP emails + daily digest | See `.env.example` |
+| Resend or Google Apps Script | OTP emails + notification digests | See `.env.example` and deployment guidance |
 | ClickUp OAuth | ClickUp integration | Needs real ClickUp app credentials |
 | Slack | Slack integration | Paste a webhook URL — no app registration needed |
 | Trello | Trello integration | Paste API key + token — no app registration needed |
 
-> Without credentials, OTP codes and email digests are **logged to the server console** instead of sent. The Google / ClickUp connect buttons will fail at the provider's OAuth redirect — the rest of the app works fully without them.
+> In explicit local mode, an unconfigured email provider can log an email preview.
+> Production email failure returns an error and never reports a code as delivered.
+> Google and ClickUp OAuth require their own configured provider credentials.
 
 ---
 
@@ -148,11 +138,10 @@ python3 -m http.server 4173
 # Frontend — lint, typecheck, build all workspaces
 pnpm turbo run lint typecheck build
 
-# Backend — lint, typecheck, tests
+# Backend — lint and typecheck
 cd backend
 uv run ruff check .
 uv run mypy app/
-uv run pytest
 
 # Workspace scoping audit (enforces tenant isolation)
 cd backend && uv run python scripts/check_workspace_scoping.py
@@ -199,10 +188,10 @@ cd packages/types && pnpm generate
 
 ## 🔐 Security & Multi-tenancy
 
-- Every query and mutation carries **workspace scope** — zero cross-tenant leaks (verified by a full manual audit + an ongoing AST-based CI lint rule).
+- Tenant repository access is checked by `backend/scripts/check_workspace_scoping.py`;
+  review new queries and mutations for workspace scope.
 - Guest APIs never expose team content or client contact records.
 - Rate limiting applied to all guest-writable endpoints.
-- `pip-audit` / `pnpm audit` clean.
 
 ---
 
@@ -232,8 +221,8 @@ See [`docs/spec/03-System-Architecture.md`](docs/spec/03-System-Architecture.md)
 ## 🤝 Contributing
 
 1. Read the [Engineering Principles](docs/spec/02-Engineering-Principles.md) before touching anything.
-2. All new behaviour must have a corresponding Playwright e2e test.
-3. Run `pnpm turbo run lint typecheck build` (frontend) and `uv run ruff check . && uv run mypy app/ && uv run pytest` (backend) before opening a PR.
+2. Follow `AGENTS.md` and the current task instructions for verification.
+3. Run `pnpm turbo run lint typecheck build` (frontend) and backend Ruff/mypy for affected code; record what actually passed in the delivery ledger.
 4. Significant scope or design changes require a dated TDR in `docs/tdr/`.
 
 ---

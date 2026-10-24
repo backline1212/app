@@ -57,7 +57,6 @@ dependencies = [
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "google-auth" },
-    { name = "google-genai" },
     { name = "httpx" },
     { name = "mcp" },
     { name = "motor" },
@@ -93,7 +92,6 @@ requires-dist = [
     { name = "email-validator", specifier = "==2.2.0" },
     { name = "fastapi", specifier = "==0.115.6" },
     { name = "google-auth", specifier = "==2.36.0" },
-    { name = "google-genai", specifier = "==0.3.0" },
     { name = "httpx", specifier = "==0.28.1" },
     { name = "mcp", specifier = "==1.12.4" },
     { name = "motor", specifier = "==3.6.0" },
@@ -360,22 +358,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6a/71/4c5387d8a3e46e3526a8190ae396659484377a73b33030614dd3b28e7ded/google_auth-2.36.0.tar.gz", hash = "sha256:545e9618f2df0bcbb7dcbc45a546485b1212624716975a1ea5ae8149ce769ab1", size = 268336, upload-time = "2024-11-06T18:05:21.177Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2d/9a/3d5087d27865c2f0431b942b5c4500b7d1b744dd3262fdc973a4c39d099e/google_auth-2.36.0-py2.py3-none-any.whl", hash = "sha256:51a15d47028b66fd36e5c64a82d2d57480075bccc7da37cde257fc94177a61fb", size = 209519, upload-time = "2024-11-06T18:05:19.171Z" },
-]
-
-[[package]]
-name = "google-genai"
-version = "0.3.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "google-auth" },
-    { name = "pillow" },
-    { name = "pydantic" },
-    { name = "requests" },
-    { name = "websockets" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/39/89/b5cc86832c38af16184f85022a1713f1edb487020de12e85b5c7a24cc969/google_genai-0.3.0.tar.gz", hash = "sha256:1e080ca381268912dacc8e0cb15eb203eb4e38f51f6ae35cc5768e5af323c8cc", size = 105869, upload-time = "2024-12-17T19:21:24.126Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/5c/90a63dbe6846151aa2b47f64ade25754d56ba412195ec0d61a3e29ce442b/google_genai-0.3.0-py3-none-any.whl", hash = "sha256:e45eb1732cf5b1f7c5a4103fe64cc4b577981d7e592e3edfba6d34ec734f56be", size = 111885, upload-time = "2024-12-17T19:21:22.888Z" },
 ]
 
 [[package]]

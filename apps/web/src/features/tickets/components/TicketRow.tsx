@@ -1,6 +1,7 @@
 import { Avatar } from "@backline/ui";
 import { isClosed } from "../../../lib/workflow";
 import { ticketRef } from "../../../lib/ticket-ref";
+import { reviewTicketPath } from "../../../lib/review-page-path";
 import { PRIORITY_META, dueMeta } from "../../projects/panel/comments/types";
 import type { MemberOut } from "../../workspaces/api";
 import * as api from "../api";
@@ -57,7 +58,7 @@ export function TicketRow({
       <div className="bl-tk-main">
         <span className="bl-ticket-title">{ticket.body}</span>
         <span className="bl-tk-s">
-          {ticket.project_name} · {ticket.is_standalone && !ticket.page_path ? "Team ticket" : (ticket.page_path ?? ticket.page_title)}
+          {ticket.project_name} · {ticket.is_standalone && !ticket.page_path ? "Team ticket" : (reviewTicketPath(ticket.page_path) ?? ticket.page_title)}
           {ticket.is_standalone && ticket.page_path && " · not pinned"}
         </span>
       </div>

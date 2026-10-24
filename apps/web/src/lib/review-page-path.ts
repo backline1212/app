@@ -48,6 +48,12 @@ export function reviewPagePath(address: string): string {
   }
 }
 
+/** Redact an API ticket's relative page path before showing it in a card. */
+export function reviewTicketPath(path: string | null | undefined): string | null {
+  if (!path) return null;
+  return reviewPagePath(`https://display.invalid${path.startsWith("/") ? "" : "/"}${path}`);
+}
+
 export function hasReviewHashRoute(address: string): boolean {
   try { const hash = new URL(address).hash; return hash.startsWith("#/") || hash.startsWith("#!/"); }
   catch { return false; }

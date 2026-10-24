@@ -17,6 +17,7 @@ from app.core.verified_identity import require_verified_identity
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.schemas import CommentOut
 from app.modules.comments.service import _comment_out
+from app.modules.integrations.base import page_site
 from app.modules.mcp.repository import McpTokenRepository
 from app.modules.mcp.schemas import (
     SCOPE_READ,
@@ -334,7 +335,8 @@ def build_implementation_prompt(thread: TicketThread, *, backlink_url: str | Non
             lines.append(f"- {reply.author_name} ({visibility}): {reply.body.strip()}")
 
     lines.extend(["", "## Where"])
-    lines.append(f"- Page: {context.get('url') or 'not recorded (standalone ticket)'}")
+    site = page_site(context) if context.get("url") else "not recorded (standalone ticket)"
+    lines.append(f"- Page site: {site}")
     selector = _selector(comment)
     if selector:
         kind = "region" if (comment.anchor or {}).get("type") == "region" else "element"

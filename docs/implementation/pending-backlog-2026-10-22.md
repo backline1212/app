@@ -1,5 +1,11 @@
 # Backline pending work — 2026-10-22
 
+Superseded for current status by the
+[2026-10-24 pending-work and improvement review](pending-backlog-2026-10-24.md).
+In particular, BUG-11's placeholder-link statement below is historical:
+privacy/support routes and login/signup links now exist under TDR-0121; browser
+acceptance, owner certification and a separate Terms decision remain.
+
 This consolidates the current audit, implementation decisions and delivery evidence.
 It supersedes older "pending" statements only where a later delivery entry supplies
 evidence. The original 35 audit findings are historical findings, not 35 untouched
