@@ -48,7 +48,7 @@ export function VersionMenu({ projectId, currentPageId, onSelectPage }: VersionM
         aria-expanded={open}
         className="bl-review-control"
       >
-        <span>{currentPageRevisions.length ? `${currentPageRevisions.length} versions` : "Version history"}</span>
+        <span>{currentPageRevisions.length ? `${currentPageRevisions.length} version${currentPageRevisions.length === 1 ? "" : "s"}` : "Version history"}</span>
         <ChevronIcon width={11} height={11} className={open ? "rotate-180" : ""} />
       </button>
       {open && (

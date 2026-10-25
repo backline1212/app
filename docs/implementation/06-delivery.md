@@ -4820,3 +4820,9 @@ database migration, or production deployment is claimed.
 
 - New file versions can take over the previous version's open comments (opt-out per
   upload); resolved ones stay on the old version.
+
+# 2026-10-25: BugHunt availability, version count wording
+
+- BugHunt AI disables "Analyze this project" with a reason when the server has no AI
+  provider or the workspace is out of credits (same `ai-usage` data as the AI page).
+  Version menu says "1 version". Verified in Chromium; lint/typecheck/build.
