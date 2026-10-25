@@ -1,5 +1,5 @@
 import { type ClipboardEvent, type FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 
@@ -66,8 +66,12 @@ function SignInPage() {
   // the reset panel - it doesn't reset a password (there's no reset-link flow yet),
   // it emails the six-digit code, which is also the way in for the members who predate
   // passwords and have none on their account at all.
-  const [step, setStep] = useState<"signin" | "signup" | "help" | "code" | "newpw">("signin");
-  const [email, setEmail] = useState("");
+  // An invitation email links to /login?use=code&email=...: invited people have no
+  // password yet, so they start on the email-code step with their address filled in.
+  const [params] = useSearchParams();
+  const invitedToCode = params.get("use") === "code";
+  const [step, setStep] = useState<"signin" | "signup" | "help" | "code" | "newpw">(invitedToCode ? "help" : "signin");
+  const [email, setEmail] = useState(() => (params.get("email") ?? "").slice(0, 320));
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [name, setName] = useState("");
@@ -564,7 +568,7 @@ function SignInPage() {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
                 Back to sign in
               </button>
-              <h1>Trouble signing in?</h1>
+              <h1>{invitedToCode ? "Sign in with an email code" : "Trouble signing in?"}</h1>
               <p className="lg-lede">
                 Tell us the email on the account and we send a six-digit code that signs
                 you in. It works whether or not you ever set a password.

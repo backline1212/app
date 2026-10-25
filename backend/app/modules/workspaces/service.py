@@ -4,6 +4,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from html import escape
 from typing import Any
+from urllib.parse import urlencode
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
@@ -414,11 +415,25 @@ async def invite_member(
     await _publish_members_changed(workspace_id)
 
     try:
+        workspace = await WorkspaceRepository(db).find_by_id(workspace_id)
+        inviter = await user_repo.find_by_id(inviter_user_id)
+        workspace_name = (workspace or {}).get("name") or "a workspace"
+        inviter_name = (inviter or {}).get("name") or (inviter or {}).get("email") or "A teammate"
+        sign_in = (
+            f"{get_settings().public_dashboard_base_url.rstrip('/')}/login?"
+            f"{urlencode({'use': 'code', 'email': email})}"
+        )
         await send_email(
             to=email,
-            subject="You've been invited to a Backline workspace",
-            html="<p>You've been invited to collaborate on Backline. Sign in with this email "
-            "address to get access.</p>",
+            subject=f"{inviter_name} invited you to {workspace_name} on Backline",
+            html=(
+                f"<p>{escape(inviter_name)} invited you to join "
+                f"<strong>{escape(workspace_name)}</strong> on Backline, where the team "
+                "collects and resolves client feedback.</p>"
+                f'<p><a href="{escape(sign_in, quote=True)}">Sign in to Backline</a> with '
+                f"this email address ({escape(email)}) to get access. No password is needed: "
+                "we'll email you a one-time sign-in code.</p>"
+            ),
         )
     except Exception as exc:
         logger.exception("Failed to send invitation email to %s: %s", email, exc)

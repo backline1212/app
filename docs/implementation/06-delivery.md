@@ -4946,3 +4946,9 @@ database migration, or production deployment is claimed.
 
 - A presigned upload whose file never arrived stops counting against storage after 24
   hours (BUG-06).
+
+# 2026-10-25: Email layout; invitation sign-in link (TDR-0191)
+
+- All emails share one clean layout with a plain-text part; client emails show the
+  agency's name. Invitations name the workspace and inviter and link straight to the
+  email-code sign-in with the address filled in.

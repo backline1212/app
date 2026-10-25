@@ -4,16 +4,27 @@ import logging
 import httpx
 
 from app.core.config import get_settings
+from app.core.email_layout import is_document, plain_text, render_email
 from app.core.errors import ExternalServiceError
 
 logger = logging.getLogger("backline.email")
 
 
 async def send_email(
-    *, to: str, subject: str, html: str, idempotency_key: str | None = None
+    *,
+    to: str,
+    subject: str,
+    html: str,
+    idempotency_key: str | None = None,
+    brand: str | None = None,
 ) -> None:
-    """Report success only after a provider accepts the email (except local mode)."""
+    """Report success only after a provider accepts the email (except local mode).
+
+    `html` is a fragment wrapped in the shared layout (`brand` names the sender of a
+    client-facing email); a full document is sent as given."""
     settings = get_settings()
+    document = render_email(subject=subject, content_html=html, brand=brand)
+    text = None if is_document(html) else plain_text(html)
 
     # Priority 1: Google Apps Script Web App (Staging fallback)
     if settings.google_apps_script_url and not (idempotency_key and settings.resend_api_key):
@@ -24,7 +35,7 @@ async def send_email(
                     json={
                         "to": to,
                         "subject": subject,
-                        "html": html,
+                        "html": document,
                         "secret": settings.google_apps_script_secret,
                         **({"idempotency_key": idempotency_key} if idempotency_key else {}),
                     },
@@ -61,7 +72,8 @@ async def send_email(
                         "from": settings.resend_from_address,
                         "to": [to],
                         "subject": subject,
-                        "html": html,
+                        "html": document,
+                        **({"text": text} if text else {}),
                     },
                 )
                 response.raise_for_status()

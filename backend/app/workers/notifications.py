@@ -70,6 +70,7 @@ async def send_guest_resolved_email_job(
     # release still run.
     await send_email(
         to=guest_email,
+        brand=brand_name,
         subject=f"Your feedback was addressed{' - ' + project_name if project_name else ''}",
         html=_client_email(
             guest_name=guest_name,
@@ -96,6 +97,7 @@ async def send_guest_reply_email_job(
 ) -> None:
     await send_email(
         to=guest_email,
+        brand=brand_name,
         subject=f"New reply to your feedback{' - ' + project_name if project_name else ''}",
         html=_client_email(
             guest_name=guest_name,
