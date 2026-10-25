@@ -20,6 +20,8 @@ import { DatePicker } from "../tickets/components/DatePicker";
 import { PeoplePicker } from "../tickets/components/PeoplePicker";
 import { DeleteTicketDialog, TrashIcon } from "../tickets/components/DeleteTicket";
 import * as workspaceApi from "../workspaces/api";
+import * as integrationsApi from "../integrations/api";
+import { providerName } from "../integrations/providers";
 import * as boardApi from "./api";
 import type { CommentLayer, CommentOut } from "./api";
 import { aiErrorMessage, summarizeThread, suggestReply } from "../ai/api";
@@ -122,6 +124,27 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
     enabled: !!workspaceQuery.data?.id,
   });
   const members = membersQuery.data ?? [];
+
+  // Trackers the ticket can be filed in and where it already is (links are fetched on
+  // their own: CommentOut also goes to guests, who never see the agency's tracker URLs).
+  const workspaceId = workspaceQuery.data?.id;
+  const integrationsQuery = useQuery({
+    queryKey: qk.integrations(workspaceId ?? ""),
+    queryFn: () => integrationsApi.listIntegrations(workspaceId!),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+  });
+  const trackers = (integrationsQuery.data ?? []).filter((item) => item.kind === "tracker" && !item.needs_destination);
+  const linksKey = qk.commentIntegrationLinks(comment.id);
+  const linksQuery = useQuery({ queryKey: linksKey, queryFn: () => integrationsApi.listCommentLinks(comment.id), enabled: trackers.length > 0 });
+  const sendToTracker = useMutation({
+    mutationFn: (integrationId: string) => integrationsApi.sendToTracker(comment.id, integrationId),
+    onSuccess: (link) => {
+      queryClient.setQueryData<integrationsApi.ExternalLinkOut[]>(linksKey, (current = []) =>
+        current.some((item) => item.id === link.id) ? current : [...current, link],
+      );
+    },
+  });
 
   const replyMutation = usePreparedReply({
     commentId: comment.id, projectId,
@@ -235,6 +258,21 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
             <Link className="bl-chip" to={`/w/${workspaceSlug}/p/${projectId}?comment=${comment.id}`}>Open in review ↗</Link>
           )}
         </div>
+        {trackers.length > 0 && (
+          <div className="bl-chip-row" aria-label="Trackers">
+            {trackers.map((tracker) => {
+              const filed = linksQuery.data?.find((link) => link.integration_id === tracker.id);
+              if (filed) return <a key={tracker.id} className="bl-chip" href={filed.url} target="_blank" rel="noreferrer">{providerName(tracker.type)} {filed.external_id} ↗</a>;
+              if (!canEdit) return null;
+              return (
+                <button key={tracker.id} type="button" className="bl-chip" disabled={sendToTracker.isPending || linksQuery.isLoading} onClick={() => sendToTracker.mutate(tracker.id)}>
+                  {sendToTracker.isPending && sendToTracker.variables === tracker.id ? "Sending…" : `Send to ${providerName(tracker.type)}`}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {sendToTracker.isError && <p role="alert" className="bl-error">{sendToTracker.error instanceof Error ? sendToTracker.error.message : "Could not send this ticket."}</p>}
         {updateMutation.error && (
           <p role="alert" className="bl-error">
             {conflict ? "Someone else changed this ticket at the same time. The latest version is shown; make your change again." : `${updateMutation.error.message} Check the ticket before trying again.`}

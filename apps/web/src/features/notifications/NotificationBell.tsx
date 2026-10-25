@@ -11,6 +11,7 @@ import { qk } from "../../lib/query-keys";
 import { useAuth } from "../auth/AuthContext";
 import { roleLabel } from "../../lib/project-roles";
 import { timeAgo } from "../../lib/time";
+import { STATUS_LABELS } from "../../lib/workflow";
 import * as notificationsApi from "./api";
 import type { NotificationOut } from "./api";
 
@@ -33,13 +34,13 @@ function describe(notification: NotificationOut): string {
   const type = notification.type as string;
   switch (type) {
     case "comment_assigned":
-      return "You were assigned a comment";
+      return "You were assigned a ticket";
     case "comment_reply":
-      return `${payload.actor_name || "Someone"} replied to a comment`;
+      return `${payload.actor_name || "Someone"} replied to a ticket`;
     case "comment_mention":
-      return `${payload.actor_name || "Someone"} mentioned you in a comment`;
+      return `${payload.actor_name || "Someone"} mentioned you`;
     case "comment_status_changed":
-      return `A comment was marked ${payload.new_status || "updated"}`;
+      return `A ticket was marked ${STATUS_LABELS[payload.new_status as keyof typeof STATUS_LABELS]?.toLowerCase() ?? payload.new_status ?? "updated"}`;
     case "share_link_created":
       return "A new share link was created for a project";
     case "integration_disconnected":
@@ -189,6 +190,11 @@ export function NotificationBell() {
                       const name = actorOf(notification).name;
                       return text.startsWith(name) ? <><b>{name}</b>{text.slice(name.length)}</> : text;
                     })()}</span>
+                    {(notification.ticket_excerpt || notification.project_name) && <span className="bl-nt-ctx">
+                      {notification.ticket_number != null && <span className="bl-tid">#{notification.ticket_number}</span>}
+                      {notification.ticket_excerpt && <span className="bl-nt-ex">“{notification.ticket_excerpt}”</span>}
+                      {notification.project_name && <span className="bl-nt-pr">{notification.project_name}</span>}
+                    </span>}
                     <span className="bl-nt-d">{timeAgo(notification.created_at)}</span>
                   </span>
                 </li>

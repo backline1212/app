@@ -85,7 +85,7 @@ export function BrandingSettings({ workspace, canEdit }: { workspace: WorkspaceO
           : locked ? <p className="ws-settings-note">Custom branding and review domains are part of the Team plan. {billing}</p>
           : data && <form className="bl-branding-form" onSubmit={submit}>
             <div className="bl-branding-preview" style={{ ["--bl-brand" as string]: accent || "#0A6B4B" }}>
-              {data.logo_url ? <img src={data.logo_url} alt="" /> : <span aria-hidden="true">{(displayName || workspace.name).slice(0, 1).toUpperCase()}</span>}
+              {data.logo_url ? <img src={data.logo_url} alt="" onError={(event) => { event.currentTarget.hidden = true; }} /> : <span aria-hidden="true">{(displayName || workspace.name).slice(0, 1).toUpperCase()}</span>}
               <div><strong>{displayName || workspace.name}</strong><small>Review link preview</small></div>
               <i aria-hidden="true" />
             </div>

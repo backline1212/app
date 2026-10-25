@@ -4338,6 +4338,12 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Ticket Number */
+            ticket_number?: number | null;
+            /** Ticket Excerpt */
+            ticket_excerpt?: string | null;
+            /** Project Name */
+            project_name?: string | null;
         };
         /**
          * OAuthAppOut

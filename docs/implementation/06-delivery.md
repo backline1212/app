@@ -4775,3 +4775,8 @@ database migration, or production deployment is claimed.
 - Sites that already embed Backline no longer show "review session ended" / a second
   toolbar in the preview. Local-only `ALLOW_PRIVATE_NETWORK_TARGETS` for previewing
   localhost sites in development.
+
+# 2026-10-25: Notification context, tracker in ticket view (TDR-0163)
+
+- Notifications show ticket number, text and project; the shared ticket view can send
+  to connected trackers.

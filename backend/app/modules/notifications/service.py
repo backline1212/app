@@ -398,7 +398,58 @@ async def list_notifications(
             db, workspace_id=workspace_id, user_id=user_id
         ),
     )
-    return [_notification_out(doc) for doc in docs]
+    return await _with_context(db, workspace_id, [_notification_out(doc) for doc in docs])
+
+
+def _first_line(body: str) -> str | None:
+    lines = body.strip().splitlines()
+    line = " ".join(lines[0].split()) if lines else ""
+    return (line if len(line) <= 80 else line[:79].rstrip() + "…") or None
+
+
+async def _with_context(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    items: list[NotificationOut],
+) -> list[NotificationOut]:
+    from app.modules.comments.repository import CommentRepository
+
+    comment_ids = [
+        str(item.payload["comment_id"])
+        for item in items
+        if isinstance(item.payload.get("comment_id"), str)
+    ]
+    repo = CommentRepository(db)
+    comments = {
+        str(doc["_id"]): doc for doc in await repo.find_many_in_workspace(workspace_id, comment_ids)
+    }
+    # A mention can be on a reply; label it with the thread it belongs to.
+    parent_ids = [str(doc["parent_id"]) for doc in comments.values() if doc.get("parent_id")]
+    if parent_ids:
+        for doc in await repo.find_many_in_workspace(workspace_id, parent_ids):
+            comments[str(doc["_id"])] = doc
+    project_ids = {str(item.payload.get("project_id")) for item in items}
+    projects = {
+        str(doc["_id"]): doc["name"]
+        for doc in await ProjectRepository(db).list_for_workspace(
+            workspace_id, include_archived=True
+        )
+        if str(doc["_id"]) in project_ids
+    }
+    enriched: list[NotificationOut] = []
+    for item in items:
+        update: dict[str, Any] = {}
+        comment = comments.get(str(item.payload.get("comment_id")))
+        if comment is not None and comment.get("parent_id"):
+            comment = comments.get(str(comment["parent_id"]), comment)
+        if comment is not None and comment.get("deleted_at") is None:
+            update["ticket_number"] = comment.get("ticket_number")
+            update["ticket_excerpt"] = _first_line(str(comment.get("body") or ""))
+        project_name = projects.get(str(item.payload.get("project_id")))
+        if project_name:
+            update["project_name"] = project_name
+        enriched.append(item.model_copy(update=update) if update else item)
+    return enriched
 
 
 async def count_unread(
