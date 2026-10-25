@@ -4815,3 +4815,8 @@ database migration, or production deployment is claimed.
 
 - Popup shows the active review or the Open-with-extension path; token setup is
   advanced. Submit 0.5.4 to the Web Store.
+
+# 2026-10-25: Carry open comments to new versions (TDR-0171)
+
+- New file versions can take over the previous version's open comments (opt-out per
+  upload); resolved ones stay on the old version.

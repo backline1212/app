@@ -114,6 +114,7 @@ async def upload_asset(
     device: str | None = None,
     platform: str | None = None,
     replaces_asset_id: str | None = None,
+    carry_open_comments: bool = False,
 ) -> AssetOut:
     workspace_id, actor = await _upload_access(db, project_id, actor)
     project = await get_project(db, project_id=project_id, workspace_id=workspace_id)
@@ -129,6 +130,7 @@ async def upload_asset(
             "sha256": hashlib.sha256(data).hexdigest(),
             "project_type": project.project_type,
             **({"replaces": replaces_asset_id} if replaces_asset_id else {}),
+            **({"carry": True} if replaces_asset_id and carry_open_comments else {}),
         }
     )
     repo = AssetRepository(db)
@@ -182,6 +184,7 @@ async def upload_asset(
                 require_replay(existing)
                 return existing
         version_fields: dict[str, Any] = {}
+        previous: dict[str, Any] | None = None
         if replaces_asset_id:
             previous = await repo.find(workspace_id, project_id, replaces_asset_id, session=session)
             if previous is None or previous.get("archived_at") is not None:
@@ -245,6 +248,23 @@ async def upload_asset(
             workspace_id, project_id, replaces_asset_id, str(doc["_id"]), session=session
         ):
             raise ConflictError("A newer version of this file was already uploaded.")
+        carried = 0
+        if previous is not None and carry_open_comments:
+            carried = await CommentRepository(db).carry_open_threads(
+                workspace_id,
+                from_page_id=previous["page_id"],
+                to_page_id=str(page["_id"]),
+                to_asset_id=str(doc["_id"]),
+                page_count=page_count,
+                carried_from={
+                    "asset_id": replaces_asset_id,
+                    "page_id": previous["page_id"],
+                    "version": int(previous.get("version") or 1),
+                },
+                session=session,
+            )
+        if previous is not None:
+            doc["_carried"] = carried
         await append_event(
             db,
             workspace_id=workspace_id,
@@ -274,7 +294,10 @@ async def upload_asset(
             raise
         require_replay(existing)
         doc = existing
-    return await asset_out(doc)
+    out = await asset_out(doc)
+    if "_carried" in doc:
+        out.carried_comments = int(doc["_carried"])
+    return out
 
 
 async def list_assets(

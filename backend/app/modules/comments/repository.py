@@ -82,6 +82,62 @@ class CommentRepository:
             {"_id": oid, "workspace_id": workspace_id, "deleted_at": None}, session=session
         )
 
+    async def carry_open_threads(
+        self,
+        workspace_id: str,
+        *,
+        from_page_id: str,
+        to_page_id: str,
+        to_asset_id: str,
+        page_count: int,
+        carried_from: dict[str, Any],
+        session: AsyncIOMotorClientSession,
+    ) -> int:
+        """Moves a file's open threads (and their replies) onto its new version, keeping
+        each pin's relative position, number and history; resolved threads stay where
+        they were given (TDR-0171). Returns how many threads moved."""
+        roots = [
+            str(doc["_id"])
+            async for doc in self.db.comments.find(
+                {
+                    "workspace_id": workspace_id,
+                    "page_id": from_page_id,
+                    "parent_id": None,
+                    "deleted_at": None,
+                    "status": {"$nin": ["resolved", "wont_fix"]},
+                    "anchor.kind": "asset",
+                },
+                {"_id": 1},
+                session=session,
+            )
+        ]
+        if not roots:
+            return 0
+        await self.db.comments.update_many(
+            {"workspace_id": workspace_id, "_id": {"$in": [to_object_id(i) for i in roots]}},
+            [
+                {
+                    "$set": {
+                        "page_id": to_page_id,
+                        "anchor.asset_id": to_asset_id,
+                        # A PDF version with fewer pages keeps the pin on its last page.
+                        "anchor.region.page_number": {
+                            "$min": [{"$ifNull": ["$anchor.region.page_number", 1]}, page_count]
+                        },
+                        "carried_from": {"$literal": carried_from},
+                        "revision": {"$add": [{"$ifNull": ["$revision", 0]}, 1]},
+                    }
+                }
+            ],
+            session=session,
+        )
+        await self.db.comments.update_many(
+            {"workspace_id": workspace_id, "parent_id": {"$in": roots}},
+            {"$set": {"page_id": to_page_id}},
+            session=session,
+        )
+        return len(roots)
+
     async def find_many_in_workspace(
         self,
         workspace_id: str,

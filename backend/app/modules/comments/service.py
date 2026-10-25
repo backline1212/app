@@ -474,6 +474,7 @@ async def _comment_out(
         waiting_on_client=doc.get("waiting_on_client", False),
         is_standalone=doc.get("is_standalone", False),
         fix=FixSubmissionOut.model_validate(doc["fix"]) if doc.get("fix") else None,
+        carried_from_version=(doc.get("carried_from") or {}).get("version"),
         assignee_id=doc.get("assignee_id"),
         due_at=doc.get("due_at"),
         anchor=anchor,

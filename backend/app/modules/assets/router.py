@@ -94,6 +94,7 @@ async def upload_asset(
     device: str | None = Form(default=None, max_length=80),
     platform: str | None = Form(default=None, max_length=40),
     replaces_asset_id: str | None = Form(default=None, min_length=1, max_length=64),
+    carry_open_comments: bool = Form(default=False),
     session: Session = Depends(require_project_permission("asset:upload")),
 ) -> AssetOut:
     await check_rate_limit(
@@ -114,6 +115,7 @@ async def upload_asset(
         device=device,
         platform=platform,
         replaces_asset_id=replaces_asset_id,
+        carry_open_comments=carry_open_comments,
     )
 
 

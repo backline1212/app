@@ -9684,6 +9684,17 @@
               }
             ],
             "title": "Superseded By"
+          },
+          "carried_comments": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carried Comments"
           }
         },
         "type": "object",
@@ -9929,6 +9940,11 @@
               }
             ],
             "title": "Replaces Asset Id"
+          },
+          "carry_open_comments": {
+            "type": "boolean",
+            "title": "Carry Open Comments",
+            "default": false
           }
         },
         "type": "object",
@@ -10965,6 +10981,17 @@
                 "type": "null"
               }
             ]
+          },
+          "carried_from_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carried From Version"
           }
         },
         "type": "object",
@@ -17585,6 +17612,17 @@
                 "type": "null"
               }
             ]
+          },
+          "carried_from_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carried From Version"
           },
           "project_id": {
             "type": "string",

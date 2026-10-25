@@ -199,6 +199,9 @@ export function AssetReview({
   const asset = assetId ? availableAssets?.find(a => a.id === assetId) : requestedPageId ? availableAssets?.find(a => a.page_id === requestedPageId) : currentFiles?.[0];
   const versions = asset ? (availableAssets ?? []).filter(file => versionGroup(file) === versionGroup(asset)).sort((a, b) => (a.version ?? 1) - (b.version ?? 1)) : [];
   const latestVersion = versions.find(file => !file.superseded_by);
+  // After "New version" in Manage files, open it once the dialog has closed (switching
+  // while its upload is still settling would trip the unsaved-changes guard).
+  const [switchTo, setSwitchTo] = useState<{ saved: api.Asset; replacedId: string } | null>(null);
   const earlierVersion = Boolean(asset?.superseded_by);
   const annotationMode = commenting && !earlierVersion;
   const isPdf = asset ? asset.content_type === "application/pdf" : project?.project_type === "pdf";
@@ -412,6 +415,12 @@ export function AssetReview({
   } : undefined;
   const zoomBy = useCallback((delta: number) => setZoomScale(s => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((s + delta) * 100) / 100))), []);
   const resetView = useCallback(() => { setZoomScale(1); setRotation(0); }, []);
+  useEffect(() => {
+    if (showFiles || !switchTo) return;
+    setSwitchTo(null);
+    if (asset?.id === switchTo.replacedId) changeLocation(switchTo.saved, 1, "");
+  }, [showFiles, switchTo, asset?.id, changeLocation]);
+
   function selectFile(file: api.Asset) {
     if (file.id === asset?.id || keepDraft()) return;
     changeLocation(file, 1, ""); setDraft(null); resetView();
@@ -928,6 +937,6 @@ export function AssetReview({
         <span className="bl-review-comment-count">{fileThreads.length} comment{fileThreads.length === 1 ? "" : "s"} · {openThreads.length} open{isPdf && asset && asset.page_count > 1 ? ` · ${roots.length} on this page` : ""}</span>
       </div>
     </footer>
-    {showFiles && project && <ManageFilesDialog project={project} onClose={() => setShowFiles(false)} onVersionUploaded={(saved, replaced) => { if (asset?.id === replaced.id) changeLocation(saved, 1, ""); }} />}
+    {showFiles && project && <ManageFilesDialog project={project} onClose={() => setShowFiles(false)} onVersionUploaded={(saved, replaced) => setSwitchTo({ saved, replacedId: replaced.id })} />}
   </main>;
 }
