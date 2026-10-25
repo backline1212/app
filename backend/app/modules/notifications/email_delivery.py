@@ -17,6 +17,7 @@ from app.modules.auth.repository import UserRepository
 from app.modules.notifications import events
 from app.modules.notifications.preferences import FEEDBACK_PREFERENCES
 from app.modules.notifications.repository import NotificationRepository
+from app.modules.notifications.unsubscribe import unsubscribe_url
 from app.modules.workspaces.repository import MembershipRepository, WorkspaceRepository
 
 logger = logging.getLogger("backline.notification_email")
@@ -112,6 +113,7 @@ async def _send_claimed(
         subject=envelope["subject"],
         html=envelope["html"],
         idempotency_key=f"feedback/{workspace_id}/{notification_id}",
+        unsubscribe_url=unsubscribe_url(doc["user_id"], "feedback"),
     )
     return "sent"
 

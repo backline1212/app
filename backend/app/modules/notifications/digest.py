@@ -16,6 +16,7 @@ from app.core.project_access import effective_project_role
 from app.modules.auth.repository import UserRepository
 from app.modules.comments.repository import CommentRepository
 from app.modules.notifications.digest_repository import DigestDeliveryRepository
+from app.modules.notifications.unsubscribe import unsubscribe_url
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.repository import ProjectRepository
 from app.modules.workspaces.repository import MembershipRepository, WorkspaceRepository
@@ -278,6 +279,7 @@ async def _send_claimed(
         subject=envelope["subject"],
         html=envelope["html"],
         idempotency_key=f"digest/{delivery_id}",
+        unsubscribe_url=unsubscribe_url(doc["user_id"], "digest"),
     )
     return "sent"
 

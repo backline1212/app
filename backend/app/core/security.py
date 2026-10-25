@@ -157,6 +157,30 @@ def secrets_match(a: str, b: str) -> bool:
     return hmac.compare_digest(a, b)
 
 
+UNSUBSCRIBE_KINDS = ("digest", "feedback")
+
+
+def _unsubscribe_signature(user_id: str, kind: str) -> str:
+    # Domain-separated from every other hash_secret use, so no other value can stand in.
+    return hash_secret(f"email-unsubscribe:{user_id}:{kind}")[:32]
+
+
+def create_unsubscribe_token(user_id: str, kind: str) -> str:
+    """Opaque token for an email's unsubscribe link. It does not expire: a link in an
+    old email has to keep working. Rotating JWT_SIGNING_KEY invalidates it."""
+    return f"{user_id}.{kind}.{_unsubscribe_signature(user_id, kind)}"
+
+
+def read_unsubscribe_token(token: str) -> tuple[str, str] | None:
+    parts = token.split(".")
+    if len(parts) != 3 or parts[1] not in UNSUBSCRIBE_KINDS:
+        return None
+    user_id, kind, signature = parts
+    if not secrets_match(signature, _unsubscribe_signature(user_id, kind)):
+        return None
+    return user_id, kind
+
+
 def generate_otp_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 

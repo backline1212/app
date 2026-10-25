@@ -17,13 +17,17 @@ async def send_email(
     html: str,
     idempotency_key: str | None = None,
     brand: str | None = None,
+    unsubscribe_url: str | None = None,
 ) -> None:
     """Report success only after a provider accepts the email (except local mode).
 
     `html` is a fragment wrapped in the shared layout (`brand` names the sender of a
-    client-facing email); a full document is sent as given."""
+    client-facing email); a full document is sent as given. `unsubscribe_url` adds a
+    footer link and RFC 8058 one-click List-Unsubscribe headers (Resend)."""
     settings = get_settings()
-    document = render_email(subject=subject, content_html=html, brand=brand)
+    document = render_email(
+        subject=subject, content_html=html, brand=brand, unsubscribe_url=unsubscribe_url
+    )
     text = None if is_document(html) else plain_text(html)
 
     # Priority 1: Google Apps Script Web App (Staging fallback)
@@ -60,6 +64,14 @@ async def send_email(
     if settings.resend_api_key:
         try:
             headers = {"Authorization": f"Bearer {settings.resend_api_key}"}
+            list_headers = (
+                {
+                    "List-Unsubscribe": f"<{unsubscribe_url}>",
+                    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                }
+                if unsubscribe_url
+                else {}
+            )
             if idempotency_key:
                 headers["Idempotency-Key"] = idempotency_key
             # The pinned SDK sends requests without a timeout. Bounded async HTTP
@@ -74,6 +86,7 @@ async def send_email(
                         "subject": subject,
                         "html": document,
                         **({"text": text} if text else {}),
+                        **({"headers": list_headers} if list_headers else {}),
                     },
                 )
                 response.raise_for_status()
