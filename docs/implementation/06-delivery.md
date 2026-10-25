@@ -4810,3 +4810,8 @@ database migration, or production deployment is claimed.
 
 - A site's own Backline snippet steps aside while the extension reviews the tab.
   End-to-end extension run verified locally. Submit 0.5.3 to the Web Store.
+
+# 2026-10-25: Extension popup, 0.5.4 (TDR-0170)
+
+- Popup shows the active review or the Open-with-extension path; token setup is
+  advanced. Submit 0.5.4 to the Web Store.

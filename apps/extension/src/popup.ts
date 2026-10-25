@@ -34,6 +34,8 @@ const activateStatus = el<HTMLParagraphElement>("activate-status");
 const activityList = el<HTMLUListElement>("activity-list");
 const activityEmpty = el<HTMLParagraphElement>("activity-empty");
 const openDashboardBtn = el<HTMLButtonElement>("open-dashboard-btn");
+const reviewView = el<HTMLDivElement>("review-view");
+const reviewProject = el<HTMLElement>("review-project");
 
 function setStatus(message: string): void {
   statusEl.textContent = message;
@@ -184,10 +186,33 @@ disconnectBtn.addEventListener("click", () => void handleDisconnect());
 activatePointBtn.addEventListener("click", () => void handleActivate("point"));
 activateRegionBtn.addEventListener("click", () => void handleActivate("region"));
 getTokenLink.addEventListener("click", () => {
-  chrome.tabs.create({ url: DASHBOARD_BASE_URL });
+  chrome.tabs.create({ url: `${DASHBOARD_BASE_URL}/` });
 });
+for (const id of ["open-backline-btn", "review-dashboard-btn"]) {
+  el<HTMLButtonElement>(id).addEventListener("click", () => {
+    chrome.tabs.create({ url: `${DASHBOARD_BASE_URL}/` });
+  });
+}
+
+// A review opened from Backline ("Open with extension") is stored per tab by the
+// background worker (native-review.ts); show it instead of the token setup.
+async function activeReviewProject(): Promise<string | null> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id === undefined) return null;
+  const key = `review:${tab.id}`;
+  const stored = (await chrome.storage.session.get(key))[key] as { project?: { name?: string }; accessEnded?: boolean } | undefined;
+  return stored && !stored.accessEnded ? stored.project?.name ?? "this project" : null;
+}
 
 async function init(): Promise<void> {
+  const reviewing = await activeReviewProject().catch(() => null);
+  if (reviewing) {
+    reviewProject.textContent = reviewing;
+    reviewView.style.display = "block";
+    connectedView.style.display = "none";
+    disconnectedView.style.display = "none";
+    return;
+  }
   const { connection } = await sendMessage<ConnectionResponse>({ type: "get-connection" });
   if (connection) {
     renderConnected(connection);
