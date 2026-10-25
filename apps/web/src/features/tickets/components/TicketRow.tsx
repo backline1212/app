@@ -25,6 +25,8 @@ export function TicketRow({
   onOpen,
   onFilterTag,
   onDelete,
+  selected,
+  onToggle,
 }: {
   ticket: api.Ticket;
   members: MemberOut[];
@@ -32,6 +34,8 @@ export function TicketRow({
   onOpen: (id: string) => void;
   onFilterTag: (tag: string) => void;
   onDelete: (ticket: api.Ticket) => void;
+  selected: boolean;
+  onToggle: (id: string) => void;
 }) {
   const priority = PRIORITY_META[ticket.priority ?? "medium"];
   const due = dueMeta(ticket.due_at, isClosed(ticket.status));
@@ -41,7 +45,9 @@ export function TicketRow({
     // The row is a plain container (clicking anywhere opens the ticket); the title is
     // the keyboard/screen-reader control, so the row's own selects and buttons aren't
     // nested inside another button.
-    <div className={`bl-tk${isClosed(ticket.status) ? " is-closed" : ""}`} onClick={() => onOpen(ticket.id)}>
+    <div className={`bl-tk${isClosed(ticket.status) ? " is-closed" : ""}${selected ? " is-selected" : ""}`} onClick={() => onOpen(ticket.id)}>
+      {update.canEdit(ticket) && <input type="checkbox" className="bl-tk-select" aria-label={`Select ticket ${ticketRef(ticket)}`} checked={selected}
+        onClick={(e) => e.stopPropagation()} onChange={() => onToggle(ticket.id)} />}
       <span className="bl-tk-prio" style={{ background: priority.color }} title={`${priority.label} priority`} />
       <span className="bl-tid">{ticketRef(ticket)}</span>
       <div className="bl-tk-main">

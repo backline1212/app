@@ -4851,3 +4851,7 @@ database migration, or production deployment is claimed.
 
 - Reviewers can untick "Add an automatic screenshot of this page"; such comments are
   stored as `capture_status: skipped` and labelled in the dashboard.
+
+# 2026-10-25: Ticket bulk triage (TDR-0177)
+
+- Select tickets in List/Table and set status, priority or assignee for all of them.

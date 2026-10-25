@@ -3221,3 +3221,15 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 /* a11y: the pressed segment flips colours in dark mode, so its count follows the
    button's own text colour instead of mint (1.5:1 on the light pressed background). */
 .bl-segment button[aria-pressed="true"] .bl-count{color:currentColor;opacity:.8}
+/* Ticket bulk triage (TicketsPage BulkBar). */
+.bl-col-select{width:34px;padding-right:0!important}
+.bl-col-select input,.bl-tk-select{width:15px;height:15px;margin:0;accent-color:var(--bl-ink);cursor:pointer}
+.bl-tk-select{flex:none}
+.bl-tk.is-selected,.bl-table tr.is-selected td{background:var(--mint-tint,#E9F7F1)}
+.bl-bulk-bar{position:sticky;top:64px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--bl-ink);border-radius:3px;background:var(--bl-surface);box-shadow:0 6px 18px rgba(0,0,0,.08);font-size:12px}
+.bl-bulk-bar select{border:1px solid var(--bl-line);border-radius:3px;background:var(--bl-surface);color:var(--bl-ink);font-size:12px;padding:6px 8px}
+.bl-bulk-status:empty{display:none}
+.bl-bulk-status{color:var(--bl-muted);font:11px var(--bl-mono)}
+.bl-bulk-result{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 12px;padding:8px 12px;border:1px solid var(--bl-line);border-radius:3px;background:var(--bl-paper);font-size:12px}
+.bl-bulk-result ul{flex-basis:100%;order:3;margin:0;padding-left:18px;color:var(--bl-muted)}
+.bl-bulk-result .bl-quiet{margin-left:auto}

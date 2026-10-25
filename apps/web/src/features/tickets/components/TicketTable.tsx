@@ -46,6 +46,9 @@ export function TicketTable({
   onFilterProject,
   onFilterTag,
   onDelete,
+  selectedIds,
+  onToggle,
+  onToggleAll,
 }: {
   tickets: api.Ticket[];
   members: MemberOut[];
@@ -56,7 +59,13 @@ export function TicketTable({
   onFilterProject: (projectId: string) => void;
   onFilterTag: (tag: string) => void;
   onDelete: (ticket: api.Ticket) => void;
+  selectedIds: ReadonlySet<string>;
+  onToggle: (id: string) => void;
+  onToggleAll: (ids: string[], selected: boolean) => void;
 }) {
+  const selectable = tickets.filter((t) => update.canEdit(t)).map((t) => t.id);
+  const allSelected = selectable.length > 0 && selectable.every((id) => selectedIds.has(id));
+  const someSelected = selectable.some((id) => selectedIds.has(id));
   // No bare "table" class on the wrapper: that is Tailwind's display:table utility,
   // which made it a table box - one that ignores overflow-x, so on a phone the whole
   // page scrolled sideways instead of just the table.
@@ -65,6 +74,11 @@ export function TicketTable({
       <table className="bl-table">
         <thead>
           <tr>
+            <th className="bl-col-select">
+              {selectable.length > 0 && <input type="checkbox" aria-label="Select all tickets in this list" checked={allSelected}
+                ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
+                onChange={(e) => onToggleAll(selectable, e.target.checked)} />}
+            </th>
             <th className="bl-col-num">ID</th>
             <th>Ticket</th>
             <SortableHeader label="Project" sortKey="project" sort={sort} onSort={onSort} />
@@ -81,7 +95,10 @@ export function TicketTable({
             const due = dueMeta(t.due_at, isClosed(t.status));
             const assignees = t.assignee_ids ?? [];
             return (
-              <tr key={t.id} className={isClosed(t.status) ? "is-closed" : undefined} onClick={() => onOpen(t.id)}>
+              <tr key={t.id} className={`${isClosed(t.status) ? "is-closed" : ""}${selectedIds.has(t.id) ? " is-selected" : ""}` || undefined} onClick={() => onOpen(t.id)}>
+                <td className="bl-col-select" onClick={(e) => e.stopPropagation()}>
+                  {update.canEdit(t) && <input type="checkbox" aria-label={`Select ticket ${ticketRef(t)}`} checked={selectedIds.has(t.id)} onChange={() => onToggle(t.id)} />}
+                </td>
                 <td className="bl-col-num">{ticketRef(t)}</td>
                 <td className="bl-col-ticket">
                   <button type="button" className="bl-ticket-title" onClick={(e) => { e.stopPropagation(); onOpen(t.id); }}>
