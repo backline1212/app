@@ -59,7 +59,7 @@ _FORWARDED_REQUEST_HEADERS = frozenset(
     }
 )
 _BLOCKED_CUSTOM_HEADER_PREFIXES = ("x-forwarded-", "x-real-ip", "x-backline")
-_GUEST_HANDOFF_PARAMS = frozenset({"backline_guest", "backline_name"})
+_GUEST_HANDOFF_PARAMS = frozenset({"backline_guest", "backline_name", "backline_handoff"})
 
 # Upstream response headers worth keeping on non-HTML: caching validators so a reload
 # doesn't refetch every script and image through the proxy, plus what media seeking

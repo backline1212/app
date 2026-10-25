@@ -20,6 +20,19 @@ export function resolveShareLink(shareToken: string): Promise<ReviewResolveOut> 
   return apiFetch<ReviewResolveOut>(`/api/v1/review/${shareToken}`);
 }
 
+/** A one-time, two-minute code that carries this session to the website under review,
+ * instead of the session token itself (FLOW-01). */
+export async function createGuestHandoff(token: string): Promise<Schemas["GuestHandoffOut"]> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/guest-sessions/current/handoff`, {
+    method: "POST", credentials: "omit", cache: "no-store",
+    headers: { "X-Guest-Session": token },
+  });
+  if (!response.ok) {
+    throw await toApiError(response, "GUEST_SESSION_ERROR", "Could not open the website review. Try again.");
+  }
+  return response.json() as Promise<Schemas["GuestHandoffOut"]>;
+}
+
 export async function endGuestSession(token: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/v1/guest-sessions/current/end`, {
     method: "POST", credentials: "omit", cache: "no-store",

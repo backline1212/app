@@ -89,6 +89,19 @@ class GuestSessionOut(BaseModel):
     display_name: str
 
 
+class GuestHandoffOut(BaseModel):
+    """A one-time code that carries a guest's review session to the website under
+    review, so the session token itself never appears in that site's URL (where the
+    site's own analytics or logs could record it before the widget removes it)."""
+
+    code: str
+    expires_in: int
+
+
+class GuestHandoffRedeem(BaseModel):
+    code: str = Field(min_length=20, max_length=100)
+
+
 class GuestSessionStatusOut(BaseModel):
     project_id: str
     share_link_id: str

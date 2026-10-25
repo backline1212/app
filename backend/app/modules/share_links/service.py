@@ -1,4 +1,5 @@
 import hmac
+import json
 import secrets
 import time
 from datetime import UTC, datetime
@@ -34,6 +35,7 @@ from app.modules.share_links.repository import (
 )
 from app.modules.share_links.schemas import (
     CanvasSessionOut,
+    GuestHandoffOut,
     GuestSessionOut,
     GuestSessionStatusOut,
     ReviewResolveOut,
@@ -379,6 +381,54 @@ async def get_guest_session_status(
             and project.get("workspace_id") == link["workspace_id"]
             and (project.get("settings_json") or {}).get("reviewer_can_resolve", False)
         ),
+    )
+
+
+GUEST_HANDOFF_TTL_SECONDS = 120
+
+
+def _guest_handoff_key(code: str) -> str:
+    return f"guest-handoff:{hash_secret(code)}"
+
+
+async def create_guest_handoff(
+    db: AsyncIOMotorDatabase[dict[str, Any]], guest: GuestSession
+) -> GuestHandoffOut:
+    """FLOW-01: replaces `?backline_guest=<token>` on the reviewed site's URL with a
+    code that works once, for two minutes. Only a client's own session is handed to a
+    website; a member's canvas session stays in the dashboard."""
+    if guest.member_user_id is not None:
+        raise PermissionDeniedError("Open this review from the Backline dashboard.")
+    await get_guest_session_status(db, guest)
+    code = secrets.token_urlsafe(32)
+    await get_redis().set(
+        _guest_handoff_key(code),
+        json.dumps(
+            {"guest_session_id": guest.guest_session_id, "share_link_id": guest.share_link_id}
+        ),
+        ex=GUEST_HANDOFF_TTL_SECONDS,
+    )
+    return GuestHandoffOut(code=code, expires_in=GUEST_HANDOFF_TTL_SECONDS)
+
+
+async def redeem_guest_handoff(
+    db: AsyncIOMotorDatabase[dict[str, Any]], code: str
+) -> GuestSessionOut:
+    # GETDEL: two pages racing for the same code can't both get the session.
+    raw = await get_redis().getdel(_guest_handoff_key(code))
+    if raw is None:
+        raise NotFoundError(
+            "This review link was already used or has expired. "
+            "Open the review again from your invitation."
+        )
+    data = json.loads(raw)
+    guest = GuestSession(
+        guest_session_id=data["guest_session_id"], share_link_id=data["share_link_id"]
+    )
+    status = await get_guest_session_status(db, guest)
+    return GuestSessionOut(
+        guest_session_token=create_guest_token(guest.guest_session_id, guest.share_link_id),
+        display_name=status.display_name,
     )
 
 

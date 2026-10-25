@@ -4831,3 +4831,8 @@ database migration, or production deployment is claimed.
 
 - Edit / Delete / Mark resolved on your own comment in website, extension and image/PDF
   review; deleting a comment with replies is refused. Submit 0.5.5 to the Web Store.
+
+# 2026-10-25: One-time review handoff code (TDR-0173)
+
+- "Open website review" now passes a single-use, two-minute code instead of the guest
+  session token and name in the reviewed site's URL (FLOW-01).

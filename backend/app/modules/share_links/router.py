@@ -12,6 +12,8 @@ from app.core.session import GuestSession, Session, get_guest_session, require_w
 from app.modules.share_links import service as share_link_service
 from app.modules.share_links.schemas import (
     CanvasSessionOut,
+    GuestHandoffOut,
+    GuestHandoffRedeem,
     GuestSessionCreate,
     GuestSessionOut,
     GuestSessionStatusOut,
@@ -130,6 +132,34 @@ async def end_guest_session(
         window_seconds=60,
     )
     await share_link_service.end_guest_session(get_db(), guest)
+
+
+@router.post("/guest-sessions/current/handoff", response_model=GuestHandoffOut)
+async def create_guest_handoff(
+    request: Request, response: Response, guest: GuestSession = Depends(get_guest_session)
+) -> GuestHandoffOut:
+    response.headers["Cache-Control"] = "no-store"
+    await check_rate_limit(
+        get_redis(),
+        key=actor_rate_limit_key("guest-handoff", request, guest),
+        limit=get_settings().review_resolve_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    return await share_link_service.create_guest_handoff(get_db(), guest)
+
+
+@router.post("/guest-sessions/handoff/redeem", response_model=GuestSessionOut)
+async def redeem_guest_handoff(
+    body: GuestHandoffRedeem, request: Request, response: Response
+) -> GuestSessionOut:
+    response.headers["Cache-Control"] = "no-store"
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:guest-handoff-redeem:{get_client_ip(request)}",
+        limit=get_settings().review_resolve_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    return await share_link_service.redeem_guest_handoff(get_db(), body.code)
 
 
 @router.post("/guest-sessions", response_model=GuestSessionOut, status_code=201)
