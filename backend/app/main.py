@@ -21,6 +21,7 @@ from app.core.indexes import ensure_indexes
 from app.core.log_redaction import install as install_log_redaction
 from app.core.redis_client import close_redis, get_redis
 from app.core.release_identity import deployment_id, release_sha
+from app.core.security_headers import ApiSecurityHeadersMiddleware
 from app.core.snapshot_body_limit import SnapshotBodyLimitMiddleware
 from app.core.worker_heartbeat import read_worker_heartbeat
 from app.modules.ai.router import router as ai_router
@@ -99,6 +100,7 @@ install_log_redaction()
 
 app = FastAPI(title="Backline API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(SnapshotBodyLimitMiddleware)
+app.add_middleware(ApiSecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allow_origins,

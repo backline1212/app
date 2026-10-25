@@ -4800,3 +4800,8 @@ database migration, or production deployment is claimed.
 
 - API JSON and the widget script are gzip-compressed (100x smaller comment lists in the
   seeded test); file review re-downloads comments only when they change.
+
+# 2026-10-25: Security headers (TDR-0168)
+
+- Dashboard can't be framed; nosniff/referrer/permissions policies on dashboard and API;
+  API JSON is not cached.
