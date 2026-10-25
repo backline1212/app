@@ -2743,6 +2743,15 @@ export interface components {
             device?: string | null;
             /** Platform */
             platform?: string | null;
+            /** Version Group */
+            version_group?: string | null;
+            /**
+             * Version
+             * @default 1
+             */
+            version: number;
+            /** Superseded By */
+            superseded_by?: string | null;
         };
         /** AssetUpdate */
         AssetUpdate: {
@@ -2815,6 +2824,8 @@ export interface components {
             device?: string | null;
             /** Platform */
             platform?: string | null;
+            /** Replaces Asset Id */
+            replaces_asset_id?: string | null;
         };
         /** Body_upload_logo_api_v1_workspaces__workspace_id__branding_logo_post */
         Body_upload_logo_api_v1_workspaces__workspace_id__branding_logo_post: {

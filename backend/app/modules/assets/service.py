@@ -113,6 +113,7 @@ async def upload_asset(
     build_label: str | None = None,
     device: str | None = None,
     platform: str | None = None,
+    replaces_asset_id: str | None = None,
 ) -> AssetOut:
     workspace_id, actor = await _upload_access(db, project_id, actor)
     project = await get_project(db, project_id=project_id, workspace_id=workspace_id)
@@ -127,6 +128,7 @@ async def upload_asset(
             "filename": safe_name,
             "sha256": hashlib.sha256(data).hexdigest(),
             "project_type": project.project_type,
+            **({"replaces": replaces_asset_id} if replaces_asset_id else {}),
         }
     )
     repo = AssetRepository(db)
@@ -179,9 +181,30 @@ async def upload_asset(
             if existing is not None:
                 require_replay(existing)
                 return existing
-        count = await AssetRepository(db).count(workspace_id, project_id, session=session)
-        if count >= limit:
-            raise ValidationError("This project has reached its file limit.")
+        version_fields: dict[str, Any] = {}
+        if replaces_asset_id:
+            previous = await repo.find(workspace_id, project_id, replaces_asset_id, session=session)
+            if previous is None or previous.get("archived_at") is not None:
+                raise NotFoundError("The file to replace was not found.")
+            if previous.get("superseded_by"):
+                raise ConflictError("A newer version of this file was already uploaded.")
+            if (previous["content_type"] == "application/pdf") != (
+                content_type == "application/pdf"
+            ):
+                raise ValidationError("A new version must be the same kind of file.")
+            group = previous.get("version_group") or str(previous["_id"])
+            existing_versions = await repo.versions(
+                workspace_id, project_id, group, session=session
+            )
+            version_fields = {
+                "version_group": group,
+                "version": max(int(doc.get("version") or 1) for doc in existing_versions) + 1,
+            }
+        else:
+            # A new version replaces one file, so the count stays the same.
+            count = await AssetRepository(db).count(workspace_id, project_id, session=session)
+            if count >= limit:
+                raise ValidationError("This project has reached its file limit.")
         page = await PageRepository(db).create(
             project_id=project_id,
             workspace_id=workspace_id,
@@ -214,16 +237,26 @@ async def upload_asset(
                     )
                     if value and value.strip()
                 },
+                **version_fields,
             },
             session=session,
         )
+        if replaces_asset_id and not await repo.mark_superseded(
+            workspace_id, project_id, replaces_asset_id, str(doc["_id"]), session=session
+        ):
+            raise ConflictError("A newer version of this file was already uploaded.")
         await append_event(
             db,
             workspace_id=workspace_id,
             type="asset.created",
             actor_type="member",
             actor_id=actor.user_id,
-            payload={"project_id": project_id, "asset_id": str(doc["_id"]), "name": safe_name},
+            payload={
+                "project_id": project_id,
+                "asset_id": str(doc["_id"]),
+                "name": safe_name,
+                **({"replaces": replaces_asset_id} if replaces_asset_id else {}),
+            },
             session=session,
         )
         return doc
@@ -407,6 +440,9 @@ async def create_comment(
     asset = await AssetRepository(db).find(workspace_id, project_id, asset_id)
     if asset is None or asset.get("archived_at") is not None:
         raise NotFoundError("Asset not found.")
+    if asset.get("superseded_by"):
+        # Earlier versions keep their pins as a record; new feedback goes on the latest.
+        raise ValidationError("This is an earlier version of the file. Comment on the latest one.")
     if body.region.page_number > asset["page_count"]:
         raise ValidationError("The selected page does not exist.")
     if not body.body.strip():

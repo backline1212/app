@@ -82,6 +82,10 @@ function AttachmentList({ attachments }: { attachments: Comment["attachments"] }
   </div>;
 }
 
+function versionGroup(file: api.Asset): string {
+  return file.version_group ?? file.id;
+}
+
 export function AssetReview({
   projectId,
   title,
@@ -176,7 +180,7 @@ export function AssetReview({
   }, [setParams]);
   const canComment = Boolean(guest) || projectCan(project, "comment");
   const canEdit = !guest && projectCan(project, "edit");
-  const annotationMode = commentMode && canComment;
+  const commenting = commentMode && canComment;
   const start = useRef<{ x: number; y: number } | null>(null);
   // Neither of these has a WS event backing it (no asset.* upload event, and this
   // screen - unlike BoardPage/ProjectOverviewPage - has no comment.* WS listener of its
@@ -188,15 +192,22 @@ export function AssetReview({
   const assets = useQuery({ queryKey: qk.assetsList(projectId, guest ?? 'member'), queryFn: () => api.listAssets(projectId, guest), refetchInterval: 30000 });
   const fileAccessDenied = accessDenied(assets.error);
   const availableAssets = fileAccessDenied ? undefined : assets.data;
+  // File versions (TDR-0165): tabs show each file's latest version; earlier ones stay
+  // openable by id or page link, with their own pins, but take no new comments.
+  const currentFiles = availableAssets?.filter(file => !file.superseded_by);
   const requestedPageId = viewParams.get("page");
-  const asset = assetId ? availableAssets?.find(a => a.id === assetId) : requestedPageId ? availableAssets?.find(a => a.page_id === requestedPageId) : availableAssets?.[0];
+  const asset = assetId ? availableAssets?.find(a => a.id === assetId) : requestedPageId ? availableAssets?.find(a => a.page_id === requestedPageId) : currentFiles?.[0];
+  const versions = asset ? (availableAssets ?? []).filter(file => versionGroup(file) === versionGroup(asset)).sort((a, b) => (a.version ?? 1) - (b.version ?? 1)) : [];
+  const latestVersion = versions.find(file => !file.superseded_by);
+  const earlierVersion = Boolean(asset?.superseded_by);
+  const annotationMode = commenting && !earlierVersion;
   const isPdf = asset ? asset.content_type === "application/pdf" : project?.project_type === "pdf";
   // Mobile App projects: screens from app builds, shown in a device frame and
   // filterable by build.
   const mobile = (project?.variant ?? variant) === "mobile";
-  const builds = mobile ? Array.from(new Set((availableAssets ?? []).map(file => file.build_label ?? ""))) : [];
+  const builds = mobile ? Array.from(new Set((currentFiles ?? []).map(file => file.build_label ?? ""))) : [];
   const [buildFilter, setBuildFilter] = useState<string | null>(null);
-  const tabAssets = mobile && buildFilter !== null ? (availableAssets ?? []).filter(file => (file.build_label ?? "") === buildFilter) : availableAssets;
+  const tabAssets = mobile && buildFilter !== null ? (currentFiles ?? []).filter(file => (file.build_label ?? "") === buildFilter) : currentFiles;
   const buildLine = (file: api.Asset) => [file.build_label && `Build ${file.build_label}`, file.device, file.platform].filter(Boolean).join(" · ");
   const requestedAnchor = requestedComment?.id === selected ? requestedComment.anchor as { asset_id?: string; region?: api.Region } : undefined;
   const requestedFile = requestedAnchor?.asset_id ? availableAssets?.find(file => file.id === requestedAnchor.asset_id) : undefined;
@@ -610,15 +621,22 @@ export function AssetReview({
           {builds.map(label => <option key={label} value={label}>{label ? `Build ${label}` : "No build"}</option>)}
         </select>}
         {tabAssets?.map((file) => (
-          <button key={file.id} type="button" role="tab" aria-selected={asset?.id === file.id} title={mobile && buildLine(file) ? `${file.filename} · ${buildLine(file)}` : file.filename} disabled={hasDraft && asset?.id !== file.id} onClick={() => selectFile(file)}>
+          <button key={file.id} type="button" role="tab" aria-selected={!!asset && versionGroup(asset) === versionGroup(file)} title={mobile && buildLine(file) ? `${file.filename} · ${buildLine(file)}` : file.filename} disabled={hasDraft && asset?.id !== file.id} onClick={() => selectFile(file)}>
             <FileGlyph pdf={file.content_type === "application/pdf"} />
-            <span>{file.filename}{mobile && file.device ? <small className="bl-asset-tab-meta">{file.device}</small> : null}</span>
-            {asset?.id === file.id && <i aria-hidden="true" />}
+            <span>{file.filename}{(file.version ?? 1) > 1 ? <small className="bl-asset-tab-meta">v{file.version}</small> : null}{mobile && file.device ? <small className="bl-asset-tab-meta">{file.device}</small> : null}</span>
+            {!!asset && versionGroup(asset) === versionGroup(file) && <i aria-hidden="true" />}
           </button>
         ))}
       </div>
+      {versions.length > 1 && asset && <select className="bl-asset-build-filter bl-asset-version" aria-label="File version" value={asset.id} disabled={hasDraft} onChange={(event) => { const file = versions.find(item => item.id === event.target.value); if (file) selectFile(file); }}>
+        {[...versions].reverse().map(file => <option key={file.id} value={file.id}>v{file.version ?? 1}{file.superseded_by ? "" : " (latest)"}</option>)}
+      </select>}
       {project && <button type="button" className="bl-review-manage-pages" disabled={hasDraft} title={hasDraft ? "Save or cancel your comment first" : undefined} onClick={() => setShowFiles(true)}>Manage files</button>}
     </div>
+    {earlierVersion && asset && <div className="bl-asset-version-note" role="status">
+      <span>You're viewing <strong>v{asset.version ?? 1}</strong> of {asset.filename}. Its comments stay here; new feedback goes on the latest version.</span>
+      {latestVersion && <button type="button" className="bl-button" onClick={() => selectFile(latestVersion)}>Open latest (v{latestVersion.version ?? 1})</button>}
+    </div>}
     {(() => {
       const notices = [
         ...[assets.error && availableAssets ? undefined : assets.error?.message, comments.error && visibleComments ? undefined : comments.error?.message, reanchorMutation.error?.message].filter(Boolean).map((error) => <p key={error} className="bl-error" role="alert">{error}</p>),
@@ -896,6 +914,6 @@ export function AssetReview({
         <span className="bl-review-comment-count">{fileThreads.length} comment{fileThreads.length === 1 ? "" : "s"} · {openThreads.length} open{isPdf && asset && asset.page_count > 1 ? ` · ${roots.length} on this page` : ""}</span>
       </div>
     </footer>
-    {showFiles && project && <ManageFilesDialog project={project} onClose={() => setShowFiles(false)} />}
+    {showFiles && project && <ManageFilesDialog project={project} onClose={() => setShowFiles(false)} onVersionUploaded={(saved, replaced) => { if (asset?.id === replaced.id) changeLocation(saved, 1, ""); }} />}
   </main>;
 }

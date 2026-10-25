@@ -281,7 +281,7 @@ function Message({ comment, showContext, extra }: { comment: CommentOut; showCon
         <div className="bl-cd-msg-meta">
           <span className="bl-cd-who">{comment.author_name}</span>
           <span className="bl-cd-time">
-            {comment.author_type === "guest" ? "Guest" : "Member"} · {timeAgo(comment.created_at)}
+            {comment.author_type === "guest" ? "Client" : "Team"} · {timeAgo(comment.created_at)}
           </span>
           {comment.layer === "team" && <span className="bl-cd-tag">Team only</span>}
         </div>

@@ -9657,6 +9657,33 @@
               }
             ],
             "title": "Platform"
+          },
+          "version_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Group"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By"
           }
         },
         "type": "object",
@@ -9889,6 +9916,19 @@
               }
             ],
             "title": "Platform"
+          },
+          "replaces_asset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces Asset Id"
           }
         },
         "type": "object",

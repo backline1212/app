@@ -23,6 +23,12 @@ class AssetOut(BaseModel):
     build_label: str | None = None
     device: str | None = None
     platform: str | None = None
+    # File versions (TDR-0165): every version is its own asset with its own pins.
+    # `version_group` is the original file's id (None on the original), `version`
+    # counts from 1, and `superseded_by` names the upload that replaced this one.
+    version_group: str | None = None
+    version: int = 1
+    superseded_by: str | None = None
 
 
 class AssetUpdate(BaseModel):

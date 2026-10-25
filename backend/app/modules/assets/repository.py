@@ -56,10 +56,59 @@ class AssetRepository:
         *,
         session: AsyncIOMotorClientSession | None = None,
     ) -> int:
+        # Earlier versions of a file don't use up the file limit (TDR-0165).
         return await self.db.project_assets.count_documents(
-            {"workspace_id": workspace_id, "project_id": project_id, "archived_at": None},
+            {
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "archived_at": None,
+                "superseded_by": None,
+            },
             session=session,
         )
+
+    async def versions(
+        self,
+        workspace_id: str,
+        project_id: str,
+        group: str,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> list[dict[str, Any]]:
+        """Every version of one file: the original (whose id names the group) and the
+        uploads that replaced it."""
+        cursor = self.db.project_assets.find(
+            {
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "$or": [{"_id": to_object_id(group)}, {"version_group": group}],
+            },
+            {"version": 1},
+            session=session,
+        )
+        return [doc async for doc in cursor]
+
+    async def mark_superseded(
+        self,
+        workspace_id: str,
+        project_id: str,
+        asset_id: str,
+        superseded_by: str,
+        *,
+        session: AsyncIOMotorClientSession,
+    ) -> bool:
+        """Only the current version can be replaced; False when it already was."""
+        result = await self.db.project_assets.update_one(
+            {
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "_id": to_object_id(asset_id),
+                "superseded_by": None,
+            },
+            {"$set": {"superseded_by": superseded_by}, "$inc": {"revision": 1}},
+            session=session,
+        )
+        return result.modified_count == 1
 
     async def list(
         self, workspace_id: str, project_id: str, *, include_archived: bool = False
