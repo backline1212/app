@@ -42,6 +42,7 @@ interface ProjectSidePanelProps {
   selectedCommentId?: string | null;
   /** Selects a comment and takes the canvas to its pin (ProjectOverviewPage). */
   onRevealComment?: (commentId: string) => void;
+  onMovePin?: (commentId: string) => void;
   /** Set each time a pin is clicked in the canvas - brings up the Comments tab on that
    * comment's detail. */
   openCommentRequest?: { commentId: string; nonce: number } | null;
@@ -72,6 +73,7 @@ export function ProjectSidePanel({
   currentPageId,
   selectedCommentId,
   onRevealComment,
+  onMovePin,
   openCommentRequest,
 }: ProjectSidePanelProps) {
   // BugHunt AI scans a live website; image and PDF projects have nothing for it to load.
@@ -155,6 +157,7 @@ export function ProjectSidePanel({
                 currentPageId={currentPageId}
                 selectedCommentId={selectedCommentId}
                 onRevealComment={onRevealComment}
+                onMovePin={onMovePin}
                 openCommentRequest={latestOpenRequest}
                 onOpenRequestHandled={setHandledNonce}
               />

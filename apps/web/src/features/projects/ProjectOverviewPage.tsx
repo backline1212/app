@@ -17,6 +17,7 @@ import { NewTicket } from "../tickets/components/NewTicket";
 import { listMembers } from "../workspaces/api";
 import { useAuth } from "../auth/AuthContext";
 import * as boardApi from "../board/api";
+import { useToast } from "../../components/Toast";
 import type { CommentOut, CommentStatus } from "../board/api";
 import * as shareLinksApi from "../share-links/api";
 import { reviewLinkState, useReviewLinkClock } from "../share-links/link-state";
@@ -135,6 +136,25 @@ export function ProjectOverviewPage() {
   const membersQuery = useQuery({ queryKey: qk.members(workspace.id), queryFn: () => listMembers(workspace.id), enabled: showTeamNote });
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
+  // "Move pin" (TDR-0186): which comment is waiting for the reviewer to pick an element.
+  const [moving, setMoving] = useState<string | null>(null);
+  const movingRef = useRef<string | null>(null);
+  movingRef.current = moving;
+  const { toast } = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  const reanchor = useMutation({
+    mutationFn: ({ commentId, anchor }: { commentId: string; anchor: Schemas["AnchorIn"] }) => boardApi.reanchorComment(commentId, anchor),
+    onSuccess: (saved) => {
+      postToCanvasRef.current({ type: "backline:comment-reanchored", comment: saved });
+      toast(`Pin for ${ticketRef(saved)} moved.`);
+      void queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId ?? "") });
+    },
+    onError: (error) => toast(error instanceof Error ? error.message : "Couldn't move the pin.", "error"),
+  });
+  const saveAnchorRef = useRef((commentId: string, anchor: unknown) => { reanchor.mutate({ commentId, anchor: anchor as Schemas["AnchorIn"] }); });
+  saveAnchorRef.current = (commentId: string, anchor: unknown) => { reanchor.mutate({ commentId, anchor: anchor as Schemas["AnchorIn"] }); };
+  const postToCanvasRef = useRef<(message: Record<string, unknown>) => void>(() => undefined);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   // A pin clicked in the canvas opens that comment's detail in the drawer. The nonce
   // makes a second click on the same pin (after going back to the list) count again.
@@ -476,6 +496,12 @@ export function ProjectOverviewPage() {
         void queryClient.invalidateQueries({ queryKey: qk.projectComments(projectId ?? "") });
         void queryClient.invalidateQueries({ queryKey: qk.projectPages(projectId ?? "") });
       }
+      if (data?.type === "backline:anchor-picked" || data?.type === "backline:anchor-pick-cancelled") {
+        if (typeof data.commentId !== "string" || movingRef.current !== data.commentId) return;
+        setMoving(null);
+        if (data.type === "backline:anchor-picked") saveAnchorRef.current(data.commentId, data.anchor);
+        else if (data.reason === "not-on-page") toastRef.current("That comment isn't on the page showing now.", "warning");
+      }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -637,6 +663,34 @@ export function ProjectOverviewPage() {
     const frame = canvasRef.current;
     frame?.contentWindow?.postMessage(message, canvasOrigin(frame));
   }
+  postToCanvasRef.current = postToCanvas;
+
+  /** "Move pin": take the canvas to the comment's page, then let the reviewer pick. */
+  function startMovePin(commentId: string) {
+    const comment = (commentsQuery.data ?? []).find((c) => c.id === commentId);
+    if (!comment) return;
+    if (comment.layer === "team") { toast("Team-only comments aren't shown in the canvas, so their pin can't be moved here.", "warning"); return; }
+    setSelectedCommentId(commentId);
+    const commentPage = sortedPages.find((page) => page.id === comment.page_id);
+    if (commentPage && commentPage.id !== activePage?.id) goToPage(commentPage.id, { keepSelection: true });
+    setMoving(commentId);
+  }
+  function cancelMovePin() {
+    postToCanvas({ type: "backline:cancel-pick" });
+    setMoving(null);
+  }
+  // Ask the widget to pick once it shows the comment's page.
+  const movingPageId = moving ? (commentsQuery.data ?? []).find((c) => c.id === moving)?.page_id ?? null : null;
+  useEffect(() => {
+    if (!moving || !widgetConnected || currentPageId !== movingPageId) return;
+    postToCanvasRef.current({ type: "backline:pick-anchor", commentId: moving });
+  }, [moving, widgetConnected, currentPageId, movingPageId]);
+  useEffect(() => {
+    if (!moving) return;
+    const onKey = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape") { postToCanvasRef.current({ type: "backline:cancel-pick" }); setMoving(null); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [moving]);
 
   /**
    * "Show me this comment", from the drawer's list or detail, or BugHunt AI: selects it
@@ -1058,6 +1112,12 @@ export function ProjectOverviewPage() {
       </div>
 
       <section className="bl-review-main" aria-label="Website review canvas">
+        {moving && (
+          <div className="bl-move-pin-banner" role="status">
+            <span>{reanchor.isPending ? "Saving the new pin…" : <>Click the element {(() => { const c = commentsQuery.data?.find((item) => item.id === moving); return c ? ticketRef(c) : "this comment"; })()} is about on the page. <kbd>Esc</kbd> cancels.</>}</span>
+            <button type="button" className="bl-quiet" onClick={cancelMovePin}>Cancel</button>
+          </div>
+        )}
         <div
           ref={stageRef}
           className={`bl-review-stage ${mode === "comment" || mode === "draw" ? "is-commenting" : "is-browsing"} ${mode === "draw" ? "is-drawing" : ""}`}
@@ -1241,6 +1301,7 @@ export function ProjectOverviewPage() {
           currentPageId={activePage?.id ?? null}
           selectedCommentId={selectedCommentId}
           onRevealComment={revealComment}
+          onMovePin={canTriage && !previewFailed ? startMovePin : undefined}
           openCommentRequest={openCommentRequest}
         />
       </section>

@@ -73,6 +73,14 @@ export async function uploadAttachment(projectId: string, file: File, parent?: A
 // Moderation delete (any comment in the caller's workspace, regardless of authorship) -
 // distinct from the widget's own-author-only guest self-service delete, which this
 // dashboard never calls.
+/** Point a website comment at a different element on its page (TDR-0186). */
+export function reanchorComment(commentId: string, anchor: Schemas["AnchorIn"]): Promise<CommentOut> {
+  return apiFetch<CommentOut>(`/api/v1/comments/${commentId}/reanchor`, {
+    method: "PATCH",
+    body: JSON.stringify({ anchor }),
+  });
+}
+
 export function deleteComment(commentId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/comments/${commentId}/moderate`, { method: "DELETE" });
 }

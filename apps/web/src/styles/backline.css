@@ -3293,3 +3293,8 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-file-approval.is-done{background:var(--mint-tint);color:var(--mint-deep);font-weight:600}
 td .bl-file-approval{margin-left:6px}
 .bl-asset-tab-approved{flex:none;color:var(--mint-deep)}
+/* Move pin (TDR-0186). */
+.bl-move-pin-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);padding:8px 12px;border:1px solid var(--ink);border-radius:3px;background:var(--bl-surface);box-shadow:0 8px 24px rgba(0,0,0,.12);font-size:12.5px}
+.bl-move-pin-banner kbd{padding:1px 5px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font:10px var(--mono)}
+.bl-cd-move-pin{margin-left:auto;padding:3px 8px;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface);font-size:11px;white-space:nowrap}
+.bl-cd-move-pin:hover{border-color:var(--ink)}
