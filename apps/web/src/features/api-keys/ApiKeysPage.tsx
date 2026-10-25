@@ -200,6 +200,10 @@ export function ApiKeysPage() {
             </button>
           </div>
           <pre className="bl-code">{example}</pre>
+          <p className="bl-mono">
+            Every endpoint, with request and response shapes:{" "}
+            <a href={`${API_BASE_URL.replace(/\/+$/, "")}/docs`} target="_blank" rel="noreferrer">API reference ↗</a>
+          </p>
         </div>
       </section>
 

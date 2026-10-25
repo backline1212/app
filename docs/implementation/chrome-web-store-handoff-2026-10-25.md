@@ -17,12 +17,19 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.8 (2026-10-25, supersedes 0.5.2-0.5.7)
+## Update ready: 0.5.9 (2026-10-25, supersedes 0.5.2-0.5.8)
+
+0.5.9 = 0.5.8 plus the composer hiding its keyboard hint on touch screens (TDR-0181), so
+the package matches the current widget source. Package 62674 bytes, SHA-256
+`9cf14930419766a535a92a2d91ea35c0a239b2dbe10a6f072e2ab925653a3afa`. Same targets and
+permissions. Submit 0.5.9.
+
+## Previous: 0.5.8 (2026-10-25)
 
 0.5.8 = 0.5.7 plus "Add an automatic screenshot of this page" in the composer, so a
 reviewer can leave the screenshot out (TDR-0176). Package 62603 bytes, SHA-256
 `b4f7008eeef81decb54b7cb01af3f19bba4b248ce771d2fbf63907e7ba813a1f`. Same targets and
-permissions. Submit 0.5.8.
+permissions.
 
 ## Previous: 0.5.7 (2026-10-25)
 
