@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.arq_pool import close_arq_pool
 from app.core.auth_origin import AuthOriginMiddleware
+from app.core.compression import SelectiveGZipMiddleware
 from app.core.config import get_settings
 from app.core.db import close_client, get_client, get_db
 from app.core.errors import register_exception_handlers
@@ -120,6 +121,8 @@ app.add_middleware(McpPathMiddleware)
 # Added last so it runs first: a preview-origin request is re-addressed to the proxy
 # before any other middleware or route sees its path.
 app.add_middleware(PreviewHostMiddleware)
+# Outermost: compresses API JSON and the widget script on the way out (TDR-0167).
+app.add_middleware(SelectiveGZipMiddleware)
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(workspaces_router, prefix="/api/v1")
 app.include_router(projects_router, prefix="/api/v1")

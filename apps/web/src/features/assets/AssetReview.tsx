@@ -233,7 +233,21 @@ export function AssetReview({
     if (!assetId || rawFilePage !== String(safePage) || requestedPageId !== asset.page_id) changeLocation(asset, safePage, selected, true);
   }, [assetId, asset, page, rawFilePage, requestedPageId, selected, resolvingRequested, locationProtected, changeLocation]);
   const commentKey = [...qk.assetComments(asset?.page_id), guest ?? 'member'];
-  const comments = useQuery({ queryKey: commentKey, queryFn: () => api.listAssetComments(asset!.page_id, guest), enabled: Boolean(asset), refetchInterval: 10000 });
+  const comments = useQuery({ queryKey: commentKey, queryFn: () => api.listAssetComments(asset!.page_id, guest), enabled: Boolean(asset) });
+  // Polls a small fingerprint every 10s and re-downloads the list only when it changed
+  // (TDR-0167) - guests have no realtime socket, and a busy file's list is large.
+  const commentsVersion = useQuery({ queryKey: [...commentKey, 'version'], queryFn: () => api.assetCommentsVersion(asset!.page_id, guest), enabled: Boolean(asset), refetchInterval: 10000 });
+  const seenVersion = useRef<string | null>(null);
+  useEffect(() => {
+    const version = commentsVersion.data?.version;
+    if (!version || !asset) return;
+    const next = `${asset.page_id}|${guest ?? ''}|${version}`;
+    const samePage = seenVersion.current?.startsWith(`${asset.page_id}|${guest ?? ''}|`);
+    if (samePage && seenVersion.current !== next) void cache.invalidateQueries({ queryKey: commentKey, exact: true });
+    seenVersion.current = next;
+  // commentKey is rebuilt every render; the page id and audience identify it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commentsVersion.data?.version, asset?.page_id, guest]);
   const commentAccessDenied = accessDenied(comments.error);
   const visibleComments = commentAccessDenied ? undefined : comments.data;
   // Every thread on this file (all PDF pages), oldest first so the list reads in the
