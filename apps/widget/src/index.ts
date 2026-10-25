@@ -20,7 +20,8 @@ import {
   type ComposerDetails,
 } from "./ui";
 import { setCardBottomInset } from "./ui-card";
-import { composerHasDraft, nudgeComposer, discardComposerForTeardown } from "./ui-composer";
+import { cancelEmptyComposer, composerHasDraft, nudgeComposer, discardComposerForTeardown } from "./ui-composer";
+import { createModeBar } from "./ui-mode-bar";
 import { postThreadReply } from "./thread-reply";
 import { parseUserAgent } from "./user-agent";
 import { setupRegionDrawer } from "./region-drawer";
@@ -415,6 +416,23 @@ async function init(config: BacklineConfig): Promise<void> {
     }
   };
   applyMode(currentMode);
+
+  // A reviewer on the real site gets Browse / Comment / Draw (TDR-0187); the dashboard
+  // canvas drives the mode itself, and a view-only canvas has nothing to switch.
+  if (window.parent === window && currentMode !== "view") {
+    (shadow.host as HTMLElement).dataset.toolbar = "true";
+    setCardBottomInset(70);
+    const bar = createModeBar(shadow, currentMode === "draw" ? "draw" : currentMode === "browse" ? "browse" : "comment", (next) => {
+      if (next === currentMode) return true;
+      // A half-written comment stays on screen until it's posted or cancelled.
+      if (composerHasDraft()) { nudgeComposer(); return false; }
+      cancelEmptyComposer();
+      threadManager.closeOpenThread();
+      applyMode(next);
+      return true;
+    });
+    cleanup.push(() => bar.remove());
+  }
 
   // Dashboard canvas only: "Move pin" (TDR-0186). The next click on the page picks the
   // element a comment should point at; the dashboard saves it with the member's own

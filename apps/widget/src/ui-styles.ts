@@ -98,6 +98,21 @@ const HOST_STYLES = `
     font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); max-width: 240px;
   }
   .bl-toast-offline { background: #8A5B00; color: #FFFFFF; }
+  /* Reviewer toolbar on the real site (ui-mode-bar.ts). */
+  .bl-modebar {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 2147483001;
+    display: flex; gap: 2px; padding: 4px; border-radius: 10px; background: #0B0B0B;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+  }
+  button.bl-modebar-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px;
+    border: 0; border-radius: 7px; background: transparent; color: #C9CBC7;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+  }
+  button.bl-modebar-btn:hover { color: #FFFFFF; background: rgba(255,255,255,0.08); }
+  button.bl-modebar-btn[aria-pressed="true"] { background: #FFFFFF; color: #0B0B0B; }
+  button.bl-modebar-btn:focus-visible { outline: 2px solid #69DEB2; outline-offset: 1px; }
+  :host([data-toolbar]) .bl-tooltip, :host([data-toolbar]) .bl-toast { bottom: 70px; }
   /* In the dashboard's canvas its quick-tools dock floats over the bottom of the frame. */
   :host([data-embedded]) .bl-tooltip, :host([data-embedded]) .bl-toast { bottom: 88px; }
   button.bl-attachment-remove {

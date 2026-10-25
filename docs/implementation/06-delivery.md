@@ -4905,3 +4905,8 @@ database migration, or production deployment is claimed.
 # 2026-10-25: Move pin (TDR-0186)
 
 - Editors can move or re-pin a website comment by clicking its new element in the canvas.
+
+# 2026-10-25: Reviewer toolbar on the real site (TDR-0187)
+
+- Clients get Browse / Comment / Draw on the reviewed site, so they can navigate it and
+  leave area comments.
