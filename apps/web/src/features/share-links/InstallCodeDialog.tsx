@@ -7,7 +7,7 @@ import type { ShareLinkOut } from "./api";
 /** The one-tag install for a "Website tools" link. The SDK reads the share token from
  * its own tag and talks to the API that served it, so there is no inline script for a
  * site's Content-Security-Policy to block. */
-export function installSnippet(token: string): string {
+function installSnippet(token: string): string {
   const api = API_BASE_URL.replace(/\/+$/, "");
   return `<script src="${api}/widget/sdk.js" data-share-token="${token}" async></script>`;
 }

@@ -37,12 +37,19 @@ export function QuickToolsDock({ environment, mode, canComment = true, toolsRead
     if (!menuOpen && !preferencesOpen) return;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
+      // Escape from inside the menu returns focus to its More button.
+      if (menuOpen && menuRef.current?.contains(document.activeElement)) menuRef.current.querySelector<HTMLButtonElement>(".bl-dock-btn")?.focus();
       setMenuOpen(false);
       setPreferencesOpen(false);
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [menuOpen, preferencesOpen]);
+
+  // Keyboard users land on the first item when the menu opens.
+  useEffect(() => {
+    if (menuOpen) menuRef.current?.querySelector<HTMLButtonElement>(".bl-dock-menu-item")?.focus();
+  }, [menuOpen]);
 
   useEffect(() => {
     localStorage.setItem("bl-dock-hidden", String(startHidden));
@@ -87,12 +94,19 @@ export function QuickToolsDock({ environment, mode, canComment = true, toolsRead
         )}
         <NotificationBell />
         <div className="bl-dock-divider" />
-        <div style={{ position: "relative" }} ref={menuRef}>
-          <button type="button" className="bl-dock-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="More" title="More">
+        <div
+          style={{ position: "relative" }}
+          ref={menuRef}
+          onBlur={(event) => {
+            // Tabbing out of the open menu closes it.
+            if (menuOpen && event.relatedTarget instanceof Node && !menuRef.current?.contains(event.relatedTarget)) setMenuOpen(false);
+          }}
+        >
+          <button type="button" className="bl-dock-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="More" title="More" aria-expanded={menuOpen} aria-controls="bl-dock-menu">
             <GearIcon width={16} height={16} />
           </button>
           {menuOpen && (
-            <div className="bl-dock-menu">
+            <div className="bl-dock-menu" id="bl-dock-menu">
               <div className="bl-dock-menu-head">Quick Tools</div>
               <button type="button" className="bl-dock-menu-item" onClick={() => setHidden(true)}>
                 Hide Toolbar <kbd>Ctrl .</kbd>
@@ -114,7 +128,7 @@ export function QuickToolsDock({ environment, mode, canComment = true, toolsRead
       </div>
 
       {preferencesOpen && (
-        <div className="bl-dock-prefs-modal" ref={prefRef}>
+        <div className="bl-dock-prefs-modal" ref={prefRef} role="dialog" aria-modal="true" aria-label="Preferences">
           <div className="bl-dock-prefs-head">
             <h3>Preferences</h3>
             <button type="button" className="bl-icon" aria-label="Close preferences" onClick={() => setPreferencesOpen(false)}>×</button>
