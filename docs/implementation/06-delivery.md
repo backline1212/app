@@ -4897,3 +4897,7 @@ database migration, or production deployment is claimed.
 # 2026-10-25: File approval on project cards (TDR-0185)
 
 - Project cards/table show how many current files are approved once any are.
+
+# 2026-10-25: Approval email (TDR-0184 addendum)
+
+- File approvals are emailed (link-only) to opted-in uploaders.
