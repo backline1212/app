@@ -283,9 +283,16 @@ const HOST_STYLES = `
     margin: 8px 0 0; border: 1px solid var(--bl-line); border-radius: 3px;
     background: var(--bl-paper); overflow: hidden;
   }
-  .bl-card .bl-cp-shot-preview img { display: block; width: 100%; max-height: 160px; object-fit: contain; object-position: top; background: #fff; }
-  .bl-card .bl-cp-shot-preview img[hidden] { display: none; }
+  .bl-card .bl-cp-shot-stage { display: flex; justify-content: center; background: #fff; }
+  /* Sized to the image itself (no letterboxing), so pointer positions map onto it. */
+  .bl-card .bl-cp-shot-canvas { position: relative; display: inline-block; cursor: crosshair; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .bl-card .bl-cp-shot-canvas[hidden], .bl-card .bl-cp-shot-preview img[hidden] { display: none; }
+  .bl-card .bl-cp-shot-preview img { display: block; max-width: 100%; max-height: 200px; width: auto; height: auto; pointer-events: none; }
+  .bl-card .bl-cp-shot-box { position: absolute; background: #111; pointer-events: none; }
+  .bl-card .bl-cp-shot-box.is-drawing { background: rgba(17, 17, 17, .65); outline: 1px dashed #fff; }
   .bl-card .bl-cp-shot-preview figcaption { padding: 6px 10px; font-size: 10.5px; line-height: 1.4; color: var(--bl-ink-3); }
+  .bl-card button.bl-cp-shot-clear { width: auto; height: auto; margin-left: 4px; padding: 0; border: 0; background: none; color: var(--bl-ink-2); font-size: 10.5px; font-weight: 600; text-decoration: underline; cursor: pointer; }
+  .bl-card button.bl-cp-shot-clear[hidden] { display: none; }
   .bl-card .bl-cv-media { display: block; width: 100%; max-height: 220px; margin-top: 8px; border-radius: 3px; background: #0B0B0B; }
   .bl-card audio.bl-cv-media { height: 36px; background: none; }
   .bl-card .bl-cp-ctx {
