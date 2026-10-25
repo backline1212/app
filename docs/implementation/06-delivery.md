@@ -4959,3 +4959,9 @@ database migration, or production deployment is claimed.
   friendly) with Copy code and setup notes.
 - Screenshots grey out `data-backline-private` content (SDK and extension) and include
   canvas charts and video frames.
+
+# 2026-10-25: Extension 0.5.11
+
+- Package with the screenshot Preview (TDR-0189) and `data-backline-private` masking
+  (TDR-0192); `apps/web/public/backline-extension-0.5.11.zip`, 64700 bytes, SHA-256
+  `7ed262a9…f129`. Dashboard offers 0.5.11; minimum supported stays 0.4.13.

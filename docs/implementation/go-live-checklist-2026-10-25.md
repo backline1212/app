@@ -51,7 +51,7 @@ Run from `backend` against production with the production environment loaded:
 
 ## 4. Browser extension
 
-Submit **0.5.10** (`apps/web/public/backline-extension-0.5.10.zip`, details in
+Submit **0.5.11** (`apps/web/public/backline-extension-0.5.11.zip`, details in
 [chrome-web-store-handoff-2026-10-25.md](chrome-web-store-handoff-2026-10-25.md)).
 It supersedes every earlier package. After approval set `VITE_EXTENSION_STORE_URL`.
 

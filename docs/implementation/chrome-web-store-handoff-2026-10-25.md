@@ -17,13 +17,21 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.10 (2026-10-25, supersedes 0.5.2-0.5.9)
+## Update ready: 0.5.11 (2026-10-25, supersedes 0.5.2-0.5.10)
+
+0.5.11 = 0.5.10 plus a **Preview** of the automatic screenshot in the composer (the
+previewed image is the one attached, TDR-0189) and screenshots that grey out content a
+site marks `data-backline-private` (TDR-0192). Package 64700 bytes, SHA-256
+`7ed262a99f4ba67b91b8015bfa9311b8faaa2208f88e2caa3e3be60abb51f129`. Same targets and
+permissions. Submit 0.5.11.
+
+## Previous: 0.5.10 (2026-10-25)
 
 0.5.10 = 0.5.9 rebuilt with the current widget code: clearer first-use hint and
 "Can't reach Backline - check your connection" instead of the browser's "Failed to
 fetch" (TDR-0187, delivery log). Package 63097 bytes, SHA-256
 `209ac8d4990bfa1cec466a212ff162fa0ab6dc27bb9cf99e14fc3190b48c6e8f`. Same targets and
-permissions. Submit 0.5.10.
+permissions.
 
 ## Previous: 0.5.9 (2026-10-25)
 
