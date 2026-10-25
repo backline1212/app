@@ -53,6 +53,13 @@ export default {
         "status-in-progress": withOpacity("--tw-status-in-progress"), // #F59E0B
         "status-resolved": withOpacity("--tw-status-resolved"), // #22C55E
         "status-wont-fix": withOpacity("--tw-status-wont-fix"), // #64748B
+        // Badge text (Badge.tsx): darker than the tint colours above in light mode.
+        "status-todo-ink": withOpacity("--tw-status-todo-ink"),
+        "status-in-progress-ink": withOpacity("--tw-status-in-progress-ink"),
+        "status-in-review-ink": withOpacity("--tw-status-in-review-ink"),
+        "status-blocked-ink": withOpacity("--tw-status-blocked-ink"),
+        "status-resolved-ink": withOpacity("--tw-status-resolved-ink"),
+        "status-wont-fix-ink": withOpacity("--tw-status-wont-fix-ink"),
         "recovery-low-confidence": withOpacity("--tw-recovery-low-confidence"), // #F59E0B
         // #EF4444 (red-500) only hit 3.51:1 against bg-canvas - short of WCAG AA's 4.5:1
         // for normal text (Milestone 11 axe-core audit, docs/tdr/0010). #B91C1C (red-700)

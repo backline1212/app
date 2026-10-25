@@ -17,12 +17,12 @@ export type BadgeTone =
 const toneClasses: Record<BadgeTone, string> = {
   "layer-client": "bg-layer-client/15 text-layer-client",
   "layer-team": "bg-layer-team/15 text-layer-team",
-  "status-todo": "bg-status-todo/15 text-status-todo",
-  "status-in-progress": "bg-status-in-progress/15 text-status-in-progress",
-  "status-in-review": "bg-status-in-review/15 text-status-in-review",
-  "status-blocked": "bg-status-blocked/15 text-status-blocked",
-  "status-resolved": "bg-status-resolved/15 text-status-resolved",
-  "status-wont-fix": "bg-status-wont-fix/15 text-status-wont-fix line-through",
+  "status-todo": "bg-status-todo/15 text-status-todo-ink",
+  "status-in-progress": "bg-status-in-progress/15 text-status-in-progress-ink",
+  "status-in-review": "bg-status-in-review/15 text-status-in-review-ink",
+  "status-blocked": "bg-status-blocked/15 text-status-blocked-ink",
+  "status-resolved": "bg-status-resolved/15 text-status-resolved-ink",
+  "status-wont-fix": "bg-status-wont-fix/15 text-status-wont-fix-ink line-through",
   "recovery-low-confidence": "border border-recovery-low-confidence text-recovery-low-confidence",
   "recovery-orphaned": "border border-recovery-orphaned text-recovery-orphaned",
 };

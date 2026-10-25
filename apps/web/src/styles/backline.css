@@ -68,6 +68,11 @@
      :root.dark block (bottom of this file) for the dark-mode values and why. */
   --tw-status-todo:148 163 184; --tw-status-in-progress:245 158 11; --tw-status-in-review:57 101 134;
   --tw-status-blocked:163 61 31; --tw-status-resolved:34 197 94; --tw-status-wont-fix:100 116 139;
+  /* Badge text on its own 15% tint: the base colours above are for dots/tints and fall
+     short of AA as text (todo 2.0:1, resolved 1.8:1 in an axe-core audit). Each ink
+     clears 4.5:1 on its tint. */
+  --tw-status-todo-ink:71 85 105; --tw-status-in-progress-ink:146 64 14; --tw-status-in-review-ink:44 79 105;
+  --tw-status-blocked-ink:140 50 24; --tw-status-resolved-ink:22 101 52; --tw-status-wont-fix-ink:71 85 105;
   --tw-layer-client:7 89 133; --tw-layer-team:109 40 217;
   --tw-recovery-low-confidence:245 158 11; --tw-recovery-orphaned:185 28 28;
 
@@ -1952,6 +1957,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 :root.dark{
   --tw-status-todo:148 163 184; --tw-status-in-progress:245 191 92; --tw-status-in-review:120 170 214;
   --tw-status-blocked:224 138 106; --tw-status-resolved:74 222 148; --tw-status-wont-fix:148 158 150;
+  --tw-status-todo-ink:148 163 184; --tw-status-in-progress-ink:245 191 92; --tw-status-in-review-ink:120 170 214;
+  --tw-status-blocked-ink:224 138 106; --tw-status-resolved-ink:74 222 148; --tw-status-wont-fix-ink:148 158 150;
   --tw-layer-client:110 189 232; --tw-layer-team:196 165 232;
   --tw-recovery-low-confidence:245 191 92; --tw-recovery-orphaned:240 128 107;
 }
@@ -3162,7 +3169,7 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-domain-steps{margin:10px 0 0;padding-left:18px;color:var(--ink-2);font-size:12px;line-height:1.7}
 .bl-domain-steps code{padding:1px 5px;border-radius:3px;background:var(--bl-paper);font:11px var(--mono);word-break:break-all}
 /* Branded client review pages: the workspace's accent replaces Backline mint. */
-.bl-branded{--mint-deep:var(--bl-brand-accent);--bl-accent:var(--bl-brand-accent)}
+.bl-branded{--mint-deep:var(--bl-brand-ink,var(--bl-brand-accent));--bl-accent:var(--bl-brand-accent)}
 .bl-brand-logo{width:32px;height:32px;flex:none;border-radius:6px;object-fit:contain;background:var(--bl-surface)}
 .bl-gate-brand{display:flex;align-items:center;gap:9px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line-soft)}
 .bl-gate-brand strong{font-size:13px}.bl-gate-brand a{margin-left:auto;color:var(--ink-3);font-size:11px}

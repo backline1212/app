@@ -10,6 +10,7 @@ import * as reviewApi from "./api";
 import { GuestBoard } from "./GuestBoard";
 import { NativeReviewButton } from "./NativeReviewButton";
 import type { PublicBranding } from "../workspaces/branding-api";
+import { readableInk } from "../../lib/readable-color";
 import {
   clearStoredGuestSession,
   getStoredGuestSession,
@@ -452,8 +453,11 @@ function useReviewBranding(branding: PublicBranding | null | undefined) {
     if (!accent) return;
     const root = document.documentElement;
     root.style.setProperty("--bl-brand-accent", accent);
+    // Text and icons drawn in the accent (on white and on the light tint) stay readable
+    // even when the brand colour is light; fills keep the exact brand colour.
+    root.style.setProperty("--bl-brand-ink", readableInk(accent, ["#FFFFFF", "#E3F8EF", "#F1F2F0"]) ?? accent);
     root.classList.add("bl-branded");
-    return () => { root.style.removeProperty("--bl-brand-accent"); root.classList.remove("bl-branded"); };
+    return () => { root.style.removeProperty("--bl-brand-accent"); root.style.removeProperty("--bl-brand-ink"); root.classList.remove("bl-branded"); };
   }, [branding?.accent_color]);
 }
 

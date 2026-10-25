@@ -4864,3 +4864,7 @@ database migration, or production deployment is claimed.
 # 2026-10-25: Undo for closing tickets and bulk changes (TDR-0179)
 
 - Undo after resolving/closing a ticket on the Tickets page and after a bulk change.
+
+# 2026-10-25: Contrast fixes (TDR-0180)
+
+- Status badges, table priority labels and light client brand colours meet WCAG AA.
