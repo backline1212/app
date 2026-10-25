@@ -4928,3 +4928,9 @@ database migration, or production deployment is claimed.
   body return 409, OTP/share-link response wording, proxy streaming with the test
   client, and provider fixtures. Per AGENTS.md this round verified with lint, typecheck,
   build and browser runs rather than rewriting the suite; updating those tests is open.
+
+# 2026-10-25: Dashboard Content-Security-Policy (TDR-0188)
+
+- The web app now sends a full policy (own scripts only, no inline script or eval); the
+  theme bootstrap moved to `public/theme-init.js`. Verified with zero violations across
+  the dashboard, previews, file/PDF review and guest pages.
