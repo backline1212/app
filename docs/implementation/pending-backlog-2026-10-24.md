@@ -24,7 +24,7 @@ Priority: **P1** before a wider pilot; **P2** next reliability/product work;
 - **Acceptance:** implementation exists, but the stated scenario needs evidence.
 - **Roadmap:** an explicitly unshipped capability, separate from a defect.
 
-## Status update - 2026-10-25 (TDR-0146 to TDR-0168)
+## Status update - 2026-10-25 (TDR-0146 to TDR-0185)
 
 Source changes merged since this inventory (each with its TDR and delivery-log entry);
 rollout and browser/provider acceptance still apply as described below.
@@ -47,14 +47,16 @@ rollout and browser/provider acceptance still apply as described below.
 | FLOW-06 capture control | Source: reviewers can leave the automatic screenshot out (`capture_status: skipped`, TDR-0176). Capture preview remains. |
 | FLOW-05 open on site | Source: Open with extension from a selected thread opens it on the live page, after sign-in too (TDR-0174). Manual reanchor and preview/verification history remain. |
 | FLOW-04 own comments | Source: Edit/Delete/Mark resolved on the reviewer's own comment in widget, extension and file review (TDR-0172); reply attachments everywhere (TDR-0175); one overlay when snippet + extension (TDR-0169). Mentions stay dashboard-only by decision. |
-| SUG-07 interaction consistency | Partial: axe-core WCAG A/AA clean on main pages (TDR-0166); manual a11y acceptance open. |
-| BUG-08 (DOM/privacy) | Unchanged. |
+| SUG-07 interaction consistency | Partial: axe-core WCAG A/AA clean on main pages (TDR-0166) and this round's screens, with badge/priority/brand contrast fixed (TDR-0180); manual a11y acceptance open. |
+| BUG-08 (DOM/privacy) | Partial: reviewers can leave the automatic screenshot out (TDR-0176); other items unchanged. |
 | New fixes | Sign-in self-revocation (TDR-0156), stale-chunk crash after deploys (TDR-0159), double widget in preview (TDR-0162), missing-file state (TDR-0161), client reply emails (TDR-0164), security headers (TDR-0168). |
+| New capabilities | Ticket bulk triage (TDR-0177), printable review report (TDR-0178), digest counts and due reminders (TDR-0183), file version approval with notification/email and project-card summary (TDR-0184/0185). |
 
-Operator follow-ups from this round: submit extension 0.5.2 to the Chrome Web Store and
-set `VITE_EXTENSION_STORE_URL` after approval; run
-`scripts.migrate_ticket_numbers --apply` and `scripts.migrate_event_projects --apply`
-(dry-run first); make sure the Arq worker and email provider run for client emails;
+Operator follow-ups from this round: submit extension **0.5.9** to the Chrome Web Store
+(supersedes every earlier package; see the handoff doc) and set
+`VITE_EXTENSION_STORE_URL` after approval; run `scripts.migrate_ticket_numbers --apply`
+and `scripts.migrate_event_projects --apply` (dry-run first); make sure the Arq worker
+and an email provider run (client reply/resolved emails, approval emails, digests);
 optionally run `scripts.gc_unreferenced_uploads` (dry-run, then `--apply`).
 
 ## Current evidence and first decision
