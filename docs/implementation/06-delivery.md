@@ -5028,3 +5028,14 @@ database migration, or production deployment is claimed.
   successfully, so it was a transient deploy failure. Railway logs were not reachable
   from this environment.
 - `pending-and-suggestions-2026-10-25.md` updated with the second batch.
+
+# 2026-10-25: Second intermittent API deploy failure; start-up timing log
+
+- Railway's API deploy also failed on `6d575ed` (extension 0.5.12) while the worker built
+  the same commit; `1047d28` and `d43781d` deployed fine, so the failure is intermittent
+  and not tied to the changed files. `/health` only checks Mongo and Redis. Without the
+  Railway logs (not reachable from here) the cause is unconfirmed.
+- The API now logs `Startup: indexes Xs, storage Ys` on the uvicorn logger before
+  "Application startup complete", so the next failed deploy's logs show whether start-up
+  stalled (index checks or the storage bucket) or never began (build or image pull).
+  This change also redeploys the API with current code.
