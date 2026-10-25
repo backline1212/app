@@ -132,6 +132,84 @@ async def _evidence_visible(
     return bool(rows and await _visible(db, doc["workspace_id"], membership, rows[0], {}))
 
 
+async def _digest_counts(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    workspace_id: str,
+    membership: dict[str, Any],
+    since: datetime,
+    until: datetime,
+) -> dict[str, int]:
+    """Counts only - the digest stays link-only, so no comment text leaves Backline in
+    an email. Every count is limited to projects the member can open right now."""
+    repo = CommentRepository(db)
+    cache: dict[str, dict[str, Any] | None] = {}
+    new = 0
+    for row in await repo.count_created_by_page(workspace_id, since, until):
+        if await _visible(db, workspace_id, membership, {"page_id": row["_id"]}, cache):
+            new += int(row["count"])
+    now = datetime.now(UTC)
+    overdue = due_soon = 0
+    due = await repo.open_assigned_due_before(
+        workspace_id, membership["user_id"], now + timedelta(hours=24)
+    )
+    for ticket in due:
+        if not await _visible(db, workspace_id, membership, ticket, cache):
+            continue
+        due_at = ticket["due_at"]
+        due_at = due_at.replace(tzinfo=UTC) if due_at.tzinfo is None else due_at
+        if due_at < now:
+            overdue += 1
+        else:
+            due_soon += 1
+    return {"new": new, "overdue": overdue, "due_soon": due_soon}
+
+
+def _plural(count: int, one: str, many: str) -> str:
+    return f"{count} {one if count == 1 else many}"
+
+
+def _yours(count: int) -> str:
+    return _plural(count, "of your tickets is", "of your tickets are")
+
+
+def _digest_envelope(
+    to: str, workspace: dict[str, Any], user_id: str, doc: dict[str, Any], counts: dict[str, int]
+) -> dict[str, str]:
+    base = get_settings().public_dashboard_base_url.rstrip("/")
+    tickets = f"{base}/w/{quote(workspace['slug'], safe='')}/tickets"
+    mine = quote(user_id, safe="")
+    items: list[str] = []
+    subject: list[str] = []
+    if counts["new"]:
+        items.append(
+            f"{_plural(counts['new'], 'new comment or reply', 'new comments and replies')}"
+            " in projects you can open"
+        )
+        subject.append(_plural(counts["new"], "new comment", "new comments"))
+    if counts["overdue"]:
+        link = escape(f"{tickets}?view=overdue&assignee={mine}", quote=True)
+        items.append(f'<a href="{link}">{_yours(counts["overdue"])} overdue</a>')
+        subject.append(_plural(counts["overdue"], "overdue ticket", "overdue tickets"))
+    if counts["due_soon"]:
+        link = escape(f"{tickets}?view=mine&sort=due", quote=True)
+        items.append(f'<a href="{link}">{_yours(counts["due_soon"])} due in the next 24 hours</a>')
+        subject.append(_plural(counts["due_soon"], "due soon", "due soon"))
+    period = f"{doc['since'].date().isoformat()} to {doc['until'].date().isoformat()}"
+    listing = "".join(f"<li>{item}</li>" for item in items) or "<li>New feedback is available.</li>"
+    return {
+        "to": to,
+        "subject": "Backline: " + " · ".join(subject)
+        if subject
+        else "Backline daily feedback digest",
+        "html": (
+            f"<p>Your Backline summary for {escape(workspace.get('name') or 'your workspace')}, "
+            f"{period}:</p><ul>{listing}</ul>"
+            f'<p><a href="{escape(tickets, quote=True)}">Open your feedback</a></p>'
+            "<p>Manage daily digest emails in your Backline account settings.</p>"
+        ),
+    }
+
+
 async def _send_claimed(
     db: AsyncIOMotorDatabase[dict[str, Any]], doc: dict[str, Any]
 ) -> Literal["sent", "skipped", "failed", "pending"]:
@@ -141,6 +219,7 @@ async def _send_claimed(
     if recipient is None:
         return "skipped"
     user, membership, workspace = recipient
+    counts: dict[str, int] | None = None
     evidence = doc.get("candidate_comment_id")
     if not evidence or not await _evidence_visible(db, doc, membership, evidence):
         comments = await CommentRepository(db).digest_page(
@@ -161,7 +240,13 @@ async def _send_claimed(
         ):
             return "pending"
         if evidence is None:
-            return "pending" if len(comments) == 200 else "skipped"
+            if len(comments) == 200:
+                return "pending"
+            # No new feedback they can see - still worth a reminder about their own
+            # overdue or nearly due tickets.
+            counts = await _digest_counts(db, workspace_id, membership, doc["since"], doc["until"])
+            if counts["overdue"] + counts["due_soon"] == 0:
+                return "skipped"
 
     envelope = doc.get("envelope")
     if envelope is not None and envelope["to"] != user["email"]:
@@ -172,20 +257,10 @@ async def _send_claimed(
     ) <= datetime.now(UTC):
         return "failed"
     if envelope is None:
-        link = (
-            get_settings().public_dashboard_base_url.rstrip("/")
-            + f"/w/{quote(workspace['slug'], safe='')}/tickets"
+        counts = counts or await _digest_counts(
+            db, workspace_id, membership, doc["since"], doc["until"]
         )
-        envelope = {
-            "to": user["email"],
-            "subject": "Backline daily feedback digest",
-            "html": (
-                "<p>New feedback is available in Backline for the period "
-                f"{doc['since'].date().isoformat()} to {doc['until'].date().isoformat()}.</p>"
-                f'<p><a href="{escape(link, quote=True)}">Open your authorized feedback</a></p>'
-                "<p>Manage daily digest emails in your Backline account settings.</p>"
-            ),
-        }
+        envelope = _digest_envelope(user["email"], workspace, doc["user_id"], doc, counts)
         if not await repo.save_progress(
             workspace_id,
             delivery_id,
@@ -196,7 +271,7 @@ async def _send_claimed(
     current = await _recipient(db, workspace_id, doc["user_id"])
     if current is None or current[0]["email"] != envelope["to"]:
         return "skipped"
-    if not await _evidence_visible(db, doc, current[1], evidence):
+    if evidence and not await _evidence_visible(db, doc, current[1], evidence):
         return "pending"
     await send_email(
         to=envelope["to"],

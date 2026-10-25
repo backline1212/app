@@ -4883,3 +4883,8 @@ database migration, or production deployment is claimed.
 
 - API keys page links the public API reference (`/docs`). Extension 0.5.9 rebuilt so the
   store package matches the current widget source. Submit 0.5.9.
+
+# 2026-10-25: Digest counts and due reminders (TDR-0183)
+
+- Daily digest shows how many new comments arrived and the member's overdue / due-soon
+  tickets (counts only, link-only); due tickets alone trigger a reminder.
