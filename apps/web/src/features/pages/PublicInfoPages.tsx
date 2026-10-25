@@ -28,12 +28,13 @@ function InfoShell({ title, children }: { title: string; children: React.ReactNo
 export function PrivacyPage() {
   return (
     <InfoShell title="Privacy notice">
-      <p className="bl-info-lead">This notice explains what Backline receives when you use its website-review extension and portal. Last updated October 23, 2026.</p>
+      <p className="bl-info-lead">This notice explains what Backline receives when you use its website-review extension and portal. Last updated October 25, 2026.</p>
 
       <section>
         <h2>What a review sends to Backline</h2>
         <p>When you connect the extension, Backline uses your account email, workspace and project identifiers, and Backline access or review credentials to authorize the connection. The extension keeps connection information in Chrome extension storage and short-lived review state in Chrome session storage.</p>
         <p>When a reviewer starts a website review, Backline can receive the reviewed page URL and title, a normalized snapshot of visible page text and selected HTML attributes, element anchors, and browser/viewport context. A snapshot can include personal or confidential information visible on that page. When the reviewer saves feedback, Backline receives the comment, its location and context, and any screenshot or attachment the reviewer chooses to capture or add. A project setting controls additional browser, operating-system and device details saved with new comments.</p>
+        <p>Before posting, a reviewer can preview the automatic screenshot, black out parts of it, or leave it out; a blacked-out area is removed in the reviewer's browser before the image is uploaded. A site owner can mark content with the <code>data-backline-private</code> attribute: it is left out of page snapshots and shown as a grey block in automatic screenshots. Form fields, editable areas and their typed values are not copied into snapshots.</p>
         <p>The extension inspects open tab URLs to find the selected project and return tab. It does not request Chrome browsing-history or cookies permissions, read saved website passwords, or copy a website's sign-in credentials into Backline. Your sign-in to the reviewed website remains in that website's own browser tab.</p>
       </section>
 
@@ -51,7 +52,7 @@ export function PrivacyPage() {
 
       <section>
         <h2>Your choices and contact</h2>
-        <p>Only start a review on a site you are authorized to review. You can avoid adding screenshots or attachments, and a workspace can turn off optional browser/device detail capture for new comments. To ask about your data or report a privacy issue, email <a href={`mailto:${supportEmail}`}>{supportEmail}</a>. Do not email passwords, verification codes or access tokens.</p>
+        <p>Only start a review on a site you are authorized to review. You can avoid adding screenshots or attachments, black out parts of a screenshot before posting, and a workspace can turn off optional browser/device detail capture for new comments. Every daily digest and feedback notification email has an Unsubscribe link, and email preferences can be changed in your Backline account settings. To ask about your data or report a privacy issue, email <a href={`mailto:${supportEmail}`}>{supportEmail}</a>. Do not email passwords, verification codes or access tokens.</p>
       </section>
     </InfoShell>
   );

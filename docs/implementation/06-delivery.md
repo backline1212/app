@@ -4994,3 +4994,9 @@ database migration, or production deployment is claimed.
 - Share links show as cards under 640 px (type, status, expiry, created and actions
   visible without sideways scrolling). Checked at 390 px: no page overflow, the dialog
   fits, Escape closes it and focus returns to its button.
+
+# 2026-10-25: Privacy notice brought up to date
+
+- `/privacy` (dated October 25, 2026) now describes screenshot preview, black-outs,
+  `data-backline-private` masking, and the Unsubscribe link in digest/feedback emails.
+  Facts only; the owner should still review the notice as a whole before launch.
