@@ -4868,3 +4868,8 @@ database migration, or production deployment is claimed.
 # 2026-10-25: Contrast fixes (TDR-0180)
 
 - Status badges, table priority labels and light client brand colours meet WCAG AA.
+
+# 2026-10-25: Client updates decision, touch hint (TDR-0181)
+
+- FEAT-09 decided: per-event client emails, no client digest; inert setting stays hidden.
+- Keyboard hint hidden on touch screens.
