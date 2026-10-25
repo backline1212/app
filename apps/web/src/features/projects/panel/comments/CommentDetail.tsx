@@ -319,6 +319,9 @@ function Message({ comment, showContext, extra }: { comment: CommentOut; showCon
         {showContext && !comment.screenshot_url && comment.capture_status === "failed" && (
           <span className="bl-comment-shot-failed">Screenshot capture failed</span>
         )}
+        {showContext && comment.capture_status === "skipped" && (
+          <span className="bl-comment-shot-skipped">No screenshot: the reviewer chose not to include one</span>
+        )}
         {showContext && (tech || selector) && (
           <div className="bl-cd-tech">
             {tech && <div>{tech}</div>}

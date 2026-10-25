@@ -4846,3 +4846,8 @@ database migration, or production deployment is claimed.
 
 - Reviewers can attach files to replies on websites, in the extension and in image/PDF
   review; the widget now shows attachments on replies. Submit 0.5.7 (supersedes 0.5.6).
+
+# 2026-10-25: Optional automatic screenshot, extension 0.5.8 (TDR-0176)
+
+- Reviewers can untick "Add an automatic screenshot of this page"; such comments are
+  stored as `capture_status: skipped` and labelled in the dashboard.

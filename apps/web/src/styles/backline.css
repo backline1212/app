@@ -1417,7 +1417,7 @@ button{letter-spacing:inherit}
 .bl-comment-reply-count{display:inline-flex;align-items:center;gap:4px;color:var(--ink-4);font:10px var(--mono)}
 .bl-comment-reply-count:hover{color:var(--ink)}
 .bl-comment-shot{display:block;width:64px;height:64px;flex:none;border:1px solid var(--line);border-radius:2px;object-fit:cover}
-.bl-comment-shot-failed{color:var(--ink-4);font:10px var(--mono)}
+.bl-comment-shot-failed,.bl-comment-shot-skipped{color:var(--ink-4);font:10px var(--mono)}
 .bl-comment-menu{min-width:170px}
 .bl-comment-orphaned{opacity:.85}
 .bl-comment-shot-link{align-self:flex-start}

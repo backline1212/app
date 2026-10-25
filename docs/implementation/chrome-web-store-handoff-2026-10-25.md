@@ -17,11 +17,18 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.7 (2026-10-25, supersedes 0.5.2-0.5.6)
+## Update ready: 0.5.8 (2026-10-25, supersedes 0.5.2-0.5.7)
+
+0.5.8 = 0.5.7 plus "Add an automatic screenshot of this page" in the composer, so a
+reviewer can leave the screenshot out (TDR-0176). Package 62603 bytes, SHA-256
+`b4f7008eeef81decb54b7cb01af3f19bba4b248ce771d2fbf63907e7ba813a1f`. Same targets and
+permissions. Submit 0.5.8.
+
+## Previous: 0.5.7 (2026-10-25)
 
 0.5.7 = 0.5.6 plus file attachments on replies during a review (TDR-0175). Package
 62354 bytes, SHA-256 `6c5450b6358de3565bfb23191695768ddfe89cc20716b0f30eab4b09ee26a939`.
-Same targets and permissions. Submit 0.5.7.
+Same targets and permissions.
 
 ## Previous: 0.5.6 (2026-10-25)
 

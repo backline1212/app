@@ -244,6 +244,10 @@ const HOST_STYLES = `
   .bl-card .bl-cp-diag[hidden] { display: none; }
   .bl-card .bl-cp-diag input { margin: 0; accent-color: #0B0B0B; }
   .bl-card .bl-cp-diag svg { color: #C2361B; flex: none; }
+  .bl-card .bl-cp-diag.bl-cp-shot-opt {
+    border-color: var(--bl-line); background: var(--bl-paper); color: var(--bl-ink-2);
+  }
+  .bl-card .bl-cp-shot-opt svg { color: var(--bl-ink-4); }
   .bl-card .bl-cv-media { display: block; width: 100%; max-height: 220px; margin-top: 8px; border-radius: 3px; background: #0B0B0B; }
   .bl-card audio.bl-cv-media { height: 36px; background: none; }
   .bl-card .bl-cp-ctx {
