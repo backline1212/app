@@ -81,10 +81,26 @@ export async function uploadNativeAttachment(api: ApiClient, projectId: string, 
   }
 }
 
+// Content a site marks data-backline-private is covered by grey blocks for the
+// moment of the capture, as the SDK's DOM capture does.
+function maskPrivateAreas(): () => void {
+  const masks: HTMLElement[] = [];
+  for (const element of Array.from(document.querySelectorAll("[data-backline-private]")).slice(0, 500)) {
+    const box = element.getBoundingClientRect();
+    if (box.width <= 0 || box.height <= 0 || box.bottom <= 0 || box.right <= 0 || box.top >= innerHeight || box.left >= innerWidth) continue;
+    const mask = document.createElement("div");
+    mask.style.cssText = `position:fixed;left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px;background:#d5dad7;z-index:2147483647;pointer-events:none;`;
+    document.documentElement.appendChild(mask);
+    masks.push(mask);
+  }
+  return () => masks.forEach(mask => mask.remove());
+}
+
 export async function captureNativeScreenshot(): Promise<Blob | null> {
   const hosts = Array.from(document.querySelectorAll<HTMLElement>("[data-backline-root]"));
   const prior = hosts.map(host => host.style.visibility);
   hosts.forEach(host => { host.style.visibility = "hidden"; });
+  const unmask = maskPrivateAreas();
   try {
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     const data = await nativeMessage<string>("native-review-capture", { url: location.href });
@@ -93,6 +109,7 @@ export async function captureNativeScreenshot(): Promise<Blob | null> {
   } catch {
     return null; // comment capture_status records failed; never fabricate a screenshot
   } finally {
+    unmask();
     hosts.forEach((host, i) => { host.style.visibility = prior[i]; });
   }
 }
