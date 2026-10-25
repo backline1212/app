@@ -14,6 +14,7 @@ import { TicketToolbar } from "./components/TicketToolbar";
 import { NewTicket } from "./components/NewTicket";
 import { TicketDetail } from "./components/TicketDetail";
 import { DeleteTicketDialog } from "./components/DeleteTicket";
+import { BulkBar, BulkResultNote, type BulkResult } from "./components/BulkBar";
 import { useTickets } from "./use-tickets";
 
 const VIEW_LAYOUTS = [
@@ -56,6 +57,27 @@ export function TicketsPage() {
     assignees,
     offset,
   } = useTickets(workspace.id, params, setParams);
+  // Bulk triage selection: screen state for this list, not a filter, so not in the URL.
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
+  const selectedTickets = tickets.filter((t) => selectedIds.has(t.id) && update.canEdit(t));
+  // A different filter, tab or page starts a new selection; opening a ticket keeps it.
+  const listKey = (() => { const key = new URLSearchParams(params); key.delete("comment"); return key.toString(); })();
+  useEffect(() => { setSelectedIds(new Set()); setBulkResult(null); }, [listKey]);
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleAll(ids: string[], selected: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const id of ids) { if (selected) next.add(id); else next.delete(id); }
+      return next;
+    });
+  }
 
   const tabCounts: Record<string, number | undefined> = {
     all: dashboard.data?.tickets,
@@ -193,6 +215,13 @@ export function TicketsPage() {
         </p>
       ))}
 
+      {bulkResult && <BulkResultNote result={bulkResult} onDismiss={() => setBulkResult(null)} />}
+      {selectedTickets.length > 0 && display !== "board" && display !== "calendar" && (
+        <BulkBar workspaceId={workspace.id} selected={selectedTickets} members={members.data ?? []}
+          onClear={() => setSelectedIds(new Set())}
+          onDone={(result) => { setBulkResult(result); setSelectedIds(new Set(result.failedIds)); }} />
+      )}
+
       {display === "board" ? (
         <TicketBoard tickets={tickets} members={members.data ?? []} update={update} onOpen={(id) => set("comment", id)} />
       ) : display === "calendar" ? (
@@ -216,11 +245,15 @@ export function TicketsPage() {
                 onFilterProject={(id) => set("project_id", id)}
                 onFilterTag={(tag) => set("tag", tag)}
                 onDelete={setDeleting}
+                selectedIds={selectedIds}
+                onToggle={toggleSelected}
+                onToggleAll={toggleAll}
               />
             ) : (
               <div className="bl-table-wrap">
                 {rows.map((t) => (
-                  <TicketRow key={t.id} ticket={t} members={members.data ?? []} update={update} onOpen={(id) => set("comment", id)} onFilterTag={(tag) => set("tag", tag)} onDelete={setDeleting} />
+                  <TicketRow key={t.id} ticket={t} members={members.data ?? []} update={update} onOpen={(id) => set("comment", id)} onFilterTag={(tag) => set("tag", tag)} onDelete={setDeleting}
+                    selected={selectedIds.has(t.id)} onToggle={toggleSelected} />
                 ))}
               </div>
             )}
