@@ -12,10 +12,32 @@ export function installSnippet(token: string): string {
   return `<script src="${api}/widget/sdk.js" data-share-token="${token}" async></script>`;
 }
 
+/** Where the tag goes on common platforms. Kept short: each is the menu path a site
+ * owner follows, ending at "paste the tag". */
+function platformGuides(code: string, token: string, api: string): Array<{ name: string; steps: string[]; code?: string }> {
+  return [
+    { name: "WordPress", steps: ["Install a header-and-footer code plugin (for example WPCode), or edit your child theme's footer.php.", "Paste the tag into the site-wide footer (before </body>) and save."] },
+    { name: "Webflow", steps: ["Site settings → Custom code → Footer code.", "Paste the tag, save, then publish the site. Custom code needs a paid site plan."] },
+    { name: "Shopify", steps: ["Online Store → Themes → … → Edit code → layout/theme.liquid.", "Paste the tag just before </body> and save."] },
+    { name: "Squarespace", steps: ["Settings → Advanced → Code Injection → Footer.", "Paste the tag and save."] },
+    { name: "Wix", steps: ["Settings → Custom code → Add custom code.", "Paste the tag, choose All pages and Body - end, then apply."] },
+    { name: "Google Tag Manager", steps: ["New tag → Custom HTML, paste the tag.", "Trigger: All Pages (or only your staging hostname). Submit and publish the container."] },
+    {
+      name: "Next.js",
+      steps: ["In app/layout.tsx (or pages/_document.tsx), add the script with next/script:"],
+      code: `import Script from "next/script";
+
+<Script src="${api}/widget/sdk.js" data-share-token="${token}" strategy="afterInteractive" />`,
+    },
+    { name: "Plain HTML, React, Vue", steps: ["Add the tag to the shared page template (index.html or your layout), just before </body>."], code },
+  ];
+}
+
 export function InstallCodeDialog({ link, reviewUrl, onClose }: { link: ShareLinkOut; reviewUrl: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
   const code = installSnippet(link.token);
+  const guides = platformGuides(code, link.token, API_BASE_URL.replace(/\/+$/, ""));
   let apiOrigin = API_BASE_URL;
   try { apiOrigin = new URL(API_BASE_URL).origin; } catch { /* keep the configured value */ }
 
@@ -42,6 +64,16 @@ export function InstallCodeDialog({ link, reviewUrl, onClose }: { link: ShareLin
         </div>
         <pre className="bl-code">{code}</pre>
         {copyError && <p role="alert" className="bl-error">{copyError}</p>}
+        <div className="bl-install-guides" aria-label="Where to add it">
+          <span className="bl-mono">Where to add it</span>
+          {guides.map((guide) => (
+            <details key={guide.name}>
+              <summary>{guide.name}</summary>
+              <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+              {guide.code && <pre className="bl-code">{guide.code}</pre>}
+            </details>
+          ))}
+        </div>
         <ul className="bl-install-notes">
           <li>Send reviewers the review link, <span className="bl-mono">{reviewUrl}</span>. It opens the site signed in to this review. People who visit the site directly are asked for their name first.</li>
           <li>Anyone who can open a page with this tag can leave feedback, so install it on a staging site or give the link a passcode.</li>

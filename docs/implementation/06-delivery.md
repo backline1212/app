@@ -4985,3 +4985,12 @@ database migration, or production deployment is claimed.
 
 - Reviewers drag across the previewed screenshot to black out private areas; the stored
   image has them burned in.
+
+# 2026-10-25: Install guides; share links on phones
+
+- The Install code dialog lists where the tag goes on WordPress, Webflow, Shopify,
+  Squarespace, Wix, Google Tag Manager, Next.js and plain HTML/React/Vue (Next.js with a
+  `next/script` example).
+- Share links show as cards under 640 px (type, status, expiry, created and actions
+  visible without sideways scrolling). Checked at 390 px: no page overflow, the dialog
+  fits, Escape closes it and focus returns to its button.

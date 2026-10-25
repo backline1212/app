@@ -129,7 +129,7 @@ export function ShareLinksPage() {
           </div>
         ) : (
           <div className="bl-table-wrap">
-            <table className="bl-table">
+            <table className="bl-table bl-share-links-table">
               <thead>
                 <tr>
                   <th>Link</th>
@@ -152,13 +152,13 @@ export function ShareLinksPage() {
                         {!!link.domain_restrictions?.length && <small className="bl-error">Old website filter - it doesn't check who the reviewer is. Replace this link with a passcode-protected one.</small>}
                         {link.comment_export_permission && <small>Guest export is unavailable.</small>}
                       </td>
-                      <td>{modeLabel(link.mode)}</td>
-                      <td>
+                      <td data-label="Type">{modeLabel(link.mode)}</td>
+                      <td data-label="Status">
                         <span className={`bl-access-state${state === "active" ? " is-on" : ""}`}><i />{state === "revoked" ? "Revoked" : state === "expired" ? "Expired" : "Active"}</span>
                       </td>
-                      <td>{link.expires_at ? new Date(link.expires_at).toLocaleDateString() : "Never"}</td>
-                      <td>{new Date(link.created_at).toLocaleDateString()}</td>
-                      <td style={{ textAlign: "right" }}>
+                      <td data-label="Expires">{link.expires_at ? new Date(link.expires_at).toLocaleDateString() : "Never"}</td>
+                      <td data-label="Created">{new Date(link.created_at).toLocaleDateString()}</td>
+                      <td className="bl-share-link-actions">
                         {!revoked && (
                           <>
                             <button type="button" className="bl-quiet" disabled={state !== "active"} onClick={() => copyLink(link.id, link.token)}>
