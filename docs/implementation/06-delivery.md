@@ -4970,3 +4970,8 @@ database migration, or production deployment is claimed.
 
 - The SDK uses a constructed stylesheet, so sites with `style-src 'self'` show a styled
   widget. Not yet in an extension package (after 0.5.11).
+
+# 2026-10-25: Old extension packages removed from the web app
+
+- `apps/web/public` keeps only the current (0.5.11) and previous (0.5.10) extension ZIPs;
+  the dashboard links only the current one. Older packages remain in git history.
