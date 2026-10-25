@@ -1280,6 +1280,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/guest-sessions/current/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Guest Handoff */
+        post: operations["create_guest_handoff_api_v1_guest_sessions_current_handoff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/guest-sessions/handoff/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Redeem Guest Handoff */
+        post: operations["redeem_guest_handoff_api_v1_guest_sessions_handoff_redeem_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/guest-sessions": {
         parameters: {
             query?: never;
@@ -3848,6 +3882,23 @@ export interface components {
             project_id: string;
             /** Items */
             items: components["schemas"]["GuestBoardItemOut"][];
+        };
+        /**
+         * GuestHandoffOut
+         * @description A one-time code that carries a guest's review session to the website under
+         *     review, so the session token itself never appears in that site's URL (where the
+         *     site's own analytics or logs could record it before the widget removes it).
+         */
+        GuestHandoffOut: {
+            /** Code */
+            code: string;
+            /** Expires In */
+            expires_in: number;
+        };
+        /** GuestHandoffRedeem */
+        GuestHandoffRedeem: {
+            /** Code */
+            code: string;
         };
         /** GuestSessionCreate */
         GuestSessionCreate: {
@@ -8756,6 +8807,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_guest_handoff_api_v1_guest_sessions_current_handoff_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-guest-session"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestHandoffOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    redeem_guest_handoff_api_v1_guest_sessions_handoff_redeem_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestHandoffRedeem"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestSessionOut"];
+                };
             };
             /** @description Validation Error */
             422: {

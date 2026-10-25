@@ -48,6 +48,8 @@ export function ReviewEntryPage() {
     null,
   );
   const [showBoard, setShowBoard] = useState(false);
+  const [openingSite, setOpeningSite] = useState(false);
+  const [openError, setOpenError] = useState("");
 
   const {
     data: resolved,
@@ -112,10 +114,9 @@ export function ReviewEntryPage() {
       const destination = resolved.mode === "proxy"
         ? new URL(`${proxyBase}${initial.pathname}${initial.search}${initial.hash}`)
         : initial;
-      destination.searchParams.set("backline_guest", session.guestSessionToken);
-      destination.searchParams.set("backline_name", session.displayName);
       // Every website reviewer can choose native browser review before being sent
-      // into a proxy that may not support the site's authentication.
+      // into a proxy that may not support the site's authentication. The session is
+      // added to this address only when the reviewer opens it (openWebsiteReview).
       setPendingHandoff({ token: session.guestSessionToken, destination: destination.href });
     },
     [shareToken, resolved],
@@ -183,6 +184,35 @@ export function ReviewEntryPage() {
     } finally {
       joining.current = false;
       setIsSubmitting(false);
+    }
+  }
+
+  async function openWebsiteReview() {
+    if (!pendingHandoff || openingSite) return;
+    const { token, destination } = pendingHandoff;
+    setOpenError("");
+    setOpeningSite(true);
+    // Opened synchronously so the click still counts for pop-up blockers; the address
+    // follows once the one-time code is ready.
+    const opened = window.open("about:blank", "_blank");
+    if (opened) opened.opener = null;
+    try {
+      const url = new URL(destination);
+      try {
+        url.searchParams.set("backline_handoff", (await reviewApi.createGuestHandoff(token)).code);
+      } catch (failure) {
+        // An API from before one-time codes: hand the session over the older way.
+        if (!(failure instanceof ApiError && [404, 405].includes(failure.status))) throw failure;
+        url.searchParams.set("backline_guest", token);
+        url.searchParams.set("backline_name", displayName);
+      }
+      if (opened) opened.location.href = url.href;
+      else window.location.assign(url.href);
+    } catch (failure) {
+      opened?.close();
+      setOpenError(failure instanceof Error ? failure.message : "Could not open the website review. Try again.");
+    } finally {
+      setOpeningSite(false);
     }
   }
 
@@ -278,7 +308,8 @@ export function ReviewEntryPage() {
             {siteNeedsLogin === "yes" && <NativeReviewButton projectId={resolved.project_id} url={resolved.start_url ?? resolved.target_origin}
               guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} />}
             {siteNeedsLogin === "no" && <>
-              <a className="bl-button" href={pendingHandoff.destination} target="_blank" rel="noopener noreferrer">Open website review ↗</a>
+              <button type="button" className="bl-button" disabled={openingSite || !online} onClick={() => void openWebsiteReview()}>{openingSite ? "Opening…" : "Open website review ↗"}</button>
+              {openError && <p role="alert" className="bl-error">{openError}</p>}
               <details><summary>Page doesn't load or asks for sign-in?</summary><p>Open the real website with the extension to keep its normal login.</p><NativeReviewButton projectId={resolved.project_id} url={resolved.start_url ?? resolved.target_origin} guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} /></details>
             </>}
             {resolved.show_board_to_client && <button className="bl-quiet" style={{ width: "100%" }} onClick={() => setShowBoard(true)}>

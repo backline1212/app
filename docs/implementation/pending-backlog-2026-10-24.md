@@ -40,6 +40,7 @@ rollout and browser/provider acceptance still apply as described below.
 | OPT-03 measurement | Partial: 2,000-comment local measurement; API gzip (5.4 MB → 53 KB) (TDR-0167). |
 | SUG-09 file replacement | Source: file versions with per-version pins (TDR-0165). |
 | SUG-11 search | Source: ticket-number search, clients in search (TDR-0153/0157). |
+| FLOW-01 URL bearer handoff | Source: single-use, two-minute handoff code replaces the session token in the website URL (TDR-0173). Installation ID/allowed-origin setup remains. |
 | FLOW-04 own comments | Source: Edit/Delete/Mark resolved on the reviewer's own comment in widget, extension and file review (TDR-0172); one overlay when snippet + extension (TDR-0169). Reply attachments/mentions in the widget remain. |
 | SUG-07 interaction consistency | Partial: axe-core WCAG A/AA clean on main pages (TDR-0166); manual a11y acceptance open. |
 | BUG-08 (DOM/privacy) | Unchanged. |

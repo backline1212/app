@@ -41,19 +41,42 @@ export function clearStoredGuestSession(shareToken: string): void {
 // (redirected to the agency's own site) and proxy mode (redirected to Backline's own
 // /proxy/{token}/ route, which injects this exact script). Without this, the widget
 // would immediately prompt for a name *again*, right after the guest just gave one.
-function getGuestSessionFromQueryParam(): StoredGuestSession | null {
+// FLOW-01: current dashboards send `backline_handoff`, a code that works once for two
+// minutes, so the session token never sits in the site's URL. `backline_guest` (the
+// token itself) is still read for links opened from an older dashboard.
+type UrlHandoff = { code: string } | StoredGuestSession;
+
+function takeHandoffFromUrl(): UrlHandoff | null {
   const params = new URLSearchParams(window.location.search);
+  const code = params.get("backline_handoff");
   const token = params.get("backline_guest");
-  if (!token) return null;
+  if (!code && !token) return null;
   const displayName = params.get("backline_name") ?? "";
 
+  params.delete("backline_handoff");
   params.delete("backline_guest");
   params.delete("backline_name");
   const query = params.toString();
   const cleanedUrl = window.location.pathname + (query ? `?${query}` : "") + window.location.hash;
   window.history.replaceState(null, "", cleanedUrl);
 
-  return { guestSessionToken: token, displayName };
+  return code ? { code } : { guestSessionToken: token!, displayName };
+}
+
+async function redeemHandoff(api: ApiClient, handoff: UrlHandoff | null): Promise<StoredGuestSession | null> {
+  if (!handoff || !("code" in handoff)) return handoff;
+  try {
+    const session = await api.request<Schemas["GuestSessionOut"]>("/api/v1/guest-sessions/handoff/redeem", {
+      method: "POST",
+      body: JSON.stringify({ code: handoff.code }),
+    });
+    return { guestSessionToken: session.guest_session_token, displayName: session.display_name };
+  } catch (error) {
+    // Already used (a reload of the first URL) or expired: this tab may still hold the
+    // session it redeemed earlier, which the caller falls back to.
+    if (error instanceof WidgetApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 // The dashboard's own canvas preview (ProjectOverviewPage) is only ever opened by a
@@ -115,7 +138,7 @@ export async function ensureGuestSession(
   promptForName: () => Promise<string>,
   expectedShareLinkId: string,
 ): Promise<StoredGuestSession> {
-  const fromHandoff = getGuestSessionFromQueryParam();
+  const fromHandoff = await redeemHandoff(api, takeHandoffFromUrl());
   const existing = fromHandoff ?? getStoredGuestSession(shareToken);
   if (existing) {
     try {

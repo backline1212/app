@@ -4545,6 +4545,96 @@
         }
       }
     },
+    "/api/v1/guest-sessions/current/handoff": {
+      "post": {
+        "tags": [
+          "share-links"
+        ],
+        "summary": "Create Guest Handoff",
+        "operationId": "create_guest_handoff_api_v1_guest_sessions_current_handoff_post",
+        "parameters": [
+          {
+            "name": "x-guest-session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestHandoffOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/guest-sessions/handoff/redeem": {
+      "post": {
+        "tags": [
+          "share-links"
+        ],
+        "summary": "Redeem Guest Handoff",
+        "operationId": "redeem_guest_handoff_api_v1_guest_sessions_handoff_redeem_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestHandoffRedeem"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/guest-sessions": {
       "post": {
         "tags": [
@@ -12652,6 +12742,40 @@
           "items"
         ],
         "title": "GuestBoardOut"
+      },
+      "GuestHandoffOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "expires_in"
+        ],
+        "title": "GuestHandoffOut",
+        "description": "A one-time code that carries a guest's review session to the website under\nreview, so the session token itself never appears in that site's URL (where the\nsite's own analytics or logs could record it before the widget removes it)."
+      },
+      "GuestHandoffRedeem": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 20,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "GuestHandoffRedeem"
       },
       "GuestSessionCreate": {
         "properties": {
