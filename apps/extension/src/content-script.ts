@@ -306,9 +306,14 @@ function clearContext(): void {
   context = null;
 }
 
+// Set on <html> while this tab is in extension review, so a Backline snippet the site
+// itself embeds stands down instead of showing a second toolbar (widget index.ts).
+const EXTENSION_REVIEW_ATTR = "data-backline-extension-review";
+
 async function startNativeReview(): Promise<void> {
   const info = await nativeMessage<NativeReviewInfo | null>("native-review-info");
   if (!info) return;
+  document.documentElement.setAttribute(EXTENSION_REVIEW_ATTR, "active");
   if (composerHasDraft()) throw new Error("Finish or cancel your current comment first.");
   clearContext();
   toolbar?.remove();
@@ -329,6 +334,7 @@ async function startNativeReview(): Promise<void> {
     clearContext();
     nativeInfo = null;
     toolbar = null;
+    document.documentElement.removeAttribute(EXTENSION_REVIEW_ATTR);
   });
   try {
     await nativeMessage("native-review-ready", { launchId: info.launchId });
@@ -341,6 +347,7 @@ async function startNativeReview(): Promise<void> {
     toolbar?.remove();
     toolbar = null;
     nativeInfo = null;
+    document.documentElement.removeAttribute(EXTENSION_REVIEW_ATTR);
     throw error;
   }
 }

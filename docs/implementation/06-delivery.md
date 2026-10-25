@@ -4805,3 +4805,8 @@ database migration, or production deployment is claimed.
 
 - Dashboard can't be framed; nosniff/referrer/permissions policies on dashboard and API;
   API JSON is not cached.
+
+# 2026-10-25: Extension + snippet coexistence, extension 0.5.3 (TDR-0169)
+
+- A site's own Backline snippet steps aside while the extension reviews the tab.
+  End-to-end extension run verified locally. Submit 0.5.3 to the Web Store.

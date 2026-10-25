@@ -48,6 +48,12 @@ async function withRetry<T>(run: () => Promise<T>, delays = [800, 2500]): Promis
   }
 }
 
+// Set by the Backline extension's content script while it reviews this tab.
+const EXTENSION_REVIEW_ATTR = "data-backline-extension-review";
+// Set once an embed stood down for the extension; its interrupted start-up then
+// rejects, which must not be reported as an error.
+let stoodDown = false;
+
 async function init(config: BacklineConfig): Promise<void> {
   // Start collecting console/network failures straight away so they are available to
   // "Attach console & network errors" in the composer. Kept in memory only.
@@ -67,6 +73,24 @@ async function init(config: BacklineConfig): Promise<void> {
     () => { if (guestToken) endSession(); },
   );
   const shadow = createShadowRoot();
+  // The Backline extension reviewing this tab takes over: this embed removes itself
+  // quietly (its saved session is kept for the next visit).
+  function standDown(): void {
+    if (ended) return;
+    ended = true;
+    stoodDown = true;
+    guestToken = null;
+    api.close();
+    listenerLifetime.abort();
+    discardComposerForTeardown();
+    cleanup.forEach((stop) => stop());
+    shadow.host.remove();
+  }
+  const extensionWatch = new MutationObserver(() => {
+    if (document.documentElement.hasAttribute(EXTENSION_REVIEW_ATTR)) standDown();
+  });
+  extensionWatch.observe(document.documentElement, { attributes: true, attributeFilter: [EXTENSION_REVIEW_ATTR] });
+  cleanup.push(() => extensionWatch.disconnect());
   function endSession(): void {
     if (ended) return;
     ended = true;
@@ -594,6 +618,10 @@ declare global {
 // dashboard canvas, which then stops claiming "click the page to place a pin".
 function safeInit(config: BacklineConfig): Promise<void> {
   const page = window as { __backlineProxyToken?: string; __backlineStarted?: Set<string> };
+  if (document.documentElement.hasAttribute(EXTENSION_REVIEW_ATTR)) {
+    console.info("[Backline] This page's own Backline embed is paused while the extension reviews it.");
+    return Promise.resolve();
+  }
   // In Backline's review preview the proxy injects its own widget; a snippet the site
   // already embeds (another review link) would start a second toolbar whose session
   // can't match this preview - it stands down.
@@ -606,6 +634,7 @@ function safeInit(config: BacklineConfig): Promise<void> {
   if (page.__backlineStarted.has(config.shareToken)) return Promise.resolve();
   page.__backlineStarted.add(config.shareToken);
   return init(config).catch((error: unknown) => {
+    if (stoodDown) return;
     const message = error instanceof Error ? error.message : String(error);
     console.error("[Backline] Commenting could not start:", error);
     const roots = document.querySelectorAll("[data-backline-root]");
