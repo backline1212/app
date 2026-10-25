@@ -15,11 +15,13 @@ interface Props {
   guest?: Extract<NativeReviewAuth, { kind: "guest" }>;
   onGuestSessionExpired?: () => void;
   triggerRef?: Ref<HTMLButtonElement>;
+  /** A thread selected in Backline; the extension opens it on the page. */
+  focusCommentId?: string;
 }
 
 type Phase = "checking" | "setup" | "update" | "reload" | "opening" | "waiting" | "connected" | "error";
 
-export function NativeReviewButton({ projectId, url, member, guest, onGuestSessionExpired, triggerRef }: Props) {
+export function NativeReviewButton({ projectId, url, member, guest, onGuestSessionExpired, triggerRef, focusCommentId }: Props) {
   const online = useOnlineStatus();
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("checking");
@@ -85,7 +87,7 @@ export function NativeReviewButton({ projectId, url, member, guest, onGuestSessi
       }
       if (!current()) return;
       launchAttempted = true;
-      const result = await extensionRequest<NativeReviewLaunchResult>("launch", { projectId, url, returnUrl: window.location.href, auth }, controller.signal);
+      const result = await extensionRequest<NativeReviewLaunchResult>("launch", { projectId, url, returnUrl: window.location.href, auth, focusCommentId }, controller.signal);
       credentialRetained = true;
       if (!current()) return;
       setHasConnected(result.ready);

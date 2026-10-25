@@ -15,7 +15,7 @@ export { composerHasDraft, nudgeComposer, cancelEmptyComposer, discardComposerFo
 export { setCardBottomInset } from "./ui-card";
 export type { ComposerDetails, ComposerResult } from "./ui";
 
-export { anchorPointFor, computeAnchor, computeRegionAnchor, resolveAnchorElement } from "./anchor";
+export { anchorPointFor, computeAnchor, computeRegionAnchor, resolveAnchorElement, waitForAnchorElement } from "./anchor";
 
 export { uploadAttachment, uploadScreenshot } from "./attachment-upload";
 

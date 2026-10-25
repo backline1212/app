@@ -1,5 +1,6 @@
 import type { NativeReviewInfo, Schemas } from "@backline/types";
 import {
+  anchorPointFor,
   computeAnchor,
   createApiClient,
   createCommentSubmission,
@@ -22,6 +23,7 @@ import {
   showTooltip,
   uploadAttachment,
   uploadScreenshot,
+  waitForAnchorElement,
   type CommentRecord,
   type ComposerDetails,
 } from "@backline/widget";
@@ -345,6 +347,7 @@ async function startNativeReview(): Promise<void> {
   });
   try {
     await nativeMessage("native-review-ready", { launchId: info.launchId });
+    if (info.focus && samePage(info.focus.url, location.href)) void focusComment(info, info.focus.commentId);
   } catch (error) {
     if (reviewServiceUnavailable(error)) {
       toolbar?.error("Backline is temporarily unavailable. Keep this tab open; the toolbar will retry when the service returns.");
@@ -357,6 +360,54 @@ async function startNativeReview(): Promise<void> {
     document.documentElement.removeAttribute(EXTENSION_REVIEW_ATTR);
     throw error;
   }
+}
+
+function samePage(a: string, b: string): boolean {
+  try {
+    const left = new URL(a);
+    const right = new URL(b);
+    const route = (url: URL) => url.hash.startsWith("#/") || url.hash.startsWith("#!/") ? url.hash : "";
+    return left.origin === right.origin && left.pathname === right.pathname && route(left) === route(right);
+  } catch {
+    return false;
+  }
+}
+
+// FLOW-05: a review opened from a thread selected in Backline shows that thread here -
+// Comment mode on, scrolled to its element, card open. Kept for later page loads until
+// the tab reaches the thread's page (after a sign-in redirect, say), then cleared.
+async function focusComment(info: NativeReviewInfo, commentId: string): Promise<void> {
+  void nativeMessage("native-review-focused", { launchId: info.launchId }).catch(() => undefined);
+  try {
+    await activate("point");
+    if (nativeInfo !== info) return;
+    toolbar?.setMode("point");
+  } catch (error) {
+    toolbar?.error(error instanceof Error ? error.message : "Choose Comment to see this page's feedback.");
+    return;
+  }
+  const ctx = context;
+  const thread = ctx?.threadManager.threadMessages.get(commentId);
+  if (!ctx || !thread?.length) {
+    toolbar?.error("The comment you opened isn't on this page any more. It may have moved, been resolved elsewhere or been removed.");
+    return;
+  }
+  const anchor = thread[0].anchor;
+  const element = await waitForAnchorElement(anchor);
+  if (context !== ctx) return;
+  if (!element) {
+    toolbar?.error("This page doesn't show the element the comment points to right now. Sign in or open the same state, then choose Comment.");
+    return;
+  }
+  element.scrollIntoView({ behavior: "smooth", block: "center" });
+  // Let the scroll and the pin's own position tracking settle first.
+  setTimeout(() => {
+    if (context !== ctx) return;
+    const pin = ctx.threadManager.pinsByTopId.get(commentId)?.pin;
+    const point = anchorPointFor(element, anchor);
+    const shown = pin && pin.style.display !== "none";
+    ctx.threadManager.openThreadForComment(commentId, shown ? parseFloat(pin.style.left) : point.x, shown ? parseFloat(pin.style.top) : point.y);
+  }, 400);
 }
 
 const isolatedWindow = window as Window & { __backlineExtensionLoaded?: boolean };

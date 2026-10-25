@@ -4836,3 +4836,8 @@ database migration, or production deployment is claimed.
 
 - "Open website review" now passes a single-use, two-minute code instead of the guest
   session token and name in the reviewed site's URL (FLOW-01).
+
+# 2026-10-25: Open the selected thread on the live site, extension 0.5.6 (TDR-0174)
+
+- "Open with extension" from a selected thread lands on the live page with that
+  thread open (FLOW-05). Submit 0.5.6 to the Web Store (supersedes 0.5.5).

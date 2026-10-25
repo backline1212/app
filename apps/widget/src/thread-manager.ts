@@ -262,7 +262,14 @@ export function createThreadManager({
     const mine = own?.isOwn(thread[0]) ? {
       edit: async (body: string) => { handleCommentUpdated(await own.edit(topId, body)); },
       remove: async () => { await own.remove(topId); handleCommentDeleted(topId, topId); },
-      resolve: resolveOwn ? async () => { handleCommentUpdated(await resolveOwn(topId)); } : null,
+      // Marked first, so the realtime echo of this change isn't announced back to its
+      // own author as "Your comment was updated".
+      resolve: resolveOwn ? async () => {
+        const before = threadMessages.get(topId)?.[0]?.status;
+        setThreadStatus(topId, "resolved");
+        try { handleCommentUpdated(await resolveOwn(topId)); }
+        catch (error) { if (before) setThreadStatus(topId, before); throw error; }
+      } : null,
     } : null;
     const controls = openCommentView(
       shadow,
