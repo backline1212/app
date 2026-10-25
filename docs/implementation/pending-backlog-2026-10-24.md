@@ -41,6 +41,7 @@ rollout and browser/provider acceptance still apply as described below.
 | SUG-09 file replacement | Source: file versions with per-version pins (TDR-0165). |
 | SUG-11 search | Source: ticket-number search, clients in search (TDR-0153/0157). |
 | FLOW-01 URL bearer handoff | Source: single-use, two-minute handoff code replaces the session token in the website URL (TDR-0173). Installation ID/allowed-origin setup remains. |
+| BUG-07 orphaned uploads | Source: operator cleanup script for uploads no comment used, dry-run first (TDR-0182). Run it on production after review. |
 | FEAT-09 client digest | Decided: per-event client emails (reply, resolved), no digest; `client_digest_enabled` stays inert and hidden (TDR-0181). |
 | FEAT-08 undo | Partial: Undo for closing a ticket and for bulk changes (TDR-0179); no persisted global history. |
 | FLOW-06 capture control | Source: reviewers can leave the automatic screenshot out (`capture_status: skipped`, TDR-0176). Capture preview remains. |
@@ -53,7 +54,8 @@ rollout and browser/provider acceptance still apply as described below.
 Operator follow-ups from this round: submit extension 0.5.2 to the Chrome Web Store and
 set `VITE_EXTENSION_STORE_URL` after approval; run
 `scripts.migrate_ticket_numbers --apply` and `scripts.migrate_event_projects --apply`
-(dry-run first); make sure the Arq worker and email provider run for client emails.
+(dry-run first); make sure the Arq worker and email provider run for client emails;
+optionally run `scripts.gc_unreferenced_uploads` (dry-run, then `--apply`).
 
 ## Current evidence and first decision
 

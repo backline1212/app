@@ -4873,3 +4873,8 @@ database migration, or production deployment is claimed.
 
 - FEAT-09 decided: per-event client emails, no client digest; inert setting stays hidden.
 - Keyboard hint hidden on touch screens.
+
+# 2026-10-25: Unreferenced upload cleanup script (TDR-0182)
+
+- `scripts.gc_unreferenced_uploads` (dry-run first) removes uploads no comment ever
+  used and returns their quota. Operator: run the dry run, review, then `--apply`.
