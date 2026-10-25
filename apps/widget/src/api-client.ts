@@ -39,15 +39,23 @@ export function createApiClient(
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     requireOpen();
     const auth = getAuthHeader();
-    const response = await nativeFetch(`${apiBaseUrl}${path}`, {
-      ...init,
-      signal: init.signal ?? lifetime.signal,
-      headers: {
-        "Content-Type": "application/json",
-        ...auth,
-        ...init.headers,
-      },
-    });
+    let response: Response;
+    try {
+      response = await nativeFetch(`${apiBaseUrl}${path}`, {
+        ...init,
+        signal: init.signal ?? lifetime.signal,
+        headers: {
+          "Content-Type": "application/json",
+          ...auth,
+          ...init.headers,
+        },
+      });
+    } catch (error) {
+      // The browser's own wording ("Failed to fetch") means nothing to a reviewer.
+      // Status 0 keeps it retryable for callers that retry network failures.
+      if (error instanceof DOMException && error.name === "AbortError") throw error;
+      throw new WidgetApiError(0, "NETWORK_ERROR", "Can't reach Backline - check your connection.");
+    }
     requireOpen();
 
     if (!response.ok) {

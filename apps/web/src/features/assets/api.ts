@@ -23,7 +23,13 @@ export async function assetRequest<T>(path: string, guest?: string, init?: Reque
   const writing = init?.method && init.method !== 'GET';
   return boundedRequest(30_000, writing ? 'Saving timed out and may already have completed. Retry the original request or check the file before saving again.' : 'Loading this review timed out. Try again.', async signal => {
     if (!guest) return apiFetch<T>(path, { ...init, signal });
-    const response = await fetch(`${API_BASE_URL}${path}`, { ...init, signal, credentials: 'omit', cache: 'no-store', headers: { 'Content-Type': 'application/json', 'X-Guest-Session': guest, ...init?.headers } });
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}${path}`, { ...init, signal, credentials: 'omit', cache: 'no-store', headers: { 'Content-Type': 'application/json', 'X-Guest-Session': guest, ...init?.headers } });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') throw error;
+      throw new ApiError(0, 'NETWORK_ERROR', "Can't reach Backline right now. Check your connection and try again.");
+    }
     if (!response.ok) throw await toApiError(response, "REVIEW_ERROR", "The review could not be loaded.");
     return (response.status === 204 ? undefined : response.json()) as Promise<T>;
   }, init?.signal);
