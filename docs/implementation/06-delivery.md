@@ -4965,3 +4965,8 @@ database migration, or production deployment is claimed.
 - Package with the screenshot Preview (TDR-0189) and `data-backline-private` masking
   (TDR-0192); `apps/web/public/backline-extension-0.5.11.zip`, 64700 bytes, SHA-256
   `7ed262a9…f129`. Dashboard offers 0.5.11; minimum supported stays 0.4.13.
+
+# 2026-10-25: Widget styled under strict site CSP (TDR-0193)
+
+- The SDK uses a constructed stylesheet, so sites with `style-src 'self'` show a styled
+  widget. Not yet in an extension package (after 0.5.11).

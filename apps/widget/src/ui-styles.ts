@@ -374,14 +374,29 @@ const HOST_STYLES = `
   .bl-cv-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 `;
 
+// A constructed stylesheet isn't inline markup, so a site whose CSP forbids inline
+// styles (style-src without 'unsafe-inline') still gets a styled widget. Browsers
+// without constructable stylesheets get the <style> element as before.
+function adoptHostStyles(shadow: ShadowRoot): void {
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(HOST_STYLES);
+    shadow.adoptedStyleSheets = [sheet];
+    return;
+  } catch {
+    // Fall through to an inline <style>.
+  }
+  const style = document.createElement("style");
+  style.textContent = HOST_STYLES;
+  shadow.appendChild(style);
+}
+
 export function createShadowRoot(): ShadowRoot {
   const host = document.createElement("div");
   host.setAttribute("data-backline-root", "true");
   document.body.appendChild(host);
   const shadow = host.attachShadow({ mode: "open" });
-  const style = document.createElement("style");
-  style.textContent = HOST_STYLES;
-  shadow.appendChild(style);
+  adoptHostStyles(shadow);
 
   // Keystrokes typed into Backline's own UI must not also reach the page underneath.
   // A shadow root hides the DOM, not the events: they keep propagating out (retargeted
