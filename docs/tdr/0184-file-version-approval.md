@@ -28,3 +28,11 @@ approved v4 (confirm mentioned 4 open comments), saw "Approved by you"; the owne
 "Approved by Client Approver", got the notification, withdrew it; the client then saw
 "Approve this version" again; activity listed both. API: a second client's withdrawal of
 another client's approval returned 403 and `by_you` was false for them.
+
+## Addendum (same day): email
+
+The uploader's `file_approved` notification also goes by email when they opted in to
+feedback email, under the existing "Status changes and approvals" preference (renamed
+from "Status changes on my tickets"). Like other feedback email it is link-only:
+"A file you uploaded was approved" with a link to the file, no names or file content.
+Verified with a captured local delivery.

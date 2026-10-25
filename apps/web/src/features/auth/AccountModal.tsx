@@ -10,7 +10,7 @@ const NOTIFICATION_ROWS = [
   ["notify_on_assignment", "Assignments", "Notify me when someone assigns a ticket or comment to me."],
   ["notify_on_mention", "Mentions", "Notify me when someone @mentions me in a thread."],
   ["notify_on_reply", "Replies to my comments", "Notify me when a teammate or client answers a thread I'm in."],
-  ["notify_on_status_change", "Status changes on my tickets", "Notify me when something I raised or own changes status."],
+  ["notify_on_status_change", "Status changes and approvals", "Notify me when something I raised or own changes status, or a client approves a file I uploaded."],
   ["email_notifications", "Email feedback updates", "Also email me for the enabled feedback notifications above. Applies across my workspaces."],
   ["daily_digest", "Daily digest email", "A daily summary: how many new comments arrived in projects I can access, and my tickets that are overdue or due within a day."],
 ] as const;

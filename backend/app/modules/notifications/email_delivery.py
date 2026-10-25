@@ -25,6 +25,7 @@ _SUBJECTS = {
     events.COMMENT_REPLY: "New reply to your feedback",
     events.COMMENT_MENTION: "You were mentioned in feedback",
     events.COMMENT_STATUS_CHANGED: "Your feedback status changed",
+    events.FILE_APPROVED: "A file you uploaded was approved",
 }
 
 
@@ -46,7 +47,8 @@ async def _recipient_and_link(
         return None
     payload = doc["payload_json"]
     project_id, comment_id = payload.get("project_id"), payload.get("comment_id")
-    if not isinstance(project_id, str) or not isinstance(comment_id, str):
+    asset_id = payload.get("asset_id") if doc["type"] == events.FILE_APPROVED else None
+    if not isinstance(project_id, str) or not isinstance(comment_id or asset_id, str):
         return None
     if not await can_view_project(
         db,
@@ -62,9 +64,11 @@ async def _recipient_and_link(
     # Rebuild from current, authorized metadata instead of trusting a stored route
     # or copying private comment text/attachments into a third-party inbox.
     base = get_settings().public_dashboard_base_url.rstrip("/")
+    project_route = f"/w/{quote(workspace['slug'], safe='')}/p/{quote(project_id, safe='')}"
     route = (
-        f"/w/{quote(workspace['slug'], safe='')}/p/{quote(project_id, safe='')}/board"
-        f"?comment={quote(comment_id, safe='')}"
+        f"{project_route}?asset={quote(asset_id, safe='')}"
+        if isinstance(asset_id, str)
+        else f"{project_route}/board?comment={quote(str(comment_id), safe='')}"
     )
     return user["email"], base + route
 

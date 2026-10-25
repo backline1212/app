@@ -7,4 +7,6 @@ FEEDBACK_PREFERENCES = {
     events.COMMENT_REPLY: "notify_on_reply",
     events.COMMENT_MENTION: "notify_on_mention",
     events.COMMENT_STATUS_CHANGED: "notify_on_status_change",
+    # A file version signed off (TDR-0184) is the same kind of news as a status change.
+    events.FILE_APPROVED: "notify_on_status_change",
 }
