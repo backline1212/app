@@ -93,6 +93,7 @@ async def upload_asset(
     build_label: str | None = Form(default=None, max_length=80),
     device: str | None = Form(default=None, max_length=80),
     platform: str | None = Form(default=None, max_length=40),
+    replaces_asset_id: str | None = Form(default=None, min_length=1, max_length=64),
     session: Session = Depends(require_project_permission("asset:upload")),
 ) -> AssetOut:
     await check_rate_limit(
@@ -112,6 +113,7 @@ async def upload_asset(
         build_label=build_label,
         device=device,
         platform=platform,
+        replaces_asset_id=replaces_asset_id,
     )
 
 

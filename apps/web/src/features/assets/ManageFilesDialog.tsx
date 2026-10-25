@@ -7,7 +7,7 @@ import { useDraftNavigationGuard } from "../../lib/draft-navigation";
 import type { ProjectOut } from "../projects/api";
 import * as api from "./api";
 
-export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; onClose: () => void }) {
+export function ManageFilesDialog({ project, onClose, onVersionUploaded }: { project: ProjectOut; onClose: () => void; onVersionUploaded?: (saved: api.Asset, replaced: api.Asset) => void }) {
   const cache = useQueryClient();
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -26,9 +26,13 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
   const [hasPendingBatch, setHasPendingBatch] = useState(false);
   const files = useQuery({ queryKey: qk.assetManagement(project.id), queryFn: () => api.listAssets(project.id, undefined, true) });
   const canEdit = projectCan(project, "edit") && !project.archived_at;
-  const activeCount = (files.data ?? []).filter(file => !file.archived_at).length;
+  // Earlier versions of a file are listed under it, not as files of their own.
+  const activeCount = (files.data ?? []).filter(file => !file.archived_at && !file.superseded_by).length;
   const limit = project.project_type === "pdf" ? 1 : 50;
-  const visible = (files.data ?? []).filter(file => Boolean(file.archived_at) === showArchived);
+  const visible = (files.data ?? []).filter(file => Boolean(file.archived_at) === showArchived && !file.superseded_by);
+  const earlierVersions = (file: api.Asset) => (files.data ?? []).filter(item => item.superseded_by && (item.version_group ?? item.id) === (file.version_group ?? file.id)).length;
+  const versionInput = useRef<HTMLInputElement>(null);
+  const [versionTarget, setVersionTarget] = useState<api.Asset | null>(null);
 
   async function refresh() {
     await Promise.all([
@@ -49,6 +53,23 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
       void refresh().catch(() => setRefreshWarning("File change saved. Reload the file list to see the latest state."));
     },
     onSettled: () => { busy.current = false; },
+  });
+  const newVersion = useMutation({
+    mutationFn: async ({ file, selected }: { file: api.Asset; selected: File }) => {
+      if (!selected.size || selected.size > 20 * 1024 * 1024) throw new Error(`${selected.name} must contain data and be at most 20 MiB.`);
+      if (project.project_type === "pdf" ? !/\.pdf$/i.test(selected.name) : !/\.(png|jpe?g|webp|gif)$/i.test(selected.name)) throw new Error(project.project_type === "pdf" ? "Choose a PDF document." : "Choose PNG, JPG, WebP or GIF files.");
+      setProgress(`Uploading a new version of ${file.filename}…`);
+      return api.uploadAsset(project.id, selected, undefined, file.id);
+    },
+    onSuccess: (saved, { file }) => {
+      onVersionUploaded?.(saved, file);
+      if (!mounted.current) return;
+      setProgress(`${saved.filename} uploaded as v${saved.version ?? 2}. Earlier comments stay on the earlier version.`);
+      void cache.invalidateQueries({ queryKey: qk.assetManagement(project.id) });
+      void refresh().catch(() => setRefreshWarning("New version saved. Reload the file list to see it."));
+    },
+    onError: () => setProgress(""),
+    onSettled: () => { busy.current = false; setVersionTarget(null); },
   });
   const upload = useMutation({
     mutationFn: async (selected: File[]) => {
@@ -78,7 +99,7 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
       void refresh().catch(() => setRefreshWarning("The file list could not refresh. Check it before starting another upload; confirmed files stay saved."));
     },
   });
-  const pending = update.isPending || upload.isPending;
+  const pending = update.isPending || upload.isPending || newVersion.isPending;
   const editingFile = editing !== null ? files.data?.find(file => file.id === editing) : undefined;
   const renamed = editing !== null && (filename !== editingFile?.filename
     || (mobile && (build.build_label !== (editingFile?.build_label ?? "") || build.device !== (editingFile?.device ?? "") || build.platform !== (editingFile?.platform ?? ""))));
@@ -113,6 +134,8 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
       </div>
       {files.isLoading && <p role="status">Loading files…</p>}
       {files.error && <p role="alert" className="bl-error">{files.error.message} <button type="button" onClick={() => void files.refetch()}>Retry</button></p>}
+      {newVersion.error && <p role="alert" className="bl-error">{newVersion.error.message}</p>}
+      <input ref={versionInput} type="file" hidden accept={project.project_type === "pdf" ? "application/pdf,.pdf" : "image/png,image/jpeg,image/webp,image/gif"} onChange={(event) => { const selected = event.target.files?.[0]; event.target.value = ""; if (selected && versionTarget && !busy.current) { busy.current = true; newVersion.mutate({ file: versionTarget, selected }); } }} />
       {(update.error || upload.error) && <p role="alert" className="bl-error">{update.error?.message ?? upload.error?.message} {update.error && <button type="button" className="bl-quiet" disabled={files.isFetching} onClick={() => void files.refetch()}>Reload file list</button>}</p>}
       {progress && <p role="status">{progress}</p>}
       {refreshWarning && <p role="status">{refreshWarning}</p>}
@@ -128,8 +151,8 @@ export function ManageFilesDialog({ project, onClose }: { project: ProjectOut; o
               <label>Platform<select className="bl-input" disabled={pending} value={build.platform} onChange={event => setBuild(current => ({ ...current, platform: event.target.value }))}><option value="">—</option><option>iOS</option><option>Android</option><option>iPadOS</option><option>Other</option></select></label>
             </div>}
             <div><button className="bl-button" disabled={pending || !filename.trim()}>{mobile ? "Save details" : "Save name"}</button><button type="button" className="bl-quiet" disabled={pending} onClick={() => setEditing(null)}>Cancel</button></div>
-          </form> : <><div><strong>{file.filename}</strong><small>{mobile ? [file.build_label && `Build ${file.build_label}`, file.device, file.platform].filter(Boolean).join(" · ") || "No build or device yet" : `${(file.size / 1024 / 1024).toFixed(2)} MB · ${file.page_count} ${file.page_count === 1 ? "page" : "pages"}`}{file.archived_at ? " · Archived" : ""}</small></div>
-            {canEdit && <div><button type="button" className="bl-quiet" disabled={pending || (renamed && editing !== file.id)} onClick={() => { if (busy.current) return; update.reset(); setFilename(file.filename); setBuild({ build_label: file.build_label ?? "", device: file.device ?? "", platform: file.platform ?? "" }); setEditing(file.id); }}>{mobile ? "Edit details" : "Rename"}</button><button type="button" className="bl-quiet" disabled={pending || renamed || Boolean(file.archived_at && activeCount >= limit)} onClick={() => { if (busy.current) return; update.reset(); if (file.archived_at) submitUpdate(file, { archived: false }); else setArchiveTarget(file); }}>{file.archived_at ? "Restore" : "Archive"}</button></div>}</>}
+          </form> : <><div><strong>{file.filename}</strong><small>{mobile ? [file.build_label && `Build ${file.build_label}`, file.device, file.platform].filter(Boolean).join(" · ") || "No build or device yet" : `${(file.size / 1024 / 1024).toFixed(2)} MB · ${file.page_count} ${file.page_count === 1 ? "page" : "pages"}`}{(file.version ?? 1) > 1 ? ` · v${file.version}` : ""}{earlierVersions(file) ? ` · ${earlierVersions(file)} earlier version${earlierVersions(file) === 1 ? "" : "s"}` : ""}{file.archived_at ? " · Archived" : ""}</small></div>
+            {canEdit && <div>{!file.archived_at && <button type="button" className="bl-quiet" disabled={pending || renamed} title="Upload a new version; comments on this one are kept with it" onClick={() => { if (busy.current) return; newVersion.reset(); setVersionTarget(file); versionInput.current?.click(); }}>{newVersion.isPending && versionTarget?.id === file.id ? "Uploading…" : "New version"}</button>}<button type="button" className="bl-quiet" disabled={pending || (renamed && editing !== file.id)} onClick={() => { if (busy.current) return; update.reset(); setFilename(file.filename); setBuild({ build_label: file.build_label ?? "", device: file.device ?? "", platform: file.platform ?? "" }); setEditing(file.id); }}>{mobile ? "Edit details" : "Rename"}</button><button type="button" className="bl-quiet" disabled={pending || renamed || Boolean(file.archived_at && activeCount >= limit)} onClick={() => { if (busy.current) return; update.reset(); if (file.archived_at) submitUpdate(file, { archived: false }); else setArchiveTarget(file); }}>{file.archived_at ? "Restore" : "Archive"}</button></div>}</>}
         </li>)}
       </ul>
       {archiveTarget && <div className="bl-file-confirm" role="group" aria-label="Confirm file archive"><p>Archive <strong>{archiveTarget.filename}</strong>? It will disappear from active file review. Existing feedback is retained.</p><button type="button" className="bl-quiet" disabled={pending} onClick={() => setArchiveTarget(null)}>Keep file</button><button type="button" className="bl-button" disabled={pending || !canEdit} onClick={() => submitUpdate(archiveTarget, { archived: true })}>{update.isPending ? "Archiving…" : "Archive file"}</button></div>}

@@ -3204,3 +3204,7 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-nt-ctx{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:3px;font-size:11px;color:var(--ink-3);min-width:0}
 .bl-nt-ctx .bl-tid{font-size:10px}.bl-nt-ex{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}.bl-nt-pr{color:var(--ink-4)}
 .bl-gate-optional{font-weight:400;color:var(--ink-4);font-size:11px;margin-left:4px}
+/* File versions (TDR-0165) */
+.bl-asset-version{margin-left:auto;margin-right:8px}
+.bl-asset-version-note{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 20px;border-bottom:1px solid var(--bl-line);background:var(--amber-tint, #FFF6E0);font-size:12px;color:var(--ink)}
+.bl-asset-version-note span{flex:1;min-width:220px}

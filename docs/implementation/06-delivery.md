@@ -4785,3 +4785,8 @@ database migration, or production deployment is claimed.
 
 - Clients can leave an email on the review link and get emailed (throttled) when the
   team replies or resolves their feedback. Requires the Arq worker and email provider.
+
+# 2026-10-25: File versions (TDR-0165)
+
+- Images/PDFs can get new versions from Manage files; earlier versions keep their pins
+  and stay viewable. Closes SUG-09's first step (no pin migration by design).
