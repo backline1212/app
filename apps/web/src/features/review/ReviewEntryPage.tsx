@@ -225,6 +225,8 @@ export function ReviewEntryPage() {
           title={resolved.project_name}
           guest={assetGuest}
           guestName={displayName}
+          guestSessionId={sessionStatus.data?.guest_session_id}
+          reviewerCanResolve={sessionStatus.data?.reviewer_can_resolve}
           onLeave={handleLeave}
           variant={resolved.variant}
           branding={resolved.branding}

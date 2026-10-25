@@ -366,12 +366,19 @@ async def get_guest_session_status(
         raise NotFoundError("This review session no longer exists. Rejoin the review link.")
     dashboard = get_settings().public_dashboard_base_url.rstrip("/")
     member_bound = guest.member_user_id is not None
+    project = None if member_bound else await ProjectRepository(db).find_by_id(link["project_id"])
     return GuestSessionStatusOut(
         project_id=link["project_id"],
         share_link_id=guest.share_link_id,
         display_name=doc["display_name"],
         member_bound=member_bound,
         review_url=f"{dashboard}/" if member_bound else f"{dashboard}/review/{link['token']}",
+        guest_session_id=guest.guest_session_id,
+        reviewer_can_resolve=bool(
+            project
+            and project.get("workspace_id") == link["workspace_id"]
+            and (project.get("settings_json") or {}).get("reviewer_can_resolve", False)
+        ),
     )
 
 

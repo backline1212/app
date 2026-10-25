@@ -4826,3 +4826,8 @@ database migration, or production deployment is claimed.
 - BugHunt AI disables "Analyze this project" with a reason when the server has no AI
   provider or the workspace is out of credits (same `ai-usage` data as the AI page).
   Version menu says "1 version". Verified in Chromium; lint/typecheck/build.
+
+# 2026-10-25: Reviewers manage their own comments, extension 0.5.5 (TDR-0172)
+
+- Edit / Delete / Mark resolved on your own comment in website, extension and image/PDF
+  review; deleting a comment with replies is refused. Submit 0.5.5 to the Web Store.

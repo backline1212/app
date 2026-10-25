@@ -101,10 +101,13 @@ async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<
   }
   let project: NativeReviewInfo["project"];
   let authorName: string;
+  let viewer: NonNullable<NativeReviewInfo["viewer"]>;
+  let reviewerCanResolve = false;
   if (auth.kind === "member") {
     const who = await request<Schemas["ExtensionWhoAmIOut"]>(auth, "/api/v1/extension-tokens/whoami");
     project = await request<Schemas["ProjectOut"]>(auth, `/api/v1/projects/${input.projectId}`);
     authorName = who.user_email;
+    viewer = { type: "member", id: who.user_id };
   } else {
     const resolved = await request<Schemas["ReviewResolveOut"]>(auth, `/api/v1/review/${encodeURIComponent(auth.shareToken)}`);
     if (resolved.project_id !== input.projectId) throw new Error("This review belongs to another project.");
@@ -112,6 +115,8 @@ async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<
     if (current.project_id !== input.projectId || current.share_link_id !== resolved.share_link_id) throw new Error("Rejoin this review in Backline first.");
     project = { id: resolved.project_id, name: resolved.project_name, target_origin: resolved.target_origin, variant: resolved.variant ?? null };
     authorName = auth.displayName;
+    viewer = { type: "guest", id: current.guest_session_id ?? "" };
+    reviewerCanResolve = current.reviewer_can_resolve ?? false;
   }
   if (origin(project.target_origin) !== destination.origin) throw new Error("Open a page on this project's website.");
   // Keep sessionStorage and the app's in-memory state by reusing an existing tab.
@@ -135,7 +140,7 @@ async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<
       if (launchEpoch !== reviewEpoch) throw new Error("The extension connection changed. Open this review again from Backline.");
       previous = current;
       return { project, authorName, auth, member: auth.kind === "member", returnUrl: input.returnUrl,
-        pageIds: [], commentIds: [], launchId, returnTabId };
+        viewer, reviewerCanResolve, pageIds: [], commentIds: [], launchId, returnTabId };
     });
     if (existing) {
       await chrome.tabs.update(tab.id, { active: true });
@@ -226,8 +231,8 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     try {
       const { session } = await sessionFor(sender);
       if (session.accessEnded) return null;
-      const { project, authorName, member, returnUrl, launchId } = session;
-      return { project, authorName, member, returnUrl, launchId } satisfies NativeReviewInfo;
+      const { project, authorName, member, returnUrl, launchId, viewer, reviewerCanResolve } = session;
+      return { project, authorName, member, returnUrl, launchId, viewer, reviewerCanResolve } satisfies NativeReviewInfo;
     } catch { return null; }
   }
   const { session, tabId } = await sessionFor(sender);
@@ -310,6 +315,8 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     const snapshotMatch = /^\/api\/v1\/pages\/([a-f0-9]{24})\/snapshots$/.exec(path);
     const commentMatch = /^\/api\/v1\/comments\/([a-f0-9]{24})$/.exec(path);
     const replyMatch = /^\/api\/v1\/comments\/([a-f0-9]{24})\/replies$/.exec(path);
+    const bodyMatch = /^\/api\/v1\/comments\/([a-f0-9]{24})\/body$/.exec(path);
+    const resolveMatch = /^\/api\/v1\/comments\/([a-f0-9]{24})\/resolve$/.exec(path);
     const register = path === "/api/v1/pages" && method === "POST" && body?.project_id === session.project.id
       && typeof body.url === "string" && origin(body.url) === origin(session.project.target_origin);
     const comments = pageMatch && session.pageIds.includes(pageMatch[1]) && ["GET", "POST"].includes(method);
@@ -322,7 +329,13 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
       && ["body", "layer", "client_request_id"].every(field => Object.prototype.hasOwnProperty.call(body, field))
       && Object.keys(body).every(field => ["body", "layer", "client_request_id"].includes(field))
       && ["client", "team"].includes(body.layer) && (session.member || body.layer === "client");
-    if (!register && !comments && !version && !update && !snapshot && !reply) throw new Error("Request is outside this review.");
+    // The reviewer's own comments (the API checks authorship): edit text, delete, resolve.
+    const edit = bodyMatch && session.commentIds.includes(bodyMatch[1]) && method === "PATCH"
+      && typeof body?.body === "string" && body.body.trim().length > 0 && body.body.length <= 10_000
+      && Object.keys(body).every(field => field === "body");
+    const remove = commentMatch && session.commentIds.includes(commentMatch[1]) && method === "DELETE" && !body;
+    const resolveOwn = resolveMatch && !session.member && session.commentIds.includes(resolveMatch[1]) && method === "PATCH" && !body;
+    if (!register && !comments && !version && !update && !snapshot && !reply && !edit && !remove && !resolveOwn) throw new Error("Request is outside this review.");
     const requestController = reply || comments && method === "GET" ? new AbortController() : null;
     const requestTimer = requestController ? setTimeout(() => requestController.abort(), 30_000) : null;
     let result: Record<string, unknown> | Record<string, unknown>[];

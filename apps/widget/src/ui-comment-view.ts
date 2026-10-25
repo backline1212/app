@@ -1,6 +1,7 @@
 import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES } from "./status";
 import { attachmentIcon, type AttachmentInfo } from "./ui-attachments";
 import { cardHeaderHtml, escapeHtml, observeCardPlacement, placeCard, svg, TAG_ICONS } from "./ui-card";
+import { setupOwnActions, type OwnCommentActions } from "./ui-own-actions";
 import { setupThreadReply, type ThreadReplyRequest } from "./ui-thread-reply";
 
 export interface CommentViewReply {
@@ -108,6 +109,7 @@ export function openCommentView(
   onClose: () => void,
   onStatusChange: ((status: string) => Promise<string>) | null = null,
   onReply: ((request: ThreadReplyRequest) => Promise<void>) | null = null,
+  ownActions: OwnCommentActions | null = null,
 ): CommentViewControls {
   const view = document.createElement("div");
   view.className = "bl-card bl-thread";
@@ -190,6 +192,9 @@ export function openCommentView(
 
   shadow.appendChild(view);
   const stopPlacement = observeCardPlacement(view, x, y);
+  const own = ownActions
+    ? setupOwnActions(view, x, y, ownActions, { body: comment.body, status: comment.status, replyCount: comment.replies.length })
+    : null;
   const reply = onReply ? setupThreadReply(view, x, y, comment.layer ?? "client", onReply) : null;
 
   const menuOpen = (): boolean => menu !== null && !menu.hidden;
@@ -270,8 +275,10 @@ export function openCommentView(
   let closed = false;
   function close(force = false): boolean {
     if (closed) return true;
+    if (!force && own?.hasDraft()) { own.nudge(); return false; }
     if (!force && reply && !reply.canClose(() => close(true))) return false;
     closed = true;
+    own?.dispose();
     reply?.dispose();
     stopPlacement();
     document.removeEventListener("click", outsideClickHandler, true);
@@ -287,6 +294,7 @@ export function openCommentView(
     // Same event-retargeting reasoning as openComposer's own outside-click handler.
     if (!event.composedPath().includes(view)) {
       if (reply?.hasDraft()) reply.nudge();
+      else if (own?.hasDraft()) own.nudge();
       else close();
     }
   };
@@ -311,10 +319,12 @@ export function openCommentView(
       if (pending || status === currentStatus) return;
       currentStatus = status;
       renderStatus(status);
+      own?.update({ status });
     },
     update: (data) => {
       if (closed) return;
       renderContent(data);
+      own?.update({ body: data.body, status: data.status, replyCount: data.replies.length });
       // The card may have grown past the bottom of the viewport.
       placeCard(view, x, y);
     },

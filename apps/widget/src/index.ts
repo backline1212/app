@@ -9,6 +9,7 @@ import { registerCurrentPage, realPageUrl, capturePageVersion } from "./page-reg
 import { wireRealtimeUpdates } from "./realtime";
 import { captureScreenshot } from "./screenshot";
 import { createThreadManager } from "./thread-manager";
+import { ownCommentHandlers } from "./own-comments";
 import type { BacklineConfig, CommentRecord } from "./types";
 import {
   createShadowRoot,
@@ -252,6 +253,9 @@ async function init(config: BacklineConfig): Promise<void> {
     // signed-in portal, rather than silently posting a member's text as a guest.
     replyPoster: () => window.parent !== window || currentMode === "view" ? null
       : (topId, request) => postThreadReply(api, topId, request),
+    // Same rule for a reviewer's own threads; the dashboard has its own editor.
+    ownActions: () => window.parent !== window || currentMode === "view" ? null
+      : ownCommentHandlers(api, { type: "guest", id: currentSession.guest_session_id ?? "" }, currentSession.reviewer_can_resolve ?? false),
   });
   cleanup.push(() => threadManager.clearPage());
   const { threadMessages, pinsByTopId, trackPinPosition, openThreadForComment, attachPinClickHandler } =

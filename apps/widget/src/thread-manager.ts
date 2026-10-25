@@ -21,6 +21,16 @@ export interface ThreadManagerOptions {
   // may offer the change - once the dashboard answers (dashboard-bridge.ts).
   statusUpdater?: () => StatusUpdater | null;
   replyPoster?: () => ((topId: string, request: ThreadReplyRequest) => Promise<CommentRecord>) | null;
+  // Edit/delete/resolve for the viewer's own threads, or null where this surface
+  // keeps those changes in the signed-in portal.
+  ownActions?: () => OwnCommentHandlers | null;
+}
+
+export interface OwnCommentHandlers {
+  isOwn: (comment: CommentRecord) => boolean;
+  edit: (commentId: string, body: string) => Promise<CommentRecord>;
+  remove: (commentId: string) => Promise<void>;
+  resolve: ((commentId: string) => Promise<CommentRecord>) | null;
 }
 
 // Mirrors apps/web's lib/workflow.ts isClosed(): nothing more is expected of these.
@@ -38,6 +48,7 @@ export function createThreadManager({
   pagePath = () => window.location.pathname,
   statusUpdater = () => null,
   replyPoster = () => null,
+  ownActions = () => null,
 }: ThreadManagerOptions) {
   // Every top-level comment id maps to [top, ...replies] (sorted oldest-first) - the
   // full flat list the backend returns per page, regrouped here since the widget is
@@ -246,6 +257,13 @@ export function createThreadManager({
 
     const updateStatus = statusUpdater();
     const postReply = replyPoster();
+    const own = ownActions();
+    const resolveOwn = own?.resolve;
+    const mine = own?.isOwn(thread[0]) ? {
+      edit: async (body: string) => { handleCommentUpdated(await own.edit(topId, body)); },
+      remove: async () => { await own.remove(topId); handleCommentDeleted(topId, topId); },
+      resolve: resolveOwn ? async () => { handleCommentUpdated(await resolveOwn(topId)); } : null,
+    } : null;
     const controls = openCommentView(
       shadow,
       x,
@@ -266,6 +284,7 @@ export function createThreadManager({
         const saved = await postReply(topId, request);
         handleCommentCreated(saved, thread[0].page_id);
       } : null,
+      mine,
     );
     openThread = { topId, controls };
     applyPinState(topId);

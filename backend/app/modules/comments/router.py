@@ -7,7 +7,13 @@ from app.core.db import get_db
 from app.core.permissions import require_project_permission
 from app.core.rate_limit import actor_rate_limit_key, check_rate_limit
 from app.core.redis_client import get_redis
-from app.core.session import Actor, Session, get_current_actor, require_workspace_context
+from app.core.session import (
+    Actor,
+    GuestSession,
+    Session,
+    get_current_actor,
+    require_workspace_context,
+)
 from app.modules.comments import service as comment_service
 from app.modules.comments.schemas import (
     CommentBodyEdit,
@@ -22,6 +28,14 @@ from app.modules.comments.schemas import (
 )
 
 router = APIRouter(tags=["comments"])
+
+
+def _for_actor(comment: CommentOut, actor: Actor) -> CommentOut:
+    # A reviewer's own comment can since carry team fields (assignees, due date,
+    # priority, a fix). Guests get the same view the comment list gives them.
+    return (
+        comment_service.guest_safe_comment(comment) if isinstance(actor, GuestSession) else comment
+    )
 
 
 @router.get("/pages/{page_id}/comments", response_model=list[CommentOut])
@@ -149,9 +163,10 @@ async def edit_comment_body(
         limit=settings.comment_create_rate_limit_per_minute,
         window_seconds=60,
     )
-    return await comment_service.edit_comment(
+    edited = await comment_service.edit_comment(
         get_db(), comment_id=comment_id, actor=actor, body=body.body
     )
+    return _for_actor(edited, actor)
 
 
 # FD-AUD-018/M-04 "let reviewers resolve their own comments" - own-author-only,
@@ -170,7 +185,10 @@ async def resolve_own_comment(
         limit=settings.comment_create_rate_limit_per_minute,
         window_seconds=60,
     )
-    return await comment_service.resolve_own_comment(get_db(), comment_id=comment_id, actor=actor)
+    resolved = await comment_service.resolve_own_comment(
+        get_db(), comment_id=comment_id, actor=actor
+    )
+    return _for_actor(resolved, actor)
 
 
 @router.delete("/comments/{comment_id}/thread", status_code=204)
