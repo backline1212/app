@@ -1,7 +1,8 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
 import { aiErrorMessage, analyzeProject, type ProjectAnalysisResult } from "../../ai/api";
+import { getAiUsage } from "../../billing/api";
 import { invalidateTicketsAndDashboard, qk } from "../../../lib/query-keys";
 import { ticketRef } from "../../../lib/ticket-ref";
 import { PRIORITY_META } from "./comments/types";
@@ -26,6 +27,13 @@ interface AiTabProps {
 // actions already use, with the workspace's existing credit limit and usage records.
 export function AiTab({ workspaceId, projectId, onViewComment }: AiTabProps) {
   const queryClient = useQueryClient();
+  // Same query the AI page uses: whether the server has an AI provider, and credits left.
+  const usage = useQuery({ queryKey: qk.aiUsage(workspaceId), queryFn: () => getAiUsage(workspaceId) });
+  const unavailable = usage.data && !usage.data.ai_enabled
+    ? "AI isn't connected on this server yet, so analysis is unavailable. An administrator needs to enable the provider."
+    : usage.data && usage.data.limit !== null && usage.data.used >= usage.data.limit
+      ? "This workspace has used its AI credits for the month. They reset on the 1st, or compare plans for more."
+      : null;
   const [result, setResult] = useState<ProjectAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -191,12 +199,13 @@ export function AiTab({ workspaceId, projectId, onViewComment }: AiTabProps) {
         the request runs and released if it fails.
       </p>
 
+      {unavailable && <p className="bl-inline-note" role="status">{unavailable}</p>}
       <button
         type="button"
         className="bl-button mint"
         style={{ width: "100%" }}
         onClick={handleAnalyze}
-        disabled={isAnalyzing}
+        disabled={isAnalyzing || Boolean(unavailable)}
       >
         {isAnalyzing ? "Analyzing..." : result ? "Re-analyze" : "Analyze this project"}
       </button>
