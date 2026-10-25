@@ -237,8 +237,8 @@ export function openComposer(
         <button type="button" class="bl-cp-shot-btn" title="See the screenshot before you post"${capture ? "" : " hidden"}>Preview</button>
       </div>
       <figure class="bl-cp-shot-preview" hidden>
-        <img alt="Screenshot that will be attached" />
-        <figcaption>This is what will be attached. Retake it after scrolling or changing the page.</figcaption>
+        <div class="bl-cp-shot-stage"><div class="bl-cp-shot-canvas"><img alt="Screenshot that will be attached" draggable="false" /></div></div>
+        <figcaption><span class="bl-cp-shot-note"></span> <button type="button" class="bl-cp-shot-clear" hidden>Clear black-outs</button></figcaption>
       </figure>
       <label class="bl-cp-diag" hidden>
         <input type="checkbox" class="bl-cp-diag-input" />
@@ -283,11 +283,101 @@ export function openComposer(
   const shotButton = composer.querySelector<HTMLButtonElement>(".bl-cp-shot-btn")!;
   const shotPreview = composer.querySelector<HTMLElement>(".bl-cp-shot-preview")!;
   const shotImage = shotPreview.querySelector<HTMLImageElement>("img")!;
-  const shotCaption = shotPreview.querySelector<HTMLElement>("figcaption")!;
+  const shotCaption = shotPreview.querySelector<HTMLElement>(".bl-cp-shot-note")!;
+  const shotCanvas = shotPreview.querySelector<HTMLElement>(".bl-cp-shot-canvas")!;
+  const shotClear = shotPreview.querySelector<HTMLButtonElement>(".bl-cp-shot-clear")!;
+  const PREVIEW_NOTE = "This is what will be attached. Drag across it to black out anything private.";
   // What "Preview" captured. It is attached as shown, so the reviewer posts exactly the
-  // image they checked; without a preview the caller captures when posting.
-  let preview: { blob: Blob; url: string } | null = null;
+  // image they checked; without a preview the caller captures when posting. `blob` has
+  // the reviewer's black-outs burned in; `original` is the capture itself.
+  let preview: { original: Blob; blob: Blob; url: string } | null = null;
   let capturing = false;
+  // Black-outs as fractions of the image, so they map onto its full resolution.
+  let redactions: Array<{ x: number; y: number; w: number; h: number }> = [];
+  let redacting: Promise<void> = Promise.resolve();
+  function renderRedactions(): void {
+    shotCanvas.querySelectorAll(".bl-cp-shot-box").forEach((box) => box.remove());
+    for (const r of redactions) {
+      const box = document.createElement("span");
+      box.className = "bl-cp-shot-box";
+      box.style.left = `${r.x * 100}%`;
+      box.style.top = `${r.y * 100}%`;
+      box.style.width = `${r.w * 100}%`;
+      box.style.height = `${r.h * 100}%`;
+      shotCanvas.appendChild(box);
+    }
+    shotClear.hidden = redactions.length === 0;
+  }
+  // Burns the black-outs into a copy of the capture; the post waits for it.
+  function applyRedactions(): void {
+    const current = preview;
+    if (!current) return;
+    const boxes = redactions.slice();
+    redacting = (async () => {
+      if (boxes.length === 0) { current.blob = current.original; return; }
+      const bitmap = await createImageBitmap(current.original);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(bitmap, 0, 0);
+      ctx.fillStyle = "#111";
+      for (const r of boxes) ctx.fillRect(r.x * canvas.width, r.y * canvas.height, r.w * canvas.width, r.h * canvas.height);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+      if (blob && preview === current) current.blob = blob;
+    })().catch(() => {
+      statusEl.textContent = "The black-out couldn't be applied. Retake the preview or untick the screenshot.";
+      shotInput.checked = false;
+      renderShotOption();
+    });
+  }
+  let drag: { startX: number; startY: number; box: HTMLElement } | null = null;
+  const fraction = (event: PointerEvent): { x: number; y: number } => {
+    const rect = shotImage.getBoundingClientRect();
+    return {
+      x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
+      y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
+    };
+  };
+  shotCanvas.addEventListener("pointerdown", (event) => {
+    if (!preview || submitted || retryLocked || event.button !== 0) return;
+    event.preventDefault();
+    shotCanvas.setPointerCapture(event.pointerId);
+    const start = fraction(event);
+    const box = document.createElement("span");
+    box.className = "bl-cp-shot-box is-drawing";
+    shotCanvas.appendChild(box);
+    drag = { startX: start.x, startY: start.y, box };
+  });
+  shotCanvas.addEventListener("pointermove", (event) => {
+    if (!drag) return;
+    const at = fraction(event);
+    drag.box.style.left = `${Math.min(drag.startX, at.x) * 100}%`;
+    drag.box.style.top = `${Math.min(drag.startY, at.y) * 100}%`;
+    drag.box.style.width = `${Math.abs(at.x - drag.startX) * 100}%`;
+    drag.box.style.height = `${Math.abs(at.y - drag.startY) * 100}%`;
+  });
+  const endDrag = (event: PointerEvent): void => {
+    if (!drag) return;
+    const at = fraction(event);
+    const r = { x: Math.min(drag.startX, at.x), y: Math.min(drag.startY, at.y), w: Math.abs(at.x - drag.startX), h: Math.abs(at.y - drag.startY) };
+    drag.box.remove();
+    drag = null;
+    const rect = shotImage.getBoundingClientRect();
+    // Ignore taps: a black-out needs a few pixels of drag in both directions.
+    if (r.w * rect.width < 4 || r.h * rect.height < 4) return;
+    redactions.push(r);
+    renderRedactions();
+    applyRedactions();
+  };
+  shotCanvas.addEventListener("pointerup", endDrag);
+  shotCanvas.addEventListener("pointercancel", () => { drag?.box.remove(); drag = null; });
+  shotClear.addEventListener("click", () => {
+    redactions = [];
+    renderRedactions();
+    applyRedactions();
+  });
   function renderShotOption(): void {
     shotButton.hidden = !capture || !shotInput.checked;
     shotButton.textContent = preview ? "Retake" : "Preview";
@@ -296,10 +386,13 @@ export function openComposer(
   function clearPreview(): void {
     if (preview) URL.revokeObjectURL(preview.url);
     preview = null;
+    redactions = [];
+    renderRedactions();
   }
   shotImage.addEventListener("error", () => {
     // Some sites forbid blob: images; the screenshot itself is still attached.
     shotImage.hidden = true;
+    shotCanvas.hidden = true;
     shotCaption.textContent = "This site doesn't allow the preview to be shown, but the screenshot will be attached.";
   });
   async function takePreview(): Promise<void> {
@@ -317,9 +410,10 @@ export function openComposer(
       return;
     }
     clearPreview();
-    preview = { blob, url: URL.createObjectURL(blob) };
+    preview = { original: blob, blob, url: URL.createObjectURL(blob) };
     shotImage.hidden = false;
-    shotCaption.textContent = "This is what will be attached. Retake it after scrolling or changing the page.";
+    shotCanvas.hidden = false;
+    shotCaption.textContent = PREVIEW_NOTE;
     shotImage.src = preview.url;
     statusEl.textContent = "";
     renderShotOption();
@@ -470,7 +564,7 @@ export function openComposer(
     // Capture/anchor/upload callbacks can throw before they reach their API error
     // handler. Handle both synchronous throws and rejected promises here so every
     // adapter keeps the draft and restores its controls for an explicit retry.
-    void Promise.resolve().then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null, stepsToReproduce: stepsInput?.value.trim() || null, includeScreenshot: shotInput.checked, screenshot: shotInput.checked ? preview?.blob : undefined })).then((ok) => {
+    void redacting.then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null, stepsToReproduce: stepsInput?.value.trim() || null, includeScreenshot: shotInput.checked, screenshot: shotInput.checked ? preview?.blob : undefined })).then((ok) => {
       if (closed) return;
       if (ok) {
         posted = true;

@@ -4980,3 +4980,8 @@ database migration, or production deployment is claimed.
 
 - Digest and feedback emails carry List-Unsubscribe / one-click headers and a footer link;
   POST unsubscribes, GET only confirms.
+
+# 2026-10-25: Black-outs in the screenshot preview (TDR-0195)
+
+- Reviewers drag across the previewed screenshot to black out private areas; the stored
+  image has them burned in.
