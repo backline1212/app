@@ -221,6 +221,16 @@ async function validateReviewAccess(session: ReviewSession, tabId: number): Prom
   }
 }
 
+// Files the reviewer uploaded through this review's relay (the API checks each key).
+function validReplyAttachments(value: unknown): boolean {
+  return Array.isArray(value) && value.length <= 10 && value.every(item =>
+    item && typeof item === "object"
+    && Object.keys(item).every(field => ["key", "filename", "content_type"].includes(field))
+    && typeof item.key === "string" && item.key.length > 0 && item.key.length <= 512
+    && typeof item.filename === "string" && item.filename.length > 0 && item.filename.length <= 255
+    && typeof item.content_type === "string" && item.content_type.length <= 255);
+}
+
 async function handle(message: Record<string, unknown>, sender: chrome.runtime.MessageSender): Promise<unknown> {
   if (message.type === "native-review-status" || message.type === "native-review-launch") {
     if (sender.frameId !== 0 || !sender.url || origin(sender.url) !== dashboardOrigin) throw new Error("Open Backline to start a review.");
@@ -337,7 +347,8 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
       && typeof body?.body === "string" && body.body.trim().length > 0 && body.body.length <= 10_000
       && typeof body.client_request_id === "string" && body.client_request_id.length > 0 && body.client_request_id.length <= 100
       && ["body", "layer", "client_request_id"].every(field => Object.prototype.hasOwnProperty.call(body, field))
-      && Object.keys(body).every(field => ["body", "layer", "client_request_id"].includes(field))
+      && Object.keys(body).every(field => ["body", "layer", "client_request_id", "attachments"].includes(field))
+      && (body.attachments === undefined || validReplyAttachments(body.attachments))
       && ["client", "team"].includes(body.layer) && (session.member || body.layer === "client");
     // The reviewer's own comments (the API checks authorship): edit text, delete, resolve.
     const edit = bodyMatch && session.commentIds.includes(bodyMatch[1]) && method === "PATCH"

@@ -4841,3 +4841,8 @@ database migration, or production deployment is claimed.
 
 - "Open with extension" from a selected thread lands on the live page with that
   thread open (FLOW-05). Submit 0.5.6 to the Web Store (supersedes 0.5.5).
+
+# 2026-10-25: Reply attachments, extension 0.5.7 (TDR-0175)
+
+- Reviewers can attach files to replies on websites, in the extension and in image/PDF
+  review; the widget now shows attachments on replies. Submit 0.5.7 (supersedes 0.5.6).

@@ -253,6 +253,7 @@ async function init(config: BacklineConfig): Promise<void> {
     // signed-in portal, rather than silently posting a member's text as a guest.
     replyPoster: () => window.parent !== window || currentMode === "view" ? null
       : (topId, request) => postThreadReply(api, topId, request),
+    uploadReplyFile: (file) => uploadAttachment(api, projectId, file),
     // Same rule for a reviewer's own threads; the dashboard has its own editor.
     ownActions: () => window.parent !== window || currentMode === "view" ? null
       : ownCommentHandlers(api, { type: "guest", id: currentSession.guest_session_id ?? "" }, currentSession.reviewer_can_resolve ?? false),
