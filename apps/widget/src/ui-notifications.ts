@@ -38,24 +38,36 @@ export function showOfflineIndicator(shadow: ShadowRoot): { dismiss: () => void;
   };
 }
 
-export function promptForName(shadow: ShadowRoot): Promise<string> {
+export interface ReviewerIdentity {
+  name: string;
+  /** Optional: where the team's replies and resolutions are emailed (TDR-0164). */
+  email?: string | null;
+}
+
+/** The first thing a reviewer sees when a site embeds the review snippet directly. */
+export function promptForName(shadow: ShadowRoot): Promise<ReviewerIdentity> {
   return new Promise((resolve) => {
     const form = document.createElement("form");
     form.className = "bl-name-form";
+    form.setAttribute("aria-labelledby", "bl-name-title");
     form.innerHTML = `
-      <label for="bl-name-input" style="font-size:13px;font-weight:600;">Your name</label>
-      <input id="bl-name-input" type="text" required placeholder="Jamie" />
-      <button type="submit">Continue</button>
+      <h2 id="bl-name-title">Leave feedback on this page</h2>
+      <p>Add your name so the team knows who left each comment.</p>
+      <label>Your name<input name="name" type="text" required maxlength="100" autocomplete="name" placeholder="Jamie Lee" /></label>
+      <label>Email <span>(optional)</span><input name="email" type="email" maxlength="254" autocomplete="email" placeholder="you@company.com" /></label>
+      <p class="bl-name-note">Only used to email you when the team replies to or resolves your feedback.</p>
+      <button type="submit">Start reviewing</button>
     `;
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      const input = form.querySelector("input")!;
-      const value = input.value.trim();
-      if (!value) return;
+      const name = form.querySelector<HTMLInputElement>('input[name="name"]')!.value.trim();
+      const email = form.querySelector<HTMLInputElement>('input[name="email"]')!.value.trim();
+      if (!name) return;
       form.remove();
-      resolve(value);
+      resolve({ name: name.slice(0, 100), email: email || null });
     });
     shadow.appendChild(form);
+    form.querySelector<HTMLInputElement>('input[name="name"]')!.focus();
   });
 }
 

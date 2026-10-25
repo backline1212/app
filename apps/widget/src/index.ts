@@ -192,7 +192,7 @@ async function init(config: BacklineConfig): Promise<void> {
     dashboardSession ??
     (await ensureGuestSession(api, config.shareToken, async () => {
       const dashboardName = blMode ? await requestDashboardDisplayName() : null;
-      return dashboardName ?? promptForName(shadow);
+      return dashboardName ? { name: dashboardName } : promptForName(shadow);
     }, resolved.share_link_id).catch((error: unknown) => {
       showSessionNotice(shadow, error instanceof Error ? error.message : "Review could not start. Reopen your review link.", reviewUrl);
       throw error;

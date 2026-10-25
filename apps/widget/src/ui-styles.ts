@@ -17,18 +17,24 @@ const HOST_STYLES = `
     font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); max-width: 220px;
   }
   .bl-name-form {
-    position: fixed; z-index: 2147483000; background: #FFFFFF; color: #14141A;
-    border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.25); padding: 16px;
-    width: 260px; border: 1px solid rgba(0,0,0,0.08);
-    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    position: fixed; z-index: 2147483001; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: min(340px, calc(100vw - 32px)); padding: 20px; border: 1px solid var(--bl-line);
+    border-radius: 6px; background: var(--bl-surface); color: var(--bl-ink);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.28); font-size: 13px;
   }
+  .bl-name-form h2 { margin: 0 0 6px; font-size: 16px; font-weight: 650; }
+  .bl-name-form p { margin: 0 0 14px; color: var(--bl-ink-3); line-height: 1.45; }
+  .bl-name-form label { display: block; margin-bottom: 12px; font-size: 12px; font-weight: 600; color: var(--bl-ink-2); }
+  .bl-name-form label span { font-weight: 400; color: var(--bl-ink-4); }
   .bl-name-form input {
-    width: 100%; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; padding: 8px;
-    font-size: 13px; margin-top: 6px; margin-bottom: 10px;
+    display: block; width: 100%; margin-top: 6px; padding: 9px 10px; border: 1px solid var(--bl-line);
+    border-radius: 3px; background: var(--bl-paper); color: var(--bl-ink); font-size: 13px; outline: none;
   }
+  .bl-name-form input:focus { border-color: var(--bl-ink); background: var(--bl-surface); }
+  .bl-name-form p.bl-name-note { margin: -4px 0 14px; font-size: 11.5px; }
   .bl-name-form button {
-    background: #4F46E5; color: #fff; border: none; border-radius: 6px; padding: 8px 12px;
-    font-size: 13px; cursor: pointer; width: 100%;
+    width: 100%; height: 38px; border: 0; border-radius: 3px; background: var(--bl-ink); color: #fff;
+    font-size: 13px; font-weight: 600; cursor: pointer;
   }
   .bl-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .bl-attachment-chip {
