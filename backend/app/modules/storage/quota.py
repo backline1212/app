@@ -97,6 +97,12 @@ async def store_bytes(
     await StorageQuotaRepository(db).mark_stored(workspace_id, key, len(data))
 
 
+# A presigned PUT is signed for five minutes and capped at the upload size limit, so a
+# request that started in time has long finished by then. After this, a still-missing
+# object means the grant was never used and its hold is released (BUG-06).
+PRESIGNED_UPLOAD_GRACE = timedelta(hours=24)
+
+
 async def reconcile_reservation(
     db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, key: str
 ) -> None:
@@ -106,9 +112,15 @@ async def reconcile_reservation(
         return
     metadata = await head_upload(key)
     if metadata is None:
-        if doc.get("release_missing", True):
-            await repo.release_deleted(workspace_id, key, token=doc["reservation_token"])
         # A presigned PUT may have started before its URL expired. An absent HEAD
-        # cannot prove that in-flight request will not finish, so retain its bytes.
+        # cannot prove that in-flight request will not finish, so its bytes stay held
+        # until the grace period has passed. `updated_at` is the reservation time: only
+        # reserve() writes it while the row is reserved.
+        reserved_at = doc.get("updated_at")
+        abandoned = (
+            reserved_at is not None and reserved_at <= datetime.now(UTC) - PRESIGNED_UPLOAD_GRACE
+        )
+        if doc.get("release_missing", True) or abandoned:
+            await repo.release_deleted(workspace_id, key, token=doc["reservation_token"])
     else:
         await repo.mark_stored(workspace_id, key, metadata[1], token=doc["reservation_token"])
