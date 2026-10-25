@@ -4878,3 +4878,8 @@ database migration, or production deployment is claimed.
 
 - `scripts.gc_unreferenced_uploads` (dry-run first) removes uploads no comment ever
   used and returns their quota. Operator: run the dry run, review, then `--apply`.
+
+# 2026-10-25: API reference link, extension 0.5.9
+
+- API keys page links the public API reference (`/docs`). Extension 0.5.9 rebuilt so the
+  store package matches the current widget source. Submit 0.5.9.
