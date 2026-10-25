@@ -2752,6 +2752,8 @@ export interface components {
             version: number;
             /** Superseded By */
             superseded_by?: string | null;
+            /** Carried Comments */
+            carried_comments?: number | null;
         };
         /** AssetUpdate */
         AssetUpdate: {
@@ -2826,6 +2828,11 @@ export interface components {
             platform?: string | null;
             /** Replaces Asset Id */
             replaces_asset_id?: string | null;
+            /**
+             * Carry Open Comments
+             * @default false
+             */
+            carry_open_comments: boolean;
         };
         /** Body_upload_logo_api_v1_workspaces__workspace_id__branding_logo_post */
         Body_upload_logo_api_v1_workspaces__workspace_id__branding_logo_post: {
@@ -3226,6 +3233,8 @@ export interface components {
              */
             is_standalone: boolean;
             fix?: components["schemas"]["FixSubmissionOut"] | null;
+            /** Carried From Version */
+            carried_from_version?: number | null;
         };
         /** CommentUpdate */
         CommentUpdate: {
@@ -5737,6 +5746,8 @@ export interface components {
              */
             is_standalone: boolean;
             fix?: components["schemas"]["FixSubmissionOut"] | null;
+            /** Carried From Version */
+            carried_from_version?: number | null;
             /** Project Id */
             project_id: string;
             /** Project Name */

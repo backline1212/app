@@ -29,6 +29,8 @@ class AssetOut(BaseModel):
     version_group: str | None = None
     version: int = 1
     superseded_by: str | None = None
+    # Only on an upload response: open threads moved onto this new version.
+    carried_comments: int | None = None
 
 
 class AssetUpdate(BaseModel):

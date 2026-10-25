@@ -284,6 +284,7 @@ function Message({ comment, showContext, extra }: { comment: CommentOut; showCon
             {comment.author_type === "guest" ? "Client" : "Team"} · {timeAgo(comment.created_at)}
           </span>
           {comment.layer === "team" && <span className="bl-cd-tag">Team only</span>}
+          {comment.carried_from_version != null && <span className="bl-cd-tag" title="This open comment moved here when a new version of the file was uploaded">From v{comment.carried_from_version}</span>}
         </div>
         <p>{renderWithMentions(comment.fix ? comment.fix.summary : comment.body)}</p>
         {(comment.screenshot_url || comment.attachments.length > 0) && (

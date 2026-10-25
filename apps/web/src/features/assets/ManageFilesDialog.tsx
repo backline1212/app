@@ -33,6 +33,9 @@ export function ManageFilesDialog({ project, onClose, onVersionUploaded }: { pro
   const earlierVersions = (file: api.Asset) => (files.data ?? []).filter(item => item.superseded_by && (item.version_group ?? item.id) === (file.version_group ?? file.id)).length;
   const versionInput = useRef<HTMLInputElement>(null);
   const [versionTarget, setVersionTarget] = useState<api.Asset | null>(null);
+  // Chosen file waiting for confirmation, with whether open comments move along.
+  const [pendingVersion, setPendingVersion] = useState<{ file: api.Asset; selected: File } | null>(null);
+  const [carryComments, setCarryComments] = useState(true);
 
   async function refresh() {
     await Promise.all([
@@ -55,21 +58,22 @@ export function ManageFilesDialog({ project, onClose, onVersionUploaded }: { pro
     onSettled: () => { busy.current = false; },
   });
   const newVersion = useMutation({
-    mutationFn: async ({ file, selected }: { file: api.Asset; selected: File }) => {
+    mutationFn: async ({ file, selected, carry }: { file: api.Asset; selected: File; carry: boolean }) => {
       if (!selected.size || selected.size > 20 * 1024 * 1024) throw new Error(`${selected.name} must contain data and be at most 20 MiB.`);
       if (project.project_type === "pdf" ? !/\.pdf$/i.test(selected.name) : !/\.(png|jpe?g|webp|gif)$/i.test(selected.name)) throw new Error(project.project_type === "pdf" ? "Choose a PDF document." : "Choose PNG, JPG, WebP or GIF files.");
       setProgress(`Uploading a new version of ${file.filename}…`);
-      return api.uploadAsset(project.id, selected, undefined, file.id);
+      return api.uploadAsset(project.id, selected, undefined, file.id, carry);
     },
     onSuccess: (saved, { file }) => {
       onVersionUploaded?.(saved, file);
       if (!mounted.current) return;
-      setProgress(`${saved.filename} uploaded as v${saved.version ?? 2}. Earlier comments stay on the earlier version.`);
+      const moved = saved.carried_comments ?? 0;
+      setProgress(`${saved.filename} uploaded as v${saved.version ?? 2}. ${moved ? `${moved} open comment${moved === 1 ? "" : "s"} moved to it; resolved ones stay on the earlier version.` : "Earlier comments stay on the earlier version."}`);
       void cache.invalidateQueries({ queryKey: qk.assetManagement(project.id) });
       void refresh().catch(() => setRefreshWarning("New version saved. Reload the file list to see it."));
     },
     onError: () => setProgress(""),
-    onSettled: () => { busy.current = false; setVersionTarget(null); },
+    onSettled: () => { busy.current = false; setVersionTarget(null); setPendingVersion(null); },
   });
   const upload = useMutation({
     mutationFn: async (selected: File[]) => {
@@ -135,7 +139,13 @@ export function ManageFilesDialog({ project, onClose, onVersionUploaded }: { pro
       {files.isLoading && <p role="status">Loading files…</p>}
       {files.error && <p role="alert" className="bl-error">{files.error.message} <button type="button" onClick={() => void files.refetch()}>Retry</button></p>}
       {newVersion.error && <p role="alert" className="bl-error">{newVersion.error.message}</p>}
-      <input ref={versionInput} type="file" hidden accept={project.project_type === "pdf" ? "application/pdf,.pdf" : "image/png,image/jpeg,image/webp,image/gif"} onChange={(event) => { const selected = event.target.files?.[0]; event.target.value = ""; if (selected && versionTarget && !busy.current) { busy.current = true; newVersion.mutate({ file: versionTarget, selected }); } }} />
+      <input ref={versionInput} type="file" hidden accept={project.project_type === "pdf" ? "application/pdf,.pdf" : "image/png,image/jpeg,image/webp,image/gif"} onChange={(event) => { const selected = event.target.files?.[0]; event.target.value = ""; if (selected && versionTarget && !busy.current) { setCarryComments(true); setPendingVersion({ file: versionTarget, selected }); } }} />
+      {pendingVersion && <div className="bl-file-confirm" role="group" aria-label="Confirm new version">
+        <p>Upload <strong>{pendingVersion.selected.name}</strong> as v{(pendingVersion.file.version ?? 1) + 1} of <strong>{pendingVersion.file.filename}</strong>?</p>
+        <label className="bl-check"><input type="checkbox" checked={carryComments} onChange={(event) => setCarryComments(event.target.checked)} />Move open comments to the new version (same spot on the file). Resolved ones stay on v{pendingVersion.file.version ?? 1}.</label>
+        <button type="button" className="bl-quiet" disabled={pending} onClick={() => { setPendingVersion(null); setVersionTarget(null); }}>Cancel</button>
+        <button type="button" className="bl-button" disabled={pending || !canEdit} onClick={() => { if (busy.current) return; busy.current = true; newVersion.mutate({ ...pendingVersion, carry: carryComments }); }}>{newVersion.isPending ? "Uploading…" : "Upload new version"}</button>
+      </div>}
       {(update.error || upload.error) && <p role="alert" className="bl-error">{update.error?.message ?? upload.error?.message} {update.error && <button type="button" className="bl-quiet" disabled={files.isFetching} onClick={() => void files.refetch()}>Reload file list</button>}</p>}
       {progress && <p role="status">{progress}</p>}
       {refreshWarning && <p role="status">{refreshWarning}</p>}

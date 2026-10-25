@@ -227,6 +227,8 @@ class CommentOut(BaseModel):
     waiting_on_client: bool = False
     is_standalone: bool = False
     fix: FixSubmissionOut | None = None
+    # File review: the earlier version this open thread was carried over from.
+    carried_from_version: int | None = None
 
 
 class GuestBoardItemOut(BaseModel):

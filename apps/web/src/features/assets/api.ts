@@ -33,7 +33,7 @@ export function updateAsset(projectId: string, assetId: string, body: Schemas['A
   return assetRequest<Asset>(`/api/v1/projects/${projectId}/assets/${assetId}`, undefined, { method: 'PATCH', body: JSON.stringify(body) });
 }
 export interface BuildInfo { build_label?: string; device?: string; platform?: string }
-export function uploadAsset(projectId: string, file: File, build?: BuildInfo, replacesAssetId?: string) {
+export function uploadAsset(projectId: string, file: File, build?: BuildInfo, replacesAssetId?: string, carryOpenComments = false) {
   let projectRequests = uploadRequests.get(file);
   if (!projectRequests) { projectRequests = new Map(); uploadRequests.set(file, projectRequests); }
   const requestKey = replacesAssetId ? `${projectId}:${replacesAssetId}` : projectId;
@@ -42,6 +42,7 @@ export function uploadAsset(projectId: string, file: File, build?: BuildInfo, re
   const form = new FormData(); form.append('file', file);
   form.append('client_request_id', requestId);
   if (replacesAssetId) form.append('replaces_asset_id', replacesAssetId);
+  if (replacesAssetId && carryOpenComments) form.append('carry_open_comments', 'true');
   for (const [field, value] of Object.entries(build ?? {})) if (value?.trim()) form.append(field, value.trim());
   return boundedRequest(120_000, 'Upload confirmation timed out. Retry this batch with the same selected files to recover an upload that may already be saved.', signal => apiFetch<Asset>(`/api/v1/projects/${projectId}/assets`, { method: 'POST', body: form, signal }));
 }
