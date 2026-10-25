@@ -84,7 +84,7 @@ function statusHtml(editable: boolean): string {
   const options = WORKFLOW_STATUSES.map(
     (status) =>
       `<button type="button" class="bl-cv-status-opt" role="menuitemradio" aria-checked="false" data-status="${status}">
-        <span class="bl-cv-status-dot" style="background: ${statusColor(status)}" aria-hidden="true"></span>
+        <span class="bl-cv-status-dot" aria-hidden="true"></span>
         <span>${escapeHtml(statusLabel(status))}</span>
         ${svg(CHECK_ICON, 2.2)}
       </button>`,
@@ -180,6 +180,11 @@ export function openCommentView(
   const menu = view.querySelector<HTMLDivElement>(".bl-cv-status-menu");
   const message = view.querySelector<HTMLParagraphElement>(".bl-status");
   const options = Array.from(view.querySelectorAll<HTMLButtonElement>(".bl-cv-status-opt"));
+  // Colours are set through the CSSOM, not style="" markup, which a site's style-src
+  // policy would block.
+  for (const option of options) {
+    option.querySelector<HTMLElement>(".bl-cv-status-dot")!.style.background = statusColor(option.dataset.status ?? "");
+  }
   let currentStatus = comment.status;
   let pending = false;
 
