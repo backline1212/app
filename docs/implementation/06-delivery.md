@@ -4941,3 +4941,8 @@ database migration, or production deployment is claimed.
   that exact image (snippet, review link, canvas, extension).
 - Fixed: snippet captures always showed the top of the page, and transparent page
   backgrounds came out black.
+
+# 2026-10-25: Abandoned upload grants release their quota (TDR-0190)
+
+- A presigned upload whose file never arrived stops counting against storage after 24
+  hours (BUG-06).
