@@ -59,6 +59,8 @@ const EVENT_PHRASES: Record<string, string> = {
   "guest_session.created": "opened the review link",
   "revision.created": "captured a new page version",
   "asset.created": "uploaded a file",
+  "asset.approved": "approved a file",
+  "asset.approval_withdrawn": "withdrew approval of a file",
   "workspace.updated": "updated the workspace",
 };
 

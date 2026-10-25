@@ -17,3 +17,5 @@ JOIN_REQUESTED = "join_requested"
 MEMBER_JOINED = "member_joined"
 PROJECT_ACCESS_GRANTED = "project_access_granted"
 OWNERSHIP_TRANSFERRED = "ownership_transferred"
+# TDR-0184.
+FILE_APPROVED = "file_approved"

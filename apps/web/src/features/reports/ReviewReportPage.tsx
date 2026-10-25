@@ -107,6 +107,10 @@ export function ReviewReportPage() {
       ) : [...groups.entries()].map(([pageId, items]) => (
         <section key={pageId} className="bl-report-page">
           <h2>{pageName(pageId)} <span>{items.length}</span></h2>
+          {(() => {
+            const approval = assets.data?.find((a) => a.page_id === pageId)?.approval;
+            return approval?.approved ? <p className="bl-report-approved">Approved by {approval.by_name} · {formatDate(approval.at)}</p> : null;
+          })()}
           {items.map((thread) => {
             const threadReplies = showReplies ? replies(thread.id) : [];
             return (

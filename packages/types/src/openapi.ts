@@ -1155,6 +1155,23 @@ export interface paths {
         patch: operations["update_asset_api_v1_projects__project_id__assets__asset_id__patch"];
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/assets/{asset_id}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Approval */
+        put: operations["set_approval_api_v1_projects__project_id__assets__asset_id__approval_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/assets/{asset_id}/comments": {
         parameters: {
             query?: never;
@@ -2719,6 +2736,36 @@ export interface components {
             /** Project Gid */
             project_gid?: string | null;
         };
+        /**
+         * AssetApprovalOut
+         * @description Sign-off on one file version (TDR-0184). A new version starts without one.
+         */
+        AssetApprovalOut: {
+            /** Approved */
+            approved: boolean;
+            /**
+             * By Type
+             * @enum {string}
+             */
+            by_type: "member" | "guest";
+            /** By Name */
+            by_name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * By You
+             * @default false
+             */
+            by_you: boolean;
+        };
+        /** AssetApprovalUpdate */
+        AssetApprovalUpdate: {
+            /** Approved */
+            approved: boolean;
+        };
         /** AssetCommentCreate */
         AssetCommentCreate: {
             /** Body */
@@ -2788,6 +2835,7 @@ export interface components {
             superseded_by?: string | null;
             /** Carried Comments */
             carried_comments?: number | null;
+            approval?: components["schemas"]["AssetApprovalOut"] | null;
         };
         /** AssetUpdate */
         AssetUpdate: {
@@ -4407,7 +4455,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "comment_assigned" | "comment_reply" | "comment_mention" | "comment_status_changed" | "share_link_created" | "integration_disconnected" | "deploy_recovery_completed" | "join_requested" | "member_joined" | "project_access_granted" | "ownership_transferred";
+            type: "file_approved" | "comment_assigned" | "comment_reply" | "comment_mention" | "comment_status_changed" | "share_link_created" | "integration_disconnected" | "deploy_recovery_completed" | "join_requested" | "member_joined" | "project_access_granted" | "ownership_transferred";
             /** Payload */
             payload: Record<string, never>;
             /** Target Route */
@@ -8541,6 +8589,44 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AssetUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_approval_api_v1_projects__project_id__assets__asset_id__approval_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-guest-session"?: string | null;
+            };
+            path: {
+                project_id: string;
+                asset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetApprovalUpdate"];
             };
         };
         responses: {

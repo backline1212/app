@@ -1,8 +1,24 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
 from app.modules.comments.schemas import AttachmentIn, Layer, Tag
+
+
+class AssetApprovalOut(BaseModel):
+    """Sign-off on one file version (TDR-0184). A new version starts without one."""
+
+    approved: bool
+    by_type: Literal["member", "guest"]
+    by_name: str
+    at: datetime
+    # Whether the person reading this gave the approval (so they may withdraw it).
+    by_you: bool = False
+
+
+class AssetApprovalUpdate(BaseModel):
+    approved: bool
 
 
 class AssetOut(BaseModel):
@@ -31,6 +47,7 @@ class AssetOut(BaseModel):
     superseded_by: str | None = None
     # Only on an upload response: open threads moved onto this new version.
     carried_comments: int | None = None
+    approval: AssetApprovalOut | None = None
 
 
 class AssetUpdate(BaseModel):

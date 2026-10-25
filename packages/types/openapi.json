@@ -4136,6 +4136,88 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/assets/{asset_id}/approval": {
+      "put": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Set Approval",
+        "operationId": "set_approval_api_v1_projects__project_id__assets__asset_id__approval_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "x-guest-session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetApprovalUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/assets/{asset_id}/comments": {
       "post": {
         "tags": [
@@ -9572,6 +9654,58 @@
         "title": "AsanaIntegrationCreate",
         "description": "Either an OAuth `code` (needs the operator's Asana OAuth app) or a personal\naccess token (Asana -> My settings -> Apps -> Developer apps)."
       },
+      "AssetApprovalOut": {
+        "properties": {
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          },
+          "by_type": {
+            "type": "string",
+            "enum": [
+              "member",
+              "guest"
+            ],
+            "title": "By Type"
+          },
+          "by_name": {
+            "type": "string",
+            "title": "By Name"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "by_you": {
+            "type": "boolean",
+            "title": "By You",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "approved",
+          "by_type",
+          "by_name",
+          "at"
+        ],
+        "title": "AssetApprovalOut",
+        "description": "Sign-off on one file version (TDR-0184). A new version starts without one."
+      },
+      "AssetApprovalUpdate": {
+        "properties": {
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approved"
+        ],
+        "title": "AssetApprovalUpdate"
+      },
       "AssetCommentCreate": {
         "properties": {
           "body": {
@@ -9785,6 +9919,16 @@
               }
             ],
             "title": "Carried Comments"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssetApprovalOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -14148,6 +14292,7 @@
           "type": {
             "type": "string",
             "enum": [
+              "file_approved",
               "comment_assigned",
               "comment_reply",
               "comment_mention",

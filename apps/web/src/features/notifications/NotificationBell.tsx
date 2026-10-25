@@ -53,6 +53,8 @@ function describe(notification: NotificationOut): string {
       return `${payload.actor_name || "Someone"} joined with the room code`;
     case "project_access_granted":
       return `${payload.actor_name || "Someone"} added you to ${payload.project_name || "a project"} as ${roleLabel(payload.role).toLowerCase()}`;
+    case "file_approved":
+      return `${payload.actor_name || "Someone"} approved ${payload.file_name || "a file"}${payload.version && Number(payload.version) > 1 ? ` (v${payload.version})` : ""}`;
     case "ownership_transferred":
       return `${payload.actor_name || "Someone"} made you the owner of this workspace`;
     default:

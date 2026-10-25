@@ -290,6 +290,35 @@ async def notify_project_access_granted(
     )
 
 
+async def notify_file_approved(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    project_id: str,
+    asset_id: str,
+    recipient_user_id: str,
+    file_name: str,
+    version: int,
+    approver_name: str,
+) -> None:
+    """A client (or teammate) signed off a file version the recipient uploaded."""
+    slug = await _workspace_slug(db, workspace_id)
+    await _create_and_broadcast(
+        db,
+        workspace_id=workspace_id,
+        user_id=recipient_user_id,
+        type=notification_events.FILE_APPROVED,
+        payload_json={
+            "project_id": project_id,
+            "asset_id": asset_id,
+            "file_name": file_name,
+            "version": version,
+            "actor_name": approver_name,
+        },
+        target_route=f"/w/{slug}/p/{project_id}?asset={asset_id}" if slug else None,
+    )
+
+
 async def _workspace_managers(
     db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str
 ) -> list[str]:

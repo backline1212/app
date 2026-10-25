@@ -51,6 +51,8 @@ export function assetCommentsVersion(pageId: string, guest?: string) { return as
 export function listAssetComments(pageId: string, guest?: string) { return assetRequest<Schemas['CommentOut'][]>(`/api/v1/pages/${pageId}/comments`, guest); }
 export function createAssetComment(projectId: string, assetId: string, body: Schemas['AssetCommentCreate'], guest?: string) { return assetRequest<Schemas['CommentOut']>(`/api/v1/projects/${projectId}/assets/${assetId}/comments`, guest, { method: 'POST', body: JSON.stringify(body) }); }
 export function replyToComment(commentId: string, body: string, layer: 'client' | 'team', guest?: string, clientRequestId?: string, attachments: Schemas['AttachmentIn'][] = []) { return assetRequest<Schemas['CommentOut']>(`/api/v1/comments/${commentId}/replies`, guest, { method: 'POST', body: JSON.stringify({ body, layer, client_request_id: clientRequestId, ...(attachments.length ? { attachments } : {}) }) }); }
+/** Sign off (or withdraw sign-off on) the latest version of a file (TDR-0184). */
+export function setAssetApproval(projectId: string, assetId: string, approved: boolean, guest?: string) { return assetRequest<Asset>(`/api/v1/projects/${projectId}/assets/${assetId}/approval`, guest, { method: 'PUT', body: JSON.stringify({ approved }) }); }
 // A reviewer's own comment; the API checks authorship (and the project's resolve setting).
 export function editOwnComment(commentId: string, body: string, guest?: string) { return assetRequest<Schemas['CommentOut']>(`/api/v1/comments/${commentId}/body`, guest, { method: 'PATCH', body: JSON.stringify({ body }) }); }
 export function deleteOwnComment(commentId: string, guest?: string) { return assetRequest<void>(`/api/v1/comments/${commentId}`, guest, { method: 'DELETE' }); }

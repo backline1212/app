@@ -3269,6 +3269,7 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-report-replies li+li{margin-top:8px}
 .bl-report-replies p{margin:3px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .bl-report-shot[hidden]{display:none}
+.bl-report-approved{margin:-4px 0 8px;color:var(--mint-deep);font-size:12px;font-weight:600}
 .bl-report-empty{color:var(--bl-muted)}
 @media print{
   @page{margin:16mm 14mm}
@@ -3280,3 +3281,11 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
   .bl-report{max-width:none;padding:0}
   .bl-report-shot{max-height:260px}
 }
+/* File version sign-off (AssetReview, TDR-0184). */
+.bl-asset-approve,.bl-asset-approved,.bl-asset-approve-confirm{display:inline-flex;align-items:center;gap:6px;flex:none;font-size:12px;white-space:nowrap}
+.bl-asset-approve{height:30px;padding:0 10px;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface);color:var(--ink)}
+.bl-asset-approve:hover:not(:disabled){border-color:var(--ink)}
+.bl-asset-approved{height:30px;padding:0 10px;border-radius:3px;background:var(--mint-tint);color:var(--mint-deep);font-weight:600}
+.bl-asset-approve-undo{margin-left:4px;padding:0;border:0;background:none;color:inherit;font-weight:400;text-decoration:underline;text-underline-offset:2px}
+.bl-asset-approve-confirm .bl-button,.bl-asset-approve-confirm .bl-quiet{height:30px;padding:0 10px}
+@media(max-width:760px){.bl-asset-approve-confirm{white-space:normal;flex-wrap:wrap}}
