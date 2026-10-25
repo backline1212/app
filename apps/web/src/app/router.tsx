@@ -146,6 +146,7 @@ const router = createBrowserRouter([
                 lazy: page(() => import("../features/projects/ProjectOverviewPage"), "ProjectOverviewPage"),
               },
               { path: "board", lazy: page(() => import("../features/board/BoardPage"), "BoardPage") },
+              { path: "report", lazy: page(() => import("../features/reports/ReviewReportPage"), "ReviewReportPage") },
               {
                 path: "share-links",
                 lazy: page(() => import("../features/share-links/ShareLinksPage"), "ShareLinksPage"),

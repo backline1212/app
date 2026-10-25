@@ -173,6 +173,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
         {(project.project_type ?? "website") !== "website" && item("Manage files", "page", () => { setOpen(false); setShowFiles(true); }, { disabled: Boolean(project.archived_at), note: project.archived_at ? "Restore project first" : undefined })}
         <div className="bl-dropdown-sep" role="separator" />
         {item("Duplicate project", "duplicate", () => { setConfirmDuplicate(true); setOpen(false); }, { disabled: !canEdit, note: !canEdit ? editorsNote : undefined })}
+        {item("Review report", "page", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/report`); }, { note: "Print or save as PDF for the client" })}
         {item("Export comments", "download", () => { setConfirmExport(true); setOpen(false); }, { disabled: !canEdit, note: !canEdit ? editorsNote : undefined })}
         {project.archived_at
           ? item("Restore project", "restore", () => { setConfirmRestore(true); setOpen(false); }, { disabled: !canManage, note: !canManage ? managersNote : undefined })

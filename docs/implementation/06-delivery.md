@@ -4855,3 +4855,8 @@ database migration, or production deployment is claimed.
 # 2026-10-25: Ticket bulk triage (TDR-0177)
 
 - Select tickets in List/Table and set status, priority or assignee for all of them.
+
+# 2026-10-25: Printable review report (TDR-0178)
+
+- Project menu → Review report: client-ready summary of feedback by page/file, printable
+  or saved as PDF.
