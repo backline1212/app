@@ -5013,3 +5013,10 @@ database migration, or production deployment is claimed.
 - Fixed the project dock's More menu: `aria-expanded`/`aria-controls`, focus on the first
   item, Escape returns focus to More, tabbing out closes it; Preferences is announced as a
   dialog. Verified on the workspace and project pages; mouse use unchanged.
+
+# 2026-10-25: Extension 0.5.12
+
+- Adds screenshot black-outs (TDR-0195) and strict-CSP styling (TDR-0193);
+  `apps/web/public/backline-extension-0.5.12.zip`, 65903 bytes, SHA-256 `5108563d…d15a`.
+  Verified with a local build: black-out burned into the tab capture. 0.5.10 ZIP removed;
+  0.5.11 kept as previous.

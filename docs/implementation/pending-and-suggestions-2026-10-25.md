@@ -10,7 +10,7 @@ are in [go-live-checklist-2026-10-25.md](go-live-checklist-2026-10-25.md).
 |---|---|---|
 | 1 | Deploy API **and** worker from the same `main` commit, then the web app | Worker uses Docker build target `worker`; without it no email leaves the outbox. Check with `scripts/smoke_test.py`. |
 | 2 | Configure an email provider | `RESEND_API_KEY` + `RESEND_FROM_ADDRESS` (or Apps Script). Sign-in codes, invitations, client and digest emails depend on it. |
-| 3 | Submit extension **0.5.11** to the Chrome Web Store | `apps/web/public/backline-extension-0.5.11.zip`, SHA-256 `7ed262a9…f129`; supersedes every earlier package. Then set `VITE_EXTENSION_STORE_URL`. |
+| 3 | Submit extension **0.5.12** to the Chrome Web Store | `apps/web/public/backline-extension-0.5.12.zip`, SHA-256 `5108563d…d15a`; supersedes every earlier package. Then set `VITE_EXTENSION_STORE_URL`. |
 | 4 | Run the data migrations, dry-run first | `python -m scripts.migrate_ticket_numbers`, `python -m scripts.migrate_event_projects`, then each with `--apply`. Optional: `scripts.gc_unreferenced_uploads`. |
 | 5 | Decide on **Terms of Service** and a **refund/cancellation policy** | There is a privacy notice and support page but no Terms route. Payment providers (Razorpay in particular) expect Terms, refund and contact pages before live payments. Legal text needs the owner's approval, so it was not drafted. |
 | 6 | Review the privacy notice | Mention that sites can mark content `data-backline-private` (now masked in screenshots) and that reviewers can preview or skip screenshots. |

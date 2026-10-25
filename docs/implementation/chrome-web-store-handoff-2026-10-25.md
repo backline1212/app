@@ -17,13 +17,21 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.11 (2026-10-25, supersedes 0.5.2-0.5.10)
+## Update ready: 0.5.12 (2026-10-25, supersedes 0.5.2-0.5.11)
+
+0.5.12 = 0.5.11 plus black-outs in the screenshot preview (drag to hide private areas,
+TDR-0195) and the overlay staying styled on sites with a strict style policy (TDR-0193).
+Package 65903 bytes, SHA-256
+`5108563d62183c20001b5627c0c9a4eccae493be5ef8d3170e4ed303df23d15a`. Same targets and
+permissions. Submit 0.5.12.
+
+## Previous: 0.5.11 (2026-10-25)
 
 0.5.11 = 0.5.10 plus a **Preview** of the automatic screenshot in the composer (the
 previewed image is the one attached, TDR-0189) and screenshots that grey out content a
 site marks `data-backline-private` (TDR-0192). Package 64700 bytes, SHA-256
 `7ed262a99f4ba67b91b8015bfa9311b8faaa2208f88e2caa3e3be60abb51f129`. Same targets and
-permissions. Submit 0.5.11.
+permissions.
 
 ## Previous: 0.5.10 (2026-10-25)
 
