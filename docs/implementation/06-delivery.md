@@ -4790,3 +4790,8 @@ database migration, or production deployment is claimed.
 
 - Images/PDFs can get new versions from Manage files; earlier versions keep their pins
   and stay viewable. Closes SUG-09's first step (no pin migration by design).
+
+# 2026-10-25: Accessibility pass (TDR-0166)
+
+- axe-core WCAG A/AA clean on all main pages (light + dark): ticket rows no longer nest
+  controls in a button, dark-mode count contrast, ARIA roles.

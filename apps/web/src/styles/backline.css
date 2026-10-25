@@ -3208,3 +3208,11 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-asset-version{margin-left:auto;margin-right:8px}
 .bl-asset-version-note{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 20px;border-bottom:1px solid var(--bl-line);background:var(--amber-tint, #FFF6E0);font-size:12px;color:var(--ink)}
 .bl-asset-version-note span{flex:1;min-width:220px}
+/* Ticket row title is the row's button (a11y: no controls nested in a role=button row). */
+.bl-tk-open{background:none;border:0;padding:0;margin:0;font:inherit;font-size:12px;font-weight:500;color:inherit;cursor:pointer;width:100%}
+.bl-tk-open:focus-visible{outline:2px solid var(--bl-ink);outline-offset:2px}
+@media (max-width:640px){.bl-tk-open{min-height:0}}
+.bl-tk{cursor:pointer}
+/* a11y: the pressed segment flips colours in dark mode, so its count follows the
+   button's own text colour instead of mint (1.5:1 on the light pressed background). */
+.bl-segment button[aria-pressed="true"] .bl-count{color:currentColor;opacity:.8}

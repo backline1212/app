@@ -38,25 +38,14 @@ export function TicketRow({
   const assigneeIds = ticket.assignee_ids?.length ? ticket.assignee_ids : [];
 
   return (
-    <div 
-      className={`bl-tk${isClosed(ticket.status) ? " is-closed" : ""}`}
-      role="button" 
-      tabIndex={0} 
-      onClick={() => onOpen(ticket.id)}
-      onKeyDown={(e) => {
-        // Only activate for the row itself - a bubbled Enter/Space from the
-        // nested StatusSelect, priority <select>, tag chips, or the
-        // "Unassigned" button would otherwise both block their own native
-        // keyboard behavior (e.g. Space opening a <select>) and wrongly open
-        // the ticket detail on top of it.
-        if (e.target !== e.currentTarget) return;
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(ticket.id); }
-      }}
-    >
+    // The row is a plain container (clicking anywhere opens the ticket); the title is
+    // the keyboard/screen-reader control, so the row's own selects and buttons aren't
+    // nested inside another button.
+    <div className={`bl-tk${isClosed(ticket.status) ? " is-closed" : ""}`} onClick={() => onOpen(ticket.id)}>
       <span className="bl-tk-prio" style={{ background: priority.color }} title={`${priority.label} priority`} />
       <span className="bl-tid">{ticketRef(ticket)}</span>
       <div className="bl-tk-main">
-        <span className="bl-ticket-title">{ticket.body}</span>
+        <button type="button" className="bl-ticket-title bl-tk-open" onClick={(event) => { event.stopPropagation(); onOpen(ticket.id); }}>{ticket.body}</button>
         <span className="bl-tk-s">
           {ticket.project_name} · {ticket.is_standalone && !ticket.page_path ? "Team ticket" : (reviewTicketPath(ticket.page_path) ?? ticket.page_title)}
           {ticket.is_standalone && ticket.page_path && " · not pinned"}

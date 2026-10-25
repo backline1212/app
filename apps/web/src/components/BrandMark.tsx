@@ -9,7 +9,7 @@ interface BrandMarkProps {
  */
 export function BrandMark({ compact = false, context = "Review workspace" }: BrandMarkProps) {
   return (
-    <span className={`bl-brand-lockup${compact ? " is-compact" : ""}`} aria-label="Backline">
+    <span className={`bl-brand-lockup${compact ? " is-compact" : ""}`} role="img" aria-label="Backline">
       <span className="bl-brand-glyph" aria-hidden="true">
         <span>B</span>
         <i />
