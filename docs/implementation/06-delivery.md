@@ -5020,3 +5020,11 @@ database migration, or production deployment is claimed.
   `apps/web/public/backline-extension-0.5.12.zip`, 65903 bytes, SHA-256 `5108563d…d15a`.
   Verified with a local build: black-out burned into the tab capture. 0.5.10 ZIP removed;
   0.5.11 kept as previous.
+
+# 2026-10-25: Deploy note and end-of-day list
+
+- The Railway API deploy of `a01737a` (widget-only change) failed while the worker built
+  the same commit; the next backend change (#118, `1047d28`) deployed the API
+  successfully, so it was a transient deploy failure. Railway logs were not reachable
+  from this environment.
+- `pending-and-suggestions-2026-10-25.md` updated with the second batch.
