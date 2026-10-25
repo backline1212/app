@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "../../components/Toast";
 import { apiFetch, ApiError } from "../../lib/api-client";
@@ -72,7 +72,12 @@ export function NotificationBell() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   useOnClickOutside(containerRef, () => setOpen(false));
+  // A non-modal dialog: focus moves into it when it opens, Escape returns focus to the
+  // bell, and tabbing out of it closes it.
+  useEffect(() => { if (open) panelRef.current?.focus(); }, [open]);
 
   const { data: unread } = useQuery({
     queryKey: UNREAD_COUNT_KEY,
@@ -140,13 +145,23 @@ export function NotificationBell() {
   }
 
   return (
-    <div className="bl-dropdown" ref={containerRef} onKeyDown={(event) => { if (event.key === "Escape") setOpen(false); }}>
+    <div
+      className="bl-dropdown"
+      ref={containerRef}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && open) { event.stopPropagation(); setOpen(false); buttonRef.current?.focus(); }
+      }}
+      onBlur={(event) => {
+        if (open && event.relatedTarget instanceof Node && !containerRef.current?.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
       <button
+        ref={buttonRef}
         type="button"
         onClick={handleToggle}
         className="bl-icon-btn"
         aria-label={`Notifications${unread && unread > 0 ? `, ${unread} unread` : ""}`}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
       >
         <BellIcon />
@@ -154,7 +169,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="bl-dropdown-pop bl-notif-panel" role="menu" aria-label="Notifications">
+        <div className="bl-dropdown-pop bl-notif-panel" role="dialog" aria-label="Notifications" ref={panelRef} tabIndex={-1}>
           <div className="bl-notif-head">
             <span>NOTIFICATIONS</span>
             {!!unread && unread > 0 && <button type="button" onClick={handleMarkAllRead}>Mark all read</button>}
@@ -168,19 +183,12 @@ export function NotificationBell() {
             {(notifications ?? []).map((notification) => {
               const route = (notification as NotificationOut & { target_route?: string }).target_route;
               return (
-                <li
-                  key={notification.id}
+                <li key={notification.id} className="bl-notif-row">
+                <button
+                  type="button"
                   className={`bl-notif-item${!notification.read_at ? " unread" : ""}`}
-                  onClick={() => handleClickNotification(notification)}
-                  role="menuitem"
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      void handleClickNotification(notification);
-                    }
-                  }}
-                  aria-label={`${describe(notification)}${route ? " — click to view" : ""}`}
+                  onClick={() => void handleClickNotification(notification)}
+                  aria-label={`${describe(notification)}${!notification.read_at ? ", unread" : ""}${route ? ". Open" : ""}`}
                 >
                   {(() => {
                     const actor = actorOf(notification);
@@ -199,6 +207,7 @@ export function NotificationBell() {
                     </span>}
                     <span className="bl-nt-d">{timeAgo(notification.created_at)}</span>
                   </span>
+                </button>
                 </li>
               );
             })}

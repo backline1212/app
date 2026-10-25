@@ -5000,3 +5000,16 @@ database migration, or production deployment is claimed.
 - `/privacy` (dated October 25, 2026) now describes screenshot preview, black-outs,
   `data-backline-private` masking, and the Unsubscribe link in digest/feedback emails.
   Facts only; the owner should still review the notice as a whole before launch.
+
+# 2026-10-25: Keyboard pass on dialogs and popovers (SUG-07)
+
+- Checked with the keyboard only: New project, Account, Share project, New ticket, Invite
+  people, Add a client, Install code and Revoke dialogs already moved focus in, kept Tab
+  inside, closed on Escape and returned focus to their button.
+- Fixed the notifications popover: it was a "menu" holding a heading, a list and clickable
+  list items, and focus never entered it. It is now a non-modal dialog; focus moves in on
+  open, Escape returns focus to the bell, tabbing out closes it, and each notification is
+  a real button (announced with "unread").
+- Fixed the project dock's More menu: `aria-expanded`/`aria-controls`, focus on the first
+  item, Escape returns focus to More, tabbing out closes it; Preferences is announced as a
+  dialog. Verified on the workspace and project pages; mouse use unchanged.
