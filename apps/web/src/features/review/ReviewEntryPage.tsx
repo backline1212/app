@@ -10,7 +10,7 @@ import * as reviewApi from "./api";
 import { GuestBoard } from "./GuestBoard";
 import { NativeReviewButton } from "./NativeReviewButton";
 import type { PublicBranding } from "../workspaces/branding-api";
-import { readableInk } from "../../lib/readable-color";
+import { useBrandAccent } from "../../lib/use-brand-accent";
 import {
   clearStoredGuestSession,
   getStoredGuestSession,
@@ -64,7 +64,7 @@ export function ReviewEntryPage() {
     retry: false,
   });
   useDocumentTitle([resolved?.project_name, resolved?.branding?.display_name ?? "Review"]);
-  useReviewBranding(resolved?.branding);
+  useBrandAccent(resolved?.branding?.accent_color);
   const activeToken = sessionMatchesLink ? assetGuest ?? pendingHandoff?.token ?? "" : "";
   const sessionStatus = useQuery({
     queryKey: qk.guestSession(activeToken),
@@ -443,22 +443,6 @@ function ErrorScreen({ message, onRetry, retryLabel = "Try again", signIn }: { m
       </div>
     </div>
   );
-}
-
-/** Applies a workspace's client branding (TDR-0150) to the review pages: its accent
- * colour replaces Backline's, for as long as this page is open. */
-function useReviewBranding(branding: PublicBranding | null | undefined) {
-  useEffect(() => {
-    const accent = branding?.accent_color;
-    if (!accent) return;
-    const root = document.documentElement;
-    root.style.setProperty("--bl-brand-accent", accent);
-    // Text and icons drawn in the accent (on white and on the light tint) stay readable
-    // even when the brand colour is light; fills keep the exact brand colour.
-    root.style.setProperty("--bl-brand-ink", readableInk(accent, ["#FFFFFF", "#E3F8EF", "#F1F2F0"]) ?? accent);
-    root.classList.add("bl-branded");
-    return () => { root.style.removeProperty("--bl-brand-accent"); root.style.removeProperty("--bl-brand-ink"); root.classList.remove("bl-branded"); };
-  }, [branding?.accent_color]);
 }
 
 function BrandHeader({ branding }: { branding: PublicBranding | null | undefined }) {

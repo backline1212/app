@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useBrandAccent } from "../../lib/use-brand-accent";
 import type { PublicBranding } from "../workspaces/branding-api";
 
 /** The landing page of a workspace's own review domain: clients arrive with a review
@@ -9,14 +10,10 @@ export function ClientPortalLanding({ branding }: { branding: PublicBranding }) 
   const navigate = useNavigate();
   const [link, setLink] = useState("");
   const [error, setError] = useState("");
+  useBrandAccent(branding.accent_color);
   useEffect(() => {
     if (branding.display_name) document.title = `${branding.display_name} reviews`;
-    if (!branding.accent_color) return;
-    const root = document.documentElement;
-    root.style.setProperty("--bl-brand-accent", branding.accent_color);
-    root.classList.add("bl-branded");
-    return () => { root.style.removeProperty("--bl-brand-accent"); root.classList.remove("bl-branded"); };
-  }, [branding]);
+  }, [branding.display_name]);
   function open(event: FormEvent) {
     event.preventDefault();
     const token = link.trim().match(/(?:\/review\/)?([A-Za-z0-9_-]{8,64})\/?$/)?.[1];
