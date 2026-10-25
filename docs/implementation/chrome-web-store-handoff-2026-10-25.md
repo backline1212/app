@@ -17,12 +17,19 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.5 (2026-10-25, supersedes 0.5.2-0.5.4)
+## Update ready: 0.5.6 (2026-10-25, supersedes 0.5.2-0.5.5)
+
+0.5.6 = 0.5.5 plus: "Open with extension" from a selected thread opens that thread on
+the live page (TDR-0174). Package 61820 bytes, SHA-256
+`276503175540c71fa5103a4235b96f7e926bfb98044db3392106c3c27379f9c3`. Same targets and
+permissions. Submit 0.5.6.
+
+## Previous: 0.5.5 (2026-10-25)
 
 0.5.5 = 0.5.4 plus Edit / Delete / Mark resolved on the reviewer's own comments during a
 review (TDR-0172). Package 61036 bytes, SHA-256
 `34416872901cbd0fff9fa7f9069b3b0126682cc5feace33853ee6b19c7cb6768`. Same targets and
-permissions. Submit 0.5.5.
+permissions.
 
 ## Previous: 0.5.4 (2026-10-25, supersedes 0.5.2/0.5.3)
 

@@ -119,6 +119,8 @@ async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<
     reviewerCanResolve = current.reviewer_can_resolve ?? false;
   }
   if (origin(project.target_origin) !== destination.origin) throw new Error("Open a page on this project's website.");
+  const focus = typeof input.focusCommentId === "string" && /^[a-f0-9]{24}$/.test(input.focusCommentId)
+    ? { commentId: input.focusCommentId, url: destination.href } : undefined;
   // Keep sessionStorage and the app's in-memory state by reusing an existing tab.
   // Do not navigate that tab away from the page the reviewer has already opened.
   const candidates = (await chrome.tabs.query({})).filter(tab => {
@@ -140,7 +142,7 @@ async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<
       if (launchEpoch !== reviewEpoch) throw new Error("The extension connection changed. Open this review again from Backline.");
       previous = current;
       return { project, authorName, auth, member: auth.kind === "member", returnUrl: input.returnUrl,
-        viewer, reviewerCanResolve, pageIds: [], commentIds: [], launchId, returnTabId };
+        viewer, reviewerCanResolve, focus, pageIds: [], commentIds: [], launchId, returnTabId };
     });
     if (existing) {
       await chrome.tabs.update(tab.id, { active: true });
@@ -231,11 +233,19 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     try {
       const { session } = await sessionFor(sender);
       if (session.accessEnded) return null;
-      const { project, authorName, member, returnUrl, launchId, viewer, reviewerCanResolve } = session;
-      return { project, authorName, member, returnUrl, launchId, viewer, reviewerCanResolve } satisfies NativeReviewInfo;
+      const { project, authorName, member, returnUrl, launchId, viewer, reviewerCanResolve, focus } = session;
+      return { project, authorName, member, returnUrl, launchId, viewer, reviewerCanResolve, focus } satisfies NativeReviewInfo;
     } catch { return null; }
   }
   const { session, tabId } = await sessionFor(sender);
+  if (message.type === "native-review-focused") {
+    await mutateSession(tabId, latest => {
+      if (!latest || latest.launchId !== message.launchId || !latest.focus) return undefined;
+      delete latest.focus;
+      return latest;
+    });
+    return null;
+  }
   if (message.type === "native-review-return") {
     // Preserve the original portal tab and its latest ticket/filter query. Widget
     // page registration can update the query while this website tab is opening.

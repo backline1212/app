@@ -882,6 +882,11 @@ export function ProjectOverviewPage() {
     ? topLevelComments.find((comment) => comment.id === selectedCommentId) ?? null
     : null;
   const selectedLocate = selectedComment && locate?.commentId === selectedComment.id ? locate.state : null;
+  // "Open with extension" opens the thread selected here (or in the ?thread= link) on
+  // the live page, when it belongs to the page being opened.
+  const threadParam = searchParams.get("thread") ?? searchParams.get("comment");
+  const extensionFocus = selectedComment ?? topLevelComments.find((comment) => comment.id === threadParam) ?? null;
+  const extensionFocusId = extensionFocus && extensionFocus.page_id === activePage?.id ? extensionFocus.id : undefined;
   const selectedCommentPage = selectedComment
     ? sortedPages.find((page) => page.id === selectedComment.page_id) ?? null
     : null;
@@ -940,7 +945,8 @@ export function ProjectOverviewPage() {
 
         <div className="bl-review-header-tools">
           {/* Browser review exists to leave comments, which the API refuses a viewer. */}
-          {user && canComment && activePageRequest && <NativeReviewButton triggerRef={nativeReviewTrigger} projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }} />}
+          {user && canComment && activePageRequest && <NativeReviewButton triggerRef={nativeReviewTrigger} projectId={project.id} url={displayUrl} member={{ workspaceId: workspace.id, userId: user.id }}
+            focusCommentId={extensionFocusId} />}
           <div className="bl-review-mode" aria-label="Canvas mode">
             <button type="button" aria-pressed={mode === "browse"} disabled={!canvasToolsReady} title={canvasToolsReady ? undefined : toolsUnavailableReason} onClick={() => setMode("browse")}>
               <PointerIcon width={13} height={13} />

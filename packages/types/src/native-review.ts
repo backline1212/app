@@ -9,6 +9,8 @@ export interface NativeReviewLaunch {
   url: string;
   returnUrl: string;
   auth?: NativeReviewAuth;
+  /** A thread selected in Backline, opened on the page once it shows `url`. */
+  focusCommentId?: string;
 }
 
 export interface NativeReviewLaunchResult {
@@ -26,6 +28,8 @@ export interface NativeReviewInfo {
   viewer?: { type: "member" | "guest"; id: string };
   /** The project lets this guest reviewer resolve their own threads. */
   reviewerCanResolve?: boolean;
+  /** Open this thread when the tab reaches `url` (kept until it has been shown). */
+  focus?: { commentId: string; url: string };
 }
 
 export interface NativeReviewStatus {
