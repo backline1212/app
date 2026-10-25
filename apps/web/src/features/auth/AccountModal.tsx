@@ -12,7 +12,7 @@ const NOTIFICATION_ROWS = [
   ["notify_on_reply", "Replies to my comments", "Notify me when a teammate or client answers a thread I'm in."],
   ["notify_on_status_change", "Status changes on my tickets", "Notify me when something I raised or own changes status."],
   ["email_notifications", "Email feedback updates", "Also email me for the enabled feedback notifications above. Applies across my workspaces."],
-  ["daily_digest", "Daily digest email", "A daily email with new comments in projects I can access."],
+  ["daily_digest", "Daily digest email", "A daily summary: how many new comments arrived in projects I can access, and my tickets that are overdue or due within a day."],
 ] as const;
 
 type Prefs = Record<(typeof NOTIFICATION_ROWS)[number][0], boolean>;

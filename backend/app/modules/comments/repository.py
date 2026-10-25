@@ -300,6 +300,41 @@ class CommentRepository:
             .to_list(length=limit)
         )
 
+    async def count_created_by_page(
+        self, workspace_id: str, since: datetime, until: datetime, limit: int = 2000
+    ) -> list[dict[str, Any]]:
+        """Daily digest counts: comments and replies created in the window, per page."""
+        pipeline: list[dict[str, Any]] = [
+            {
+                "$match": {
+                    "workspace_id": workspace_id,
+                    "deleted_at": None,
+                    "created_at": {"$gt": since, "$lte": until},
+                }
+            },
+            {"$group": {"_id": "$page_id", "count": {"$sum": 1}}},
+            {"$limit": limit},
+        ]
+        return await self.db.comments.aggregate(pipeline).to_list(length=limit)
+
+    async def open_assigned_due_before(
+        self, workspace_id: str, user_id: str, before: datetime, limit: int = 500
+    ) -> list[dict[str, Any]]:
+        """Daily digest reminders: open tickets assigned to the member, due before `before`."""
+        query: dict[str, Any] = {
+            "workspace_id": workspace_id,
+            "deleted_at": None,
+            "parent_id": None,
+            "status": {"$nin": ["resolved", "wont_fix"]},
+            "due_at": {"$ne": None, "$lt": before},
+            "$or": [{"assignee_id": user_id}, {"assignee_ids": user_id}],
+        }
+        return (
+            await self.db.comments.find(query, {"page_id": 1, "project_id": 1, "due_at": 1})
+            .limit(limit)
+            .to_list(length=limit)
+        )
+
     async def find_by_client_request_id(
         self, workspace_id: str, client_request_id: str
     ) -> dict[str, Any] | None:
