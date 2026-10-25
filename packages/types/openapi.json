@@ -12581,6 +12581,25 @@
         "title": "ExternalLinkOut",
         "description": "A ticket filed in a tracker from a Backline comment. Member-only: never part of\nCommentOut, which guests and the guest realtime channel also receive."
       },
+      "FileApprovalSummary": {
+        "properties": {
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approved",
+          "total"
+        ],
+        "title": "FileApprovalSummary",
+        "description": "Image/PDF projects: how many current files (latest versions) are signed off."
+      },
       "FixSubmissionOut": {
         "properties": {
           "summary": {
@@ -15719,6 +15738,16 @@
               }
             ],
             "title": "Preview Requested At"
+          },
+          "file_approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileApprovalSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

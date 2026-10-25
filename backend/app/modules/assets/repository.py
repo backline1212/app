@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
@@ -164,6 +165,35 @@ class AssetRepository:
             session=session,
         )
         return result.matched_count == 1
+
+    async def approval_summary(
+        self, workspace_id: str, project_ids: Sequence[str]
+    ) -> dict[str, dict[str, int]]:
+        """Per project: current files (latest, not archived) and how many are approved."""
+        if not project_ids:
+            return {}
+        rows = await self.db.project_assets.aggregate(
+            [
+                {
+                    "$match": {
+                        "workspace_id": workspace_id,
+                        "project_id": {"$in": [*project_ids]},
+                        "archived_at": None,
+                        "superseded_by": None,
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$project_id",
+                        "total": {"$sum": 1},
+                        "approved": {
+                            "$sum": {"$cond": [{"$eq": ["$approval.approved", True]}, 1, 0]}
+                        },
+                    }
+                },
+            ]
+        ).to_list(length=len(project_ids))
+        return {row["_id"]: {"approved": row["approved"], "total": row["total"]} for row in rows}
 
     async def set_approval(
         self, workspace_id: str, project_id: str, asset_id: str, approval: dict[str, Any] | None

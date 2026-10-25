@@ -4893,3 +4893,7 @@ database migration, or production deployment is claimed.
 
 - Clients and the team can approve the latest version of an image/PDF; the uploader is
   notified; activity and the review report show it.
+
+# 2026-10-25: File approval on project cards (TDR-0185)
+
+- Project cards/table show how many current files are approved once any are.
