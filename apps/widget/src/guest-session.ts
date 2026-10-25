@@ -135,7 +135,7 @@ export function requestDashboardCanvasSession(timeoutMs = 3000): Promise<StoredG
 export async function ensureGuestSession(
   api: ApiClient,
   shareToken: string,
-  promptForName: () => Promise<string>,
+  promptForName: () => Promise<{ name: string; email?: string | null }>,
   expectedShareLinkId: string,
 ): Promise<StoredGuestSession> {
   const fromHandoff = await redeemHandoff(api, takeHandoffFromUrl());
@@ -162,12 +162,16 @@ export async function ensureGuestSession(
     }
   }
 
-  const displayName = await promptForName();
+  const reviewer = await promptForName();
   const result = await api.request<{ guest_session_token: string; display_name: string }>(
     "/api/v1/guest-sessions",
     {
       method: "POST",
-      body: JSON.stringify({ share_token: shareToken, display_name: displayName }),
+      body: JSON.stringify({
+        share_token: shareToken,
+        display_name: reviewer.name,
+        ...(reviewer.email ? { email: reviewer.email } : {}),
+      }),
     },
   );
   const session: StoredGuestSession = {

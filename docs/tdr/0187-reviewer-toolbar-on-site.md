@@ -28,3 +28,13 @@ composer; each route showed only its own pins, comments landed on the right rout
 Back restored each page's pins. In a proxied guest review Draw opened the composer after
 a drag and saved the area comment; switching tools with a draft was refused with
 "Post or cancel this comment first"; on a 390 px screen the card sat above the toolbar.
+
+## Addendum (same day): the snippet's name prompt
+
+When a site embeds the review snippet, the reviewer's first screen was a bare "Your
+name" box in the old indigo style with no length limit. It now matches Backline
+("Leave feedback on this page"), limits the name to 100 characters (the API's limit),
+and offers the same optional email as the review page, sent with the new guest session
+so the team's replies and resolutions can be emailed (TDR-0164). Verified: the prompt
+rendered, the session stored the name and email, and the toolbar appeared afterwards.
+SDK 33.6 kB gzipped.
