@@ -41,6 +41,7 @@ rollout and browser/provider acceptance still apply as described below.
 | SUG-09 file replacement | Source: file versions with per-version pins (TDR-0165). |
 | SUG-11 search | Source: ticket-number search, clients in search (TDR-0153/0157). |
 | FLOW-01 URL bearer handoff | Source: single-use, two-minute handoff code replaces the session token in the website URL (TDR-0173). Installation ID/allowed-origin setup remains. |
+| FEAT-09 client digest | Decided: per-event client emails (reply, resolved), no digest; `client_digest_enabled` stays inert and hidden (TDR-0181). |
 | FEAT-08 undo | Partial: Undo for closing a ticket and for bulk changes (TDR-0179); no persisted global history. |
 | FLOW-06 capture control | Source: reviewers can leave the automatic screenshot out (`capture_status: skipped`, TDR-0176). Capture preview remains. |
 | FLOW-05 open on site | Source: Open with extension from a selected thread opens it on the live page, after sign-in too (TDR-0174). Manual reanchor and preview/verification history remain. |

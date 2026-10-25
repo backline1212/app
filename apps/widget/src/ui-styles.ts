@@ -274,6 +274,8 @@ const HOST_STYLES = `
     border-top: 1px solid var(--bl-line-soft);
   }
   .bl-card .bl-cp-hint { margin-right: auto; font-size: 9.5px; color: var(--bl-ink-4); white-space: nowrap; }
+  /* No keyboard shortcut on a phone; the hint still holds the buttons to the right. */
+  @media (hover: none) and (pointer: coarse) { .bl-card .bl-cp-hint { visibility: hidden; } }
   .bl-card .bl-cp-hint kbd {
     background: var(--bl-paper); border: 1px solid var(--bl-line); border-radius: 3px;
     padding: 1px 5px; font-size: inherit; font-weight: 500; color: var(--bl-ink-3);
