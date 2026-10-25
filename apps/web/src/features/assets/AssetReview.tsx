@@ -699,6 +699,7 @@ export function AssetReview({
           <button key={file.id} type="button" role="tab" aria-selected={!!asset && versionGroup(asset) === versionGroup(file)} title={mobile && buildLine(file) ? `${file.filename} · ${buildLine(file)}` : file.filename} disabled={hasDraft && asset?.id !== file.id} onClick={() => selectFile(file)}>
             <FileGlyph pdf={file.content_type === "application/pdf"} />
             <span>{file.filename}{(file.version ?? 1) > 1 ? <small className="bl-asset-tab-meta">v{file.version}</small> : null}{mobile && file.device ? <small className="bl-asset-tab-meta">{file.device}</small> : null}</span>
+            {file.approval?.approved && <CheckCircleIcon className="bl-asset-tab-approved" width={12} height={12} role="img" aria-label="Approved" />}
             {!!asset && versionGroup(asset) === versionGroup(file) && <i aria-hidden="true" />}
           </button>
         ))}

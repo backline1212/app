@@ -3292,3 +3292,4 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-file-approval{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:3px;background:var(--paper);color:var(--ink-3);font-size:11px;white-space:nowrap}
 .bl-file-approval.is-done{background:var(--mint-tint);color:var(--mint-deep);font-weight:600}
 td .bl-file-approval{margin-left:6px}
+.bl-asset-tab-approved{flex:none;color:var(--mint-deep)}
