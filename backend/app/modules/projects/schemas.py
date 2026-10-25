@@ -233,6 +233,13 @@ class ProjectSettingsUpdate(BaseModel):
     slack_notifications_enabled: bool | None = None
 
 
+class FileApprovalSummary(BaseModel):
+    """Image/PDF projects: how many current files (latest versions) are signed off."""
+
+    approved: int
+    total: int
+
+
 class ProjectOut(BaseModel):
     metadata_version: int = 0
     id: str
@@ -265,6 +272,8 @@ class ProjectOut(BaseModel):
     # When the capture now queued (or last attempted) was asked for, so a client can
     # stop waiting on one that never ran.
     preview_requested_at: datetime | None = None
+    # Project lists only, for file projects with files (TDR-0185).
+    file_approval: FileApprovalSummary | None = None
 
 
 class ProjectDeletionCounts(BaseModel):

@@ -19,6 +19,7 @@ import { DuplicateProjectDialog, ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
 import { ProjectArtwork } from "./ProjectArtwork";
 import { LockIcon, PlusIcon, SearchIcon } from "../../components/icons";
+import { CheckCircleIcon } from "./panel/icons";
 import { projectCan, roleLabel } from "../../lib/project-roles";
 import { redactReviewUrl } from "../../lib/review-page-path";
 import { EmptyArt } from "../../components/illustrations";
@@ -90,6 +91,15 @@ function ProjectStageChip({ project }: { project: api.ProjectOut }) {
   if ((project.project_type ?? "website") !== "website") return null;
   const environment = project.environment ?? "live";
   return <span className={`bl-chip ${environment}`}>{environment === "live" && <i className="bl-live-dot" aria-hidden="true" />}{environment}</span>;
+}
+
+/** Image/PDF projects: sign-off on the current file versions (TDR-0184/0185). */
+function FileApprovalChip({ summary }: { summary: { approved: number; total: number } }) {
+  const all = summary.approved === summary.total;
+  const label = all
+    ? summary.total === 1 ? "File approved" : "All files approved"
+    : `${summary.approved} of ${summary.total} ${summary.total === 1 ? "file" : "files"} approved`;
+  return <span className={`bl-file-approval${all ? " is-done" : ""}`} title="Latest version of each file">{all && <CheckCircleIcon width={12} height={12} aria-hidden="true" />}{label}</span>;
 }
 
 export function ProjectsPage() {
@@ -189,6 +199,7 @@ export function ProjectsPage() {
       </div>
       <footer className="bl-project-actions">
         <span className="bl-project-client">{clients.data?.find((c) => c.id === p.client_id)?.name ?? "Internal project"}</span>
+        {p.file_approval && p.file_approval.approved > 0 && <FileApprovalChip summary={p.file_approval} />}
         {!cornerMenu && menu}
       </footer>
     </article>;
@@ -213,7 +224,7 @@ export function ProjectsPage() {
         ? <span className="bl-table-name is-archived">{p.name}<span className="bl-arch-tag">Archived</span></span>
         : <Link className="bl-table-name" to={destination}>{p.access.visibility === "private" && <LockIcon className="bl-table-lock" aria-label="Private" role="img" />}{p.name}</Link>}</td>
       <td><span className="bl-table-source" title={displayUrl}>{displayUrl}</span></td>
-      <td><ProjectStageChip project={p} /></td>
+      <td><ProjectStageChip project={p} />{p.file_approval && p.file_approval.approved > 0 && <FileApprovalChip summary={p.file_approval} />}</td>
       <td className={`bl-col-num${(s?.open ?? 0) > 0 ? " has-value is-strong" : ""}`}>{(s?.open ?? 0) > 0 ? <Link to={`/w/${workspace.slug}/tickets?project_id=${p.id}&open=1`}>{s?.open ?? 0}</Link> : 0}</td>
       {count(s?.status_counts?.in_review ?? 0)}
       {count(s?.status_counts?.blocked ?? 0)}

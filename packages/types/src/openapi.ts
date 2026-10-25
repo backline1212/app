@@ -3807,6 +3807,16 @@ export interface components {
             created_at: string;
         };
         /**
+         * FileApprovalSummary
+         * @description Image/PDF projects: how many current files (latest versions) are signed off.
+         */
+        FileApprovalSummary: {
+            /** Approved */
+            approved: number;
+            /** Total */
+            total: number;
+        };
+        /**
          * FixSubmissionOut
          * @description A fix reported on a ticket (by a coding agent over MCP's submit_fix): what changed
          *     and where to check it. Lives on the reply that reported it, so every attempt stays in
@@ -5005,6 +5015,7 @@ export interface components {
             preview_captured_at?: string | null;
             /** Preview Requested At */
             preview_requested_at?: string | null;
+            file_approval?: components["schemas"]["FileApprovalSummary"] | null;
         };
         /**
          * ProjectPersonOut

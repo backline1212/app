@@ -31,6 +31,7 @@ from app.modules.projects import events as project_events
 from app.modules.projects import preview_service
 from app.modules.projects.repository import ProjectRepository, is_untouched_sample
 from app.modules.projects.schemas import (
+    FileApprovalSummary,
     ProjectAccessDetailOut,
     ProjectAccessMemberIn,
     ProjectAccessOut,
@@ -372,9 +373,19 @@ async def list_projects(
     docs = await ProjectRepository(db).list_for_workspace(
         workspace_id, include_archived=include_archived, exclude_ids=hidden
     )
-    return await preview_service.with_previews(
+    outs = await preview_service.with_previews(
         db, docs, [_project_out(doc, viewer) for doc in docs]
     )
+    from app.modules.assets.repository import AssetRepository
+
+    file_projects = [out.id for out in outs if (out.project_type or "website") != "website"]
+    summary = await AssetRepository(db).approval_summary(workspace_id, file_projects)
+    return [
+        out.model_copy(update={"file_approval": FileApprovalSummary(**summary[out.id])})
+        if out.id in summary
+        else out
+        for out in outs
+    ]
 
 
 async def get_project(
