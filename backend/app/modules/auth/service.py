@@ -48,6 +48,14 @@ class IssuedTokens:
     user: UserOut
 
 
+def _code_block(code: str) -> str:
+    """A one-time code, large and spaced for reading and copying."""
+    return (
+        '<p style="margin:16px 0;font-size:28px;font-weight:700;letter-spacing:6px;">'
+        f"<strong>{code}</strong></p>"
+    )
+
+
 def _user_out(doc: dict[str, Any]) -> UserOut:
     return UserOut(
         id=str(doc["_id"]),
@@ -203,9 +211,9 @@ async def request_signup(
     await send_email(
         to=email,
         subject="Verify your Backline account",
-        html=f"<p>Your account verification code is <strong>{code}</strong>. It expires in "
-        f"{settings.otp_ttl_minutes} minutes.</p>"
-        "<p>If you didn't request an account, ignore this message.</p>",
+        html="<p>Use this code to verify your email and finish creating your Backline "
+        f"account:</p>{_code_block(code)}<p>It expires in {settings.otp_ttl_minutes} minutes. "
+        "If you didn't try to create an account, you can ignore this email.</p>",
     )
     return SignupChallengeOut(email=email, expires_in_seconds=settings.otp_ttl_minutes * 60)
 
@@ -293,8 +301,9 @@ async def request_otp(db: AsyncIOMotorDatabase[dict[str, Any]], email: str) -> N
     await send_email(
         to=email,
         subject="Your Backline sign-in code",
-        html=f"<p>Your sign-in code is <strong>{code}</strong>. It expires in "
-        f"{settings.otp_ttl_minutes} minutes.</p>",
+        html=f"<p>Use this code to sign in to Backline:</p>{_code_block(code)}"
+        f"<p>It expires in {settings.otp_ttl_minutes} minutes. If you didn't try to sign in, "
+        "you can ignore this email; nobody can sign in without the code.</p>",
     )
 
 
@@ -653,9 +662,9 @@ async def request_email_change(
     await send_email(
         to=email,
         subject="Confirm your new Backline email",
-        html=f"<p>Your confirmation code is <strong>{code}</strong>. It expires in "
-        f"{settings.otp_ttl_minutes} minutes.</p><p>If you didn't ask to change your "
-        "Backline email, ignore this message.</p>",
+        html=f"<p>Use this code to confirm your new Backline email address:</p>"
+        f"{_code_block(code)}<p>It expires in {settings.otp_ttl_minutes} minutes. If you "
+        "didn't ask to change your Backline email, ignore this email.</p>",
     )
 
 
