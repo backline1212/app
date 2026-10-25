@@ -17,7 +17,15 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.3 (2026-10-25, supersedes 0.5.2)
+## Update ready: 0.5.4 (2026-10-25, supersedes 0.5.2/0.5.3)
+
+0.5.4 = 0.5.3 plus a popup that shows "Reviewing <project> in this tab" during a
+review and leads with "open the project in Backline → Open with extension" (token setup
+moved under an advanced section), Backline colours, and no duplicate floating hint over
+the toolbar (TDR-0170). Package 59281 bytes, SHA-256 `45561f7fdc87f9b11db5d26c1c53756e61ae156a6a086bf52c7245bbc93f0173`. Same targets and
+permissions. Submit 0.5.4.
+
+## Previous: 0.5.3 (2026-10-25, supersedes 0.5.2)
 
 0.5.3 = 0.5.2 plus: while the extension reviews a tab, a Backline snippet the site
 itself embeds steps aside (no second toolbar / name prompt). Package

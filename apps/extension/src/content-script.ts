@@ -127,7 +127,9 @@ async function buildFreshContext(): Promise<AnnotationContext | null> {
     native: !!info,
     threadManager,
     ownCommentIds: new Set<string>(),
-    tooltip: showTooltip(shadow),
+    // In a review opened from Backline the toolbar already says what to do in each
+    // mode ("Drag over an area…"); the floating hint would repeat it over the composer.
+    tooltip: info ? { dismiss: () => undefined } : showTooltip(shadow),
     // The connection only carries the member's email, so the composer's avatar
     // initials come from that.
     composerDetails: (regionSize) => ({

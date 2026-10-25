@@ -36,7 +36,7 @@
         padding: 8px;
         border: none;
         border-radius: 4px;
-        background: #0052cc;
+        background: #0b0b0b;
         color: #fff;
         font: inherit;
         font-weight: 600;
@@ -44,8 +44,28 @@
       }
       button.secondary {
         background: transparent;
-        color: #0052cc;
-        border: 1px solid #0052cc;
+        color: #0b0b0b;
+        border: 1px solid #d4d6d0;
+      }
+      .note {
+        padding: 10px 12px;
+        border-radius: 4px;
+        background: #e6f4ee;
+        color: #0a6b4b;
+      }
+      details {
+        margin-top: 14px;
+        border-top: 1px solid #eee;
+        padding-top: 10px;
+      }
+      summary {
+        cursor: pointer;
+        color: #555;
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+      #review-view {
+        display: none;
       }
       button.danger {
         background: transparent;
@@ -116,14 +136,24 @@
     <main>
       <h1>Backline</h1>
 
+      <div id="review-view">
+        <p class="note">Reviewing <strong id="review-project"></strong> in this tab.</p>
+        <p>Use the Backline toolbar at the bottom of the page: Comment, Draw, or Return to Backline.</p>
+        <button type="button" class="secondary" id="review-dashboard-btn">Open Backline</button>
+      </div>
+
       <div id="disconnected-view">
-        <p>Connect your Backline account to leave comments on any site.</p>
-        <form id="connect-form">
-          <input id="token-input" type="password" placeholder="Paste your extension token" required />
-          <button type="submit">Connect</button>
-        </form>
-        <p id="status"></p>
-        <button type="button" class="secondary" id="get-token-link">Get a token</button>
+        <p>To review a website, open its project in Backline and choose <strong>Open with extension</strong>. You don't need a token.</p>
+        <button type="button" id="open-backline-btn">Open Backline</button>
+        <details>
+          <summary>Use the extension without opening a project first</summary>
+          <form id="connect-form">
+            <input id="token-input" type="password" placeholder="Paste your extension token" required />
+            <button type="submit">Connect</button>
+          </form>
+          <p id="status"></p>
+          <button type="button" class="secondary" id="get-token-link">Get a token</button>
+        </details>
       </div>
 
       <div id="connected-view">
