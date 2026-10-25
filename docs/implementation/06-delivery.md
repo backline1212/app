@@ -4910,3 +4910,10 @@ database migration, or production deployment is claimed.
 
 - Clients get Browse / Comment / Draw on the reviewed site, so they can navigate it and
   leave area comments.
+
+# 2026-10-25: Friendly network errors; offline acceptance (QA-03)
+
+- The widget and guest file review say "Can't reach Backline - check your connection"
+  instead of the browser's "Failed to fetch". Local acceptance: a comment posted while
+  offline showed "Saving is unconfirmed" with Retry save; after reconnecting, Retry saved
+  it and exactly one record existed.
