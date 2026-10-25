@@ -4917,3 +4917,14 @@ database migration, or production deployment is claimed.
   instead of the browser's "Failed to fetch". Local acceptance: a comment posted while
   offline showed "Saving is unconfirmed" with Retry save; after reconnecting, Retry saved
   it and exactly one record existed.
+
+# 2026-10-25: Backend test suite status (no regressions)
+
+- `uv run pytest` on current main: 241 passed, 33 failed. The same 33 tests fail, by
+  name, on `c2a956c` (before this round's changes), so none is a regression. They are
+  stale against later deliberate designs: digests are prepared durably instead of sent
+  inline, uploads must be real project keys, snapshot hashes must be sha256 digests,
+  realtime `connect()` requires an access check, idempotent retries with a different
+  body return 409, OTP/share-link response wording, proxy streaming with the test
+  client, and provider fixtures. Per AGENTS.md this round verified with lint, typecheck,
+  build and browser runs rather than rewriting the suite; updating those tests is open.
