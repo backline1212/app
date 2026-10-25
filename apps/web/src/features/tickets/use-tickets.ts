@@ -10,6 +10,8 @@ import { listProjects } from "../projects/api";
 import { listMembers } from "../workspaces/api";
 import * as api from "./api";
 import { STATUS_LABELS, TAGS, WORKFLOW_STATUSES, isClosed } from "../../lib/workflow";
+import { ticketRef } from "../../lib/ticket-ref";
+import { useToast } from "../../components/Toast";
 
 // What the API accepts for each enumerated filter (dashboard/schemas.py TicketFilters).
 // A value outside these - an old bookmark, a hand-edited link - used to fail the whole
@@ -24,6 +26,7 @@ const ALLOWED: Record<string, readonly string[]> = {
 
 export function useTickets(workspaceId: string, params: URLSearchParams, setParams: (p: URLSearchParams) => void) {
   const cache = useQueryClient();
+  const { toast } = useToast();
   const [exportError, setExportError] = useState("");
   const [exporting, setExporting] = useState(false);
   const editing = useRef(false);
@@ -91,13 +94,27 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
       await cache.cancelQueries({ queryKey: qk.tickets(workspaceId) });
       if (contextRevision !== getAccessContextRevision()) throw new Error("Your account or workspace changed. Check the current tickets before trying again.");
       const previous = cache.getQueryData<Schemas["TicketListOut"]>(key);
+      const before = previous?.items.find((t) => t.id === id);
       cache.setQueryData<Schemas["TicketListOut"]>(key, (old) => {
         if (!old) return old;
         const items = old.items.map((t) => t.id === id ? { ...t, ...(patch as unknown as Partial<api.Ticket>) } : t);
         // Mirror the API's order straight away: finished tickets sit below open ones.
         return { ...old, items: [...items.filter((t) => !isClosed(t.status)), ...items.filter((t) => isClosed(t.status))] };
       });
-      return { previous, key, contextRevision };
+      return { previous, key, contextRevision, before };
+    },
+    onSuccess: (saved, { id, patch }, context) => {
+      // The saved revision, so an Undo straight away isn't refused as a stale edit.
+      cache.setQueryData<Schemas["TicketListOut"]>(context.key, (old) => old && {
+        ...old, items: old.items.map((t) => t.id === id ? { ...t, revision: saved.revision } : t),
+      });
+      const before = context.before;
+      // Closing a ticket moves it to the bottom of the list - offer the way back.
+      if (before && patch.status && isClosed(patch.status) && !isClosed(before.status)) {
+        toast(`${ticketRef(before)} marked ${STATUS_LABELS[patch.status].toLowerCase()}.`, "success", {
+          action: { label: "Undo", onClick: () => mutate({ id, patch: { status: before.status } }) },
+        });
+      }
     },
     onError: (_err, _newTodo, context) => {
       if (context?.previous && context.contextRevision === getAccessContextRevision()) {

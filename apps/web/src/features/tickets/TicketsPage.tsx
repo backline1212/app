@@ -215,7 +215,7 @@ export function TicketsPage() {
         </p>
       ))}
 
-      {bulkResult && <BulkResultNote result={bulkResult} onDismiss={() => setBulkResult(null)} />}
+      {bulkResult && <BulkResultNote workspaceId={workspace.id} result={bulkResult} onDismiss={() => setBulkResult(null)} onUndone={setBulkResult} />}
       {selectedTickets.length > 0 && display !== "board" && display !== "calendar" && (
         <BulkBar workspaceId={workspace.id} selected={selectedTickets} members={members.data ?? []}
           onClear={() => setSelectedIds(new Set())}
