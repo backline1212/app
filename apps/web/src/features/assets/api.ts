@@ -45,6 +45,8 @@ export function uploadAsset(projectId: string, file: File, build?: BuildInfo, re
   for (const [field, value] of Object.entries(build ?? {})) if (value?.trim()) form.append(field, value.trim());
   return boundedRequest(120_000, 'Upload confirmation timed out. Retry this batch with the same selected files to recover an upload that may already be saved.', signal => apiFetch<Asset>(`/api/v1/projects/${projectId}/assets`, { method: 'POST', body: form, signal }));
 }
+/** A fingerprint of the page's comment list; it changes whenever the list would. */
+export function assetCommentsVersion(pageId: string, guest?: string) { return assetRequest<Schemas['CommentsVersionOut']>(`/api/v1/pages/${pageId}/comments/version`, guest); }
 export function listAssetComments(pageId: string, guest?: string) { return assetRequest<Schemas['CommentOut'][]>(`/api/v1/pages/${pageId}/comments`, guest); }
 export function createAssetComment(projectId: string, assetId: string, body: Schemas['AssetCommentCreate'], guest?: string) { return assetRequest<Schemas['CommentOut']>(`/api/v1/projects/${projectId}/assets/${assetId}/comments`, guest, { method: 'POST', body: JSON.stringify(body) }); }
 export function replyToComment(commentId: string, body: string, layer: 'client' | 'team', guest?: string, clientRequestId?: string) { return assetRequest<Schemas['CommentOut']>(`/api/v1/comments/${commentId}/replies`, guest, { method: 'POST', body: JSON.stringify({ body, layer, client_request_id: clientRequestId }) }); }

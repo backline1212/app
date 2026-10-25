@@ -4795,3 +4795,8 @@ database migration, or production deployment is claimed.
 
 - axe-core WCAG A/AA clean on all main pages (light + dark): ticket rows no longer nest
   controls in a button, dark-mode count contrast, ARIA roles.
+
+# 2026-10-25: API compression, file review polling (TDR-0167)
+
+- API JSON and the widget script are gzip-compressed (100x smaller comment lists in the
+  seeded test); file review re-downloads comments only when they change.
