@@ -17,12 +17,20 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.9 (2026-10-25, supersedes 0.5.2-0.5.8)
+## Update ready: 0.5.10 (2026-10-25, supersedes 0.5.2-0.5.9)
+
+0.5.10 = 0.5.9 rebuilt with the current widget code: clearer first-use hint and
+"Can't reach Backline - check your connection" instead of the browser's "Failed to
+fetch" (TDR-0187, delivery log). Package 63097 bytes, SHA-256
+`209ac8d4990bfa1cec466a212ff162fa0ab6dc27bb9cf99e14fc3190b48c6e8f`. Same targets and
+permissions. Submit 0.5.10.
+
+## Previous: 0.5.9 (2026-10-25)
 
 0.5.9 = 0.5.8 plus the composer hiding its keyboard hint on touch screens (TDR-0181), so
 the package matches the current widget source. Package 62674 bytes, SHA-256
 `9cf14930419766a535a92a2d91ea35c0a239b2dbe10a6f072e2ab925653a3afa`. Same targets and
-permissions. Submit 0.5.9.
+permissions.
 
 ## Previous: 0.5.8 (2026-10-25)
 

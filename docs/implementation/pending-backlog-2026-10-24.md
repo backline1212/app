@@ -55,7 +55,7 @@ rollout and browser/provider acceptance still apply as described below.
 | QA-03 offline/lost acknowledgement | Local acceptance (2026-10-25), website widget: posting offline kept the draft as an unconfirmed save with Retry; after reconnecting, Retry produced exactly one comment. Other surfaces and slow/partial uploads remain. |
 | New capabilities | Ticket bulk triage (TDR-0177), printable review report (TDR-0178), digest counts and due reminders (TDR-0183), file version approval with notification/email and project-card summary (TDR-0184/0185). |
 
-Operator follow-ups from this round: submit extension **0.5.9** to the Chrome Web Store
+Operator follow-ups from this round: submit extension **0.5.10** to the Chrome Web Store
 (supersedes every earlier package; see the handoff doc) and set
 `VITE_EXTENSION_STORE_URL` after approval; run `scripts.migrate_ticket_numbers --apply`
 and `scripts.migrate_event_projects --apply` (dry-run first); make sure the Arq worker
