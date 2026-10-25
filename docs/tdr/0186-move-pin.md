@@ -27,3 +27,10 @@ Workspace lint/typecheck/build. Chromium: opened #17 in the dashboard, chose Mov
 clicked the page heading in the canvas: "Pin for #17 moved", the pin redrew on the
 heading, no composer opened, the stored anchor now targets `h1`, recovery status ok,
 and the activity event was recorded.
+
+## Addendum (same day): finding lost pins
+
+The Comments panel shows "N comments have lost their place after a site change" when
+open comments have a recovery status other than OK, with "Show them", a `lostPins=true`
+URL filter (cleared by Clear filters). Verified: one orphaned comment was listed,
+re-pinned from its detail, and the notice then read "Every open comment is pinned again."

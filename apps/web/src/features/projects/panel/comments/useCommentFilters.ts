@@ -16,6 +16,8 @@ export function useCommentFilters() {
   const layerFilter = (searchParams.get("layer") as LayerFilter) || "all";
   const sortOrder = (searchParams.get("sort") as SortOrder) || "newest";
   const currentPageOnly = searchParams.get("currentPageOnly") === "true";
+  // Comments whose element couldn't be found after a site change (TDR-0186).
+  const lostOnly = searchParams.get("lostPins") === "true";
 
   const activeTags = searchParams.getAll("tags");
   const activeDeviceTypes = searchParams.getAll("deviceTypes");
@@ -69,7 +71,7 @@ export function useCommentFilters() {
   // state offers this; the sort, display and grouping choices are left as they were.
   const clearFilters = useCallback(() => {
     updateSearchParams((next) => {
-      for (const key of ["status", "hideResolved", "layer", "currentPageOnly", "tags", "deviceTypes", "browsers", "assignees"]) {
+      for (const key of ["status", "hideResolved", "layer", "currentPageOnly", "lostPins", "tags", "deviceTypes", "browsers", "assignees"]) {
         next.delete(key);
       }
     });
@@ -87,6 +89,8 @@ export function useCommentFilters() {
     setSortOrder: (sort: SortOrder) => updateParam("sort", sort === "newest" ? null : sort),
     currentPageOnly,
     setCurrentPageOnly: (curr: boolean) => updateParam("currentPageOnly", curr ? "true" : null),
+    lostOnly,
+    setLostOnly: (lost: boolean) => updateParam("lostPins", lost ? "true" : null),
     activeTags,
     setActiveTags: (tags: string[] | ((prev: string[]) => string[])) => updateArrayParam("tags", tags),
     activeDeviceTypes,
