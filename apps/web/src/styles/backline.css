@@ -3232,7 +3232,7 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-bulk-status{color:var(--bl-muted);font:11px var(--bl-mono)}
 .bl-bulk-result{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 12px;padding:8px 12px;border:1px solid var(--bl-line);border-radius:3px;background:var(--bl-paper);font-size:12px}
 .bl-bulk-result ul{flex-basis:100%;order:3;margin:0;padding-left:18px;color:var(--bl-muted)}
-.bl-bulk-result .bl-quiet{margin-left:auto}
+.bl-bulk-result>span{margin-right:auto}
 /* Printable review report (features/reports/ReviewReportPage.tsx). */
 .bl-report{max-width:860px;margin:0 auto;padding:24px 20px 64px;color:var(--bl-ink)}
 .bl-report-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-bottom:24px;padding:10px 12px;border:1px solid var(--bl-line);border-radius:3px;background:var(--bl-surface);font-size:12px}

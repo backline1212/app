@@ -4860,3 +4860,7 @@ database migration, or production deployment is claimed.
 
 - Project menu → Review report: client-ready summary of feedback by page/file, printable
   or saved as PDF.
+
+# 2026-10-25: Undo for closing tickets and bulk changes (TDR-0179)
+
+- Undo after resolving/closing a ticket on the Tickets page and after a bulk change.
