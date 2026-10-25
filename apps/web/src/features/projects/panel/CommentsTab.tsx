@@ -66,6 +66,8 @@ export function CommentsTab({
     setSortOrder,
     currentPageOnly,
     setCurrentPageOnly,
+    lostOnly,
+    setLostOnly,
     activeTags,
     setActiveTags,
     activeDeviceTypes,
@@ -84,6 +86,7 @@ export function CommentsTab({
   } = useCommentFilters();
 
   const allThreads = useMemo(() => (comments ?? []).filter((c) => !c.parent_id), [comments]);
+  const lostCount = allThreads.filter((c) => c.recovery_status !== "ok" && !["resolved", "wont_fix"].includes(c.status)).length;
 
   // Replies (parent_id set) share the same flat list as top-level comments - grouped
   // here for the reply-count badge and the thread view, the same way BoardPage's own
@@ -128,6 +131,7 @@ export function CommentsTab({
     if (activeStatus && c.status !== activeStatus) return false;
     if (layerFilter !== "all" && c.layer !== layerFilter) return false;
     if (currentPageOnly && currentPageId && c.page_id !== currentPageId) return false;
+    if (lostOnly && c.recovery_status === "ok") return false;
     if (activeTags.length > 0 && !activeTags.some((t) => c.tags?.includes(t as NonNullable<CommentOut["tags"]>[number]))) return false;
     if (activeDeviceTypes.length > 0 && !activeDeviceTypes.includes(commentDeviceType(c) ?? "")) return false;
     if (activeBrowsers.length > 0 && !activeBrowsers.includes(commentBrowser(c) ?? "")) return false;
@@ -233,6 +237,13 @@ export function CommentsTab({
         groupBy={groupBy}
         setGroupBy={setGroupBy}
       />
+
+      {(lostCount > 0 || lostOnly) && (
+        <div className="bl-lost-pins" role="status">
+          <span>{lostOnly ? lostCount === 0 ? "Every open comment is pinned again." : `Showing ${lostCount} ${lostCount === 1 ? "comment" : "comments"} whose element wasn't found after a site change. Open one and choose Re-pin.` : `${lostCount} ${lostCount === 1 ? "comment has" : "comments have"} lost ${lostCount === 1 ? "its" : "their"} place after a site change.`}</span>
+          <button type="button" className="bl-quiet" onClick={() => setLostOnly(!lostOnly)}>{lostOnly ? "Show all" : "Show them"}</button>
+        </div>
+      )}
 
       <CommentsList
         isLoading={commentsQuery.isLoading}

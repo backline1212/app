@@ -3298,3 +3298,5 @@ td .bl-file-approval{margin-left:6px}
 .bl-move-pin-banner kbd{padding:1px 5px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font:10px var(--mono)}
 .bl-cd-move-pin{margin-left:auto;padding:3px 8px;border:1px solid var(--line);border-radius:3px;background:var(--bl-surface);font-size:11px;white-space:nowrap}
 .bl-cd-move-pin:hover{border-color:var(--ink)}
+.bl-lost-pins{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #F0D9A8;border-radius:3px;background:var(--amber-tint);color:var(--amber-ink);font-size:12px}
+.bl-lost-pins .bl-quiet{margin-left:auto;flex:none}
