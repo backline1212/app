@@ -2645,6 +2645,14 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-code-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .bl-install-code{display:grid;gap:10px;padding:14px 20px 18px}
 .bl-install-code .bl-code-actions{justify-content:space-between}
+.bl-share-links-table .bl-share-link-actions{text-align:right;white-space:nowrap}
+@media (max-width:640px){.bl-share-links-table thead{display:none}.bl-share-links-table,.bl-share-links-table tbody,.bl-share-links-table tr,.bl-share-links-table td{display:block;width:100%}.bl-share-links-table tr{padding:12px 14px;border-bottom:1px solid var(--bl-line)}.bl-share-links-table tr:last-child{border-bottom:0}.bl-share-links-table td{padding:3px 0;border:0;min-width:0}.bl-share-links-table td:first-child{min-width:0;padding-bottom:6px}.bl-share-links-table td[data-label]::before{content:attr(data-label);display:inline-block;min-width:76px;font:10px var(--bl-mono);text-transform:uppercase;letter-spacing:.04em;color:var(--bl-muted)}.bl-share-links-table .bl-share-link-actions{text-align:left;white-space:normal;padding-top:8px;margin-left:-6px}}
+.bl-install-guides{display:grid;gap:4px}
+.bl-install-guides>.bl-mono{margin-bottom:2px;color:var(--ink-3);font-size:11px}
+.bl-install-guides details{border:1px solid var(--line);border-radius:5px;background:var(--bl-paper)}
+.bl-install-guides summary{padding:7px 10px;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer}
+.bl-install-guides ol{margin:0;padding:0 12px 8px 30px;font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+.bl-install-guides .bl-code{margin:0 10px 10px}
 .bl-install-notes{display:grid;gap:7px;margin:4px 0 0;padding-left:18px;list-style:disc;color:var(--ink-2);font-size:12.5px;line-height:1.5}
 .bl-install-notes code,.bl-dialog-intro code{font:11.5px var(--mono);color:var(--ink)}
 @media (max-width:640px){.bl-install-code{padding:12px 16px 16px}}
