@@ -3203,3 +3203,4 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-asset-loading-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 .bl-nt-ctx{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:3px;font-size:11px;color:var(--ink-3);min-width:0}
 .bl-nt-ctx .bl-tid{font-size:10px}.bl-nt-ex{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}.bl-nt-pr{color:var(--ink-4)}
+.bl-gate-optional{font-weight:400;color:var(--ink-4);font-size:11px;margin-left:4px}

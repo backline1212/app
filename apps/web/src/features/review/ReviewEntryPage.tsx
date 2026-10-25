@@ -29,6 +29,7 @@ export function ReviewEntryPage() {
   const [sessionShareToken, setSessionShareToken] = useState(shareToken);
   const sessionMatchesLink = sessionShareToken === shareToken;
   const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -166,6 +167,7 @@ export function ReviewEntryPage() {
         shareToken,
         displayName,
         passcode || undefined,
+        email.trim() || undefined,
       );
       const session: StoredGuestSession = {
         guestSessionToken: result.guest_session_token,
@@ -347,6 +349,20 @@ export function ReviewEntryPage() {
                 <div className="bl-gate-hint">Your name is shown with your feedback. Review activity and any submitted evidence are saved for this project.</div>
               </div>
             )}
+
+            <div className="bl-gate-field">
+              <label htmlFor="reviewer-email">Email <span className="bl-gate-optional">optional</span></label>
+              <input
+                id="reviewer-email"
+                type="email"
+                maxLength={254}
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@company.com"
+              />
+              <div className="bl-gate-hint">Get an email when the team replies to or resolves your feedback. Only used for this review.</div>
+            </div>
 
             {resolved.requires_passcode && (
               <div className="bl-gate-field">

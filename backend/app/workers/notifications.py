@@ -24,19 +24,90 @@ async def sweep_notification_emails_job(ctx: dict[str, Any]) -> int:
     return await sweep_emails(get_db())
 
 
+def _client_email(
+    *,
+    guest_name: str,
+    brand_name: str | None,
+    lead: str,
+    quote: str,
+    extra: str = "",
+    review_url: str | None = None,
+    project_name: str | None = None,
+) -> str:
+    """Client-facing update email. Every interpolated value is user-authored (names,
+    comment text, project names) or configuration, so all of it is escaped."""
+    sender = escape(brand_name or "the team")
+    parts = [
+        f"<p>Hi {escape(guest_name)},</p>",
+        f"<p>{lead}</p>",
+        f'<blockquote style="margin:12px 0;padding:8px 12px;border-left:3px solid #ccc;'
+        f'color:#444">{escape(quote)}</blockquote>',
+    ]
+    if extra:
+        parts.append(extra)
+    if review_url:
+        parts.append(
+            f'<p><a href="{escape(review_url, quote=True)}">Open the review'
+            f"{' for ' + escape(project_name) if project_name else ''}</a></p>"
+        )
+    parts.append(
+        f'<p style="color:#777;font-size:12px">You\'re getting this because you left '
+        f"feedback for {sender} with this email address.</p>"
+    )
+    return "".join(parts)
+
+
 async def send_guest_resolved_email_job(
-    ctx: dict[str, Any], guest_email: str, guest_name: str, comment_body: str
+    ctx: dict[str, Any],
+    guest_email: str,
+    guest_name: str,
+    comment_body: str,
+    brand_name: str | None = None,
+    project_name: str | None = None,
+    review_url: str | None = None,
 ) -> None:
-    # comment_body/guest_name are arbitrary user-authored text - escape before
-    # interpolating into HTML (this was missing, allowing HTML injection into an
-    # outgoing email via a crafted comment/name).
+    # The trailing keyword arguments are optional so jobs queued by an older API
+    # release still run.
     await send_email(
         to=guest_email,
-        subject="Your feedback was addressed",
-        html=(
-            f"<p>Hi {escape(guest_name)},</p>"
-            f"<p>Your comment has been marked resolved:</p>"
-            f"<blockquote>{escape(comment_body)}</blockquote>"
+        subject=f"Your feedback was addressed{' - ' + project_name if project_name else ''}",
+        html=_client_email(
+            guest_name=guest_name,
+            brand_name=brand_name,
+            lead="Your comment has been marked resolved:",
+            quote=comment_body,
+            review_url=review_url,
+            project_name=project_name,
+        ),
+    )
+
+
+async def send_guest_reply_email_job(
+    ctx: dict[str, Any],
+    *,
+    guest_email: str,
+    guest_name: str,
+    comment_body: str,
+    reply_author: str,
+    reply_body: str,
+    brand_name: str | None = None,
+    project_name: str | None = None,
+    review_url: str | None = None,
+) -> None:
+    await send_email(
+        to=guest_email,
+        subject=f"New reply to your feedback{' - ' + project_name if project_name else ''}",
+        html=_client_email(
+            guest_name=guest_name,
+            brand_name=brand_name,
+            lead=f"{escape(reply_author)} replied to your comment:",
+            quote=comment_body,
+            extra=(
+                f'<p style="white-space:pre-wrap">{escape(reply_body)}</p>'
+                "<p>Reply from the review to keep the conversation in one place.</p>"
+            ),
+            review_url=review_url,
+            project_name=project_name,
         ),
     )
 

@@ -34,6 +34,7 @@ export function createGuestSession(
   shareToken: string,
   displayName: string,
   passcode?: string,
+  email?: string,
 ): Promise<GuestSessionOut> {
   return apiFetch<GuestSessionOut>("/api/v1/guest-sessions", {
     method: "POST",
@@ -41,6 +42,7 @@ export function createGuestSession(
       share_token: shareToken,
       display_name: displayName,
       passcode: passcode || null,
+      email: email || null,
     }),
   });
 }

@@ -10,9 +10,11 @@ from pymongo.errors import DuplicateKeyError
 
 from app.core.actor_access import resolve_actor_project_access
 from app.core.arq_pool import get_arq_pool
+from app.core.config import get_settings
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import ActorType, append_event
 from app.core.project_access import can_view_project
+from app.core.redis_client import get_redis
 from app.core.session import Actor, GuestSession, Session, actor_identity, validate_member_session
 from app.modules.auth.repository import UserRepository
 from app.modules.comments import events as comment_events
@@ -853,6 +855,15 @@ async def create_reply(
             actor_user_id=actor_member_id,
         )
 
+    # The client who left this feedback hears about a team answer they can see.
+    team_reply = isinstance(actor, Session) or bool(
+        isinstance(actor, GuestSession) and actor.member_user_id
+    )
+    if team_reply and effective_layer == "client" and parent["author_type"] == "guest":
+        await _notify_guest_of_team_reply(
+            db, parent=parent, reply_author=reply_author_name, reply_body=body
+        )
+
     # M-06/M-15: @mentions from the composer's own picker selection (stable member
     # ids - see ReplyCreate.mentioned_user_ids's docstring for why this isn't parsed
     # out of `body` instead). Unknown/foreign ids are silently ignored, not an error -
@@ -1493,25 +1504,90 @@ async def apply_ai_priority(
     return comment
 
 
+async def _client_email_context(
+    db: AsyncIOMotorDatabase[dict[str, Any]], comment_doc: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Who to email about a client's own comment, and how to address it: the email the
+    reviewer chose to give on the review link (never required, F1), the name clients see
+    for the agency, the project and a link back to the review. None without an email."""
+    from app.modules.branding.service import public_branding, review_domain
+    from app.modules.share_links.repository import GuestSessionRepository, ShareLinkRepository
+    from app.modules.workspaces.repository import WorkspaceRepository
+
+    guest_id = comment_doc.get("author_guest_id")
+    guest_doc = await GuestSessionRepository(db).find_by_id(guest_id) if guest_id else None
+    if guest_doc is None or not guest_doc.get("email"):
+        return None
+    workspace_id = comment_doc["workspace_id"]
+    page = await PageRepository(db).find_by_id(comment_doc["page_id"])
+    project = (
+        await ProjectRepository(db).find_by_id(page["project_id"]) if page is not None else None
+    )
+    link = await ShareLinkRepository(db).find_by_id(guest_doc["share_link_id"])
+    review_url = None
+    if link is not None and link.get("revoked_at") is None and not link.get("purpose"):
+        domain = await review_domain(db, workspace_id)
+        base = (f"https://{domain}" if domain else get_settings().public_dashboard_base_url).rstrip(
+            "/"
+        )
+        review_url = f"{base}/review/{link['token']}"
+    branding = await public_branding(db, workspace_id)
+    workspace = await WorkspaceRepository(db).find_by_id(workspace_id)
+    return {
+        "guest_email": guest_doc["email"],
+        "guest_name": guest_doc["display_name"],
+        "brand_name": (branding.display_name if branding else None)
+        or (workspace or {}).get("name"),
+        "project_name": (project or {}).get("name"),
+        "review_url": review_url,
+    }
+
+
 async def _notify_guest_comment_resolved(
     db: AsyncIOMotorDatabase[dict[str, Any]], comment_doc: dict[str, Any]
 ) -> None:
     """17.6's opt-in guest notification: "your feedback was addressed" when a comment
     they authored moves to resolved - only if they supplied an email at session
     creation (never required, F1). Dispatched via Arq, off the request path."""
-    from app.modules.share_links.repository import GuestSessionRepository
-
-    guest_doc = await GuestSessionRepository(db).find_by_id(comment_doc["author_guest_id"])
-    if guest_doc is None or not guest_doc.get("email"):
+    context = await _client_email_context(db, comment_doc)
+    if context is None:
         return
-
     pool = await get_arq_pool()
     await pool.enqueue_job(
-        "send_guest_resolved_email_job",
-        guest_email=guest_doc["email"],
-        guest_name=guest_doc["display_name"],
-        comment_body=comment_doc["body"],
+        "send_guest_resolved_email_job", comment_body=comment_doc["body"], **context
     )
+
+
+CLIENT_REPLY_EMAIL_GAP_SECONDS = 15 * 60
+
+
+async def _notify_guest_of_team_reply(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    parent: dict[str, Any],
+    reply_author: str,
+    reply_body: str,
+) -> None:
+    """Emails a client when the team answers their comment with a client-visible reply
+    (TDR-0164), at most once per thread every 15 minutes so a back-and-forth doesn't
+    flood their inbox. Best effort: a mail or queue outage never fails the reply."""
+    try:
+        context = await _client_email_context(db, parent)
+        if context is None:
+            return
+        throttle = f"client-reply-email:{parent['author_guest_id']}:{parent['_id']}"
+        if not await get_redis().set(throttle, "1", nx=True, ex=CLIENT_REPLY_EMAIL_GAP_SECONDS):
+            return
+        pool = await get_arq_pool()
+        await pool.enqueue_job(
+            "send_guest_reply_email_job",
+            comment_body=parent["body"],
+            reply_author=reply_author,
+            reply_body=reply_body,
+            **context,
+        )
+    except Exception as exc:
+        logger.warning("Client reply email skipped (%s)", exc.__class__.__name__)
 
 
 async def resolve_own_comment(

@@ -4780,3 +4780,8 @@ database migration, or production deployment is claimed.
 
 - Notifications show ticket number, text and project; the shared ticket view can send
   to connected trackers.
+
+# 2026-10-25: Client reply/resolved emails (TDR-0164)
+
+- Clients can leave an email on the review link and get emailed (throttled) when the
+  team replies or resolves their feedback. Requires the Arq worker and email provider.
