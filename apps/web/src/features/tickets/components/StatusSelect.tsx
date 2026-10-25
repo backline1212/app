@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { STATUS_LABELS, WORKFLOW_STATUSES } from "../../../lib/workflow";
 import { PRIORITY_META } from "../../projects/panel/comments/types";
 import * as api from "../api";
@@ -24,7 +25,9 @@ export function StatusSelect({ ticket, disabled, onChange }: { ticket: api.Ticke
 export function PrioritySelect({ ticket, disabled, onChange }: { ticket: api.Ticket; disabled: boolean; onChange: (priority: Priority) => void }) {
   const value = (ticket.priority ?? "medium") as Priority;
   return (
-    <span className="bl-pill-select bl-prio-pill" style={{ color: PRIORITY_META[value].color }} onClick={(e) => e.stopPropagation()}>
+    // The dot carries the priority colour; the label stays in ink so it stays readable
+    // (amber "Medium" text was 1.85:1 on white).
+    <span className="bl-pill-select bl-prio-pill" style={{ "--c": PRIORITY_META[value].color } as CSSProperties} onClick={(e) => e.stopPropagation()}>
       <i aria-hidden="true" />
       <select aria-label={`Priority for ${ticket.body.slice(0, 40)}`} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value as Priority)}>
         {(["high", "medium", "low"] as const).map((p) => (
