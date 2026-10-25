@@ -41,6 +41,7 @@ rollout and browser/provider acceptance still apply as described below.
 | SUG-09 file replacement | Source: file versions with per-version pins (TDR-0165). |
 | SUG-11 search | Source: ticket-number search, clients in search (TDR-0153/0157). |
 | FLOW-01 URL bearer handoff | Source: single-use, two-minute handoff code replaces the session token in the website URL (TDR-0173). Installation ID/allowed-origin setup remains. |
+| FLOW-06 capture control | Source: reviewers can leave the automatic screenshot out (`capture_status: skipped`, TDR-0176). Capture preview remains. |
 | FLOW-05 open on site | Source: Open with extension from a selected thread opens it on the live page, after sign-in too (TDR-0174). Manual reanchor and preview/verification history remain. |
 | FLOW-04 own comments | Source: Edit/Delete/Mark resolved on the reviewer's own comment in widget, extension and file review (TDR-0172); reply attachments everywhere (TDR-0175); one overlay when snippet + extension (TDR-0169). Mentions stay dashboard-only by decision. |
 | SUG-07 interaction consistency | Partial: axe-core WCAG A/AA clean on main pages (TDR-0166); manual a11y acceptance open. |

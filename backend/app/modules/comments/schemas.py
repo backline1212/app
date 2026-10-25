@@ -127,7 +127,8 @@ class CommentCreate(BaseModel):
     anchor: AnchorIn
     context: ContextIn
     screenshot_key: str | None = None
-    capture_status: Literal["ok", "failed"] = "ok"
+    # "skipped": the reviewer chose not to include a screenshot (TDR-0176).
+    capture_status: Literal["ok", "failed", "skipped"] = "ok"
     attachments: list[AttachmentIn] = Field(default_factory=list, max_length=10)
     # The composer's "Tag this as" picker - same vocabulary and cap as CommentUpdate.tags,
     # just settable at creation time instead of only by a later edit.
@@ -210,7 +211,7 @@ class CommentOut(BaseModel):
     recovery_status: RecoveryStatus
     context: dict[str, Any]
     screenshot_url: str | None
-    capture_status: Literal["ok", "failed"]
+    capture_status: Literal["ok", "failed", "skipped"]
     attachments: list[AttachmentOut]
     created_at: datetime
     edited_at: datetime | None

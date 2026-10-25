@@ -599,6 +599,8 @@ async def create_comment(
     client_request_id: str | None = None,
 ) -> CommentOut:
     page = await _resolve_page_and_access(db, actor, page_id, "comment:create")
+    if capture_status == "skipped":
+        screenshot_key = None  # the reviewer left the screenshot out
 
     for attachment in attachments or []:
         require_project_upload(attachment.key, page["workspace_id"], page["project_id"])

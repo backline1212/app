@@ -10801,7 +10801,8 @@
             "type": "string",
             "enum": [
               "ok",
-              "failed"
+              "failed",
+              "skipped"
             ],
             "title": "Capture Status",
             "default": "ok"
@@ -10969,7 +10970,8 @@
             "type": "string",
             "enum": [
               "ok",
-              "failed"
+              "failed",
+              "skipped"
             ],
             "title": "Capture Status"
           },
@@ -17644,7 +17646,8 @@
             "type": "string",
             "enum": [
               "ok",
-              "failed"
+              "failed",
+              "skipped"
             ],
             "title": "Capture Status"
           },

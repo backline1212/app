@@ -3171,7 +3171,7 @@ export interface components {
              * @default ok
              * @enum {string}
              */
-            capture_status: "ok" | "failed";
+            capture_status: "ok" | "failed" | "skipped";
             /** Attachments */
             attachments?: components["schemas"]["AttachmentIn"][];
             /** Tags */
@@ -3227,7 +3227,7 @@ export interface components {
              * Capture Status
              * @enum {string}
              */
-            capture_status: "ok" | "failed";
+            capture_status: "ok" | "failed" | "skipped";
             /** Attachments */
             attachments: components["schemas"]["AttachmentOut"][];
             /**
@@ -5767,7 +5767,7 @@ export interface components {
              * Capture Status
              * @enum {string}
              */
-            capture_status: "ok" | "failed";
+            capture_status: "ok" | "failed" | "skipped";
             /** Attachments */
             attachments: components["schemas"]["AttachmentOut"][];
             /**

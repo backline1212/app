@@ -17,7 +17,7 @@ export interface CommentViewData {
   status: string;
   tags: string[];
   screenshotUrl?: string | null;
-  captureStatus?: "ok" | "failed";
+  captureStatus?: "ok" | "failed" | "skipped";
   attachments: AttachmentInfo[];
   pagePath: string;
   replies: CommentViewReply[];

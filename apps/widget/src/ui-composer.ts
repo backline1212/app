@@ -9,6 +9,8 @@ import { formatDuration, MAX_RECORDING_SECONDS, recordingSupported, startRecordi
 export const COMPOSER_TAGS = ["Bug", "Copy", "Design", "Responsive"] as const;
 export type ComposerTag = (typeof COMPOSER_TAGS)[number];
 
+const SCREENSHOT_PREF_KEY = "backline:include-screenshot";
+
 export interface ComposerResult {
   body: string;
   attachments: AttachmentResult[];
@@ -17,6 +19,8 @@ export interface ComposerResult {
   diagnostics: Diagnostics | null;
   /** Web App projects: what the reviewer did before the problem, or null. */
   stepsToReproduce: string | null;
+  /** False when the reviewer unticked "Add an automatic screenshot of this page". */
+  includeScreenshot: boolean;
 }
 
 /** What the composer shows about who's commenting and where - the header's avatar and
@@ -219,6 +223,11 @@ export function openComposer(
         ${recordingSupported("voice") ? `<button type="button" class="bl-cp-attach bl-cp-record" data-kind="voice" title="Record a voice note (up to ${MAX_RECORDING_SECONDS / 60} minutes)">${svg(MIC_ICON, 1.8, 14)}<span>Voice note</span></button>` : ""}
         <input type="file" class="bl-attach-input" accept="${ATTACHMENT_ACCEPT}" multiple hidden aria-label="Choose files to attach" />
       </div>
+      <label class="bl-cp-diag bl-cp-shot-opt">
+        <input type="checkbox" class="bl-cp-shot-input" checked />
+        ${svg(IMAGE_ICON, 1.8, 13)}
+        <span>Add an automatic screenshot of this page</span>
+      </label>
       <label class="bl-cp-diag" hidden>
         <input type="checkbox" class="bl-cp-diag-input" />
         ${svg(BUG_ICON, 1.8, 13)}
@@ -255,6 +264,13 @@ export function openComposer(
   const recordButtons = Array.from(composer.querySelectorAll<HTMLButtonElement>(".bl-cp-record"));
   const diagRow = composer.querySelector<HTMLLabelElement>(".bl-cp-diag")!;
   const diagInput = composer.querySelector<HTMLInputElement>(".bl-cp-diag-input")!;
+  // Off for the rest of this tab's review once a reviewer turns it off - a page showing
+  // something private usually stays that way.
+  const shotInput = composer.querySelector<HTMLInputElement>(".bl-cp-shot-input")!;
+  try { shotInput.checked = sessionStorage.getItem(SCREENSHOT_PREF_KEY) !== "0"; } catch { /* Storage may be disabled. */ }
+  shotInput.addEventListener("change", () => {
+    try { sessionStorage.setItem(SCREENSHOT_PREF_KEY, shotInput.checked ? "1" : "0"); } catch { /* Storage may be disabled. */ }
+  });
   const diagLabel = composer.querySelector<HTMLSpanElement>(".bl-cp-diag-label")!;
   let diagTouched = false;
   function renderDiagnostics(): void {
@@ -360,6 +376,7 @@ export function openComposer(
     for (const button of tagButtons) button.disabled = disabled || retryLocked;
     for (const button of recordButtons) button.disabled = disabled || retryLocked || (recording !== null && recording.button !== button);
     diagInput.disabled = disabled || retryLocked;
+    shotInput.disabled = disabled || retryLocked;
     if (disabled || retryLocked) attachments.disable();
     else attachments.enable();
   }
@@ -392,7 +409,7 @@ export function openComposer(
     // Capture/anchor/upload callbacks can throw before they reach their API error
     // handler. Handle both synchronous throws and rejected promises here so every
     // adapter keeps the draft and restores its controls for an explicit retry.
-    void Promise.resolve().then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null, stepsToReproduce: stepsInput?.value.trim() || null })).then((ok) => {
+    void Promise.resolve().then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null, stepsToReproduce: stepsInput?.value.trim() || null, includeScreenshot: shotInput.checked })).then((ok) => {
       if (closed) return;
       if (ok) {
         posted = true;
