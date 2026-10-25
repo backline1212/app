@@ -20,7 +20,13 @@ from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError,
 from app.core.events import append_event
 from app.core.session import Actor, GuestSession, Session, actor_identity, validate_member_session
 from app.modules.assets.repository import AssetRepository
-from app.modules.assets.schemas import AssetCommentCreate, AssetOut, AssetUpdate, Region
+from app.modules.assets.schemas import (
+    AssetApprovalUpdate,
+    AssetCommentCreate,
+    AssetOut,
+    AssetUpdate,
+    Region,
+)
 from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.schemas import CommentOut
@@ -79,9 +85,20 @@ def inspect_asset(data: bytes, project_type: str) -> tuple[str, int, int | None,
         raise ValidationError("This image is invalid or too large to display safely.") from exc
 
 
-async def asset_out(doc: dict[str, Any]) -> AssetOut:
+async def asset_out(doc: dict[str, Any], viewer: Actor | None = None) -> AssetOut:
+    approval = doc.get("approval")
+    if approval:
+        mine = viewer is not None and (approval.get("by_type"), approval.get("by_id")) == (
+            actor_identity(viewer)
+        )
+        approval = {**approval, "by_you": mine}
     return AssetOut(
-        **{**doc, "id": str(doc["_id"]), "url": await generate_presigned_get(doc["key"])}
+        **{
+            **doc,
+            "id": str(doc["_id"]),
+            "url": await generate_presigned_get(doc["key"]),
+            "approval": approval,
+        }
     )
 
 
@@ -311,7 +328,7 @@ async def list_assets(
     if isinstance(actor, GuestSession):
         include_archived = False
     return [
-        await asset_out(doc)
+        await asset_out(doc, actor)
         for doc in await AssetRepository(db).list(
             workspace_id, project_id, include_archived=include_archived
         )
@@ -386,6 +403,91 @@ async def update_asset(
         },
     )
     return await asset_out(updated)
+
+
+async def _actor_name(db: AsyncIOMotorDatabase[dict[str, Any]], actor: Actor) -> str:
+    if isinstance(actor, GuestSession):
+        from app.modules.share_links.repository import GuestSessionRepository
+
+        guest = await GuestSessionRepository(db).find_by_id(actor.guest_session_id)
+        return (guest or {}).get("display_name") or "Client"
+    from app.modules.auth.repository import UserRepository
+
+    user = await UserRepository(db).find_by_id(actor.user_id)
+    return (user or {}).get("name") or (user or {}).get("email") or "Team member"
+
+
+async def set_approval(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    project_id: str,
+    asset_id: str,
+    actor: Actor,
+    body: AssetApprovalUpdate,
+) -> AssetOut:
+    """Sign-off on the latest version of a file (TDR-0184). Anyone who may comment on
+    the project - a client reviewer included - can approve it. Only whoever approved
+    it, or a team member who manages files, can withdraw the approval."""
+    workspace_id = await resolve_actor_project_access(db, actor, project_id, "comment:create")
+    repo = AssetRepository(db)
+    asset = await repo.find(workspace_id, project_id, asset_id)
+    if asset is None or asset.get("archived_at") is not None:
+        raise NotFoundError("File not found.")
+    if asset.get("superseded_by"):
+        raise ValidationError("This is an earlier version of the file. Review the latest one.")
+    actor_type, actor_id = actor_identity(actor)
+    current = asset.get("approval") or None
+    if bool(current and current.get("approved")) == body.approved:
+        return await asset_out(asset, actor)  # already so; nothing to record
+    if not body.approved and current is not None:
+        own = (current.get("by_type"), current.get("by_id")) == (actor_type, actor_id)
+        if not own:
+            if isinstance(actor, GuestSession):
+                raise PermissionDeniedError("Only the person who approved this can withdraw it.")
+            await resolve_actor_project_access(db, actor, project_id, "asset:upload")
+    approver_name = await _actor_name(db, actor)
+    approval = (
+        {
+            "approved": True,
+            "by_type": actor_type,
+            "by_id": actor_id,
+            "by_name": approver_name,
+            "at": datetime.now(UTC),
+        }
+        if body.approved
+        else None
+    )
+    if not await repo.set_approval(workspace_id, project_id, asset_id, approval):
+        raise NotFoundError("File not found.")
+    await append_event(
+        db,
+        workspace_id=workspace_id,
+        type="asset.approved" if body.approved else "asset.approval_withdrawn",
+        actor_type=actor_type,
+        actor_id=actor_id,
+        payload={
+            "project_id": project_id,
+            "asset_id": asset_id,
+            "name": asset["filename"],
+            "version": int(asset.get("version") or 1),
+        },
+    )
+    uploader = asset.get("created_by")
+    if body.approved and uploader and uploader != actor_id:
+        from app.modules.notifications import service as notification_service
+
+        await notification_service.notify_file_approved(
+            db,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            asset_id=asset_id,
+            recipient_user_id=uploader,
+            file_name=asset["filename"],
+            version=int(asset.get("version") or 1),
+            approver_name=approver_name,
+        )
+    updated = await repo.find(workspace_id, project_id, asset_id)
+    assert updated is not None
+    return await asset_out(updated, actor)
 
 
 async def read_content(

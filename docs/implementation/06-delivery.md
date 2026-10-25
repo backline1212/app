@@ -4888,3 +4888,8 @@ database migration, or production deployment is claimed.
 
 - Daily digest shows how many new comments arrived and the member's overdue / due-soon
   tickets (counts only, link-only); due tickets alone trigger a reminder.
+
+# 2026-10-25: File version approval (TDR-0184)
+
+- Clients and the team can approve the latest version of an image/PDF; the uploader is
+  notified; activity and the review report show it.

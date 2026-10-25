@@ -18,7 +18,7 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { MediaAttachment, RecordButtons } from "../comments/RecordButtons";
 import { isMediaAttachment } from "../comments/media";
 import { ProjectMenu } from "../projects/ProjectMenu";
-import { ArrowLeftIcon, CommentsIcon, PointerIcon, ShareIcon, ZoomInIcon, ZoomOutIcon } from "../projects/panel/icons";
+import { ArrowLeftIcon, CheckCircleIcon, CommentsIcon, PointerIcon, ShareIcon, ZoomInIcon, ZoomOutIcon } from "../projects/panel/icons";
 import type { Schemas } from "@backline/types";
 
 type Comment = Schemas["CommentOut"];
@@ -163,6 +163,7 @@ export function AssetReview({
   const [replyLocked, setReplyLocked] = useState(false);
   const [ownEdit, setOwnEdit] = useState<{ commentId: string; original: string; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState("");
+  const [confirmApprove, setConfirmApprove] = useState(false);
   const posting = useRef(false);
   const ambiguous = useRef(false);
   const prepared = useRef<{ assetId: string; payload: Parameters<typeof api.createAssetComment>[2] } | null>(null);
@@ -269,6 +270,7 @@ export function AssetReview({
   // Every thread on this file (all PDF pages), oldest first so the list reads in the
   // order feedback was left; pins are the subset on the page being shown.
   const fileThreads = (visibleComments ?? []).filter((c) => !c.parent_id && regionOf(c)).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const openOnFile = fileThreads.filter((c) => !["resolved", "wont_fix"].includes(c.status)).length;
   const roots = fileThreads.filter((c) => regionOf(c)?.page_number === page);
   const openThreads = fileThreads.filter((c) => !["resolved", "wont_fix"].includes(c.status));
   const selectedComment = fileThreads.find((c) => c.id === selected);
@@ -390,6 +392,14 @@ export function AssetReview({
       if (change.kind === "edit") setOwnEdit(null);
       if (change.kind === "delete") { setConfirmDelete(""); setSelected(""); }
       await refresh();
+    },
+  });
+  const approve = useMutation({
+    mutationFn: (approved: boolean) => api.setAssetApproval(projectId, asset!.id, approved, guest),
+    onSuccess: async (saved) => {
+      setConfirmApprove(false);
+      cache.setQueryData<api.Asset[]>(qk.assetsList(projectId, guest ?? 'member'), current => current?.map(file => file.id === saved.id ? saved : file));
+      await cache.invalidateQueries({ queryKey: qk.assetsList(projectId, guest ?? 'member') });
     },
   });
   const hasDraft = locationProtected || post.isPending || replyMutation.isPending || ownChange.isPending;
@@ -696,8 +706,26 @@ export function AssetReview({
       {versions.length > 1 && asset && <select className="bl-asset-build-filter bl-asset-version" aria-label="File version" value={asset.id} disabled={hasDraft} onChange={(event) => { const file = versions.find(item => item.id === event.target.value); if (file) selectFile(file); }}>
         {[...versions].reverse().map(file => <option key={file.id} value={file.id}>v{file.version ?? 1}{file.superseded_by ? "" : " (latest)"}</option>)}
       </select>}
+      {asset && !asset.superseded_by && (asset.approval?.approved ? (
+        <span className="bl-asset-approved" title={`Approved by ${asset.approval.by_name} on ${new Date(asset.approval.at).toLocaleString()}`}>
+          <CheckCircleIcon width={13} height={13} aria-hidden="true" />
+          <span>Approved by {asset.approval.by_you ? "you" : asset.approval.by_name}</span>
+          {(asset.approval.by_you || (!guest && canEdit)) && <button type="button" className="bl-asset-approve-undo" disabled={approve.isPending} onClick={() => approve.mutate(false)}>{approve.isPending ? "Saving…" : "Withdraw"}</button>}
+        </span>
+      ) : canComment && (confirmApprove ? (
+        <span className="bl-asset-approve-confirm" role="group" aria-label="Confirm approval">
+          <span>Approve v{asset.version ?? 1}{openOnFile > 0 ? ` with ${openOnFile} open ${openOnFile === 1 ? "comment" : "comments"}` : ""}?</span>
+          <button type="button" className="bl-button" disabled={approve.isPending} onClick={() => approve.mutate(true)}>{approve.isPending ? "Saving…" : "Approve"}</button>
+          <button type="button" className="bl-quiet" disabled={approve.isPending} onClick={() => setConfirmApprove(false)}>Cancel</button>
+        </span>
+      ) : (
+        <button type="button" className="bl-asset-approve" disabled={hasDraft} onClick={() => { approve.reset(); setConfirmApprove(true); }}>
+          <CheckCircleIcon width={13} height={13} aria-hidden="true" /> Approve this version
+        </button>
+      )))}
       {project && <button type="button" className="bl-review-manage-pages" disabled={hasDraft} title={hasDraft ? "Save or cancel your comment first" : undefined} onClick={() => setShowFiles(true)}>Manage files</button>}
     </div>
+    {approve.error && <p className="bl-error" role="alert">{approve.error.message}</p>}
     {earlierVersion && asset && <div className="bl-asset-version-note" role="status">
       <span>You're viewing <strong>v{asset.version ?? 1}</strong> of {asset.filename}. Its comments stay here; new feedback goes on the latest version.</span>
       {latestVersion && <button type="button" className="bl-button" onClick={() => selectFile(latestVersion)}>Open latest (v{latestVersion.version ?? 1})</button>}

@@ -10,7 +10,13 @@ from app.core.rate_limit import actor_rate_limit_key, check_rate_limit
 from app.core.redis_client import get_redis
 from app.core.session import Actor, Session, get_current_actor
 from app.modules.assets import service
-from app.modules.assets.schemas import AssetCommentCreate, AssetOut, AssetUpdate, Region
+from app.modules.assets.schemas import (
+    AssetApprovalUpdate,
+    AssetCommentCreate,
+    AssetOut,
+    AssetUpdate,
+    Region,
+)
 from app.modules.comments.schemas import CommentOut
 
 router = APIRouter(tags=["assets"])
@@ -82,6 +88,23 @@ async def update_asset(
     session: Session = Depends(require_project_permission("asset:upload")),
 ) -> AssetOut:
     return await service.update_asset(get_db(), project_id, asset_id, session, body)
+
+
+@router.put("/projects/{project_id}/assets/{asset_id}/approval", response_model=AssetOut)
+async def set_approval(
+    project_id: str,
+    asset_id: str,
+    body: AssetApprovalUpdate,
+    request: Request,
+    actor: Actor = Depends(get_current_actor),
+) -> AssetOut:
+    await check_rate_limit(
+        get_redis(),
+        key=actor_rate_limit_key("comment-create", request, actor),
+        limit=get_settings().comment_create_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    return await service.set_approval(get_db(), project_id, asset_id, actor, body)
 
 
 @router.post("/projects/{project_id}/assets", response_model=AssetOut, status_code=201)

@@ -4,6 +4,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 NotificationType = Literal[
+    "file_approved",
     "comment_assigned",
     "comment_reply",
     "comment_mention",

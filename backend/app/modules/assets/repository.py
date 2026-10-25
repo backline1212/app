@@ -165,6 +165,16 @@ class AssetRepository:
         )
         return result.matched_count == 1
 
+    async def set_approval(
+        self, workspace_id: str, project_id: str, asset_id: str, approval: dict[str, Any] | None
+    ) -> bool:
+        # Separate from `revision`: signing off must not conflict with a rename in flight.
+        result = await self.db.project_assets.update_one(
+            {"workspace_id": workspace_id, "project_id": project_id, "_id": to_object_id(asset_id)},
+            {"$set": {"approval": approval}},
+        )
+        return result.matched_count == 1
+
     async def find(
         self,
         workspace_id: str,
