@@ -155,7 +155,11 @@ export function AssetReview({
   const [openCommentRequest, setOpenCommentRequest] = useState<{ commentId: string; nonce: number } | null>(null);
   const [revealAfterSave, setRevealAfterSave] = useState<string | null>(null);
   const replying = useRef(false);
-  const replyPrepared = useRef<{ commentId: string; body: string; layer: "client" | "team"; id: string } | null>(null);
+  const replyPrepared = useRef<{ commentId: string; body: string; layer: "client" | "team"; id: string; attachments: Schemas["AttachmentIn"][] } | null>(null);
+  const [replyFiles, setReplyFiles] = useState<Schemas["AttachmentIn"][]>([]);
+  const [replyUploading, setReplyUploading] = useState(0);
+  const [replyFileError, setReplyFileError] = useState("");
+  const replyFileInput = useRef<HTMLInputElement>(null);
   const [replyLocked, setReplyLocked] = useState(false);
   const [ownEdit, setOwnEdit] = useState<{ commentId: string; original: string; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState("");
@@ -164,7 +168,7 @@ export function AssetReview({
   const prepared = useRef<{ assetId: string; payload: Parameters<typeof api.createAssetComment>[2] } | null>(null);
   // URL state drives file/page/thread navigation. While a draft or uncertain save
   // exists, keep rendering its original location even if Back/Forward changes URL.
-  const locationProtected = Boolean((draft && (body.trim() || files.length || uploadingFiles || recording)) || reply.trim() || retryLocked || replyLocked || posting.current || replying.current
+  const locationProtected = Boolean((draft && (body.trim() || files.length || uploadingFiles || recording)) || reply.trim() || replyFiles.length || replyUploading || retryLocked || replyLocked || posting.current || replying.current
     || (ownEdit && ownEdit.text.trim() !== ownEdit.original.trim()));
   const acceptedSearch = useRef(params.toString());
   if (!locationProtected) acceptedSearch.current = params.toString();
@@ -316,12 +320,12 @@ export function AssetReview({
     mutationFn: async () => {
       const submission = replyPrepared.current;
       if (!submission) throw new Error("Choose a comment before replying.");
-      try { return await api.replyToComment(submission.commentId, submission.body, submission.layer, guest, submission.id); }
+      try { return await api.replyToComment(submission.commentId, submission.body, submission.layer, guest, submission.id, submission.attachments); }
       catch (error) { setReplyLocked(true); throw error; }
     },
     onSuccess: comment => {
       if (!mounted.current) return;
-      replyPrepared.current = null; setReplyLocked(false); setReply(""); setReplyCopyStatus(""); setNavigationWarning("");
+      replyPrepared.current = null; setReplyLocked(false); setReply(""); setReplyFiles([]); setReplyFileError(""); setReplyCopyStatus(""); setNavigationWarning("");
       const warn = () => setSaveWarning("Reply saved. Some feedback could not refresh; reload the review to check it.");
       try { cache.setQueryData<Comment[]>([...qk.assetComments(comment.page_id), guest ?? 'member'], current => [...(current ?? []).filter(row => row.id !== comment.id), comment]); } catch { warn(); }
       void refresh().catch(warn);
@@ -354,9 +358,25 @@ export function AssetReview({
     setFiles([]); setFileError("");
     setDraft(null); setBody(""); prepared.current = null; ambiguous.current = false; setRetryLocked(false); setNavigationWarning(""); setCopyStatus("");
   }
+  async function addReplyFiles(selectedFiles: File[]) {
+    if (!selectedFiles.length || replying.current || replyLocked) return;
+    if (replyFiles.length + replyUploading + selectedFiles.length > 10) { setReplyFileError("A reply can carry up to 10 attachments."); return; }
+    setReplyFileError("");
+    setReplyUploading(count => count + selectedFiles.length);
+    for (const file of selectedFiles) {
+      try {
+        const uploaded = await api.uploadReviewAttachment(projectId, file, guest);
+        if (mounted.current) setReplyFiles(current => [...current, uploaded]);
+      } catch (error) {
+        if (mounted.current) setReplyFileError(error instanceof Error ? error.message : `${file.name} could not be uploaded.`);
+      } finally {
+        if (mounted.current) setReplyUploading(count => count - 1);
+      }
+    }
+  }
   function submitReply() {
-    if (replying.current || !canComment || !selectedComment || !reply.trim() || reply.trim().length > 10_000) return;
-    replyPrepared.current ??= { commentId: selected, body: reply.trim(), layer: selectedComment.layer, id: crypto.randomUUID() };
+    if (replying.current || replyUploading > 0 || !canComment || !selectedComment || !reply.trim() || reply.trim().length > 10_000) return;
+    replyPrepared.current ??= { commentId: selected, body: reply.trim(), layer: selectedComment.layer, id: crypto.randomUUID(), attachments: replyFiles };
     replying.current = true; setSaveWarning(""); replyMutation.mutate();
   }
   const ownChange = useMutation({
@@ -376,7 +396,7 @@ export function AssetReview({
   const { blocked: navigationBlocked } = useDraftNavigationGuard({
     name: "file review comment or reply", dirty: locationProtected, pending: post.isPending || replyMutation.isPending || ownChange.isPending,
     unconfirmed: retryLocked || replyLocked,
-    discard: () => { prepared.current = null; replyPrepared.current = null; setBody(""); setReply(""); setDraft(null); setRetryLocked(false); setReplyLocked(false); setOwnEdit(null); },
+    discard: () => { prepared.current = null; replyPrepared.current = null; setBody(""); setReply(""); setReplyFiles([]); setDraft(null); setRetryLocked(false); setReplyLocked(false); setOwnEdit(null); },
     shouldBlock: ({ currentLocation, nextLocation }) => {
     const nextSearch = nextLocation.search.replace(/^\?/, "");
     if (allowedSearch.current !== null) {
@@ -786,7 +806,7 @@ export function AssetReview({
               <button type="button" onClick={() => setGuestPanelOpen(false)} aria-label="Close panel" className="bl-review-drawer-close">×</button>
             </div>
             <div className="bl-asset-thread-pane">
-              {reply.trim() && !selectedComment && <div className="bl-form"><p role="status">The original thread is unavailable. Your reply text is still here; copy it before closing. An unconfirmed reply may already have been saved.</p><textarea className="bl-input" readOnly aria-label="Preserved reply text" value={reply} onFocus={event => event.target.select()} /><button type="button" className="bl-button" disabled={replyMutation.isPending} onClick={() => { setReply(""); replyPrepared.current = null; setReplyLocked(false); setReplyCopyStatus(""); }}>Close reply draft</button></div>}
+              {reply.trim() && !selectedComment && <div className="bl-form"><p role="status">The original thread is unavailable. Your reply text is still here; copy it before closing. An unconfirmed reply may already have been saved.</p><textarea className="bl-input" readOnly aria-label="Preserved reply text" value={reply} onFocus={event => event.target.select()} /><button type="button" className="bl-button" disabled={replyMutation.isPending} onClick={() => { setReply(""); setReplyFiles([]); replyPrepared.current = null; setReplyLocked(false); setReplyCopyStatus(""); }}>Close reply draft</button></div>}
               {selectedComment ? (
                 <div className="bl-asset-thread">
                   <button type="button" className="bl-asset-back" disabled={hasDraft} onClick={() => setSelected('')}>← All comments</button>
@@ -841,6 +861,19 @@ export function AssetReview({
                   </ol>}
                   {canComment && <form className="bl-asset-reply" onSubmit={(e) => { e.preventDefault(); submitReply(); }}>
                     <textarea className="bl-input" aria-label="Reply" placeholder="Reply to this comment…" rows={3} required maxLength={10_000} readOnly={replyMutation.isPending || replyLocked} value={reply} onKeyDown={onReplyKeyDown} onChange={(e) => { if (!replying.current && !replyLocked) setReply(e.target.value); }} />
+                    <div className="bl-asset-composer-files">
+                      {replyFiles.map((file) => (
+                        <span key={file.key} className="bl-chip">
+                          {file.filename}
+                          <button type="button" className="bl-cd-chip-x" aria-label={`Remove ${file.filename}`} disabled={replyMutation.isPending || replyLocked} onClick={() => setReplyFiles(current => current.filter(item => item.key !== file.key))}>×</button>
+                        </span>
+                      ))}
+                      <button type="button" className="bl-cd-shot-add" disabled={replyUploading > 0 || replyMutation.isPending || replyLocked} onClick={() => replyFileInput.current?.click()}>
+                        {replyUploading > 0 ? `Uploading ${replyUploading}…` : "Attach file"}
+                      </button>
+                      <input ref={replyFileInput} type="file" hidden multiple accept="image/*,application/pdf,video/webm,video/mp4,audio/webm,audio/mp4,audio/ogg" onChange={(event) => { const picked = Array.from(event.target.files ?? []); event.target.value = ""; void addReplyFiles(picked); }} />
+                    </div>
+                    {replyFileError && <p className="bl-error" role="alert">{replyFileError}</p>}
                     {replyMutation.error && <p className="bl-error" role="alert">{replyMutation.error.message}</p>}
                     {replyLocked && <p role="status">Saving is unconfirmed. Retry sends the original reply; check saved feedback before starting another reply.</p>}
                     {replyCopyStatus && <p role="status">{replyCopyStatus}</p>}
@@ -848,8 +881,8 @@ export function AssetReview({
                     <div className="bl-asset-reply-foot">
                       <span className="bl-cp-hint"><kbd>{isMac ? "⌘" : "Ctrl"}</kbd> <kbd>↵</kbd> to send</span>
                       {replyLocked && <button type="button" className="bl-quiet" disabled={replyMutation.isPending} onClick={() => { if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(reply).then(() => setReplyCopyStatus("Reply text copied.")).catch(() => setReplyCopyStatus("Select the original reply below and copy it manually.")); else setReplyCopyStatus("Select the original reply below and copy it manually."); }}>Copy text</button>}
-                      {reply.trim() && <button type="button" className="bl-quiet" disabled={replyMutation.isPending} onClick={() => { setReply(""); replyPrepared.current = null; setReplyLocked(false); setReplyCopyStatus(""); setNavigationWarning(""); }}>{replyLocked ? "Close" : "Cancel"}</button>}
-                      <button className="bl-button" disabled={replyMutation.isPending || !reply.trim()}>{replyMutation.isPending ? "Sending…" : replyLocked ? "Retry reply" : "Reply"}</button>
+                      {(reply.trim() || replyFiles.length > 0) && <button type="button" className="bl-quiet" disabled={replyMutation.isPending} onClick={() => { setReply(""); setReplyFiles([]); setReplyFileError(""); replyPrepared.current = null; setReplyLocked(false); setReplyCopyStatus(""); setNavigationWarning(""); }}>{replyLocked ? "Close" : "Cancel"}</button>}
+                      <button className="bl-button" disabled={replyMutation.isPending || replyUploading > 0 || !reply.trim()}>{replyMutation.isPending ? "Sending…" : replyLocked ? "Retry reply" : "Reply"}</button>
                     </div>
                   </form>}
                 </div>

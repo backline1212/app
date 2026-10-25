@@ -1,5 +1,5 @@
 import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES } from "./status";
-import { attachmentIcon, type AttachmentInfo } from "./ui-attachments";
+import { attachmentIcon, type AttachmentInfo, type AttachmentResult } from "./ui-attachments";
 import { cardHeaderHtml, escapeHtml, observeCardPlacement, placeCard, svg, TAG_ICONS } from "./ui-card";
 import { setupOwnActions, type OwnCommentActions } from "./ui-own-actions";
 import { setupThreadReply, type ThreadReplyRequest } from "./ui-thread-reply";
@@ -8,6 +8,7 @@ export interface CommentViewReply {
   authorName: string;
   body: string;
   createdAt: string;
+  attachments?: AttachmentInfo[];
 }
 
 export interface CommentViewData {
@@ -52,6 +53,7 @@ function replyHtml(reply: CommentViewReply): string {
       <span class="bl-cv-reply-time">${escapeHtml(replyTime(reply.createdAt))}</span>
     </div>
     <p class="bl-cv-reply-body"></p>
+    ${reply.attachments?.length ? `<div class="bl-cv-files">${reply.attachments.map(attachmentHtml).join("")}</div>` : ""}
   </div>`;
 }
 
@@ -110,6 +112,7 @@ export function openCommentView(
   onStatusChange: ((status: string) => Promise<string>) | null = null,
   onReply: ((request: ThreadReplyRequest) => Promise<void>) | null = null,
   ownActions: OwnCommentActions | null = null,
+  uploadReplyFile: ((file: File) => Promise<AttachmentResult | null>) | null = null,
 ): CommentViewControls {
   const view = document.createElement("div");
   view.className = "bl-card bl-thread";
@@ -195,7 +198,7 @@ export function openCommentView(
   const own = ownActions
     ? setupOwnActions(view, x, y, ownActions, { body: comment.body, status: comment.status, replyCount: comment.replies.length })
     : null;
-  const reply = onReply ? setupThreadReply(view, x, y, comment.layer ?? "client", onReply) : null;
+  const reply = onReply ? setupThreadReply(view, x, y, comment.layer ?? "client", onReply, uploadReplyFile) : null;
 
   const menuOpen = (): boolean => menu !== null && !menu.hidden;
 

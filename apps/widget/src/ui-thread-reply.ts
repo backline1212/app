@@ -1,10 +1,12 @@
 import { registerRelatedDraft } from "./ui-composer";
 import { placeCard } from "./ui-card";
+import { ATTACHMENT_ACCEPT, setupAttachments, type AttachmentResult } from "./ui-attachments";
 
 export interface ThreadReplyRequest {
   body: string;
   layer: "client" | "team";
   client_request_id: string;
+  attachments?: AttachmentResult[];
 }
 
 /** A reply stays outside the re-rendered thread content, so polling/realtime never
@@ -15,6 +17,7 @@ export function setupThreadReply(
   y: number,
   layer: "client" | "team",
   post: (request: ThreadReplyRequest) => Promise<void>,
+  uploadFile: ((file: File) => Promise<AttachmentResult | null>) | null = null,
 ) {
   const form = document.createElement("form");
   form.className = "bl-cv-reply-form";
@@ -22,6 +25,11 @@ export function setupThreadReply(
     <label class="bl-cp-lbl">Reply to this thread
       <textarea aria-label="Reply to this thread" placeholder="Write a reply…" maxlength="10000" required></textarea>
     </label>
+    ${uploadFile ? `<div class="bl-cp-shots bl-reply-files">
+      <div class="bl-attachments"></div>
+      <button type="button" class="bl-attach-button bl-cp-attach">Attach a file</button>
+      <input type="file" class="bl-attach-input" accept="${ATTACHMENT_ACCEPT}" multiple hidden aria-label="Choose files to attach to the reply" />
+    </div>` : ""}
     <p class="bl-cv-visibility">${layer === "team" ? "Team only" : "Visible to client reviewers"}</p>
     <p class="bl-status" role="status" aria-live="polite"></p>
     <button type="button" class="bl-copy-draft" hidden>Copy reply text</button>
@@ -41,13 +49,15 @@ export function setupThreadReply(
   const clear = form.querySelector<HTMLButtonElement>(".bl-reply-clear")!;
   const copy = form.querySelector<HTMLButtonElement>(".bl-copy-draft")!;
   const discard = form.querySelector<HTMLElement>(".bl-reply-discard")!;
+  const files = uploadFile ? setupAttachments(form, uploadFile, undefined, problem => { message.textContent = problem; }) : null;
   let request: ThreadReplyRequest | null = null;
   let pending = false;
   let disposed = false;
   let afterDiscard: (() => void) | null = null;
   let slowTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const hasDraft = () => !disposed && (pending || request !== null || text.value.trim() !== "");
+  const hasDraft = () => !disposed && (pending || request !== null || text.value.trim() !== ""
+    || (files !== null && (files.getAttachments().length > 0 || files.pendingCount() > 0 || files.failedCount() > 0)));
   function nudge(): void {
     if (disposed) return;
     view.scrollIntoView({ block: "nearest" });
@@ -57,6 +67,8 @@ export function setupThreadReply(
   const unregister = registerRelatedDraft({ hasDraft, nudge });
   function render(): void {
     text.readOnly = pending || request !== null;
+    // A saved request keeps its files: Retry must send exactly what was first sent.
+    if (pending || request !== null) files?.disable(); else files?.enable();
     submit.disabled = pending;
     clear.disabled = pending;
     copy.hidden = !text.value.trim();
@@ -80,6 +92,7 @@ export function setupThreadReply(
   function reset(): void {
     request = null;
     text.value = "";
+    files?.reset();
     discard.hidden = true;
     afterDiscard = null;
     render();
@@ -90,7 +103,10 @@ export function setupThreadReply(
     if (!request) {
       const body = text.value.trim();
       if (!body) { message.textContent = "Write a reply before posting."; text.focus(); return; }
-      request = { body, layer, client_request_id: crypto.randomUUID() };
+      if (files && files.pendingCount() > 0) { message.textContent = "Wait for the attachment to finish uploading."; return; }
+      if (files && files.failedCount() > 0) { message.textContent = "Retry or remove failed attachments before posting."; return; }
+      const attachments = [...(files?.getAttachments() ?? [])];
+      request = { body, layer, client_request_id: crypto.randomUUID(), ...(attachments.length ? { attachments } : {}) };
     }
     const original = request;
     pending = true;

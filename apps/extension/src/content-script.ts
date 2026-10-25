@@ -115,6 +115,7 @@ async function buildFreshContext(): Promise<AnnotationContext | null> {
     replyPoster: () => info && !info.member ? (topId, request) => postThreadReply(api, topId, request)
       : ["commenter", "editor", "manager"].includes(project.my_role ?? "")
         ? (topId, request) => postThreadReply(api, topId, request) : null,
+    uploadReplyFile: file => info ? uploadNativeAttachment(api, project.id, file) : uploadAttachment(api, project.id, file),
     ownActions: () => {
       const viewer = info ? info.viewer : connection?.userId ? { type: "member" as const, id: connection.userId } : undefined;
       return viewer ? ownCommentHandlers(api, viewer, info?.reviewerCanResolve ?? false) : null;

@@ -4,6 +4,7 @@ import type { StatusUpdater } from "./status";
 import type { AnchorPayload, CommentRecord } from "./types";
 import { openCommentView, renderPin, type CommentViewControls, type CommentViewData } from "./ui";
 import type { ThreadReplyRequest } from "./ui-thread-reply";
+import type { AttachmentResult } from "./ui-attachments";
 import { composerHasDraft, nudgeComposer } from "./ui-composer";
 
 export type PinOffset =
@@ -24,6 +25,8 @@ export interface ThreadManagerOptions {
   // Edit/delete/resolve for the viewer's own threads, or null where this surface
   // keeps those changes in the signed-in portal.
   ownActions?: () => OwnCommentHandlers | null;
+  // Uploads a file for a reply; without it replies are text only.
+  uploadReplyFile?: (file: File) => Promise<AttachmentResult | null>;
 }
 
 export interface OwnCommentHandlers {
@@ -49,6 +52,7 @@ export function createThreadManager({
   statusUpdater = () => null,
   replyPoster = () => null,
   ownActions = () => null,
+  uploadReplyFile,
 }: ThreadManagerOptions) {
   // Every top-level comment id maps to [top, ...replies] (sorted oldest-first) - the
   // full flat list the backend returns per page, regrouped here since the widget is
@@ -225,6 +229,7 @@ export function createThreadManager({
         authorName: reply.author_name,
         body: reply.body,
         createdAt: reply.created_at,
+        attachments: reply.attachments ?? [],
       })),
     };
   }
@@ -292,6 +297,7 @@ export function createThreadManager({
         handleCommentCreated(saved, thread[0].page_id);
       } : null,
       mine,
+      uploadReplyFile ?? null,
     );
     openThread = { topId, controls };
     applyPinState(topId);
