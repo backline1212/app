@@ -36,6 +36,18 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function isTransparent(color: string): boolean {
+  return color === "transparent" || /^rgba\(.*,\s*0\)$/.test(color);
+}
+
+function pageBackground(): string {
+  for (const element of [document.body, document.documentElement]) {
+    const color = window.getComputedStyle(element).backgroundColor;
+    if (!isTransparent(color)) return color;
+  }
+  return "#ffffff";
+}
+
 export async function captureScreenshot(): Promise<Blob | null> {
   try {
     const width = window.innerWidth;
@@ -46,14 +58,19 @@ export async function captureScreenshot(): Promise<Blob | null> {
 
     const css = collectInlineStyles();
     const serializedBody = new XMLSerializer().serializeToString(clone);
-    // Without this, the canvas area below the page's actual content height (whenever
-    // it's shorter than the viewport) rasterizes as black instead of matching the page.
-    const bodyBackground = window.getComputedStyle(document.body).backgroundColor;
+    // The page's own backdrop: the body's background, else the root's, else white - what
+    // the browser paints. A transparent backdrop used to rasterize as black in the JPEG.
+    const background = pageBackground();
+    // The clone renders from the top of the document; shift it so the image shows the
+    // part of the page the reviewer is looking at. Relative offsets keep fixed headers
+    // and footers pinned to the viewport, as on screen.
+    const scrollX = Math.round(window.scrollX);
+    const scrollY = Math.round(window.scrollY);
 
     const svgString =
       `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
       `<foreignObject width="100%" height="100%">` +
-      `<div xmlns="http://www.w3.org/1999/xhtml" style="background:${bodyBackground};min-height:${height}px;">` +
+      `<div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;left:${-scrollX}px;top:${-scrollY}px;background:${background};min-height:${height + scrollY}px;">` +
       `<style>${css}</style>${serializedBody}</div>` +
       `</foreignObject></svg>`;
 
@@ -65,6 +82,8 @@ export async function captureScreenshot(): Promise<Blob | null> {
     canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, width, height);
     ctx.drawImage(image, 0, 0, width, height);
 
     return await new Promise<Blob | null>((resolve) => {

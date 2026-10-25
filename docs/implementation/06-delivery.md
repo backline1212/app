@@ -4934,3 +4934,10 @@ database migration, or production deployment is claimed.
 - The web app now sends a full policy (own scripts only, no inline script or eval); the
   theme bootstrap moved to `public/theme-init.js`. Verified with zero violations across
   the dashboard, previews, file/PDF review and guest pages.
+
+# 2026-10-25: Screenshot preview; captures match the screen (TDR-0189)
+
+- Composer **Preview**/Retake shows the automatic screenshot before posting and attaches
+  that exact image (snippet, review link, canvas, extension).
+- Fixed: snippet captures always showed the top of the page, and transparent page
+  backgrounds came out black.
