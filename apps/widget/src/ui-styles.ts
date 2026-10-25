@@ -294,6 +294,18 @@ const HOST_STYLES = `
     margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--bl-ink);
     white-space: pre-wrap; word-break: break-word;
   }
+  /* The viewer's own comment: Edit / Delete / Mark resolved (ui-own-actions.ts). */
+  .bl-cv-own-row { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; }
+  .bl-card button.bl-cv-own-btn {
+    background: none; border: 0; padding: 2px 0; font-size: 12px; color: var(--bl-ink-3);
+    text-decoration: underline; text-underline-offset: 2px;
+  }
+  .bl-card button.bl-cv-own-btn:hover:not(:disabled) { color: var(--bl-ink); }
+  .bl-cv-own [hidden], .bl-card button.bl-cv-own-btn[hidden] { display: none; }
+  .bl-is-editing .bl-cv-text { display: none; }
+  .bl-cv-edit textarea { display: block; text-transform: none; letter-spacing: normal; }
+  .bl-cv-confirm { margin-top: 10px; padding: 10px; border: 1px solid var(--bl-line); border-radius: 3px; font-size: 12.5px; }
+  .bl-cv-confirm p { margin: 0; color: var(--bl-ink); }
   .bl-cv-files { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
   .bl-card .bl-cv-screenshot { margin-top: 12px; }
   .bl-cv-capture-warning { margin: 12px 0 0; font-size: 12px; line-height: 1.45; color: var(--bl-ink-2); }

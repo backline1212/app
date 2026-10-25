@@ -5,6 +5,7 @@ import {
   createCommentSubmission,
   createShadowRoot,
   createThreadManager,
+  ownCommentHandlers,
   postThreadReply,
   captureScreenshot,
   composerHasDraft,
@@ -112,6 +113,10 @@ async function buildFreshContext(): Promise<AnnotationContext | null> {
     replyPoster: () => info && !info.member ? (topId, request) => postThreadReply(api, topId, request)
       : ["commenter", "editor", "manager"].includes(project.my_role ?? "")
         ? (topId, request) => postThreadReply(api, topId, request) : null,
+    ownActions: () => {
+      const viewer = info ? info.viewer : connection?.userId ? { type: "member" as const, id: connection.userId } : undefined;
+      return viewer ? ownCommentHandlers(api, viewer, info?.reviewerCanResolve ?? false) : null;
+    },
   });
   for (const top of existingComments.filter(c => c.parent_id === null)) {
     threadManager.addThread(top, existingComments.filter(c => c.parent_id === top.id)

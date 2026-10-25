@@ -21,6 +21,11 @@ export interface NativeReviewInfo {
   member: boolean;
   returnUrl: string;
   launchId: string;
+  /** Whose comments this reviewer may edit or delete (their own). Absent in a
+   * review stored by an older extension version, which then offers neither. */
+  viewer?: { type: "member" | "guest"; id: string };
+  /** The project lets this guest reviewer resolve their own threads. */
+  reviewerCanResolve?: boolean;
 }
 
 export interface NativeReviewStatus {

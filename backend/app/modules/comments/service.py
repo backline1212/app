@@ -902,6 +902,9 @@ async def delete_comment(
         raise NotFoundError("Comment not found.")
     _require_own_comment(existing, actor)
     await _require_member_can_comment(db, existing, actor)
+    if existing.get("parent_id") is None and await repo.list_replies(comment_id):
+        # Removing just the first message would leave its replies without a thread.
+        raise ConflictError("Someone has replied to this comment, so it can no longer be deleted.")
 
     await repo.soft_delete(comment_id)
     page = await _page_for_broadcast(db, existing["page_id"])

@@ -91,6 +91,8 @@ export function AssetReview({
   title,
   guest,
   guestName,
+  guestSessionId,
+  reviewerCanResolve = false,
   onLeave,
   workspaceSlug,
   project,
@@ -105,6 +107,10 @@ export function AssetReview({
   title: string;
   guest?: string;
   guestName?: string;
+  /** The guest's own author id, so their own threads offer Edit/Delete. */
+  guestSessionId?: string;
+  /** The project lets this guest resolve their own threads. */
+  reviewerCanResolve?: boolean;
   onLeave?: () => void;
   workspaceSlug?: string;
   project?: ProjectOut;
@@ -151,12 +157,15 @@ export function AssetReview({
   const replying = useRef(false);
   const replyPrepared = useRef<{ commentId: string; body: string; layer: "client" | "team"; id: string } | null>(null);
   const [replyLocked, setReplyLocked] = useState(false);
+  const [ownEdit, setOwnEdit] = useState<{ commentId: string; original: string; text: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState("");
   const posting = useRef(false);
   const ambiguous = useRef(false);
   const prepared = useRef<{ assetId: string; payload: Parameters<typeof api.createAssetComment>[2] } | null>(null);
   // URL state drives file/page/thread navigation. While a draft or uncertain save
   // exists, keep rendering its original location even if Back/Forward changes URL.
-  const locationProtected = Boolean((draft && (body.trim() || files.length || uploadingFiles || recording)) || reply.trim() || retryLocked || replyLocked || posting.current || replying.current);
+  const locationProtected = Boolean((draft && (body.trim() || files.length || uploadingFiles || recording)) || reply.trim() || retryLocked || replyLocked || posting.current || replying.current
+    || (ownEdit && ownEdit.text.trim() !== ownEdit.original.trim()));
   const acceptedSearch = useRef(params.toString());
   if (!locationProtected) acceptedSearch.current = params.toString();
   const viewParams = new URLSearchParams(acceptedSearch.current);
@@ -350,11 +359,24 @@ export function AssetReview({
     replyPrepared.current ??= { commentId: selected, body: reply.trim(), layer: selectedComment.layer, id: crypto.randomUUID() };
     replying.current = true; setSaveWarning(""); replyMutation.mutate();
   }
-  const hasDraft = locationProtected || post.isPending || replyMutation.isPending;
+  const ownChange = useMutation({
+    mutationFn: async (change: { kind: "edit"; commentId: string; body: string } | { kind: "delete" | "resolve"; commentId: string }) => {
+      if (change.kind === "edit") return api.editOwnComment(change.commentId, change.body, guest);
+      if (change.kind === "resolve") return api.resolveOwnComment(change.commentId, guest);
+      await api.deleteOwnComment(change.commentId, guest);
+      return null;
+    },
+    onSuccess: async (_saved, change) => {
+      if (change.kind === "edit") setOwnEdit(null);
+      if (change.kind === "delete") { setConfirmDelete(""); setSelected(""); }
+      await refresh();
+    },
+  });
+  const hasDraft = locationProtected || post.isPending || replyMutation.isPending || ownChange.isPending;
   const { blocked: navigationBlocked } = useDraftNavigationGuard({
-    name: "file review comment or reply", dirty: locationProtected, pending: post.isPending || replyMutation.isPending,
+    name: "file review comment or reply", dirty: locationProtected, pending: post.isPending || replyMutation.isPending || ownChange.isPending,
     unconfirmed: retryLocked || replyLocked,
-    discard: () => { prepared.current = null; replyPrepared.current = null; setBody(""); setReply(""); setDraft(null); setRetryLocked(false); setReplyLocked(false); },
+    discard: () => { prepared.current = null; replyPrepared.current = null; setBody(""); setReply(""); setDraft(null); setRetryLocked(false); setReplyLocked(false); setOwnEdit(null); },
     shouldBlock: ({ currentLocation, nextLocation }) => {
     const nextSearch = nextLocation.search.replace(/^\?/, "");
     if (allowedSearch.current !== null) {
@@ -774,8 +796,34 @@ export function AssetReview({
                       <div><strong>{selectedComment.author_name}</strong><time dateTime={selectedComment.created_at}>{formatRelativeTime(selectedComment.created_at)}</time></div>
                       <StatusBadge status={selectedComment.status} />
                     </header>
-                    <p>{selectedComment.body}</p>
+                    {ownEdit?.commentId === selectedComment.id ? (
+                      <form className="bl-asset-own-edit" onSubmit={(e) => { e.preventDefault(); const text = ownEdit.text.trim(); if (!text) return; if (text === ownEdit.original.trim()) { setOwnEdit(null); return; } ownChange.mutate({ kind: "edit", commentId: selectedComment.id, body: text }); }}>
+                        <textarea className="bl-input" aria-label="Edit your comment" rows={3} required maxLength={10_000} autoFocus readOnly={ownChange.isPending} value={ownEdit.text} onChange={(e) => setOwnEdit({ ...ownEdit, text: e.target.value })} />
+                        <div className="bl-asset-reply-foot">
+                          <button type="button" className="bl-quiet" disabled={ownChange.isPending} onClick={() => { setOwnEdit(null); ownChange.reset(); }}>Cancel</button>
+                          <button className="bl-button" disabled={ownChange.isPending || !ownEdit.text.trim()}>{ownChange.isPending ? "Saving…" : "Save"}</button>
+                        </div>
+                      </form>
+                    ) : <p>{selectedComment.body}</p>}
                     <AttachmentList attachments={selectedComment.attachments} />
+                    {guest && guestSessionId && selectedComment.author_type === "guest" && selectedComment.author_id === guestSessionId && ownEdit?.commentId !== selectedComment.id && (
+                      confirmDelete === selectedComment.id ? (
+                        <div className="bl-asset-own-confirm" role="alertdialog" aria-label="Delete comment">
+                          <p>Delete this comment? This can't be undone.</p>
+                          <div className="bl-asset-reply-foot">
+                            <button type="button" className="bl-quiet" disabled={ownChange.isPending} onClick={() => setConfirmDelete("")}>Keep it</button>
+                            <button type="button" className="bl-button" disabled={ownChange.isPending} onClick={() => ownChange.mutate({ kind: "delete", commentId: selectedComment.id })}>{ownChange.isPending ? "Deleting…" : "Delete comment"}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bl-asset-own-actions">
+                          <button type="button" className="bl-quiet" disabled={ownChange.isPending} onClick={() => { ownChange.reset(); setOwnEdit({ commentId: selectedComment.id, original: selectedComment.body, text: selectedComment.body }); }}>Edit</button>
+                          {replies.length === 0 && <button type="button" className="bl-quiet" disabled={ownChange.isPending} onClick={() => { ownChange.reset(); setConfirmDelete(selectedComment.id); }}>Delete</button>}
+                          {reviewerCanResolve && !["resolved", "wont_fix"].includes(selectedComment.status) && <button type="button" className="bl-quiet" disabled={ownChange.isPending} onClick={() => ownChange.mutate({ kind: "resolve", commentId: selectedComment.id })}>Mark resolved</button>}
+                        </div>
+                      )
+                    )}
+                    {ownChange.error && <p className="bl-error" role="alert">{ownChange.error.message}</p>}
                     <div className="bl-chip-row">
                       <span className="bl-chip">{ticketRef(selectedComment)}</span>
                       {isPdf && <span className="bl-chip">Page {regionOf(selectedComment)?.page_number ?? 1}</span>}

@@ -29,7 +29,8 @@ export { parseUserAgent } from "./user-agent";
 export { registerCurrentPage, submitPageSnapshot, capturePageVersion } from "./page-registration";
 
 export { createThreadManager } from "./thread-manager";
-export type { ThreadManager, ThreadManagerOptions } from "./thread-manager";
+export type { OwnCommentHandlers, ThreadManager, ThreadManagerOptions } from "./thread-manager";
+export { ownCommentHandlers } from "./own-comments";
 
 export { setupRegionDrawer } from "./region-drawer";
 

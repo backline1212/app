@@ -40,6 +40,7 @@ rollout and browser/provider acceptance still apply as described below.
 | OPT-03 measurement | Partial: 2,000-comment local measurement; API gzip (5.4 MB → 53 KB) (TDR-0167). |
 | SUG-09 file replacement | Source: file versions with per-version pins (TDR-0165). |
 | SUG-11 search | Source: ticket-number search, clients in search (TDR-0153/0157). |
+| FLOW-04 own comments | Source: Edit/Delete/Mark resolved on the reviewer's own comment in widget, extension and file review (TDR-0172); one overlay when snippet + extension (TDR-0169). Reply attachments/mentions in the widget remain. |
 | SUG-07 interaction consistency | Partial: axe-core WCAG A/AA clean on main pages (TDR-0166); manual a11y acceptance open. |
 | BUG-08 (DOM/privacy) | Unchanged. |
 | New fixes | Sign-in self-revocation (TDR-0156), stale-chunk crash after deploys (TDR-0159), double widget in preview (TDR-0162), missing-file state (TDR-0161), client reply emails (TDR-0164), security headers (TDR-0168). |

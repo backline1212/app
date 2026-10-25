@@ -95,6 +95,12 @@ class GuestSessionStatusOut(BaseModel):
     display_name: str
     member_bound: bool
     review_url: str
+    # The author_id this reviewer's own comments carry, so a review surface can offer
+    # edit/delete on them. The server still checks authorship on every change.
+    guest_session_id: str = ""
+    # Whether the project lets this reviewer resolve their own threads (never for a
+    # member-bound session, which changes status through the member route).
+    reviewer_can_resolve: bool = False
 
 
 class CanvasSessionOut(BaseModel):

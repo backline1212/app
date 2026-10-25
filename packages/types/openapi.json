@@ -12734,6 +12734,16 @@
           "review_url": {
             "type": "string",
             "title": "Review Url"
+          },
+          "guest_session_id": {
+            "type": "string",
+            "title": "Guest Session Id",
+            "default": ""
+          },
+          "reviewer_can_resolve": {
+            "type": "boolean",
+            "title": "Reviewer Can Resolve",
+            "default": false
           }
         },
         "type": "object",

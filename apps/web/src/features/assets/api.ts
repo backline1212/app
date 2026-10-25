@@ -25,7 +25,7 @@ export async function assetRequest<T>(path: string, guest?: string, init?: Reque
     if (!guest) return apiFetch<T>(path, { ...init, signal });
     const response = await fetch(`${API_BASE_URL}${path}`, { ...init, signal, credentials: 'omit', cache: 'no-store', headers: { 'Content-Type': 'application/json', 'X-Guest-Session': guest, ...init?.headers } });
     if (!response.ok) throw await toApiError(response, "REVIEW_ERROR", "The review could not be loaded.");
-    return response.json() as Promise<T>;
+    return (response.status === 204 ? undefined : response.json()) as Promise<T>;
   }, init?.signal);
 }
 export function listAssets(projectId: string, guest?: string, includeArchived = false) { return assetRequest<Asset[]>(`/api/v1/projects/${projectId}/assets${includeArchived ? '?include_archived=true' : ''}`, guest); }
@@ -51,6 +51,10 @@ export function assetCommentsVersion(pageId: string, guest?: string) { return as
 export function listAssetComments(pageId: string, guest?: string) { return assetRequest<Schemas['CommentOut'][]>(`/api/v1/pages/${pageId}/comments`, guest); }
 export function createAssetComment(projectId: string, assetId: string, body: Schemas['AssetCommentCreate'], guest?: string) { return assetRequest<Schemas['CommentOut']>(`/api/v1/projects/${projectId}/assets/${assetId}/comments`, guest, { method: 'POST', body: JSON.stringify(body) }); }
 export function replyToComment(commentId: string, body: string, layer: 'client' | 'team', guest?: string, clientRequestId?: string) { return assetRequest<Schemas['CommentOut']>(`/api/v1/comments/${commentId}/replies`, guest, { method: 'POST', body: JSON.stringify({ body, layer, client_request_id: clientRequestId }) }); }
+// A reviewer's own comment; the API checks authorship (and the project's resolve setting).
+export function editOwnComment(commentId: string, body: string, guest?: string) { return assetRequest<Schemas['CommentOut']>(`/api/v1/comments/${commentId}/body`, guest, { method: 'PATCH', body: JSON.stringify({ body }) }); }
+export function deleteOwnComment(commentId: string, guest?: string) { return assetRequest<void>(`/api/v1/comments/${commentId}`, guest, { method: 'DELETE' }); }
+export function resolveOwnComment(commentId: string, guest?: string) { return assetRequest<Schemas['CommentOut']>(`/api/v1/comments/${commentId}/resolve`, guest, { method: 'PATCH' }); }
 export function reanchorComment(projectId: string, assetId: string, commentId: string, region: Region) {
   return assetRequest<Schemas['CommentOut']>(`/api/v1/projects/${projectId}/assets/${assetId}/comments/${commentId}/region`, undefined, { method: 'PATCH', body: JSON.stringify(region) });
 }

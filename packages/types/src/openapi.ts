@@ -3882,6 +3882,16 @@ export interface components {
             member_bound: boolean;
             /** Review Url */
             review_url: string;
+            /**
+             * Guest Session Id
+             * @default
+             */
+            guest_session_id: string;
+            /**
+             * Reviewer Can Resolve
+             * @default false
+             */
+            reviewer_can_resolve: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
