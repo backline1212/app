@@ -188,12 +188,12 @@ function activatePointMode(ctx: AnnotationContext): () => void {
       shadow,
       x,
       y,
-      async ({ body, attachments, tags, diagnostics, stepsToReproduce, includeScreenshot }) => {
+      async ({ body, attachments, tags, diagnostics, stepsToReproduce, includeScreenshot, screenshot: previewed }) => {
         try {
           const created = await submission.submit(async () => {
             controls.setStatus(includeScreenshot ? "Capturing anchor + screenshot..." : "Saving the location...");
             const anchor = await computeAnchor(target, x, y);
-            const screenshotBlob = includeScreenshot ? await (ctx.native ? captureNativeScreenshot() : captureScreenshot()) : null;
+            const screenshotBlob = includeScreenshot ? previewed ?? await (ctx.native ? captureNativeScreenshot() : captureScreenshot()) : null;
 
             let screenshotKey: string | null = null;
             if (screenshotBlob) {
@@ -251,6 +251,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
       },
       (file) => ctx.native ? uploadNativeAttachment(api, project.id, file) : uploadAttachment(api, project.id, file),
       composerDetails(),
+      ctx.native ? captureNativeScreenshot : captureScreenshot,
     );
   };
 

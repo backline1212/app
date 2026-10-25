@@ -21,6 +21,9 @@ export interface ComposerResult {
   stepsToReproduce: string | null;
   /** False when the reviewer unticked "Add an automatic screenshot of this page". */
   includeScreenshot: boolean;
+  /** The screenshot the reviewer previewed, attached as shown; undefined when they
+   * didn't preview, so the caller captures at post time as before. */
+  screenshot?: Blob;
 }
 
 /** What the composer shows about who's commenting and where - the header's avatar and
@@ -185,6 +188,8 @@ export function openComposer(
   onCancel: () => void,
   uploadFile: (file: File) => Promise<AttachmentResult | null>,
   details: ComposerDetails,
+  // Takes the automatic screenshot for "Preview". Without it the option has no preview.
+  capture?: () => Promise<Blob | null>,
 ): { setStatus: (text: string) => void; setCloseDelay: (ms: number) => void; setRetryLocked: (locked: boolean) => void; close: () => void } {
   const composer = document.createElement("div");
   composer.className = "bl-card bl-composer";
@@ -223,11 +228,18 @@ export function openComposer(
         ${recordingSupported("voice") ? `<button type="button" class="bl-cp-attach bl-cp-record" data-kind="voice" title="Record a voice note (up to ${MAX_RECORDING_SECONDS / 60} minutes)">${svg(MIC_ICON, 1.8, 14)}<span>Voice note</span></button>` : ""}
         <input type="file" class="bl-attach-input" accept="${ATTACHMENT_ACCEPT}" multiple hidden aria-label="Choose files to attach" />
       </div>
-      <label class="bl-cp-diag bl-cp-shot-opt">
-        <input type="checkbox" class="bl-cp-shot-input" checked />
-        ${svg(IMAGE_ICON, 1.8, 13)}
-        <span>Add an automatic screenshot of this page</span>
-      </label>
+      <div class="bl-cp-shot-row">
+        <label class="bl-cp-diag bl-cp-shot-opt">
+          <input type="checkbox" class="bl-cp-shot-input" checked />
+          ${svg(IMAGE_ICON, 1.8, 13)}
+          <span>Add an automatic screenshot of this page</span>
+        </label>
+        <button type="button" class="bl-cp-shot-btn" title="See the screenshot before you post"${capture ? "" : " hidden"}>Preview</button>
+      </div>
+      <figure class="bl-cp-shot-preview" hidden>
+        <img alt="Screenshot that will be attached" />
+        <figcaption>This is what will be attached. Retake it after scrolling or changing the page.</figcaption>
+      </figure>
       <label class="bl-cp-diag" hidden>
         <input type="checkbox" class="bl-cp-diag-input" />
         ${svg(BUG_ICON, 1.8, 13)}
@@ -268,9 +280,56 @@ export function openComposer(
   // something private usually stays that way.
   const shotInput = composer.querySelector<HTMLInputElement>(".bl-cp-shot-input")!;
   try { shotInput.checked = sessionStorage.getItem(SCREENSHOT_PREF_KEY) !== "0"; } catch { /* Storage may be disabled. */ }
+  const shotButton = composer.querySelector<HTMLButtonElement>(".bl-cp-shot-btn")!;
+  const shotPreview = composer.querySelector<HTMLElement>(".bl-cp-shot-preview")!;
+  const shotImage = shotPreview.querySelector<HTMLImageElement>("img")!;
+  const shotCaption = shotPreview.querySelector<HTMLElement>("figcaption")!;
+  // What "Preview" captured. It is attached as shown, so the reviewer posts exactly the
+  // image they checked; without a preview the caller captures when posting.
+  let preview: { blob: Blob; url: string } | null = null;
+  let capturing = false;
+  function renderShotOption(): void {
+    shotButton.hidden = !capture || !shotInput.checked;
+    shotButton.textContent = preview ? "Retake" : "Preview";
+    shotPreview.hidden = !preview || !shotInput.checked;
+  }
+  function clearPreview(): void {
+    if (preview) URL.revokeObjectURL(preview.url);
+    preview = null;
+  }
+  shotImage.addEventListener("error", () => {
+    // Some sites forbid blob: images; the screenshot itself is still attached.
+    shotImage.hidden = true;
+    shotCaption.textContent = "This site doesn't allow the preview to be shown, but the screenshot will be attached.";
+  });
+  async function takePreview(): Promise<void> {
+    if (!capture || capturing || submitted || retryLocked || closed) return;
+    capturing = true;
+    shotButton.disabled = true;
+    statusEl.textContent = "Capturing a preview...";
+    let blob: Blob | null = null;
+    try { blob = await capture(); } catch { blob = null; }
+    capturing = false;
+    if (closed) return;
+    shotButton.disabled = submitted || retryLocked;
+    if (!blob) {
+      statusEl.textContent = "This page couldn't be captured. You can still post; the comment is saved without a screenshot.";
+      return;
+    }
+    clearPreview();
+    preview = { blob, url: URL.createObjectURL(blob) };
+    shotImage.hidden = false;
+    shotCaption.textContent = "This is what will be attached. Retake it after scrolling or changing the page.";
+    shotImage.src = preview.url;
+    statusEl.textContent = "";
+    renderShotOption();
+  }
+  shotButton.addEventListener("click", () => void takePreview());
   shotInput.addEventListener("change", () => {
     try { sessionStorage.setItem(SCREENSHOT_PREF_KEY, shotInput.checked ? "1" : "0"); } catch { /* Storage may be disabled. */ }
+    renderShotOption();
   });
+  renderShotOption();
   const diagLabel = composer.querySelector<HTMLSpanElement>(".bl-cp-diag-label")!;
   let diagTouched = false;
   function renderDiagnostics(): void {
@@ -355,6 +414,7 @@ export function openComposer(
     stopPlacement();
     stopAutoGrow();
     removeOutsideClickListener();
+    clearPreview();
     textarea.value = "";
     composer.remove();
   }
@@ -377,6 +437,7 @@ export function openComposer(
     for (const button of recordButtons) button.disabled = disabled || retryLocked || (recording !== null && recording.button !== button);
     diagInput.disabled = disabled || retryLocked;
     shotInput.disabled = disabled || retryLocked;
+    shotButton.disabled = disabled || retryLocked || capturing;
     if (disabled || retryLocked) attachments.disable();
     else attachments.enable();
   }
@@ -409,7 +470,7 @@ export function openComposer(
     // Capture/anchor/upload callbacks can throw before they reach their API error
     // handler. Handle both synchronous throws and rejected promises here so every
     // adapter keeps the draft and restores its controls for an explicit retry.
-    void Promise.resolve().then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null, stepsToReproduce: stepsInput?.value.trim() || null, includeScreenshot: shotInput.checked })).then((ok) => {
+    void Promise.resolve().then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null, stepsToReproduce: stepsInput?.value.trim() || null, includeScreenshot: shotInput.checked, screenshot: shotInput.checked ? preview?.blob : undefined })).then((ok) => {
       if (closed) return;
       if (ok) {
         posted = true;

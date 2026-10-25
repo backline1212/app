@@ -541,13 +541,13 @@ async function init(config: BacklineConfig): Promise<void> {
       shadow,
       x,
       y,
-      async ({ body, attachments, tags, diagnostics, stepsToReproduce, includeScreenshot }) => {
+      async ({ body, attachments, tags, diagnostics, stepsToReproduce, includeScreenshot, screenshot: previewed }) => {
         try {
           const created = await submission.submit(async () => {
             controls.setStatus(includeScreenshot ? "Capturing anchor + screenshot..." : "Saving the location...");
 
             const anchor = await computeAnchor(target, x, y);
-            const screenshotBlob = includeScreenshot ? await captureScreenshot() : null;
+            const screenshotBlob = includeScreenshot ? previewed ?? await captureScreenshot() : null;
 
             let screenshotKey: string | null = null;
             if (screenshotBlob) {
@@ -610,6 +610,7 @@ async function init(config: BacklineConfig): Promise<void> {
       },
       (file) => uploadAttachment(api, projectId, file),
       composerDetails(),
+      captureScreenshot,
     );
   }, { signal: listenerLifetime.signal });
 

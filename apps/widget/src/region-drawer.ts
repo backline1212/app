@@ -170,12 +170,12 @@ export function setupRegionDrawer({
       shadow,
       finalLeft,
       finalTop + finalHeight, // open below the region
-      async ({ body, attachments, tags, diagnostics, stepsToReproduce, includeScreenshot }) => {
+      async ({ body, attachments, tags, diagnostics, stepsToReproduce, includeScreenshot, screenshot: previewed }) => {
         try {
           const created = await submission.submit(async () => {
             controls.setStatus(includeScreenshot ? "Capturing region anchor + screenshot..." : "Saving the region...");
             const anchor = await computeRegionAnchor(activeTarget, rect);
-            const screenshotBlob = includeScreenshot ? await screenshot() : null;
+            const screenshotBlob = includeScreenshot ? previewed ?? await screenshot() : null;
 
             let screenshotKey: string | null = null;
             if (screenshotBlob) {
@@ -251,6 +251,7 @@ export function setupRegionDrawer({
       },
       (file: File) => uploadFile(api, projectId, file),
       composerDetails(`${Math.round(finalWidth)} \u00d7 ${Math.round(finalHeight)}`),
+      screenshot,
     );
   }
 

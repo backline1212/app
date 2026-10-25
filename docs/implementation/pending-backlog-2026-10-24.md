@@ -44,7 +44,7 @@ rollout and browser/provider acceptance still apply as described below.
 | BUG-07 orphaned uploads | Source: operator cleanup script for uploads no comment used, dry-run first (TDR-0182). Run it on production after review. |
 | FEAT-09 client digest | Decided: per-event client emails (reply, resolved), no digest; `client_digest_enabled` stays inert and hidden (TDR-0181). |
 | FEAT-08 undo | Partial: Undo for closing a ticket and for bulk changes (TDR-0179); no persisted global history. |
-| FLOW-06 capture control | Source: reviewers can leave the automatic screenshot out (`capture_status: skipped`, TDR-0176). Capture preview remains. |
+| FLOW-06 capture control | Source: reviewers can leave the automatic screenshot out (`capture_status: skipped`, TDR-0176) and preview it before posting; the previewed image is the one attached. Snippet captures now follow the scroll position and no longer turn transparent backgrounds black (TDR-0189). |
 | FLOW-05 open on site | Source: Open with extension from a selected thread opens it on the live page, after sign-in too (TDR-0174); manual Move pin / Re-pin in the canvas (TDR-0186). Cross-page moves and preview/verification history remain. |
 | FLOW-04 own comments | Source: Edit/Delete/Mark resolved on the reviewer's own comment in widget, extension and file review (TDR-0172); reply attachments everywhere (TDR-0175); one overlay when snippet + extension (TDR-0169). Mentions stay dashboard-only by decision. |
 | SUG-07 interaction consistency | Partial: axe-core WCAG A/AA clean on main pages (TDR-0166) and this round's screens, with badge/priority/brand contrast fixed (TDR-0180); manual a11y acceptance open. |
