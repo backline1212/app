@@ -50,6 +50,8 @@ rollout and browser/provider acceptance still apply as described below.
 | SUG-07 interaction consistency | Partial: axe-core WCAG A/AA clean on main pages (TDR-0166) and this round's screens, with badge/priority/brand contrast fixed (TDR-0180); manual a11y acceptance open. |
 | BUG-08 (DOM/privacy) | Partial: reviewers can leave the automatic screenshot out (TDR-0176); other items unchanged. |
 | New fixes | Sign-in self-revocation (TDR-0156), stale-chunk crash after deploys (TDR-0159), double widget in preview (TDR-0162), missing-file state (TDR-0161), client reply emails (TDR-0164), security headers (TDR-0168). |
+| BUG-12 proxy redirects | Local acceptance (2026-10-25): through the guest review proxy, forms posting to 307 and 308 endpoints arrived at the target as POST with their body (`item=alpha`, `item=beta`); a 303 continued as GET. Production check remains. |
+| QA-02 SPA routes (website widget) | Local acceptance (2026-10-25): on a pushState + `#/` test SPA the widget registered each route as its own page, showed only that route's pins, saved comments on the right route and restored pins on Back; Browse/Comment/Draw toolbar added for on-site reviewers (TDR-0187). |
 | New capabilities | Ticket bulk triage (TDR-0177), printable review report (TDR-0178), digest counts and due reminders (TDR-0183), file version approval with notification/email and project-card summary (TDR-0184/0185). |
 
 Operator follow-ups from this round: submit extension **0.5.9** to the Chrome Web Store
