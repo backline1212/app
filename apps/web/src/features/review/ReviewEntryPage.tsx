@@ -343,7 +343,7 @@ export function ReviewEntryPage() {
                   enterKeyHint={resolved.requires_passcode ? "next" : "go"}
                   value={displayName}
                   onChange={(event) => setDisplayName(event.target.value)}
-                  placeholder="Ravi Kulkarni"
+                  placeholder="Your full name"
                   type="text"
                 />
                 <div className="bl-gate-hint">Your name is shown with your feedback. Review activity and any submitted evidence are saved for this project.</div>
