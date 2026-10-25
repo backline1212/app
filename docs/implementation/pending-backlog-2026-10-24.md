@@ -24,6 +24,31 @@ Priority: **P1** before a wider pilot; **P2** next reliability/product work;
 - **Acceptance:** implementation exists, but the stated scenario needs evidence.
 - **Roadmap:** an explicitly unshipped capability, separate from a defect.
 
+## Status update - 2026-10-25 (TDR-0146 to TDR-0168)
+
+Source changes merged since this inventory (each with its TDR and delivery-log entry);
+rollout and browser/provider acceptance still apply as described below.
+
+| Item | Now |
+|---|---|
+| FEAT-03 video/audio | Source: screen/voice recording in widget, extension and file review (TDR-0147). |
+| FEAT-04 console/network evidence | Source: opt-in, scrubbed capture + steps to reproduce (TDR-0147/0149). |
+| FEAT-01 Web App review | Source: Web App/Mobile App project kinds, build/device fields (TDR-0149). |
+| FEAT-05/06/07 branding, domains, white-label | Source: client branding, verified review domains, white-label portal (TDR-0150). |
+| FEAT-12 fix-and-verify loop | Partial: MCP `submit_fix` + Verified/Reopen in the ticket view (TDR-0158); no automated verification run. |
+| OPT-02 extension polling | Source: comment-list fingerprint polling (TDR-0152); file review uses it too (TDR-0167). |
+| OPT-03 measurement | Partial: 2,000-comment local measurement; API gzip (5.4 MB → 53 KB) (TDR-0167). |
+| SUG-09 file replacement | Source: file versions with per-version pins (TDR-0165). |
+| SUG-11 search | Source: ticket-number search, clients in search (TDR-0153/0157). |
+| SUG-07 interaction consistency | Partial: axe-core WCAG A/AA clean on main pages (TDR-0166); manual a11y acceptance open. |
+| BUG-08 (DOM/privacy) | Unchanged. |
+| New fixes | Sign-in self-revocation (TDR-0156), stale-chunk crash after deploys (TDR-0159), double widget in preview (TDR-0162), missing-file state (TDR-0161), client reply emails (TDR-0164), security headers (TDR-0168). |
+
+Operator follow-ups from this round: submit extension 0.5.2 to the Chrome Web Store and
+set `VITE_EXTENSION_STORE_URL` after approval; run
+`scripts.migrate_ticket_numbers --apply` and `scripts.migrate_event_projects --apply`
+(dry-run first); make sure the Arq worker and email provider run for client emails.
+
 ## Current evidence and first decision
 
 The first review found an API routing outage. Read-only HTTP checks on
