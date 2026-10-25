@@ -57,3 +57,9 @@
 .bl-info-content h2 { margin: 0 0 12px; font-size: 1.35rem; }
 .bl-info-content p, .bl-info-content ul { margin: 0 0 16px; }
 .bl-info-content li { margin-bottom: 10px; }
+.bl-info-content code {
+  font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--bl-paper, #f1f3f1);
+}
