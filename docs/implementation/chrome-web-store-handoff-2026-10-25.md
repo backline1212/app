@@ -17,7 +17,17 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.2 (2026-10-25)
+## Update ready: 0.5.3 (2026-10-25, supersedes 0.5.2)
+
+0.5.3 = 0.5.2 plus: while the extension reviews a tab, a Backline snippet the site
+itself embeds steps aside (no second toolbar / name prompt). Package
+`apps/extension/dist/backline-extension.zip` (58,720 bytes, SHA-256
+`12c4c0058e8b8a1d53e2a452b01f876726f8445cb33c624cffd85c263eaf41e9`), same production
+API/dashboard targets and permissions as below. Verified in Chromium with the unpacked
+build: readiness check, Open with extension, toolbar on the site, a saved comment with
+its screenshot (TDR-0169). Submit 0.5.3 instead of 0.5.2.
+
+## Previous: 0.5.2 (2026-10-25)
 
 Source and the dashboard's download are at **0.5.2** (screen/voice recording, console &
 network capture, steps to reproduce, snapshot hash fix for the 422, version-first
