@@ -27,3 +27,8 @@ class NotificationOut(BaseModel):
     target_route: str | None = None
     read_at: datetime | None
     created_at: datetime
+    # What a comment notification is about, resolved when the list is read (so older
+    # notifications get it too): the ticket's "#N", its first line and its project.
+    ticket_number: int | None = None
+    ticket_excerpt: str | None = None
+    project_name: str | None = None
