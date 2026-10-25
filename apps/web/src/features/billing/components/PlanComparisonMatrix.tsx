@@ -10,14 +10,14 @@ interface PlanComparisonMatrixProps {
 function Cell({ value }: { value: string }) {
   if (value === "Yes") {
     return (
-      <span className="bl-compare-yes" aria-label="Included">
+      <span className="bl-compare-yes" role="img" aria-label="Included">
         <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
           <path d="M5 10.5 8.3 13.5 15 6.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
     );
   }
-  if (value === "No") return <span className="bl-compare-no" aria-label="Not included">—</span>;
+  if (value === "No") return <span className="bl-compare-no" role="img" aria-label="Not included">—</span>;
   if (value === "Coming soon") return <em className="bl-compare-soon">Coming soon</em>;
   return <span>{value}</span>;
 }
