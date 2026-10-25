@@ -416,6 +416,57 @@ async function init(config: BacklineConfig): Promise<void> {
   };
   applyMode(currentMode);
 
+  // Dashboard canvas only: "Move pin" (TDR-0186). The next click on the page picks the
+  // element a comment should point at; the dashboard saves it with the member's own
+  // session and tells this widget to redraw the pin. Window capture runs before the
+  // comment click handler below, so the pick never also starts a new comment.
+  let picking: string | null = null;
+  const endPick = (cancelled: boolean) => {
+    if (!picking) return;
+    if (cancelled) window.parent.postMessage({ type: "backline:anchor-pick-cancelled", commentId: picking }, "*");
+    picking = null;
+    delete (shadow.host as HTMLElement).dataset.picking;
+    document.documentElement.style.removeProperty("cursor");
+  };
+  window.addEventListener("click", (event) => {
+    if (!picking) return;
+    const target = event.target as Element | null;
+    if (!target || target.closest("[data-backline-root]")) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const commentId = picking;
+    const x = event.pageX;
+    const y = event.pageY;
+    endPick(false);
+    void computeAnchor(target, x, y).then((anchor) => {
+      window.parent.postMessage({ type: "backline:anchor-picked", commentId, anchor: { ...anchor, type: "point" } }, "*");
+    }, () => window.parent.postMessage({ type: "backline:anchor-pick-cancelled", commentId }, "*"));
+  }, { capture: true, signal: listenerLifetime.signal });
+  window.addEventListener("keydown", (event) => {
+    if (picking && event.key === "Escape") { event.preventDefault(); endPick(true); }
+  }, { capture: true, signal: listenerLifetime.signal });
+  window.addEventListener("message", (event) => {
+    if (window.parent === window || event.source !== window.parent) return;
+    const data = event.data;
+    if (data?.type === "backline:pick-anchor" && typeof data.commentId === "string") {
+      if (!threadMessages.has(data.commentId)) {
+        window.parent.postMessage({ type: "backline:anchor-pick-cancelled", commentId: data.commentId, reason: "not-on-page" }, "*");
+        return;
+      }
+      threadManager.closeOpenThread();
+      picking = data.commentId;
+      (shadow.host as HTMLElement).dataset.picking = "true";
+      document.documentElement.style.setProperty("cursor", "crosshair");
+    } else if (data?.type === "backline:cancel-pick") {
+      endPick(false);
+    } else if (data?.type === "backline:comment-reanchored" && data.comment?.id) {
+      const thread = threadMessages.get(data.comment.id);
+      if (!thread) return;
+      threadManager.removeThreadPin(data.comment.id);
+      threadManager.addThread({ ...thread[0], ...data.comment }, thread.slice(1));
+    }
+  }, { signal: listenerLifetime.signal });
+
   document.addEventListener("click", (event) => {
     if (currentMode !== "comment") return;
     const target = event.target as Element | null;

@@ -75,6 +75,8 @@ export interface CommentDetailProps {
   pages: PageOut[];
   onBack: () => void;
   onShowOnPage: (commentId: string) => void;
+  /** Website comments: pick a new element for the pin in the canvas (TDR-0186). */
+  onMovePin?: (commentId: string) => void;
 }
 
 const icon = (paths: ReactNode, size = 12, strokeWidth = 2) => (
@@ -351,6 +353,7 @@ export function CommentDetail({
   pages,
   onBack,
   onShowOnPage,
+  onMovePin,
 }: CommentDetailProps) {
   const queryClient = useQueryClient();
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
@@ -857,6 +860,12 @@ export function CommentDetail({
             {page}
           </button>
           {isRegion && <span className="bl-cd-tag">region</span>}
+          {onMovePin && canEdit && !assetAnchor?.asset_id && !isRegion && !comment.parent_id && (
+            <button type="button" className="bl-cd-move-pin" onClick={() => onMovePin(comment.id)}
+              title="Click the element this comment is about on the page">
+              {comment.recovery_status !== "ok" ? "Re-pin" : "Move pin"}
+            </button>
+          )}
         </div>
 
         {(links ?? []).length > 0 && (

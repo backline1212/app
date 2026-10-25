@@ -22,6 +22,7 @@ interface CommentsTabProps {
   /** Selects a comment and takes the canvas to its pin, switching pages if it has to
    * (ProjectOverviewPage's revealComment). */
   onRevealComment?: (commentId: string) => void;
+  onMovePin?: (commentId: string) => void;
   /** A pin clicked in the canvas (or a BugHunt AI finding): open that comment here. */
   openCommentRequest?: { commentId: string; nonce: number } | null;
   onOpenRequestHandled?: (nonce: number) => void;
@@ -33,6 +34,7 @@ export function CommentsTab({
   currentPageId,
   selectedCommentId,
   onRevealComment,
+  onMovePin,
   openCommentRequest,
   onOpenRequestHandled,
 }: CommentsTabProps) {
@@ -187,6 +189,7 @@ export function CommentsTab({
         pages={pages}
         onBack={() => setOpenThreadId(null)}
         onShowOnPage={(commentId) => onRevealComment?.(commentId)}
+        onMovePin={onMovePin}
       />
     );
   }
