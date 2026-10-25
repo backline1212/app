@@ -1,5 +1,7 @@
 import asyncio
 import contextlib
+import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -63,12 +65,21 @@ EXTENSION_DIST_DIR = Path(__file__).resolve().parents[2] / "apps" / "extension" 
 # before this call) - built once here so both the mount below and the lifespan's
 # session_manager.run() reference the same instance.
 mcp_asgi_app = mcp_server.streamable_http_app()
+startup_logger = logging.getLogger("uvicorn.error")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Timed so a slow or failed start (e.g. a deploy whose health check gives up) shows
+    # which step it was in the platform's logs. uvicorn.error is uvicorn's own INFO
+    # logger, so the line appears next to "Application startup complete".
+    started = time.monotonic()
     await ensure_indexes(get_db())
+    indexed = time.monotonic()
     await ensure_bucket_exists()
+    startup_logger.info(
+        "Startup: indexes %.1fs, storage %.1fs", indexed - started, time.monotonic() - indexed
+    )
     subscriber_task = asyncio.create_task(run_subscriber())
     # FastMCP's own session manager background task - mounting its Starlette app
     # below does not automatically run its lifespan, so it has to be entered here
