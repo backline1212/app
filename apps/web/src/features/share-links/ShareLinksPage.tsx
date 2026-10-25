@@ -11,6 +11,7 @@ import { useDocumentTitle } from "../../lib/use-document-title";
 import { useProject } from "../projects/use-project";
 import * as shareLinksApi from "./api";
 import type { ShareLinkOut } from "./api";
+import { InstallCodeDialog } from "./InstallCodeDialog";
 import { reviewLinkState, useReviewLinkClock } from "./link-state";
 import { reviewLinkUrl, useReviewDomain } from "../workspaces/review-url";
 
@@ -40,6 +41,7 @@ export function ShareLinksPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copyError, setCopyError] = useState("");
   const [revokeCandidate, setRevokeCandidate] = useState<ShareLinkOut | null>(null);
+  const [installFor, setInstallFor] = useState<ShareLinkOut | null>(null);
   const now = useReviewLinkClock();
 
   const linksQuery = useQuery({
@@ -56,10 +58,12 @@ export function ShareLinksPage() {
         askReviewerName,
         expiresAt: expiration === "never" ? undefined : new Date(Date.now() + Number(expiration) * 24 * 60 * 60 * 1000).toISOString(),
       }),
-    onSuccess: async () => {
+    onSuccess: async (created) => {
       setPasscode("");
       await queryClient.invalidateQueries({ queryKey: qk.shareLinks(projectId ?? "") });
       toast("Share link created.");
+      // A Website tools link does nothing until its tag is on the site.
+      if (created.mode === "snippet") setInstallFor(created);
     },
     onError: (err: unknown) => {
       toast(err instanceof Error ? err.message : "Could not create share link.", "error");
@@ -160,6 +164,13 @@ export function ShareLinksPage() {
                             <button type="button" className="bl-quiet" disabled={state !== "active"} onClick={() => copyLink(link.id, link.token)}>
                               {copiedId === link.id ? "Copied" : "Copy link"}
                             </button>{" "}
+                            {link.mode === "snippet" && isWebsite && (
+                              <>
+                                <button type="button" className="bl-quiet" disabled={state !== "active"} onClick={() => setInstallFor(link)}>
+                                  Install code
+                                </button>{" "}
+                              </>
+                            )}
                             <button
                               type="button"
                               className="bl-quiet"
@@ -197,7 +208,7 @@ export function ShareLinksPage() {
             Link type
             <select className="bl-input" value={mode} onChange={(event) => setMode(event.target.value as "snippet" | "proxy")}>
               <option value="proxy">Backline review (browser fallback available)</option>
-              <option value="snippet">Website tools (existing installation required)</option>
+              <option value="snippet">Website tools (add a tag to the site)</option>
             </select>
           </label>}
           <label>
@@ -229,6 +240,10 @@ export function ShareLinksPage() {
           </button>
         </form>
       </section>
+
+      {installFor && (
+        <InstallCodeDialog link={installFor} reviewUrl={reviewUrl(installFor.token)} onClose={() => setInstallFor(null)} />
+      )}
 
       {revokeCandidate && (
         <Dialog title="Revoke this share link?" onClose={() => setRevokeCandidate(null)}>

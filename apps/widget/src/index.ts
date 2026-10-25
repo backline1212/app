@@ -724,3 +724,16 @@ function safeInit(config: BacklineConfig): Promise<void> {
 }
 
 window.Backline = { init: safeInit };
+
+// One-tag install with no inline script, so it also works under a site's strict CSP:
+//   <script src="https://API/widget/sdk.js" data-share-token="TOKEN" async></script>
+// The API that served this file is the API to talk to. Without the attribute (the
+// review proxy, or a site calling Backline.init itself) nothing starts here.
+const installTag = document.currentScript as HTMLScriptElement | null;
+const installToken = installTag?.dataset.shareToken?.trim();
+if (installTag && installToken) {
+  const apiBaseUrl = installTag.dataset.apiBaseUrl || new URL(installTag.src, location.href).origin;
+  const start = (): void => void safeInit({ shareToken: installToken, apiBaseUrl });
+  if (document.body) start();
+  else document.addEventListener("DOMContentLoaded", start, { once: true });
+}

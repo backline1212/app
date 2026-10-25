@@ -4952,3 +4952,10 @@ database migration, or production deployment is claimed.
 - All emails share one clean layout with a plain-text part; client emails show the
   agency's name. Invitations name the workspace and inviter and link straight to the
   email-code sign-in with the address filled in.
+
+# 2026-10-25: Snippet install code; private content masked in screenshots (TDR-0192)
+
+- Website tools links show a one-tag install (`data-share-token`, no inline script, CSP
+  friendly) with Copy code and setup notes.
+- Screenshots grey out `data-backline-private` content (SDK and extension) and include
+  canvas charts and video frames.
