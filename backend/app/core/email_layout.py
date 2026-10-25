@@ -35,20 +35,31 @@ def plain_text(html: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
-def render_email(*, subject: str, content_html: str, brand: str | None = None) -> str:
+def render_email(
+    *,
+    subject: str,
+    content_html: str,
+    brand: str | None = None,
+    unsubscribe_url: str | None = None,
+) -> str:
     """Wrap a fragment in the shell. `brand` names the sender for client-facing emails
-    (an agency's own name); without it the email is from Backline."""
+    (an agency's own name); without it the email is from Backline. `unsubscribe_url`
+    adds an Unsubscribe link under the card."""
     if is_document(content_html):
         return content_html
     sender = escape(brand or "Backline")
     preheader = escape(plain_text(content_html).replace("\n", " ")[:140])
-    footer = (
-        ""
-        if brand
-        else (
-            f'<p style="margin:16px 0 0;font:12px/1.5 {_FONT};color:{_MUTED};">'
-            "Backline &middot; client feedback, anchored to the work</p>"
+    footer_parts = [] if brand else ["Backline &middot; client feedback, anchored to the work"]
+    if unsubscribe_url:
+        footer_parts.append(
+            f'<a href="{escape(unsubscribe_url, quote=True)}" style="color:{_MUTED};">'
+            "Unsubscribe</a>"
         )
+    footer = (
+        f'<p style="margin:16px 0 0;font:12px/1.5 {_FONT};color:{_MUTED};">'
+        f"{' &middot; '.join(footer_parts)}</p>"
+        if footer_parts
+        else ""
     )
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'

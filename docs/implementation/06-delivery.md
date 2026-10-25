@@ -4975,3 +4975,8 @@ database migration, or production deployment is claimed.
 
 - `apps/web/public` keeps only the current (0.5.11) and previous (0.5.10) extension ZIPs;
   the dashboard links only the current one. Older packages remain in git history.
+
+# 2026-10-25: One-click unsubscribe (TDR-0194)
+
+- Digest and feedback emails carry List-Unsubscribe / one-click headers and a footer link;
+  POST unsubscribes, GET only confirms.
