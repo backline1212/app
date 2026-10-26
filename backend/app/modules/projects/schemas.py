@@ -157,6 +157,20 @@ class ProjectCreate(BaseModel):
         return value.strip()
 
 
+class UrlCheckIn(BaseModel):
+    url: str = Field(min_length=1, max_length=500)
+
+
+class UrlCheckOut(BaseModel):
+    """What the new-project form shows under the review URL (TDR-0206). `url` is the
+    address to save - with http:// when the site only answers there."""
+
+    url: str
+    status: Literal["ok", "sign_in", "blocked", "error_status", "unreachable"]
+    http_status: int | None
+    message: str
+
+
 class ProjectResolve(BaseModel):
     """Used by the browser extension's "auto-detect current site" flow: finds an
     existing website project for this origin, or creates one, instead of the caller

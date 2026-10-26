@@ -5127,3 +5127,12 @@ database migration, or production deployment is claimed.
 
 - Verified: web lint/typecheck/build (entry 137.4 KB gzip; with a DSN Sentry is its own
   chunk), sign-in page renders with no console errors.
+
+# 2026-10-27: Review URL check and first-run polish (TDR-0206)
+
+- New-user walkthrough in the browser: sign-up error copy, workspace creation, first
+  project. Verified the URL check end to end: `localhost:8099` became
+  `http://localhost:8099` with "✓ The page loads."; the bot-protected test site showed the
+  bot-protection note; a closed port showed "couldn't reach". Plan card showed "0 of 2
+  projects" then "1 of 2" after creating one. ruff, mypy, types regenerated, web
+  lint/typecheck.

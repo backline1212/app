@@ -87,5 +87,7 @@ export function invalidateProjectMutation(cache: QueryClient, workspaceId: strin
     cache.invalidateQueries({ queryKey: qk.dashboard(workspaceId) }),
     cache.invalidateQueries({ queryKey: qk.activity(workspaceId) }),
     cache.invalidateQueries({ queryKey: qk.clients(workspaceId) }),
+    // Plan usage ("1 of 2 projects") in the sidebar and the new-project form.
+    cache.invalidateQueries({ queryKey: qk.subscription(workspaceId) }),
   ]);
 }

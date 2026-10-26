@@ -268,14 +268,27 @@ async function send(path: string, init?: RequestInit): Promise<Response> {
 function detailMessage(detail: unknown): string | null {
   if (typeof detail === "string" && detail) return detail;
   if (Array.isArray(detail) && detail.length > 0) {
-    const first = detail[0] as { loc?: unknown[]; msg?: unknown };
+    const first = detail[0] as { loc?: unknown[]; msg?: unknown; type?: unknown; ctx?: Record<string, unknown> };
     if (typeof first?.msg !== "string") return null;
-    const field = Array.isArray(first.loc)
-      ? first.loc.filter((part) => !["body", "query", "path"].includes(String(part))).join(".")
-      : "";
-    return field ? `${field}: ${first.msg}` : first.msg;
+    const parts = Array.isArray(first.loc)
+      ? first.loc.filter((part) => !["body", "query", "path"].includes(String(part)) && typeof part !== "number")
+      : [];
+    return validationCopy(String(parts[parts.length - 1] ?? ""), first.msg, String(first.type ?? ""), first.ctx ?? {});
   }
   return null;
+}
+
+// Pydantic's wording ("value is not a valid email address: The part after the @-sign is
+// a special-use or reserved name...") is for developers; people see a short sentence.
+function validationCopy(field: string, msg: string, type: string, ctx: Record<string, unknown>): string {
+  const label = field ? field.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) : "";
+  if (/email/i.test(field) || /valid email/i.test(msg)) return "Enter a valid email address.";
+  if (!label) return msg;
+  if (type === "missing") return `${label} is required.`;
+  if (type === "string_too_short") return Number(ctx.min_length) <= 1 ? `${label} can't be empty.` : `${label} must be at least ${String(ctx.min_length)} characters.`;
+  if (type === "string_too_long") return `${label} can be at most ${String(ctx.max_length)} characters.`;
+  if (type === "url_parsing" || type === "url_scheme") return `${label} must be a full web address, like https://example.com.`;
+  return `${label}: ${msg.replace(/^Value error, /, "")}`;
 }
 
 // HTTP/2 responses carry no reason phrase, so statusText is "" in production: an

@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
 
 from app.core.db import get_db
+from app.core.errors import ValidationError
 from app.core.permissions import require_permission, require_project_permission
+from app.core.rate_limit import check_rate_limit
+from app.core.redis_client import get_redis
 from app.core.session import Session, require_workspace_context, require_workspace_match
 from app.modules.projects import deletion_service
 from app.modules.projects import service as project_service
@@ -21,6 +24,8 @@ from app.modules.projects.schemas import (
     ProjectSettingsOut,
     ProjectSettingsUpdate,
     ProjectUpdate,
+    UrlCheckIn,
+    UrlCheckOut,
 )
 
 router = APIRouter(tags=["projects"])
@@ -64,6 +69,31 @@ async def create_project(
         default_role=body.default_role,
         members=body.members,
         viewer=session,
+    )
+
+
+@router.post("/workspaces/{workspace_id}/projects/check-url", response_model=UrlCheckOut)
+async def check_project_url(
+    workspace_id: str,
+    body: UrlCheckIn,
+    session: Session = Depends(require_permission("project:manage")),
+) -> UrlCheckOut:
+    """Checks a review URL before a website project is saved (TDR-0206)."""
+    require_workspace_match(session, workspace_id)
+    await check_rate_limit(
+        get_redis(), key=f"rate-limit:url-check:{session.user_id}", limit=20, window_seconds=60
+    )
+    from app.modules.projects.url_check import check_review_url
+
+    try:
+        result = await check_review_url(body.url)
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
+    return UrlCheckOut(
+        url=result.url,
+        status=result.status,
+        http_status=result.http_status,
+        message=result.message,
     )
 
 

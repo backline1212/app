@@ -3033,6 +3033,11 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-review-question legend { padding: 0 6px; font-weight: 600; }
 .bl-review-question label { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; }
 .bl-setup-checklist { margin: 14px 0; padding-left: 22px; line-height: 1.7; }
+/* In the centred "Project created" panel the steps read as one paragraph; keep them a
+   numbered, left-aligned list in a card. */
+.bl-project-success .bl-setup-checklist { max-width: 52ch; margin: 0 auto 16px; padding: 12px 14px 12px 34px; text-align: left; list-style: decimal; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--bl-subtle, var(--paper)); font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+.bl-project-success .bl-setup-checklist li + li { margin-top: 6px; }
+.bl-project-success .bl-setup-checklist li::marker { color: var(--ink-3); font-weight: 600; }
 @media (max-width: 480px) { .bl-browser-flow { padding: 8px 16px 16px; } .bl-browser-flow .bl-link-row { flex-wrap: wrap; } }
 
 /* ---------------------------------------------------------------------------
@@ -3335,3 +3340,9 @@ td .bl-file-approval{margin-left:6px}
 .bl-cd-move-pin:hover{border-color:var(--ink)}
 .bl-lost-pins{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #F0D9A8;border-radius:3px;background:var(--amber-tint);color:var(--amber-ink);font-size:12px}
 .bl-lost-pins .bl-quiet{margin-left:auto;flex:none}
+
+/* Review URL check under the new-project URL field (TDR-0206). */
+.bl-url-check { min-height: 1.4em; margin-top: 6px; font-size: 12px; line-height: 1.45; color: var(--ink-3); }
+.bl-url-check.is-ok { color: var(--mint-deep); }
+.bl-url-check.is-info { color: var(--ink-2); }
+.bl-url-check.is-warn { color: var(--amber-ink, var(--ink-2)); background: var(--amber-tint); border-radius: 6px; padding: 6px 8px; }

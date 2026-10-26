@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Schemas } from "@backline/types";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Dialog } from "../../components/Dialog";
@@ -169,6 +169,33 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
     if (unique.length > (type === "pdf" ? 1 : 50)) { setFileError("Remove pending files before adding more."); return; }
     setFiles(unique);
   }
+
+  // The review URL is checked as it's typed (TDR-0206): whether it loads, needs sign-in
+  // or is bot-protected - and http:// when the site doesn't answer on https.
+  const [urlCheck, setUrlCheck] = useState<{ input: string; result: api.UrlCheckOut | null; error: string | null } | null>(null);
+  const checkingUrl = type === "website" && !created && Boolean(url.trim()) && urlCheck?.input !== url.trim();
+  useEffect(() => {
+    const input = url.trim();
+    if (type !== "website" || created || !input || (project && input === (project.start_url ?? project.target_origin))) { setUrlCheck(null); return; }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      api.checkProjectUrl(workspace.id, input, controller.signal)
+        .then((result) => {
+          const typedScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(input);
+          if (!typedScheme && result.url.startsWith("http://")) {
+            // Keep what was typed, with the scheme that works; the effect re-checks it.
+            setUrl(result.url);
+            return;
+          }
+          setUrlCheck({ input, result, error: null });
+        })
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) return;
+          setUrlCheck({ input, result: null, error: error instanceof Error ? error.message : "Couldn't check this address." });
+        });
+    }, 700);
+    return () => { controller.abort(); window.clearTimeout(timer); };
+  }, [url, type, created, project, workspace.id]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -367,7 +394,9 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         )}
 
         {type === "website" ? <>
-          <div className="bl-form-section"><label htmlFor="project-url">Review URL <span className="bl-required">Required</span></label><input id="project-url" className="bl-input" required type="text" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); if (!environmentEdited) setEnvironment(detectEnvironment(event.target.value)); }} onBlur={() => { if (!name.trim() && url.trim()) { try { setName(new URL(/^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`).hostname.replace(/^www\./, "")); } catch { /* leave the name for the reviewer to type */ } } }} placeholder="staging.yoursite.com" disabled={Boolean(created) || save.isPending} /><small>Backline loads this page each time a reviewer opens the project. HTTP and HTTPS addresses are supported.</small></div>
+          <div className="bl-form-section"><label htmlFor="project-url">Review URL <span className="bl-required">Required</span></label><input id="project-url" className="bl-input" required type="text" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); if (!environmentEdited) setEnvironment(detectEnvironment(event.target.value)); }} onBlur={() => { if (!name.trim() && url.trim()) { try { setName(new URL(/^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`).hostname.replace(/^www\./, "")); } catch { /* leave the name for the reviewer to type */ } } }} placeholder="staging.yoursite.com" disabled={Boolean(created) || save.isPending} aria-describedby="project-url-check" /><small>Backline loads this page each time a reviewer opens the project. HTTP and HTTPS addresses are supported.</small>
+            <UrlCheckLine id="project-url-check" checking={checkingUrl && validUrl} check={urlCheck?.input === url.trim() ? urlCheck : null} />
+          </div>
           <fieldset className="bl-environment-field" disabled={Boolean(created) || save.isPending}><legend>Environment</legend><div className="bl-segment"><button type="button" aria-pressed={environment === "staging"} onClick={() => { setEnvironment("staging"); setEnvironmentEdited(true); }}>Staging</button><button type="button" aria-pressed={environment === "live"} onClick={() => { setEnvironment("live"); setEnvironmentEdited(true); }}>Live</button></div><small>{environmentEdited ? "Manually selected." : "Detected from the domain — override it here if needed."}</small></fieldset>
         </> : !project ? <>{kind === "mobile" && <div className="bl-form-section">
           <label htmlFor="project-build">Build and device <span className="bl-optional">Optional</span></label>
@@ -405,4 +434,13 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
       </form>
     </Dialog>
   );
+}
+
+function UrlCheckLine({ id, checking, check }: { id: string; checking: boolean; check: { result: api.UrlCheckOut | null; error: string | null } | null }) {
+  if (checking) return <p id={id} className="bl-url-check" role="status">Checking the address…</p>;
+  if (!check) return <p id={id} className="bl-url-check" role="status" />;
+  if (check.error) return <p id={id} className="bl-url-check is-warn" role="status">{check.error}</p>;
+  const result = check.result!;
+  const tone = result.status === "ok" ? "is-ok" : result.status === "unreachable" || result.status === "error_status" ? "is-warn" : "is-info";
+  return <p id={id} className={`bl-url-check ${tone}`} role="status">{result.status === "ok" ? `✓ ${result.message}` : result.message}</p>;
 }
