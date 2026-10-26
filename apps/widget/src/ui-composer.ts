@@ -1,3 +1,4 @@
+import { parseUserAgent } from "./user-agent";
 import { ATTACHMENT_ACCEPT, setupAttachments, type AttachmentResult } from "./ui-attachments";
 import { carryMarker } from "./capture-marker";
 import { cardHeaderHtml, escapeHtml, observeCardPlacement, placeCard, svg, TAG_ICONS } from "./ui-card";
@@ -53,10 +54,13 @@ const MIC_ICON = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11
 const STOP_ICON = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>';
 const BUG_ICON = '<path d="M8 6h8M9 3l1.5 3M15 3l-1.5 3"/><rect x="6" y="6" width="12" height="14" rx="6"/><path d="M3 11h3M18 11h3"/>';
 
-// Same width breakpoints the design's devKind() uses.
-function deviceKind(width: number): keyof typeof DEVICE_ICONS {
-  if (width <= 560) return "Mobile";
-  if (width <= 1024) return "Tablet";
+// The device, from the browser (what's saved with the comment), not the layout width:
+// a phone showing a page without a mobile viewport lays it out ~980px wide and used to
+// be labelled "Tablet" (TDR-0213). iPadOS reports a Mac user agent with touch.
+function deviceKind(): keyof typeof DEVICE_ICONS {
+  const type = parseUserAgent(navigator.userAgent).device_type;
+  if (type === "mobile") return "Mobile";
+  if (type === "tablet" || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) return "Tablet";
   return "Desktop";
 }
 
@@ -198,7 +202,7 @@ export function openComposer(
   composer.setAttribute("aria-label", "New comment");
 
   const width = window.innerWidth;
-  const device = deviceKind(width);
+  const device = deviceKind();
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
   composer.innerHTML = `
     ${cardHeaderHtml({
