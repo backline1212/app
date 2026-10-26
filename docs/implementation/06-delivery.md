@@ -5116,3 +5116,9 @@ database migration, or production deployment is claimed.
 - Reply/resolved emails retry on provider errors and carry idempotency keys. Verified
   the retry helper directly (tries 1-3 retry with 60/120/180 s, try 4 gives up); ruff,
   mypy.
+
+# 2026-10-27: File feedback reaches integrations (TDR-0204)
+
+- Verified locally with a webhook connection: a standalone ticket and a file comment each
+  produced one `comment.created` event and one pending delivery; a retried file comment
+  returned the same id with no second delivery. ruff, mypy, web typecheck.

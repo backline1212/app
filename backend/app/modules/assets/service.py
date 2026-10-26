@@ -30,7 +30,11 @@ from app.modules.assets.schemas import (
 from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.schemas import CommentOut
-from app.modules.comments.service import _broadcast_comment_event, _comment_out
+from app.modules.comments.service import (
+    _broadcast_comment_event,
+    _comment_out,
+    _create_with_integration_intent,
+)
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.service import get_project
 from app.modules.storage.quota import store_bytes
@@ -613,18 +617,20 @@ async def create_comment(
             require_matching_replay(existing, candidate)
             return await _comment_out(db, existing)
     candidate["ticket_number"] = await CommentRepository(db).next_ticket_number(workspace_id)
-    doc = await CommentRepository(db).create(candidate)
+    # The same path as page comments, so file feedback also reaches Slack, Teams,
+    # Discord and webhooks, and the file's page can't be deleted mid-create (TDR-0204).
+    doc = await _create_with_integration_intent(
+        db,
+        doc=candidate,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        actor_type=actor_type,
+        actor_id=actor_id,
+        event_payload={"project_id": project_id, "asset_id": asset_id},
+    )
     if doc is not candidate:
         return await _comment_out(db, doc)
     comment = await _comment_out(db, doc)
-    await append_event(
-        db,
-        workspace_id=workspace_id,
-        type="comment.created",
-        actor_type=actor_type,
-        actor_id=actor_id,
-        payload={"project_id": project_id, "comment_id": comment.id},
-    )
     await _broadcast_comment_event(
         event_type="comment.created",
         workspace_id=workspace_id,
