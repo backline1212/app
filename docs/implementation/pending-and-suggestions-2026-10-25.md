@@ -18,7 +18,8 @@ are in [go-live-checklist-2026-10-25.md](go-live-checklist-2026-10-25.md).
 | 8 | Uptime monitor on `/health/worker` | Returns 503 when the worker stops reporting (TDR-0200); `/health` alone can't see a stopped worker. |
 | 9 | Check `ENVIRONMENT=production` on **every** Railway service | Since TDR-0200 a Railway service without it refuses to start (it used to run with local defaults). |
 | 10 | Railway cost trims (optional) | Pause the idle `cloud-login` service while `SERVER_BROWSER_ENABLED=false`; narrow watch paths to `backend/app/**`, the lockfiles and Dockerfiles; the image installs three Playwright browsers (~1 GB) that only the disabled server browser uses. |
-| 11 | Allow production hosts in this environment's network settings | Only needed if live production checks or Railway logs should be read from here (production and `backboard.railway.com` are blocked now). |
+| 11 | Optional backfill: `python -m scripts.migrate_canvas_comment_authors` (dry run, then `--apply`) | Marks old dashboard-canvas comments as the team's so they don't show under "New from clients" (TDR-0208). |
+| 12 | Allow production hosts in this environment's network settings | Only needed if live production checks or Railway logs should be read from here (production and `backboard.railway.com` are blocked now). |
 
 ## 2. Live acceptance still to do (after deploy)
 
@@ -63,6 +64,19 @@ are in [go-live-checklist-2026-10-25.md](go-live-checklist-2026-10-25.md).
   lifecycle rule; a load test before a wider launch.
 - **Install guides:** links to a short video or doc page per platform, once the
   marketing site exists.
+
+## Shipped 2026-10-27 (product walkthroughs, round 2)
+
+From walking the whole agency ↔ client loop in the browser: backline1212/app#137 review
+URL check while typing (http fallback, sign-in/bot/unreachable verdicts), readable
+validation errors, plan usage in the sidebar (TDR-0206) · #138 "How clients open it"
+per project, no preselected composer tag, "New from clients" in Waiting on you + Tickets,
+client-feedback notifications, "Remember me" for reviewers (TDR-0207/0208) · #139
+invited teammates name themselves on first sign-in (TDR-0209) · #140 file-review tag and
+initials, pin markers on ticket screenshots (TDR-0210) · #141 project limit shown before
+the form, paid plans list what they add (TDR-0211) · #142 activity names its subjects,
+phone approval row (TDR-0212) · #143 composer device label (TDR-0213) · #144 extension
+0.5.14 · #145 Delete my account with workspace close and 30-day purge (TDR-0214).
 
 ## Shipped 2026-10-27 (production-readiness pass)
 
