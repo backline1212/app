@@ -1,5 +1,6 @@
-import type { FallbackRender } from "@sentry/react";
 import { useEffect } from "react";
+
+import type { ErrorFallbackProps } from "./AppErrorBoundary";
 
 import { isStaleBuildError, reloadForNewBuild } from "../lib/stale-build";
 
@@ -8,7 +9,7 @@ function StaleBuildReload() {
   return null;
 }
 
-export const GlobalErrorFallback: FallbackRender = ({ error, eventId, resetError }) => {
+export const GlobalErrorFallback = ({ error, eventId, resetError }: ErrorFallbackProps) => {
   if (isStaleBuildError(error)) {
     // A lazily loaded part of a page (e.g. the PDF viewer) from the previous build.
     return (
@@ -30,8 +31,8 @@ export const GlobalErrorFallback: FallbackRender = ({ error, eventId, resetError
       <span className="bl-loading-mark" aria-hidden="true">B</span>
       <div className="bl-review-gate-copy">
         <h1>Something went wrong</h1>
-        <p>An unexpected error occurred. Our team has been notified.</p>
-        <div className="bl-error" role="alert">Error ID: {eventId ?? "unknown"}</div>
+        <p>An unexpected error occurred.{eventId ? " It was reported to the Backline team." : " Try again, or reload the page."}</p>
+        {eventId && <div className="bl-error" role="alert">Error ID: {eventId}</div>}
         <div className="bl-review-gate-actions">
           <button type="button" className="bl-quiet" onClick={() => window.location.assign("/")}>Go to Home</button>
           <button type="button" className="bl-button mint" onClick={resetError}>Try Again</button>
