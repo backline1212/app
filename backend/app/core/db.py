@@ -15,7 +15,13 @@ def get_client() -> AsyncIOMotorClient[dict[str, Any]]:
         # ones by default even though everything is written as tz-aware UTC
         # (datetime.now(UTC)) - without this, comparing a value read back from Mongo
         # against datetime.now(UTC) raises TypeError, naive vs. aware.
-        _client = AsyncIOMotorClient(settings.mongo_uri, tz_aware=True)
+        # Fail in seconds, not pymongo's 30 s default, when no server can be reached.
+        _client = AsyncIOMotorClient(
+            settings.mongo_uri,
+            tz_aware=True,
+            serverSelectionTimeoutMS=5_000,
+            connectTimeoutMS=5_000,
+        )
     return _client
 
 

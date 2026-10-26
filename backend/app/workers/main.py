@@ -10,8 +10,10 @@ async function - this file is the only place that knows about Arq's `ctx`/regist
 cron mechanics.
 """
 
+import sentry_sdk
 from arq import cron
 from arq.connections import RedisSettings
+from sentry_sdk.integrations.arq import ArqIntegration
 
 from app.core.config import get_settings
 from app.workers.browser_render import render_browser_snapshot_job
@@ -43,6 +45,15 @@ from app.workers.storage_quota import (
     reconcile_storage_reservation_job,
     sweep_storage_reservations_job,
 )
+
+# Job failures are reported like API errors (TDR-0200); a no-op without a DSN.
+if get_settings().sentry_dsn:
+    sentry_sdk.init(
+        dsn=get_settings().sentry_dsn,
+        environment=get_settings().environment,
+        integrations=[ArqIntegration()],
+        traces_sample_rate=0,
+    )
 
 
 class WorkerSettings:
@@ -85,3 +96,6 @@ class WorkerSettings:
         cron(sweep_storage_reservations_job, second=45),
     ]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
+    # A deploy's SIGTERM lets running jobs (an email send, a digest) finish first
+    # instead of cancelling them mid-send and retrying, which could send twice.
+    job_completion_wait = 20

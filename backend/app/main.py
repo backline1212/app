@@ -1,16 +1,19 @@
 import asyncio
 import contextlib
 import logging
+import re
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import sentry_sdk
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response as StarletteResponse
+from starlette.types import Scope
 
 from app.core.arq_pool import close_arq_pool
 from app.core.auth_origin import AuthOriginMiddleware
@@ -49,6 +52,7 @@ from app.modules.proxy.fallback_router import router as proxy_fallback_router
 from app.modules.proxy.preview_middleware import PreviewHostMiddleware
 from app.modules.proxy.router import router as proxy_router
 from app.modules.proxy.service import close_shared_transport as close_proxy_transport
+from app.modules.realtime import pubsub
 from app.modules.realtime.pubsub import run_subscriber
 from app.modules.realtime.router import router as realtime_router
 from app.modules.session_sync.router import router as session_sync_router
@@ -101,9 +105,25 @@ settings = get_settings()
 # Milestone 12 (docs/tdr/0011): a no-op with no DSN configured (no real Sentry project
 # exists for this build), same pattern as every other credential-gated integration -
 # calling sentry_sdk.capture_*/init still works with an empty DSN, it just discards.
+# Health checks and the dashboards' polling reads are most requests and say little
+# about performance; tracing them would spend the Sentry quota (TDR-0200).
+_UNTRACED_PATHS = re.compile(r"^/health|/version$|/comments$|/pages$|/activity$|/ws$")
+
+
+def _traces_sampler(context: dict[str, Any]) -> float:
+    scope = context.get("asgi_scope") or {}
+    path = scope.get("path", "") if isinstance(scope, dict) else ""
+    method = scope.get("method", "GET") if isinstance(scope, dict) else "GET"
+    if method == "GET" and _UNTRACED_PATHS.search(path):
+        return 0.0
+    return 0.1
+
+
 if settings.sentry_dsn:
     sentry_sdk.init(
-        dsn=settings.sentry_dsn, environment=settings.environment, traces_sample_rate=0.1
+        dsn=settings.sentry_dsn,
+        environment=settings.environment,
+        traces_sampler=_traces_sampler,
     )
 
 # Access-log lines must never carry the realtime socket's ?token= (log_redaction.py).
@@ -169,8 +189,22 @@ app.include_router(proxy_router)
 # (Claude Code, Cursor, ...) points its MCP client config at this URL with a personal
 # access token (modules/mcp/router.py) in the Authorization header.
 app.mount("/mcp", mcp_asgi_app)
+
+
+class _WidgetFiles(StaticFiles):
+    """The SDK tag runs on clients' live sites, so every visitor loads it: browsers and
+    CDNs may keep it 5 minutes (a day while revalidating), so a release reaches sites
+    within minutes without each page view hitting the API (TDR-0200)."""
+
+    async def get_response(self, path: str, scope: Scope) -> StarletteResponse:
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=86400"
+        return response
+
+
 if WIDGET_DIST_DIR.exists():
-    app.mount("/widget", StaticFiles(directory=WIDGET_DIST_DIR), name="widget")
+    app.mount("/widget", _WidgetFiles(directory=WIDGET_DIST_DIR), name="widget")
 # Serves the built browser extension for direct download (Settings > Browser Extension)
 # ahead of a Chrome Web Store listing existing - same "raw content, browser navigates
 # to it directly" reasoning as the widget mount above, just a .zip instead of a .js file.
@@ -180,9 +214,11 @@ if EXTENSION_DIST_DIR.exists():
 
 @app.get("/health", response_model=HealthOut)
 async def health(response: Response) -> HealthOut:
+    # Each check is bounded so a blackholed dependency gives a fast 503, not a hang.
     mongo_ok: Literal["ok", "unreachable"] = "ok"
     try:
-        await get_client().admin.command("ping")
+        async with asyncio.timeout(3):
+            await get_client().admin.command("ping")
     except Exception:
         mongo_ok = "unreachable"
 
@@ -191,28 +227,51 @@ async def health(response: Response) -> HealthOut:
         status="unknown", release_sha=None, deployment_id=None, reported_at=None
     )
     try:
-        redis = get_redis()
-        await redis.ping()
-        worker = await read_worker_heartbeat(redis)
+        async with asyncio.timeout(3):
+            redis = get_redis()
+            await redis.ping()
+            worker = await read_worker_heartbeat(redis)
     except Exception:
         redis_ok = "unreachable"
+    realtime: Literal["ok", "reconnecting"] = (
+        "ok" if pubsub.subscriber_connected else "reconnecting"
+    )
 
     # DEPLOYMENT.md tells operators to point an external uptime monitor at this
     # endpoint - a monitor that (as most do, e.g. UptimeRobot's default HTTP check)
     # only looks at the status code, never the JSON body, would never notice a real
     # Mongo/Redis outage if this always returned 200. A degraded dependency must
     # surface as a non-2xx response, not just a body field nothing is reading.
-    degraded = mongo_ok != "ok" or redis_ok != "ok"
+    degraded = mongo_ok != "ok" or redis_ok != "ok" or realtime != "ok"
     response.status_code = 503 if degraded else 200
     response.headers["Cache-Control"] = "no-store"
     return HealthOut(
         status="degraded" if degraded else "ok",
         mongo=mongo_ok,
         redis=redis_ok,
+        realtime=realtime,
         release_sha=release_sha(),
         deployment_id=deployment_id(),
         worker=worker,
     )
+
+
+@app.get("/health/worker", response_model=WorkerHealthOut)
+async def worker_health(response: Response) -> WorkerHealthOut:
+    """For an uptime monitor: 503 when the worker hasn't reported in the last 95 s, so a
+    stopped worker (no emails, digests or sweeps) pages someone. /health stays about the
+    API itself, which Railway's deploy health check uses."""
+    worker = WorkerHealthOut(
+        status="unknown", release_sha=None, deployment_id=None, reported_at=None
+    )
+    try:
+        async with asyncio.timeout(3):
+            worker = await read_worker_heartbeat(get_redis())
+    except Exception:
+        pass
+    response.status_code = 200 if worker.status == "recent" else 503
+    response.headers["Cache-Control"] = "no-store"
+    return worker
 
 
 # Registered last, deliberately: a true catch-all (`/{full_path:path}`) would swallow

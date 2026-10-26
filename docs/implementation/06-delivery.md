@@ -5082,3 +5082,12 @@ database migration, or production deployment is claimed.
 - API keys page copy matches what keys can do; browser-review keys hidden.
 - Verified: ruff, mypy, workspace scoping, web lint/typecheck; a mocked Groq run showed
   a 502 retried on the second key, a `null` completion handled and no key left claimed.
+
+# 2026-10-27: Infra resilience (TDR-0200)
+
+- Realtime reconnects after a Redis drop (verified locally: connection killed, resubscribed
+  in 1 s, next message delivered). Redis/Mongo timeouts; `/health` reports `realtime`.
+- `/health/worker` for uptime monitors (verified 200 with a running worker).
+- Railway services refuse to start without `ENVIRONMENT` (verified with
+  `RAILWAY_PROJECT_ID` set). Worker Sentry, job completion wait, trimmed API tracing.
+- Widget SDK cache header (verified on `/widget/sdk.js`).

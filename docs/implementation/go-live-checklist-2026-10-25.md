@@ -24,7 +24,9 @@ API and worker (same values for both):
   `JWT_SIGNING_KEY` (long random), `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
   `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT_URL`, `PUBLIC_API_BASE_URL`,
   `PUBLIC_DASHBOARD_BASE_URL`, `CORS_ALLOW_ORIGINS` (JSON array with the web origin),
-  `INTEGRATIONS_ENCRYPTION_KEY` (Fernet key, never the dev default).
+  `INTEGRATIONS_ENCRYPTION_KEY` (Fernet key, never the dev default). On Railway a
+  service without `ENVIRONMENT` (or with `local`) now refuses to start (TDR-0200), so
+  set it on the worker too.
 - **Email (one of):** `RESEND_API_KEY` + `RESEND_FROM_ADDRESS`, or
   `GOOGLE_APPS_SCRIPT_URL` + `GOOGLE_APPS_SCRIPT_SECRET`. Sign-in codes, invites, client
   reply/resolved emails, approval emails and digests all need it.
@@ -34,7 +36,9 @@ API and worker (same values for both):
   webhooks at `/api/v1/billing/webhooks/stripe` and `.../razorpay`), tracker OAuth
   (`CLICKUP_*`, `JIRA_*`, `ASANA_*`), AI (`GROQ_API_KEYS` JSON array; without it AI
   actions say "AI is not configured"), `SENTRY_DSN`, review preview/custom domains
-  (`PROXY_PREVIEW_DOMAIN`, `CUSTOM_DOMAIN_CNAME_TARGET`, `VERCEL_*`).
+  (`PROXY_PREVIEW_DOMAIN`, `CUSTOM_DOMAIN_CNAME_TARGET`, `VERCEL_*`). With a preview
+  domain set, also set `PROXY_PREVIEW_SCHEME=https` (the default `http` frames are
+  blocked inside the https dashboard).
   Card pictures from real page screenshots: `PREVIEW_SCREENSHOT_URL` (a screenshot service
   URL with `{url}`, e.g. thum.io or Microlink; it receives each website project's start URL).
   Without it, cards use the site's share image, the extension's capture or a comment screenshot.
