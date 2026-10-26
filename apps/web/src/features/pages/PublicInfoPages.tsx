@@ -45,6 +45,11 @@ export function PrivacyPage() {
       </section>
 
       <section>
+        <h2>Deleting your account</h2>
+        <p>You can delete your account in Account → Security, confirmed with a code sent to your email. Your name, email, password and photo are removed and every session ends; comments you wrote stay in their threads as "Deleted user". A workspace where you're the only member closes at once (its review links stop working) and its projects, files and comments are permanently deleted 30 days later. If you own a workspace other people use, make someone else the owner first. Audit and billing records are kept as required for security and accounting.</p>
+      </section>
+
+      <section>
         <h2>On your device</h2>
         <p>When you join a review as a client, your review session is kept in this browser tab. If you tick "Remember me on this device", your session, name and email for that review link are also kept in this browser's local storage, so you return as yourself from the team's emails. "Leave review" removes them.</p>
       </section>

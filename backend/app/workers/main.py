@@ -45,6 +45,7 @@ from app.workers.storage_quota import (
     reconcile_storage_reservation_job,
     sweep_storage_reservations_job,
 )
+from app.workers.workspace_purge import purge_closed_workspaces_job
 
 # Job failures are reported like API errors (TDR-0200); a no-op without a DSN.
 if get_settings().sentry_dsn:
@@ -78,6 +79,7 @@ class WorkerSettings:
         capture_project_preview_job,
         reconcile_storage_reservation_job,
         sweep_storage_reservations_job,
+        purge_closed_workspaces_job,
     ]
     # Real headless-browser renders (Chromium/WebKit/Firefox via Playwright) are
     # meaningfully heavier than every other job here - cap how many run at once so a
@@ -94,6 +96,7 @@ class WorkerSettings:
         cron(sweep_integration_dispatches_job, second=20),
         cron(sweep_notification_emails_job, second=30),
         cron(sweep_storage_reservations_job, second=45),
+        cron(purge_closed_workspaces_job, hour=3, minute=17),
     ]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     # A deploy's SIGTERM lets running jobs (an email send, a digest) finish first

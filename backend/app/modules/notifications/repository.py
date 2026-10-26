@@ -16,6 +16,11 @@ class NotificationRepository:
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
 
+    async def delete_all_for_user(self, user_id: str) -> None:
+        """A deleted account's inbox goes with it (TDR-0214)."""
+        # workspace-scope-exempt: a user's own notifications across workspaces, by user id
+        await self.db.notifications.delete_many({"user_id": user_id})
+
     async def create(
         self,
         *,

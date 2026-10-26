@@ -3373,3 +3373,9 @@ td .bl-file-approval{margin-left:6px}
   .bl-asset-approve-confirm { order: 10; flex: 1 1 100%; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line-soft); background: var(--bl-surface); }
   .bl-asset-approve-confirm > span:first-child { flex: 1 1 auto; min-width: 0; }
 }
+/* Delete account (TDR-0214). */
+.bl-acct-danger { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.bl-acct-delete-plan ul { margin: 6px 0 10px; padding-left: 18px; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.bl-acct-delete-plan li + li { margin-top: 4px; }
+.bl-danger-text { color: var(--bl-danger-fill); }
+.bl-button.bl-danger { background: var(--bl-danger-fill); border-color: var(--bl-danger-fill); color: #fff; }

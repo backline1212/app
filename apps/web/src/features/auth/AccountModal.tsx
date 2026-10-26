@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Dialog } from "../../components/Dialog";
 import { useToast } from "../../components/Toast";
 import { useAuth } from "./AuthContext";
+import { DeleteAccountSection } from "./DeleteAccountSection";
 import { changePassword, confirmEmailChange, listSessions, requestEmailChange, updateProfile, type SessionOut, type UserUpdateRequest } from "./api";
 
 type Tab = "profile" | "notifications" | "security";
@@ -371,6 +372,7 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
                 ))
               )}
               <p className="bl-acct-hint">You can be signed in on one device at a time. Signing in somewhere else signs you out here.</p>
+              <DeleteAccountSection />
             </div>
           )}
         </div>

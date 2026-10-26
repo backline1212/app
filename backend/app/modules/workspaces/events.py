@@ -1,6 +1,8 @@
 # Domain events this module emits (06-Backend-Architecture.md §6.1/§6.6).
 WORKSPACE_CREATED = "workspace.created"
 WORKSPACE_UPDATED = "workspace.updated"
+# TDR-0214: the only member deleted their account; content is purged later.
+WORKSPACE_CLOSED = "workspace.closed"
 MEMBER_INVITED = "member.invited"
 MEMBER_ROLE_CHANGED = "member.role_changed"
 MEMBER_REMOVED = "member.removed"
