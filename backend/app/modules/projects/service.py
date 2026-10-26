@@ -1,5 +1,8 @@
+import base64
+import binascii
 import csv
 import io
+import re
 from datetime import UTC, datetime
 from typing import Any, cast
 from urllib.parse import urlsplit
@@ -31,6 +34,7 @@ from app.modules.projects import preview_service
 from app.modules.projects.repository import ProjectRepository, is_untouched_sample
 from app.modules.projects.schemas import (
     FileApprovalSummary,
+    PreviewImageOut,
     ProjectAccessDetailOut,
     ProjectAccessMemberIn,
     ProjectAccessOut,
@@ -430,6 +434,27 @@ async def refresh_project_preview(
     return await get_project(
         db, project_id=project_id, workspace_id=workspace_id, viewer=viewer, with_preview=True
     )
+
+
+async def offer_preview_image(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    project_id: str,
+    workspace_id: str,
+    data_url: str,
+) -> PreviewImageOut:
+    doc = await ProjectRepository(db).find_by_id(project_id)
+    if doc is None or doc["workspace_id"] != workspace_id:
+        raise NotFoundError("Project not found.")
+    match = re.fullmatch(r"data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)", data_url)
+    if match is None:
+        raise ValidationError("Send a JPEG, PNG or WebP image as a base64 data URL.")
+    try:
+        picture = base64.b64decode(match.group(2), validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValidationError("The image data could not be read.") from exc
+    used = await preview_service.store_member_capture(db, doc, picture)
+    return PreviewImageOut(used=used)
 
 
 async def update_project(

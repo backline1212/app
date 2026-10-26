@@ -33,6 +33,7 @@ from app.modules.comments.schemas import (
     GuestBoardItemOut,
     GuestBoardOut,
     RecoveryStatus,
+    ScreenshotMarker,
     Tag,
 )
 from app.modules.notifications import service as notification_service
@@ -484,6 +485,9 @@ async def _comment_out(
         capture_status="failed"
         if doc.get("screenshot_key") and screenshot_url is None
         else doc["capture_status"],
+        screenshot_marker=ScreenshotMarker.model_validate(doc["screenshot_marker"])
+        if screenshot_url and doc.get("screenshot_marker")
+        else None,
         attachments=attachments,
         created_at=doc["created_at"],
         edited_at=doc.get("edited_at"),
@@ -597,6 +601,7 @@ async def create_comment(
     attachments: list[AttachmentIn] | None = None,
     tags: list[Tag] | None = None,
     client_request_id: str | None = None,
+    screenshot_marker: ScreenshotMarker | None = None,
 ) -> CommentOut:
     page = await _resolve_page_and_access(db, actor, page_id, "comment:create")
     if capture_status == "skipped":
@@ -637,6 +642,10 @@ async def create_comment(
         "tags": list(dict.fromkeys(tags or [])),
         "screenshot_key": screenshot_key,
         "capture_status": capture_status,
+        # Only meaningful with the screenshot it points into.
+        "screenshot_marker": screenshot_marker.model_dump()
+        if screenshot_marker and screenshot_key
+        else None,
         "client_request_id": client_request_id,
         "request_fingerprint": request_fingerprint(
             {

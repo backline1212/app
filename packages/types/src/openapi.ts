@@ -755,6 +755,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/preview/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Offer Project Preview Image
+         * @description A screenshot of the site's start page from a member's own browser (the Backline
+         *     extension), used as the card picture when the card has no real screenshot yet -
+         *     sites that block Backline's servers still get one (TDR-0197). `used` says whether
+         *     it was kept.
+         */
+        put: operations["offer_project_preview_image_api_v1_projects__project_id__preview_image_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/duplicate": {
         parameters: {
             query?: never;
@@ -3214,6 +3237,7 @@ export interface components {
             context: components["schemas"]["ContextIn"];
             /** Screenshot Key */
             screenshot_key?: string | null;
+            screenshot_marker?: components["schemas"]["ScreenshotMarker"] | null;
             /**
              * Capture Status
              * @default ok
@@ -3276,6 +3300,7 @@ export interface components {
              * @enum {string}
              */
             capture_status: "ok" | "failed" | "skipped";
+            screenshot_marker?: components["schemas"]["ScreenshotMarker"] | null;
             /** Attachments */
             attachments: components["schemas"]["AttachmentOut"][];
             /**
@@ -4695,6 +4720,20 @@ export interface components {
             /** Portal Url */
             portal_url: string;
         };
+        /**
+         * PreviewImageIn
+         * @description A member's own screenshot of the site's start page, offered as the card picture
+         *     (TDR-0197) - the Backline extension sends it when it opens the site for review.
+         */
+        PreviewImageIn: {
+            /** Data Url */
+            data_url: string;
+        };
+        /** PreviewImageOut */
+        PreviewImageOut: {
+            /** Used */
+            used: boolean;
+        };
         /** ProjectAccessDetailOut */
         ProjectAccessDetailOut: {
             /** Project Id */
@@ -5415,6 +5454,22 @@ export interface components {
             code?: string | null;
         };
         /**
+         * ScreenshotMarker
+         * @description Where a comment's pin (x, y) or drawn area (x, y, w, h) sits on its automatic
+         *     screenshot, as fractions of the image (0-1). The dashboard draws it on the
+         *     screenshot when the live preview can't load the site (TDR-0197).
+         */
+        ScreenshotMarker: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** W */
+            w?: number | null;
+            /** H */
+            h?: number | null;
+        };
+        /**
          * SearchResultOut
          * @description A deliberately small, route-safe projection for the shell search palette.
          */
@@ -5827,6 +5882,7 @@ export interface components {
              * @enum {string}
              */
             capture_status: "ok" | "failed" | "skipped";
+            screenshot_marker?: components["schemas"]["ScreenshotMarker"] | null;
             /** Attachments */
             attachments: components["schemas"]["AttachmentOut"][];
             /**
@@ -7629,6 +7685,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    offer_project_preview_image_api_v1_projects__project_id__preview_image_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewImageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewImageOut"];
                 };
             };
             /** @description Validation Error */

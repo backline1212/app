@@ -1286,6 +1286,23 @@ button{letter-spacing:inherit}
 .bl-iframe-state strong,.bl-review-empty-canvas strong{font-size:15px;font-weight:650;color:var(--ink)}
 .bl-iframe-state p,.bl-review-empty-canvas p{max-width:48ch;margin:7px auto 15px;color:var(--ink-3);font-size:12px;line-height:1.55}
 .bl-iframe-state>div{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
+.bl-live-frame-bar button.bl-live-frame-shots{width:auto;padding:0 8px;font-size:11px;font-weight:600;border:1px solid var(--line-soft);background:var(--bl-surface)}.bl-live-frame-bar button.bl-live-frame-shots.is-on{border-color:var(--ink);color:var(--ink)}.bl-live-frame-bar button.bl-live-frame-shots:disabled{opacity:1;cursor:default}
+.bl-iframe-shots{position:absolute;inset:0;z-index:13;overflow:auto;padding:16px;background:var(--bl-paper)}
+.bl-shotboard-note{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:10px 14px;border:1px solid var(--line-soft);border-radius:6px;background:var(--bl-surface);font-size:12.5px;color:var(--ink-2)}.bl-shotboard-note p{margin:0}
+.bl-shotboard-note.is-warning{align-items:flex-start;justify-content:flex-start;border-color:#F1D6CC;background:#FFF7F4}.bl-shotboard-note.is-warning strong{display:block;font-size:13.5px;color:var(--ink)}.bl-shotboard-note.is-warning p{margin:4px 0 10px;max-width:70ch;line-height:1.5}
+.bl-shotboard-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bl-shotboard section+section{margin-top:18px}.bl-shotboard h3{margin:0 0 10px;font-size:12px;font-weight:650;color:var(--ink-2)}.bl-shotboard h3 span{margin-left:4px;color:var(--ink-4);font-weight:500}
+.bl-shotboard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.bl-shot-card{display:flex;flex-direction:column;width:100%;padding:0;overflow:hidden;border:1px solid var(--line-soft);border-radius:8px;background:var(--bl-surface);text-align:left;cursor:pointer;color:inherit;font:inherit}
+.bl-shot-card:hover{border-color:var(--ink-4);box-shadow:var(--bl-shadow-sm)}.bl-shot-card.is-selected{border-color:var(--mint-deep);box-shadow:0 0 0 2px var(--mint-tint)}
+.bl-shot-frame{position:relative;display:block;aspect-ratio:16/10;overflow:hidden;background:var(--paper);border-bottom:1px solid var(--line-soft)}
+.bl-shot-frame img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+.bl-shot-pin{position:absolute;display:grid;place-items:center;min-width:22px;height:22px;padding:0 5px;border:2px solid #fff;border-radius:11px 11px 11px 2px;background:#0B0B0B;color:#fff;font:700 10.5px/1 var(--bl-mono,monospace);transform:translate(0,-100%);box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.bl-shot-area{position:absolute;border:2px solid #E5484D;border-radius:3px;background:rgba(229,72,77,.12);box-shadow:0 0 0 1px rgba(255,255,255,.7)}
+.bl-shot-none{display:grid;place-items:center;height:100%;color:var(--ink-4);font-size:12px}
+.bl-shot-meta{display:grid;gap:5px;padding:10px 12px 12px}.bl-shot-head{display:flex;align-items:center;gap:8px;font-size:12px}
+.bl-shot-body{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.45;color:var(--ink)}.bl-shot-by{font-size:11px;color:var(--ink-4)}
+.bl-shotboard-empty{display:grid;place-items:center;align-content:center;gap:6px;min-height:240px;text-align:center;color:var(--ink-3);font-size:12.5px}.bl-shotboard-empty strong{color:var(--ink);font-size:14px}
 .bl-review-loader{display:block;width:22px;height:22px;margin-bottom:13px;border:2px solid var(--line);border-top-color:var(--mint-deep);border-radius:50%;animation:bl-spin .75s linear infinite}
 .bl-iframe-steps{display:flex;gap:5px;margin-top:14px}.bl-iframe-steps i{display:block;width:28px;height:3px;border-radius:2px;background:var(--line)}.bl-iframe-steps i:first-child{background:var(--mint-deep)}.bl-iframe-steps i:nth-child(2){background:var(--mint)}
 .bl-review-state-icon{display:grid;place-items:center;width:38px;height:38px;margin-bottom:13px;border-radius:3px;background:var(--mint-tint);color:var(--mint-deep)}

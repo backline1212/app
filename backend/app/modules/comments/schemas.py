@@ -121,12 +121,24 @@ class AttachmentOut(BaseModel):
     content_type: str
 
 
+class ScreenshotMarker(BaseModel):
+    """Where a comment's pin (x, y) or drawn area (x, y, w, h) sits on its automatic
+    screenshot, as fractions of the image (0-1). The dashboard draws it on the
+    screenshot when the live preview can't load the site (TDR-0197)."""
+
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    w: float | None = Field(default=None, ge=0, le=1)
+    h: float | None = Field(default=None, ge=0, le=1)
+
+
 class CommentCreate(BaseModel):
     body: Trimmed = Field(min_length=1, max_length=10_000)
     layer: Layer = "client"
     anchor: AnchorIn
     context: ContextIn
     screenshot_key: str | None = None
+    screenshot_marker: ScreenshotMarker | None = None
     # "skipped": the reviewer chose not to include a screenshot (TDR-0176).
     capture_status: Literal["ok", "failed", "skipped"] = "ok"
     attachments: list[AttachmentIn] = Field(default_factory=list, max_length=10)
@@ -212,6 +224,7 @@ class CommentOut(BaseModel):
     context: dict[str, Any]
     screenshot_url: str | None
     capture_status: Literal["ok", "failed", "skipped"]
+    screenshot_marker: ScreenshotMarker | None = None
     attachments: list[AttachmentOut]
     created_at: datetime
     edited_at: datetime | None

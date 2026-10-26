@@ -25,7 +25,8 @@ from app.core.config import get_settings
 from app.core.review_url import project_start_url
 from app.core.server_browser import require_server_browser
 from app.core.ssrf_guard import assert_safe_to_fetch
-from app.modules.projects.preview_sources import social_image
+from app.modules.pages.repository import PageRepository
+from app.modules.projects.preview_sources import social_image, usable_picture
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.schemas import ProjectOut
 from app.modules.storage.quota import store_bytes
@@ -85,6 +86,10 @@ def _capture_due(doc: dict[str, Any], now: datetime, *, force: bool = False) -> 
         return requested_at is None or now - requested_at > QUEUED_TIMEOUT
     if force or status is None or preview.get("origin") != project_start_url(doc):
         return True
+    # A member's real screenshot from the extension beats the share image a refresh
+    # without the server browser would fetch; keep it (TDR-0197).
+    if preview.get("source") == "extension" and not get_settings().server_browser_enabled:
+        return False
     if status == "failed":
         return requested_at is None or now - requested_at > RETRY_FAILED_AFTER
     captured_at = _aware(preview.get("captured_at"))
@@ -154,6 +159,18 @@ async def with_previews(
         preview = doc.get("preview") or {}
         if preview.get("key") and preview.get("key_origin") == project_start_url(doc):
             keys[str(doc["_id"])] = preview["key"]
+    # Plan B (TDR-0197): a site that blocks the capture worker (bot protection) or has
+    # no share image still has a picture once someone comments on it with the extension
+    # or the review link - the newest comment screenshot.
+    fallback_at: dict[str, datetime] = {}
+    try:
+        for project_id, (shot_key, shot_at) in (
+            await _comment_screenshots(db, [d for d in docs if str(d["_id"]) not in keys])
+        ).items():
+            keys[project_id] = shot_key
+            fallback_at[project_id] = shot_at
+    except Exception:  # noqa: BLE001 - a missing fallback costs a picture, not the list
+        logger.warning("Could not look up comment screenshots for previews", exc_info=True)
     try:
         urls = await generate_presigned_gets(list(keys.values()), expires_in=URL_TTL_SECONDS)
     except Exception:  # noqa: BLE001 - storage trouble costs the pictures, not the list
@@ -169,11 +186,97 @@ async def with_previews(
                 update={
                     "preview_url": urls.get(key) if key else None,
                     "preview_status": preview.get("status"),
-                    "preview_captured_at": _aware(preview.get("captured_at")) if key else None,
+                    "preview_captured_at": fallback_at.get(str(doc["_id"]))
+                    or (_aware(preview.get("captured_at")) if key else None),
                     "preview_requested_at": _aware(preview.get("requested_at")),
                 }
             )
         )
+    return result
+
+
+async def store_member_capture(
+    db: AsyncIOMotorDatabase[dict[str, Any]], doc: dict[str, Any], picture: bytes
+) -> bool:
+    """Keep a member's screenshot of the start page (the extension, TDR-0197) as the
+    card picture unless the card already has a recent real screenshot."""
+    if not _wants_preview(doc):
+        return False
+    now = datetime.now(UTC)
+    preview = doc.get("preview") or {}
+    origin = project_start_url(doc)
+    captured_at = _aware(preview.get("captured_at"))
+    has_real_shot = (
+        preview.get("status") == "ready"
+        and preview.get("key_origin") == origin
+        and preview.get("source", "screenshot") in ("screenshot", "extension")
+        and captured_at is not None
+        and now - captured_at < STALE_AFTER
+    )
+    if has_real_shot or not usable_picture(picture):
+        return False
+    thumbnail = await asyncio.to_thread(_thumbnail, picture)
+    workspace_id, project_id = doc["workspace_id"], str(doc["_id"])
+    repo = ProjectRepository(db)
+    token = uuid.uuid4().hex
+    if not await repo.claim_preview(
+        workspace_id,
+        project_id,
+        previous_token=preview.get("token"),
+        token=token,
+        origin=origin,
+        requested_at=now,
+    ):
+        return False
+    key = f"previews/{workspace_id}/{project_id}/{token}.jpg"
+    try:
+        await store_bytes(
+            db,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            key=key,
+            data=thumbnail,
+            content_type="image/jpeg",
+        )
+    except Exception as exc:
+        await repo.fail_preview(workspace_id, project_id, token=token, error=str(exc))
+        raise
+    before = await repo.finish_preview(
+        workspace_id,
+        project_id,
+        token=token,
+        key=key,
+        origin=origin,
+        captured_at=now,
+        source="extension",
+    )
+    if before is None:
+        await _delete_quietly(db, workspace_id, key)
+        return False
+    replaced = (before.get("preview") or {}).get("key")
+    if replaced and replaced != key:
+        await _delete_quietly(db, workspace_id, replaced)
+    return True
+
+
+async def _comment_screenshots(
+    db: AsyncIOMotorDatabase[dict[str, Any]], docs: list[dict[str, Any]]
+) -> dict[str, tuple[str, datetime]]:
+    """project_id -> (key, created_at) of its newest comment screenshot."""
+    wanted: dict[str, list[str]] = {}
+    for doc in docs:
+        if _wants_preview(doc):
+            wanted.setdefault(doc["workspace_id"], []).append(str(doc["_id"]))
+    result: dict[str, tuple[str, datetime]] = {}
+    pages = PageRepository(db)
+    for workspace_id, project_ids in wanted.items():
+        page_projects = await pages.project_ids_by_page(workspace_id, project_ids)
+        shots = await pages.latest_comment_screenshots(workspace_id, list(page_projects))
+        for page_id, (key, at) in shots.items():
+            project_id = page_projects[page_id]
+            created = _aware(at) or datetime.now(UTC)
+            if project_id not in result or created > result[project_id][1]:
+                result[project_id] = (key, created)
     return result
 
 

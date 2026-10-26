@@ -356,7 +356,11 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
       && Object.keys(body).every(field => field === "body");
     const remove = commentMatch && session.commentIds.includes(commentMatch[1]) && method === "DELETE" && !body;
     const resolveOwn = resolveMatch && !session.member && session.commentIds.includes(resolveMatch[1]) && method === "PATCH" && !body;
-    if (!register && !comments && !version && !update && !snapshot && !reply && !edit && !remove && !resolveOwn) throw new Error("Request is outside this review.");
+    // A member's view of the start page, offered as the project card's picture (TDR-0197).
+    const cardPicture = path === `/api/v1/projects/${session.project.id}/preview/image` && method === "PUT" && session.member
+      && typeof body?.data_url === "string" && body.data_url.startsWith("data:image/") && body.data_url.length <= 8_000_000
+      && Object.keys(body).every(field => field === "data_url");
+    if (!register && !comments && !version && !update && !snapshot && !reply && !edit && !remove && !resolveOwn && !cardPicture) throw new Error("Request is outside this review.");
     const requestController = reply || comments && method === "GET" ? new AbortController() : null;
     const requestTimer = requestController ? setTimeout(() => requestController.abort(), 30_000) : null;
     let result: Record<string, unknown> | Record<string, unknown>[];

@@ -20,6 +20,7 @@ export { anchorPointFor, computeAnchor, computeRegionAnchor, resolveAnchorElemen
 export { uploadAttachment, uploadScreenshot } from "./attachment-upload";
 
 export { captureScreenshot } from "./screenshot";
+export { markerOf, pinBox, withMarker } from "./capture-marker";
 
 export { installDiagnosticsCapture, recordDiagnostic } from "./diagnostics";
 export type { DiagnosticEntry, Diagnostics } from "./diagnostics";

@@ -9,6 +9,9 @@ import {
   ownCommentHandlers,
   postThreadReply,
   captureScreenshot,
+  markerOf,
+  pinBox,
+  withMarker,
   composerHasDraft,
   cancelEmptyComposer,
   discardComposerForTeardown,
@@ -31,7 +34,7 @@ import {
 import { API_BASE_URL } from "./lib/config";
 import type { AnnotationMode, ExtensionMessage } from "./lib/messages";
 import { getConnection } from "./lib/storage";
-import { captureNativeScreenshot, createNativeApi, installDashboardBridge, nativeMessage, reviewAccessEnded, reviewServiceUnavailable, uploadNativeAttachment, uploadNativeScreenshot } from "./native-client";
+import { captureNativeScreenshot, createNativeApi, readData, installDashboardBridge, nativeMessage, reviewAccessEnded, reviewServiceUnavailable, uploadNativeAttachment, uploadNativeScreenshot } from "./native-client";
 import { createNativeToolbar } from "./native-toolbar";
 
 // Content scripts have direct chrome.storage access once the extension is granted the
@@ -183,6 +186,8 @@ function activatePointMode(ctx: AnnotationContext): () => void {
     };
     const untrack = trackPinPosition(pin, () => target, offset);
     const submission = createCommentSubmission(api, pageId, ctx.pageUrl);
+    // The screenshot remembers where this pin was when it was taken (TDR-0197).
+    const shot = withMarker(ctx.native ? captureNativeScreenshot : captureScreenshot, () => pinBox(pin));
 
     const controls = openComposer(
       shadow,
@@ -193,7 +198,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
           const created = await submission.submit(async () => {
             controls.setStatus(includeScreenshot ? "Capturing anchor + screenshot..." : "Saving the location...");
             const anchor = await computeAnchor(target, x, y);
-            const screenshotBlob = includeScreenshot ? previewed ?? await (ctx.native ? captureNativeScreenshot() : captureScreenshot()) : null;
+            const screenshotBlob = includeScreenshot ? previewed ?? await shot() : null;
 
             let screenshotKey: string | null = null;
             if (screenshotBlob) {
@@ -219,6 +224,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
                 ...(stepsToReproduce ? { steps_to_reproduce: stepsToReproduce } : {}),
               },
               screenshot_key: screenshotKey,
+              screenshot_marker: screenshotKey ? markerOf(screenshotBlob) : null,
               capture_status: screenshotKey ? "ok" : includeScreenshot ? "failed" : "skipped",
               attachments,
               tags,
@@ -251,7 +257,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
       },
       (file) => ctx.native ? uploadNativeAttachment(api, project.id, file) : uploadAttachment(api, project.id, file),
       composerDetails(),
-      ctx.native ? captureNativeScreenshot : captureScreenshot,
+      shot,
     );
   };
 
@@ -350,6 +356,7 @@ async function startNativeReview(): Promise<void> {
   try {
     await nativeMessage("native-review-ready", { launchId: info.launchId });
     if (info.focus && samePage(info.focus.url, location.href)) void focusComment(info, info.focus.commentId);
+    else if (info.member) void offerCardPicture(info).catch(error => console.debug("[Backline] Card picture not offered:", error));
   } catch (error) {
     if (reviewServiceUnavailable(error)) {
       toolbar?.error("Backline is temporarily unavailable. Keep this tab open; the toolbar will retry when the service returns.");
@@ -362,6 +369,27 @@ async function startNativeReview(): Promise<void> {
     document.documentElement.removeAttribute(EXTENSION_REVIEW_ATTR);
     throw error;
   }
+}
+
+// Backline's servers can't always fetch a site for its project card (bot protection,
+// sign-in). A member's review opens on the project's start page, so that view is offered
+// as the card picture - at most once a day per project; the API keeps it only when the
+// card has no real screenshot yet (TDR-0197). Overlays are hidden during the capture.
+async function offerCardPicture(info: NativeReviewInfo): Promise<void> {
+  const key = `card-picture:${info.project.id}`;
+  const last = Number((await chrome.storage.local.get(key))[key]) || 0;
+  if (Date.now() - last < 24 * 3600_000) return;
+  if (document.readyState !== "complete") await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  if (nativeInfo !== info || window.scrollY > 4 || composerHasDraft()) return;
+  const shot = await captureNativeScreenshot();
+  if (!shot) return;
+  await chrome.storage.local.set({ [key]: Date.now() });
+  await nativeMessage("native-review-api", {
+    path: `/api/v1/projects/${info.project.id}/preview/image`,
+    method: "PUT",
+    body: JSON.stringify({ data_url: await readData(shot) }),
+  });
 }
 
 function samePage(a: string, b: string): boolean {
