@@ -714,7 +714,8 @@ not a safety net.
 - **Rotate keys if someone leaves the team** — regenerate `JWT_SIGNING_KEY` (this logs
   everyone out, which is the point) and the R2 tokens
 - **Uptime monitoring** — free at [uptimerobot.com](https://uptimerobot.com): ping
-  `https://api.yourdomain.com/health` every 5 minutes, alert your phone
+  `https://api.yourdomain.com/health` and `https://api.yourdomain.com/health/worker`
+  (503 when the worker has stopped reporting) every 5 minutes, alert your phone
 
 ---
 

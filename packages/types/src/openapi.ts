@@ -2546,6 +2546,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/worker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Worker Health
+         * @description For an uptime monitor: 503 when the worker hasn't reported in the last 95 s, so a
+         *     stopped worker (no emails, digests or sweeps) pages someone. /health stays about the
+         *     API itself, which Railway's deploy health check uses.
+         */
+        get: operations["worker_health_health_worker_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/{full_path}": {
         parameters: {
             query?: never;
@@ -4049,6 +4071,12 @@ export interface components {
              * @enum {string}
              */
             redis: "ok" | "unreachable";
+            /**
+             * Realtime
+             * @default ok
+             * @enum {string}
+             */
+            realtime: "ok" | "reconnecting";
             /** Release Sha */
             release_sha: string | null;
             /** Deployment Id */
@@ -11665,6 +11693,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthOut"];
+                };
+            };
+        };
+    };
+    worker_health_health_worker_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerHealthOut"];
                 };
             };
         };

@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 
 from pydantic import Field, field_validator, model_validator
@@ -208,6 +209,15 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def check_production_secrets(self) -> "Settings":
+        if self.environment == "local" and (
+            os.environ.get("RAILWAY_ENVIRONMENT_ID") or os.environ.get("RAILWAY_PROJECT_ID")
+        ):
+            # A missing ENVIRONMENT on a hosted service would otherwise run with local
+            # defaults: dev secrets accepted, cookies without Secure, emails only logged.
+            raise ValueError(
+                "ENVIRONMENT is unset or 'local' on Railway. Set ENVIRONMENT=production "
+                "(or staging) on this service."
+            )
         if self.environment != "local" and self.allow_private_network_targets:
             raise ValueError(
                 "ALLOW_PRIVATE_NETWORK_TARGETS is for local development only; it would let "

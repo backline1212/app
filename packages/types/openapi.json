@@ -9142,6 +9142,25 @@
         }
       }
     },
+    "/health/worker": {
+      "get": {
+        "summary": "Worker Health",
+        "description": "For an uptime monitor: 503 when the worker hasn't reported in the last 95 s, so a\nstopped worker (no emails, digests or sweeps) pages someone. /health stays about the\nAPI itself, which Railway's deploy health check uses.",
+        "operationId": "worker_health_health_worker_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerHealthOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/{full_path}": {
       "get": {
         "tags": [
@@ -13161,6 +13180,15 @@
               "unreachable"
             ],
             "title": "Redis"
+          },
+          "realtime": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "reconnecting"
+            ],
+            "title": "Realtime",
+            "default": "ok"
           },
           "release_sha": {
             "anyOf": [
