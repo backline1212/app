@@ -5173,3 +5173,9 @@ database migration, or production deployment is claimed.
 - Activity showed "changed the plan to Solo Pro" and "invited Sam Patel". Phone approval:
   confirmation on its own row; approving notified the owner (`file_approved`). ruff, mypy,
   web lint/typecheck.
+
+# 2026-10-27: Composer device label (TDR-0213)
+
+- iPhone 13 viewport on the test site: label now follows the saved device type. Widget
+  lint/typecheck/build (36.4 KB gzip). Assignment check: assigning a client ticket to a
+  teammate notified them and removed it from "New from clients".
