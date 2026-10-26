@@ -5104,3 +5104,15 @@ database migration, or production deployment is claimed.
 - Comments version reads a projection; guest session check every 60 s; signed URLs reused
   for 30 minutes (checked: same key → same URL; other expiry → fresh URL).
 - ruff, mypy; web lint/typecheck.
+
+# 2026-10-27: AI messages in the dashboard (TDR-0199 follow-up)
+
+- Summary errors shown as errors; rate-limit and timeout messages; usage refreshes after
+  each AI action; upstream error details kept in logs. Verified with ruff, mypy, web
+  lint/typecheck.
+
+# 2026-10-27: Client email retries (TDR-0203)
+
+- Reply/resolved emails retry on provider errors and carry idempotency keys. Verified
+  the retry helper directly (tries 1-3 retry with 60/120/180 s, try 4 gives up); ruff,
+  mypy.

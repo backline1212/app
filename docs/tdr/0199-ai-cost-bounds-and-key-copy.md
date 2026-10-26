@@ -37,3 +37,12 @@ Date: 2026-10-27. Source: production-readiness audit of AI and API keys.
   keys are hidden from the list.
 - Guest file review: a missing file tells the client to ask the team, not to "upload it
   again from Manage files".
+
+## Follow-up (same day): AI messages in the dashboard
+
+- Upstream details ("Groq request failed: ...", key configuration) are logged, not
+  returned; the API says "AI couldn't be reached" or "AI is misconfigured on this
+  deployment".
+- The dashboard shows the server's own message for timeouts and empty answers, a clear
+  line for the per-minute limit, and a summary failure as an error instead of inside
+  the "AI Summary" box. The AI usage meter refreshes after every summary or suggestion.

@@ -36,5 +36,14 @@ export function aiErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError && ["PLAN_LIMIT_EXCEEDED", "AI_UNAVAILABLE"].includes(error.code)) {
     return error.message;
   }
+  // The per-member burst limit (TDR-0199): say what to do rather than "failed".
+  if (error instanceof ApiError && error.code === "RATE_LIMITED") {
+    return "That's a lot of AI requests in a minute. Wait a moment and try again.";
+  }
+  // Timeouts and empty answers carry a message written for people; upstream details
+  // ("Groq request failed: ...") don't, so they get the fallback.
+  if (error instanceof ApiError && error.code === "EXTERNAL_SERVICE_ERROR" && !/groq/i.test(error.message)) {
+    return error.message;
+  }
   return fallback;
 }

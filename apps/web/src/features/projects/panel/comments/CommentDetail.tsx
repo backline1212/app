@@ -478,6 +478,7 @@ export function CommentDetail({
 
   const draft = useMutation({
     mutationFn: () => suggestReply(workspaceId, projectId, comment.id),
+    onSettled: () => { void queryClient.invalidateQueries({ queryKey: qk.aiUsage(workspaceId) }); },
     onSuccess: (result) => {
       if (!reply.isFrozen()) setReplySuggestion(result.suggestions[0] ?? null);
     },

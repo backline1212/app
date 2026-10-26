@@ -4,8 +4,11 @@ app/workers/main.py, the single worker entrypoint."""
 from html import escape
 from typing import Any
 
+from arq import Retry
+
 from app.core.db import get_db
 from app.core.email import send_email
+from app.core.errors import ExternalServiceError
 from app.modules.notifications.digest import (
     deliver_digest,
     prepare_digest_workspace,
@@ -57,6 +60,21 @@ def _client_email(
     return "".join(parts)
 
 
+CLIENT_EMAIL_TRIES = 4
+
+
+async def _send_client_email(ctx: dict[str, Any], **kwargs: Any) -> None:
+    """A provider outage retries with backoff (1, 2, 3 minutes) instead of losing the
+    email; the idempotency key keeps a retry from sending it twice (TDR-0203)."""
+    try:
+        await send_email(**kwargs)
+    except ExternalServiceError as exc:
+        tries = int(ctx.get("job_try") or 1)
+        if tries >= CLIENT_EMAIL_TRIES:
+            raise
+        raise Retry(defer=60 * tries) from exc
+
+
 async def send_guest_resolved_email_job(
     ctx: dict[str, Any],
     guest_email: str,
@@ -65,10 +83,13 @@ async def send_guest_resolved_email_job(
     brand_name: str | None = None,
     project_name: str | None = None,
     review_url: str | None = None,
+    idempotency_key: str | None = None,
 ) -> None:
     # The trailing keyword arguments are optional so jobs queued by an older API
     # release still run.
-    await send_email(
+    await _send_client_email(
+        ctx,
+        idempotency_key=idempotency_key,
         to=guest_email,
         brand=brand_name,
         subject=f"Your feedback was addressed{' - ' + project_name if project_name else ''}",
@@ -94,8 +115,11 @@ async def send_guest_reply_email_job(
     brand_name: str | None = None,
     project_name: str | None = None,
     review_url: str | None = None,
+    idempotency_key: str | None = None,
 ) -> None:
-    await send_email(
+    await _send_client_email(
+        ctx,
+        idempotency_key=idempotency_key,
         to=guest_email,
         brand=brand_name,
         subject=f"New reply to your feedback{' - ' + project_name if project_name else ''}",
