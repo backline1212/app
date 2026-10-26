@@ -1256,10 +1256,29 @@ async def comments_version(
 ) -> CommentsVersionOut:
     page = await _resolve_page_and_access(db, actor, page_id)
     repo = CommentRepository(db)
+    # Polled every few seconds by every open review tab: read only what the version
+    # hashes, not whole comments with anchors and context (TDR-0202).
+    fields = {
+        name: 1
+        for name in (
+            "revision",
+            "status",
+            "layer",
+            "recovery_status",
+            "edited_at",
+            "attachments",
+            "parent_id",
+            "created_at",
+        )
+    }
     if isinstance(actor, GuestSession):
-        docs = await repo.list_for_guest_session(page["workspace_id"], page_id, since=None)
+        docs = await repo.list_for_guest_session(
+            page["workspace_id"], page_id, since=None, projection=fields
+        )
     else:
-        docs = await repo.list_for_member(page["workspace_id"], page_id, since=None)
+        docs = await repo.list_for_member(
+            page["workspace_id"], page_id, since=None, projection=fields
+        )
     digest = hashlib.sha256()
     for doc in sorted(docs, key=lambda item: str(item["_id"])):
         digest.update(
