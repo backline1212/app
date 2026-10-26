@@ -3379,3 +3379,4 @@ td .bl-file-approval{margin-left:6px}
 .bl-acct-delete-plan li + li { margin-top: 4px; }
 .bl-danger-text { color: var(--bl-danger-fill); }
 .bl-button.bl-danger { background: var(--bl-danger-fill); border-color: var(--bl-danger-fill); color: #fff; }
+.bl-field-hint { margin: 2px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--ink-3); }

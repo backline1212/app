@@ -474,6 +474,27 @@ class CommentRepository:
         cursor = self.db.comments.find(query)
         return [doc async for doc in cursor]
 
+    async def set_waiting(
+        self,
+        workspace_id: str,
+        comment_id: str,
+        *,
+        waiting_on_ids: list[str] | None = None,
+        waiting_on_client: bool | None = None,
+    ) -> None:
+        """Who owes the next reply, moved by replies themselves (TDR-0215). Touches
+        `edited_at` so open boards refresh, but not `revision`: it isn't an edit someone
+        made, and must not turn a teammate's open edit into a conflict."""
+        patch: dict[str, Any] = {"edited_at": datetime.now(UTC)}
+        if waiting_on_ids is not None:
+            patch["waiting_on_ids"] = waiting_on_ids
+        if waiting_on_client is not None:
+            patch["waiting_on_client"] = waiting_on_client
+        await self.db.comments.update_one(
+            {"workspace_id": workspace_id, "_id": to_object_id(comment_id), "deleted_at": None},
+            {"$set": patch},
+        )
+
     async def update_recovery(
         self,
         comment_id: str,
