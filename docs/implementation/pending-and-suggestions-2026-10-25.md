@@ -1,4 +1,4 @@
-# Pending work and suggestions (2026-10-25, updated at end of day)
+# Pending work and suggestions (2026-10-25, updated 2026-10-27)
 
 The short list of what is left after this round, in order of importance. Detail and history
 stay in [pending-backlog-2026-10-24.md](pending-backlog-2026-10-24.md); deployment steps
@@ -15,7 +15,10 @@ are in [go-live-checklist-2026-10-25.md](go-live-checklist-2026-10-25.md).
 | 5 | Decide on **Terms of Service** and a **refund/cancellation policy** | There is a privacy notice and support page but no Terms route. Payment providers (Razorpay in particular) expect Terms, refund and contact pages before live payments. Legal text needs the owner's approval, so it was not drafted. |
 | 6 | Review the privacy notice as a whole | `/privacy` now describes screenshot preview, black-outs, `data-backline-private` masking and email unsubscribe (facts only). The owner should still approve the full text. |
 | 7 | Set `SENTRY_DSN` / `VITE_SENTRY_DSN` | Optional but recommended before a wider pilot. |
-| 8 | Allow production hosts in this environment's network settings | Only needed if live production checks or Railway logs should be read from here (production and `backboard.railway.com` are blocked now). |
+| 8 | Uptime monitor on `/health/worker` | Returns 503 when the worker stops reporting (TDR-0200); `/health` alone can't see a stopped worker. |
+| 9 | Check `ENVIRONMENT=production` on **every** Railway service | Since TDR-0200 a Railway service without it refuses to start (it used to run with local defaults). |
+| 10 | Railway cost trims (optional) | Pause the idle `cloud-login` service while `SERVER_BROWSER_ENABLED=false`; narrow watch paths to `backend/app/**`, the lockfiles and Dockerfiles; the image installs three Playwright browsers (~1 GB) that only the disabled server browser uses. |
+| 11 | Allow production hosts in this environment's network settings | Only needed if live production checks or Railway logs should be read from here (production and `backboard.railway.com` are blocked now). |
 
 ## 2. Live acceptance still to do (after deploy)
 
@@ -46,6 +49,7 @@ are in [go-live-checklist-2026-10-25.md](go-live-checklist-2026-10-25.md).
 | FEAT-12 | Automated verification run for the MCP fix-and-verify loop. |
 | BUG-08 (rest) | Initial browser/Backline URLs, historical snapshots, arbitrary visible text, logs and exports. |
 | BUG-10 | Reviewed reassignment workflow for old merged hash-route feedback. |
+| Audit backlog (2026-10-27) | File bytes are relayed through the API (`/assets/{id}/content`, up to 20 MB buffered) because pdf.js and canvas thumbnails need same-origin bytes; direct R2 fetch needs bucket CORS checked first. Index creation runs at every boot (~96 calls). Permissive CORS also covers `/proxy/*`. Client reply/resolved emails could move to the durable outbox. |
 
 ## 4. Suggestions
 
@@ -59,6 +63,17 @@ are in [go-live-checklist-2026-10-25.md](go-live-checklist-2026-10-25.md).
   lifecycle rule; a load test before a wider launch.
 - **Install guides:** links to a short video or doc page per platform, once the
   marketing site exists.
+
+## Shipped 2026-10-27 (production-readiness pass)
+
+backline1212/app#130 AI cost bounds, team notes kept out of client AI, MCP token revocation,
+API key copy (TDR-0199) · #131 realtime reconnect, Redis/Mongo timeouts, `/health/worker`,
+`ENVIRONMENT` guard, worker Sentry, widget cache (TDR-0200) · #132 security hardening:
+project self-removal, sign-in code limits, room-code rejoin, canvas sessions, body limits,
+domain claims, guest views, tracker scope, "edited" label (TDR-0201) · #133 cheaper polling,
+reusable signed URLs (TDR-0202) · #134 AI error messages, client email retries (TDR-0203) ·
+#135 file comments and standalone tickets reach integrations, `.env.example` (TDR-0204) ·
+#136 lazy Sentry, honest error screen (TDR-0205).
 
 ## Shipped this round (PRs merged to `main`)
 
