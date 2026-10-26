@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "./AuthContext";
 import { takeReturnPath } from "../../lib/return-path";
 import { useDocumentTitle } from "../../lib/use-document-title";
-import { getAuthCapabilities, startGoogleSignIn } from "./api";
+import { getAuthCapabilities, startGoogleSignIn, updateProfile } from "./api";
 import { qk } from "../../lib/query-keys";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { ApiError } from "../../lib/api-client";
@@ -282,6 +282,18 @@ function SignInPage() {
     }
   }
 
+  // An invited teammate's account is named after their email ("dev.sam") until they
+  // say otherwise (TDR-0209); the first sign-in asks once.
+  const needsName = Boolean(user && (!user.name.trim() || user.name.trim().toLowerCase() === user.email.split("@")[0].toLowerCase()));
+  const [profileName, setProfileName] = useState("");
+
+  async function saveProfileName() {
+    const next = profileName.trim();
+    if (!needsName || !next || !user) return;
+    const updated = await updateProfile({ name: next });
+    updateUser({ ...user, name: updated.name });
+  }
+
   async function handleSetPassword(event: FormEvent) {
     event.preventDefault();
     if (authPending.current) return;
@@ -291,6 +303,7 @@ function SignInPage() {
     }
     if (!beginAuth()) return;
     try {
+      await saveProfileName();
       await savePassword(newPassword);
       // The account modal's has_password gate (TDR-0034) would otherwise still show
       // stale "no password to change" copy until the next token refresh.
@@ -303,8 +316,20 @@ function SignInPage() {
     }
   }
 
-  function skipSetPassword() {
-    if (!authPending.current) finishSignIn();
+  async function skipSetPassword() {
+    if (authPending.current) return;
+    if (needsName && profileName.trim()) {
+      if (!beginAuth()) return;
+      try {
+        await saveProfileName();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't save your name.");
+        return;
+      } finally {
+        endAuth();
+      }
+    }
+    finishSignIn();
   }
 
   function goToHelp() {
@@ -675,13 +700,23 @@ function SignInPage() {
 
           {step === "newpw" && (
             <div id="lg-newpw">
-              <h1>Set a password</h1>
+              <h1>{needsName ? "Welcome to Backline" : "Set a password"}</h1>
               <p className="lg-lede">
-                You're signed in. Add a password so you can sign in with it next time,
-                or skip this and keep using a sign-in code.
+                {needsName
+                  ? "You're signed in. Tell your team your name, and add a password if you'd like to sign in with one next time."
+                  : "You're signed in. Add a password so you can sign in with it next time, or skip this and keep using a sign-in code."}
               </p>
 
               <form className="lg-formel" onSubmit={handleSetPassword}>
+                {needsName && (
+                  <div className="lg-f" id="lgf-profileName">
+                    <div className="lg-lbl"><label htmlFor="lgProfileName">Your name</label></div>
+                    <span className="lg-inp">
+                      <input id="lgProfileName" type="text" autoComplete="name" maxLength={120} readOnly={isSubmitting}
+                        value={profileName} onChange={(event) => setProfileName(event.target.value)} placeholder="Your full name" />
+                    </span>
+                  </div>
+                )}
                 <div className="lg-f" id="lgf-newPw">
                   <div className="lg-lbl"><label htmlFor="lgNewPw">New password</label></div>
                   <span className={`lg-inp pw${capsOn ? " capson" : ""}`}>
@@ -727,11 +762,11 @@ function SignInPage() {
                 )}
                 <button type="submit" className="lg-go" disabled={isSubmitting}>
                   {isSubmitting ? <span className="lg-spin"></span> : null}
-                  Save password
+                  {needsName ? "Save and continue" : "Save password"}
                 </button>
               </form>
               <div className="lg-swap">
-                <button type="button" onClick={skipSetPassword} disabled={isSubmitting}>Skip for now</button>
+                <button type="button" onClick={skipSetPassword} disabled={isSubmitting}>{needsName ? "Continue without a password" : "Skip for now"}</button>
               </div>
             </div>
           )}

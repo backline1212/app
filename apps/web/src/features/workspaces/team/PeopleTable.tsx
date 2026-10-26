@@ -65,7 +65,7 @@ export function PeopleTable({
             m.team ?? "",
             manager ?? "",
             counts.get(m.user_id) ?? 0,
-            m.created_at.slice(0, 10),
+            m.invite_pending ? `invited ${m.created_at.slice(0, 10)}` : m.created_at.slice(0, 10),
           ];
         }),
       ],
@@ -171,7 +171,7 @@ export function PeopleTable({
                       )}
                     </td>
                     <td className="team-num">{matrix ? counts.get(member.user_id) ?? 0 : "…"}</td>
-                    <td><span className="bl-mono">{formatDate(member.created_at)}</span></td>
+                    <td><span className="bl-mono">{member.invite_pending ? `Invited ${formatDate(member.created_at)}` : formatDate(member.created_at)}</span></td>
                   </tr>
                 );
               })}

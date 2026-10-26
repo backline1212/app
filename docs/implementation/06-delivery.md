@@ -5150,3 +5150,8 @@ database migration, or production deployment is claimed.
   a fresh context and "Leave review" cleared it. Migration dry run: 0 to mark locally.
 - ruff, mypy, scoping, types regenerated, web/widget lint and typecheck, widget build
   (36.4 KB gzip).
+
+# 2026-10-27: Invited teammate first run (TDR-0209)
+
+- Walked: Team → Invite people → invite email → sign in with code → "Welcome to Backline"
+  with a name field → "Good evening, Sam". Web lint/typecheck.
