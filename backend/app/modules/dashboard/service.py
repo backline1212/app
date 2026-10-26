@@ -9,6 +9,7 @@ from app.core.errors import ValidationError
 from app.core.permissions import Role, role_allows
 from app.core.project_access import can_view_project, session_hidden_project_ids
 from app.core.session import Session
+from app.modules.auth.repository import UserRepository
 from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.service import (
@@ -345,6 +346,29 @@ async def activity(
         workspace_id,
         [doc["actor_id"] for doc in docs if doc["actor_type"] == "guest" and doc.get("actor_id")],
     )
+    # Member and plan events name who or what they're about (TDR-0212); "Maya invited"
+    # read as an unfinished sentence.
+    subject_ids = [
+        str(doc["payload_json"]["user_id"])
+        for doc in docs
+        if doc["type"] in _MEMBER_SUBJECT_EVENTS and doc["payload_json"].get("user_id")
+    ]
+    users = await UserRepository(db).find_many_by_ids(subject_ids) if subject_ids else {}
+
+    def event_name(doc: dict[str, Any]) -> str | None:
+        payload = doc["payload_json"]
+        if doc["type"] in _MEMBER_SUBJECT_EVENTS:
+            user = users.get(str(payload.get("user_id")))
+            label = (user or {}).get("name") or payload.get("invited_email") or payload.get("name")
+            if doc["type"] == "member.role_changed" and label and payload.get("new_role"):
+                return f"{label} to {payload['new_role']}"
+            return str(label) if label else None
+        if doc["type"] == "workspace.plan_changed":
+            plan = payload.get("plan_name") or payload.get("plan")
+            return str(plan).replace("_", " ").title() if plan else None
+        value = payload.get("name")
+        return str(value) if value else None
+
     return ActivityListOut(
         total=total,
         items=[
@@ -359,7 +383,7 @@ async def activity(
                 created_at=doc["created_at"],
                 project_id=event_projects.get(str(doc["_id"])),
                 comment_id=doc["payload_json"].get("comment_id"),
-                name=doc["payload_json"].get("name"),
+                name=event_name(doc),
                 is_reply=doc["type"].startswith("comment.")
                 and bool(doc["payload_json"].get("parent_id")),
                 **_comment_label(comments.get(ticket_id(doc) or "")),
@@ -367,6 +391,9 @@ async def activity(
             for doc in docs
         ],
     )
+
+
+_MEMBER_SUBJECT_EVENTS = frozenset(("member.invited", "member.removed", "member.role_changed"))
 
 
 async def create_ticket(

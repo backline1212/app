@@ -3366,3 +3366,10 @@ td .bl-file-approval{margin-left:6px}
 .bl-shot-frame .bl-marked-shot > img { width: 100%; height: auto; object-fit: initial; }
 .bl-project-type-card:disabled { opacity: .55; cursor: not-allowed; }
 .bl-price-features li.is-lead { font-weight: 600; color: var(--ink); padding-left: 0; }
+/* Phones: the approve confirmation gets its own full-width row under the file tabs
+   instead of covering them (TDR-0212). */
+@media (max-width: 760px) {
+  .bl-review-pagebar:has(.bl-asset-approve-confirm) { flex-wrap: wrap; }
+  .bl-asset-approve-confirm { order: 10; flex: 1 1 100%; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line-soft); background: var(--bl-surface); }
+  .bl-asset-approve-confirm > span:first-child { flex: 1 1 auto; min-width: 0; }
+}

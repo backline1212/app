@@ -5167,3 +5167,9 @@ database migration, or production deployment is claimed.
 - Free workspace at 2/2 projects: New project shows the limit with "Archive a project" /
   "See plans"; billing lists "Everything in Free Starter, plus:"; sandbox upgrade to Solo
   Pro updated the sidebar to "2 of 5 projects". ruff, mypy, web lint/typecheck.
+
+# 2026-10-27: Activity subjects and phone approval (TDR-0212)
+
+- Activity showed "changed the plan to Solo Pro" and "invited Sam Patel". Phone approval:
+  confirmation on its own row; approving notified the owner (`file_approved`). ruff, mypy,
+  web lint/typecheck.
