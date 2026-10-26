@@ -630,7 +630,17 @@ async def send_to_tracker(
     )
     if comment.parent_id:
         raise ValidationError("Send the thread's first comment, not a reply.")
+    raw = await CommentRepository(db).find_by_id(comment_id)
+    if raw is None or raw.get("deleted_at") is not None:
+        raise NotFoundError("Comment not found.")
     doc = await _load_integration(db, integration_id=integration_id, workspace_id=workspace_id)
+    scope = doc.get("project_scope")
+    if scope:
+        # A connection limited to one project only takes that project's tickets, as
+        # automatic delivery already enforces (integrations/delivery.py) (TDR-0201).
+        page = await PageRepository(db).find_in_workspace(workspace_id, raw["page_id"])
+        if page is None or page.get("project_id") != scope:
+            raise ValidationError("That connection is limited to another project.")
     if expected_type is not None and doc["type"] != expected_type:
         raise ValidationError(
             f"That integration isn't a {_DISPLAY_NAME[expected_type]} connection."

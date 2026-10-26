@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from bson import ObjectId
@@ -7,6 +7,8 @@ from pymongo.errors import DuplicateKeyError
 
 from app.core.errors import ConflictError
 from app.core.mongo_utils import to_object_id
+
+PENDING_CLAIM_TTL = timedelta(days=7)
 
 
 class CustomDomainRepository:
@@ -42,10 +44,25 @@ class CustomDomainRepository:
             "created_by": actor_id,
             "created_at": datetime.now(UTC),
         }
+        # An unverified claim can't hold a domain for ever: after a week another workspace
+        # (normally the domain's real owner) may take it over (TDR-0201).
+        # workspace-scope-exempt: the host is globally unique; only a stale unverified
+        # claim on it is removed, never a verified one
+        await self.db.custom_domains.delete_one(
+            {
+                "host": host,
+                "status": {"$ne": "verified"},
+                "workspace_id": {"$ne": workspace_id},
+                "created_at": {"$lt": datetime.now(UTC) - PENDING_CLAIM_TTL},
+            }
+        )
         try:
             await self.db.custom_domains.insert_one(doc)
         except DuplicateKeyError as exc:
-            raise ConflictError("That domain is already added to a Backline workspace.") from exc
+            raise ConflictError(
+                "That domain is already added to a Backline workspace. An unverified claim "
+                "is released 7 days after it was made."
+            ) from exc
         return doc
 
     async def update(self, workspace_id: str, domain_id: str, patch: dict[str, Any]) -> None:

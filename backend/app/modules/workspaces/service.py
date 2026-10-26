@@ -18,7 +18,7 @@ from app.core.errors import (
     PlanLimitExceededError,
     ValidationError,
 )
-from app.core.events import append_event
+from app.core.events import append_event, was_removed_from_workspace
 from app.core.project_access import (
     WORKSPACE_MANAGER_ROLES,
     access_settings,
@@ -812,7 +812,11 @@ async def submit_join_request(
         raise NotFoundError("Account not found.")
     user_name = user.get("name") or user["email"]
 
-    if not workspace.get("join_requires_approval", True):
+    # Someone an admin removed goes through approval even when the code joins directly;
+    # otherwise removing a member would last only until they re-entered the code.
+    if not workspace.get("join_requires_approval", True) and not await was_removed_from_workspace(
+        db, workspace_id=workspace_id, user_id=user_id, type=workspace_events.MEMBER_REMOVED
+    ):
         try:
             _, added = await _add_member_with_capacity(
                 db,

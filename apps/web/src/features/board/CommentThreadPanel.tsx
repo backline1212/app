@@ -47,7 +47,7 @@ function ThreadMessage({ comment, teamOnly = false, children, extra }: { comment
       <small>
         {comment.author_name} · {comment.author_type === "guest" ? "Client" : "Team"} ·{" "}
         {formatTime(comment.created_at)}
-        {comment.edited_at ? " · edited" : ""}
+        {comment.body_edited_at ? " · edited" : ""}
         {teamOnly && <span className="bl-message-layer">Team only</span>}
       </small>
       {/* A reported fix shows its summary; the links live on the card below. */}

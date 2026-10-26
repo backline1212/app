@@ -17,6 +17,7 @@ from starlette.types import Scope
 
 from app.core.arq_pool import close_arq_pool
 from app.core.auth_origin import AuthOriginMiddleware
+from app.core.body_limit import RequestBodyLimitMiddleware
 from app.core.compression import SelectiveGZipMiddleware
 from app.core.config import get_settings
 from app.core.db import close_client, get_client, get_db
@@ -131,6 +132,7 @@ install_log_redaction()
 
 app = FastAPI(title="Backline API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(SnapshotBodyLimitMiddleware)
+app.add_middleware(RequestBodyLimitMiddleware)
 app.add_middleware(ApiSecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,

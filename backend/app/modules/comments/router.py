@@ -89,7 +89,9 @@ async def create_comment(
         limit=settings.comment_create_rate_limit_per_minute,
         window_seconds=60,
     )
-    return await comment_service.create_comment(
+    # A retried create returns the stored comment, which the team may since have
+    # worked; a guest still only gets the guest view (TDR-0201).
+    created = await comment_service.create_comment(
         get_db(),
         page_id=page_id,
         actor=actor,
@@ -104,6 +106,7 @@ async def create_comment(
         client_request_id=body.client_request_id,
         screenshot_marker=body.screenshot_marker,
     )
+    return _for_actor(created, actor)
 
 
 @router.post("/comments/{comment_id}/replies", response_model=CommentOut, status_code=201)
@@ -117,7 +120,9 @@ async def create_reply(
         limit=settings.comment_create_rate_limit_per_minute,
         window_seconds=60,
     )
-    return await comment_service.create_reply(
+    # A retried create returns the stored comment, which the team may since have
+    # worked; a guest still only gets the guest view (TDR-0201).
+    created = await comment_service.create_reply(
         get_db(),
         parent_id=comment_id,
         actor=actor,
@@ -127,6 +132,7 @@ async def create_reply(
         client_request_id=body.client_request_id,
         mentioned_user_ids=body.mentioned_user_ids,
     )
+    return _for_actor(created, actor)
 
 
 # Deliberately not member-only like PATCH /comments/{id} above - a guest reviewer needs

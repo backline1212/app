@@ -807,7 +807,9 @@ def _verify_stripe_signature(secret: str, payload: bytes, header: str | None) ->
 
 def _hmac_matches(secret: str, message: bytes, signature: str) -> bool:
     expected = hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, signature.strip())
+    # As bytes: compare_digest raises TypeError for non-ASCII str, which surfaced a
+    # forged header as a 500 instead of a rejected signature (TDR-0201).
+    return hmac.compare_digest(expected.encode(), signature.strip().encode())
 
 
 def _parse_json_object(payload: bytes) -> dict[str, Any]:

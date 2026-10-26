@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
@@ -183,10 +183,29 @@ class GuestSessionRepository:
         )
 
     async def touch_last_seen(self, *, workspace_id: str, guest_session_id: str) -> None:
-        """Extend the 180-day inactivity TTL only after access is re-authorized."""
+        """Extend the 180-day inactivity TTL only after access is re-authorized. At most
+        once an hour: every guest poll passes through here, and the TTL needs no finer
+        precision, so most calls match nothing and write nothing (TDR-0201)."""
+        now = datetime.now(UTC)
         await self.db.guest_sessions.update_one(
-            {"_id": to_object_id(guest_session_id), "workspace_id": workspace_id},
-            {"$set": {"last_seen_at": datetime.now(UTC)}},
+            {
+                "_id": to_object_id(guest_session_id),
+                "workspace_id": workspace_id,
+                "$or": [
+                    {"last_seen_at": {"$lt": now - timedelta(hours=1)}},
+                    {"last_seen_at": None},
+                ],
+            },
+            {"$set": {"last_seen_at": now}},
+        )
+
+    async def end_all_for_member(self, member_user_id: str) -> None:
+        """Sign-out-everywhere, password and email changes end the member's dashboard
+        canvas sessions too, in every workspace (TDR-0201)."""
+        # workspace-scope-exempt: a user's own sessions across workspaces, ended by user id
+        await self.db.guest_sessions.update_many(
+            {"member_user_id": member_user_id, "ended_at": None},
+            {"$set": {"ended_at": datetime.now(UTC)}},
         )
 
     async def end(self, *, workspace_id: str, guest_session_id: str, share_link_id: str) -> None:

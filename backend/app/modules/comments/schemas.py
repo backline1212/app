@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 
 from app.core.text import Trimmed
 
@@ -29,17 +29,39 @@ class RegionBoxPct(BaseModel):
     height: float = Field(ge=0, le=1)
 
 
+def _truncate(limit: int) -> BeforeValidator:
+    """Shortens a string to `limit` characters. Truncated rather than rejected so an
+    unusually long page text or selector never stops feedback being saved, while a guest
+    can't store megabytes in one anchor (TDR-0201)."""
+    return BeforeValidator(lambda v: v[:limit] if isinstance(v, str) else v)
+
+
+Short = Annotated[str, _truncate(100)]
+Medium = Annotated[str, _truncate(300)]
+Long = Annotated[str, _truncate(4_000)]
+PageText = Annotated[str, _truncate(10_000)]
+
+
+def _cap_attributes(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    return {
+        str(key)[:200]: val[:2_000] if isinstance(val, str) else val
+        for key, val in list(value.items())[:50]
+    }
+
+
 class DomFingerprintIn(BaseModel):
     """node_hash/ancestor_path_hash use the same hash scheme as a snapshot's NodeRecord
     (09-Snapshot-Engine.md §9.6) - required for modules/anchor_engine to compare an
     anchor against a snapshot's nodes_index at all
     (docs/tdr/0004-anchor-snapshot-shared-hash-scheme.md)."""
 
-    selector_path: str
-    tag: str
-    attributes: dict[str, str]
-    node_hash: str
-    ancestor_path_hash: str
+    selector_path: Long
+    tag: Short
+    attributes: Annotated[dict[str, str], BeforeValidator(_cap_attributes)]
+    node_hash: str = Field(max_length=128)
+    ancestor_path_hash: str = Field(max_length=128)
     # Optional: comments created before this field existed simply have none, and the SDK
     # falls back to the element's corner. Declared here explicitly because Pydantic
     # drops unknown fields by default - without it the SDK's offset would be silently
@@ -49,11 +71,11 @@ class DomFingerprintIn(BaseModel):
 
 
 class TextFingerprintIn(BaseModel):
-    normalized_text: str
+    normalized_text: PageText
     # 64-bit SimHash (hex), for approximate matching when text changes slightly between
     # revisions - exact-string equality can't satisfy the "text edited" recovery case by
     # definition (08-Anchor-Engine.md §8.1, modules/anchor_engine).
-    text_similarity_hash: str
+    text_similarity_hash: str = Field(max_length=128)
 
 
 class AnchorIn(BaseModel):
@@ -91,11 +113,11 @@ class DiagnosticsIn(BaseModel):
 
 
 class ContextIn(BaseModel):
-    browser: str
-    os: str
-    viewport: dict[str, int]
-    device_type: str
-    url: str
+    browser: Medium
+    os: Medium
+    viewport: dict[str, int] = Field(max_length=10)
+    device_type: Short
+    url: Long
     # Opt-in per comment from the composer ("Attach console & network errors").
     diagnostics: DiagnosticsIn | None = None
     # Web App projects: what the reviewer did before the problem appeared.
@@ -227,7 +249,11 @@ class CommentOut(BaseModel):
     screenshot_marker: ScreenshotMarker | None = None
     attachments: list[AttachmentOut]
     created_at: datetime
+    # Any change (status, assignee, layer...). Kept for sync and activity ordering.
     edited_at: datetime | None
+    # When the text itself was last edited - what "· edited" means to a reader (TDR-0201).
+    # None for comments whose text was edited before this field existed.
+    body_edited_at: datetime | None = None
     revision: int = 0
     # Human-readable per-workspace number ("#14"), assigned when a top-level comment or
     # a standalone ticket is created. Replies never get one - they belong to their

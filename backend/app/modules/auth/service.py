@@ -20,6 +20,8 @@ from app.core.errors import (
     ValidationError,
 )
 from app.core.mongo_utils import to_object_id
+from app.core.rate_limit import RateLimitedError
+from app.core.redis_client import get_redis
 from app.core.security import (
     PASSWORD_MIN_LENGTH,
     create_access_token,
@@ -291,6 +293,9 @@ async def login_with_password(
     return await _issue_tokens(db, user_doc, auth_method="password", ua=ua, ip=ip)
 
 
+OTP_FAILURES_PER_HOUR = 15
+
+
 async def request_otp(db: AsyncIOMotorDatabase[dict[str, Any]], email: str) -> None:
     otp_repo = OtpRepository(db)
     settings = get_settings()
@@ -311,6 +316,15 @@ async def _verify_and_consume_otp(
     db: AsyncIOMotorDatabase[dict[str, Any]], email: str, code: str, *, purpose: str | None = None
 ) -> None:
     otp_repo = OtpRepository(db)
+    # Each new code brings fresh attempts, so the per-code limit alone lets someone who
+    # keeps requesting codes (from many IPs) keep guessing. This budget is per address
+    # and spans codes: 6 digits with 15 wrong tries an hour is out of reach (TDR-0201).
+    failures_key = f"otp-failures:{purpose or 'login'}:{email.strip().lower()}"
+    redis_client = get_redis()
+    if int(await redis_client.get(failures_key) or 0) >= OTP_FAILURES_PER_HOUR:
+        raise RateLimitedError(
+            "Too many wrong codes for this email. Wait an hour, or sign in with a password."
+        )
     otp_doc = await otp_repo.find_latest(email, purpose=purpose)
     if otp_doc is None:
         raise ValidationError("No active code for this email. Request a new one.")
@@ -322,6 +336,10 @@ async def _verify_and_consume_otp(
     if claimed is None:
         raise ValidationError("This code expired or has no attempts left. Request a new one.")
     if not secrets_match(claimed["code_hash"], hash_secret(code)):
+        pipe = redis_client.pipeline()
+        pipe.incr(failures_key)
+        pipe.expire(failures_key, 3600, nx=True)
+        await pipe.execute()
         raise ValidationError("Incorrect code.")
     if not await otp_repo.consume(claimed["_id"], code_hash=claimed["code_hash"]):
         raise ValidationError("This code expired or was already used. Request a new one.")
@@ -504,9 +522,11 @@ async def revoke_all_sessions(db: AsyncIOMotorDatabase[dict[str, Any]], user_id:
     # sessions" must end them as well.
     from app.modules.extension_tokens.repository import ExtensionTokenRepository
     from app.modules.mcp.repository import McpTokenRepository
+    from app.modules.share_links.repository import GuestSessionRepository
 
     await ExtensionTokenRepository(db).revoke_all_for_user(user_object_id)
     await McpTokenRepository(db).revoke_all_for_user(user_object_id)
+    await GuestSessionRepository(db).end_all_for_member(str(user_object_id))
 
 
 MAX_ACTIVE_SESSIONS = 5
@@ -624,9 +644,11 @@ async def change_password(
     # old one.
     from app.modules.extension_tokens.repository import ExtensionTokenRepository
     from app.modules.mcp.repository import McpTokenRepository
+    from app.modules.share_links.repository import GuestSessionRepository
 
     await ExtensionTokenRepository(db).revoke_all_for_user(user_doc["_id"])
     await McpTokenRepository(db).revoke_all_for_user(user_doc["_id"])
+    await GuestSessionRepository(db).end_all_for_member(str(user_doc["_id"]))
 
 
 def _email_change_purpose(user_id: str) -> str:

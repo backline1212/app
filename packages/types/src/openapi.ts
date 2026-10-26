@@ -3332,6 +3332,8 @@ export interface components {
             created_at: string;
             /** Edited At */
             edited_at: string | null;
+            /** Body Edited At */
+            body_edited_at?: string | null;
             /**
              * Revision
              * @default 0
@@ -5926,6 +5928,8 @@ export interface components {
             created_at: string;
             /** Edited At */
             edited_at: string | null;
+            /** Body Edited At */
+            body_edited_at?: string | null;
             /**
              * Revision
              * @default 0

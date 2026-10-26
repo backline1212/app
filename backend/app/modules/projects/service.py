@@ -12,9 +12,10 @@ from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from app.core.creation_idempotency import request_fingerprint, require_creation_replay
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
-from app.core.permissions import ProjectRole
+from app.core.permissions import PROJECT_ROLE_RANK, ProjectRole
 from app.core.project_access import (
     VISIBILITY_PRIVATE,
+    VISIBILITY_WORKSPACE,
     WORKSPACE_MANAGER_ROLES,
     access_settings,
     check_project_action,
@@ -1136,6 +1137,20 @@ async def remove_project_member(
     if user_id != actor.user_id:
         check_project_action(doc, actor, "project:manage_access")
     doc = await _stored_access_project(db, doc)
+    if user_id == actor.user_id and session_project_role(doc, actor) != ProjectRole.MANAGER:
+        # Leaving a workspace project falls back to its default role; that must not be a
+        # way round a lower role a manager gave you (e.g. viewer -> default editor).
+        visibility, default_role, members = access_settings(doc)
+        own = next((m for m in members if m["user_id"] == user_id), None)
+        if (
+            own is not None
+            and visibility == VISIBILITY_WORKSPACE
+            and PROJECT_ROLE_RANK[default_role] > PROJECT_ROLE_RANK[ProjectRole(own["role"])]
+        ):
+            raise PermissionDeniedError(
+                "Leaving would give you more access than your current role. Ask a "
+                "project manager to change it."
+            )
     removed = await ProjectRepository(db).remove_access_member(workspace_id, project_id, user_id)
     if not removed:
         return
