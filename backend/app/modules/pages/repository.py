@@ -93,6 +93,48 @@ class PageRepository:
         )
         return {str(doc["_id"]): doc["project_id"] async for doc in cursor}
 
+    async def project_ids_by_page(
+        self, workspace_id: str, project_ids: list[str]
+    ) -> dict[str, str]:
+        """page_id -> project_id for every page of several projects."""
+        if not project_ids:
+            return {}
+        cursor = self.db.pages.find(
+            {"workspace_id": workspace_id, "project_id": {"$in": project_ids}}, {"project_id": 1}
+        )
+        return {str(doc["_id"]): doc["project_id"] async for doc in cursor}
+
+    async def latest_comment_screenshots(
+        self, workspace_id: str, page_ids: list[str]
+    ) -> dict[str, tuple[str, Any]]:
+        """page_id -> (screenshot key, created_at) of the newest live thread on each page
+        that has an automatic screenshot (a project card's fallback picture, TDR-0197)."""
+        if not page_ids:
+            return {}
+        rows = await self.db.comments.aggregate(
+            [
+                {
+                    "$match": {
+                        "workspace_id": workspace_id,
+                        "page_id": {"$in": page_ids},
+                        "parent_id": None,
+                        "deleted_at": None,
+                        "capture_status": "ok",
+                        "screenshot_key": {"$type": "string"},
+                    }
+                },
+                {"$sort": {"created_at": -1}},
+                {
+                    "$group": {
+                        "_id": "$page_id",
+                        "key": {"$first": "$screenshot_key"},
+                        "at": {"$first": "$created_at"},
+                    }
+                },
+            ]
+        ).to_list(length=None)
+        return {str(row["_id"]): (row["key"], row["at"]) for row in rows}
+
     async def list_for_project(self, workspace_id: str, project_id: str) -> list[dict[str, Any]]:
         cursor = self.db.pages.find({"workspace_id": workspace_id, "project_id": project_id}).sort(
             "first_seen_at", -1

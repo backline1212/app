@@ -5,6 +5,7 @@ import { computeRegionAnchor } from "./anchor";
 import { renderPin, openComposer, type ComposerDetails } from "./ui";
 import { composerHasDraft, nudgeComposer } from "./ui-composer";
 import { captureScreenshot } from "./screenshot";
+import { markerOf, withMarker } from "./capture-marker";
 import { uploadScreenshot, uploadAttachment } from "./attachment-upload";
 import { parseUserAgent } from "./user-agent";
 import type { createThreadManager } from "./thread-manager";
@@ -166,6 +167,8 @@ export function setupRegionDrawer({
     const submission = createCommentSubmission(api, pageId, documentUrl);
     const activeOverlay = overlay;
 
+    // The screenshot remembers where this area was when it was taken (TDR-0197).
+    const shot = withMarker(screenshot, () => ({ left: finalLeft, top: finalTop, width: finalWidth, height: finalHeight }));
     const controls = openComposer(
       shadow,
       finalLeft,
@@ -175,7 +178,7 @@ export function setupRegionDrawer({
           const created = await submission.submit(async () => {
             controls.setStatus(includeScreenshot ? "Capturing region anchor + screenshot..." : "Saving the region...");
             const anchor = await computeRegionAnchor(activeTarget, rect);
-            const screenshotBlob = includeScreenshot ? previewed ?? await screenshot() : null;
+            const screenshotBlob = includeScreenshot ? previewed ?? await shot() : null;
 
             let screenshotKey: string | null = null;
             if (screenshotBlob) {
@@ -205,6 +208,7 @@ export function setupRegionDrawer({
                 ...(stepsToReproduce ? { steps_to_reproduce: stepsToReproduce } : {}),
               },
               screenshot_key: screenshotKey,
+              screenshot_marker: screenshotKey ? markerOf(screenshotBlob) : null,
               capture_status: screenshotKey ? "ok" : includeScreenshot ? "failed" : "skipped",
               attachments,
               tags,
@@ -251,7 +255,7 @@ export function setupRegionDrawer({
       },
       (file: File) => uploadFile(api, projectId, file),
       composerDetails(`${Math.round(finalWidth)} \u00d7 ${Math.round(finalHeight)}`),
-      screenshot,
+      shot,
     );
   }
 

@@ -17,13 +17,21 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.12 (2026-10-25, supersedes 0.5.2-0.5.11)
+## Update ready: 0.5.13 (2026-10-27, supersedes 0.5.2-0.5.12)
+
+0.5.13 = 0.5.12 plus screenshot markers on new comments (where the pin or area was on its
+screenshot) and, for team members, the start-page view offered as the project card's
+picture when Backline's servers can't fetch the site (TDR-0197). Package 66663 bytes,
+SHA-256 `493a7b8da27c164981bdc912555260bde53cab5134fda79d36bf0c0cb195c6a2`. Same targets
+and permissions. Submit 0.5.13.
+
+## Previous: 0.5.12 (2026-10-25)
 
 0.5.12 = 0.5.11 plus black-outs in the screenshot preview (drag to hide private areas,
 TDR-0195) and the overlay staying styled on sites with a strict style policy (TDR-0193).
 Package 65903 bytes, SHA-256
 `5108563d62183c20001b5627c0c9a4eccae493be5ef8d3170e4ed303df23d15a`. Same targets and
-permissions. Submit 0.5.12.
+permissions.
 
 ## Previous: 0.5.11 (2026-10-25)
 

@@ -7,6 +7,8 @@ from app.core.session import Session, require_workspace_context, require_workspa
 from app.modules.projects import deletion_service
 from app.modules.projects import service as project_service
 from app.modules.projects.schemas import (
+    PreviewImageIn,
+    PreviewImageOut,
     ProjectAccessDetailOut,
     ProjectAccessUpdate,
     ProjectCreate,
@@ -176,6 +178,24 @@ async def refresh_project_preview(
         project_id=project_id,
         workspace_id=require_workspace_context(session),
         viewer=session,
+    )
+
+
+@router.put("/projects/{project_id}/preview/image", response_model=PreviewImageOut)
+async def offer_project_preview_image(
+    project_id: str,
+    body: PreviewImageIn,
+    session: Session = Depends(require_project_permission("comment:create")),
+) -> PreviewImageOut:
+    """A screenshot of the site's start page from a member's own browser (the Backline
+    extension), used as the card picture when the card has no real screenshot yet -
+    sites that block Backline's servers still get one (TDR-0197). `used` says whether
+    it was kept."""
+    return await project_service.offer_preview_image(
+        get_db(),
+        project_id=project_id,
+        workspace_id=require_workspace_context(session),
+        data_url=body.data_url,
     )
 
 

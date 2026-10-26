@@ -1,4 +1,5 @@
 import { ATTACHMENT_ACCEPT, setupAttachments, type AttachmentResult } from "./ui-attachments";
+import { carryMarker } from "./capture-marker";
 import { cardHeaderHtml, escapeHtml, observeCardPlacement, placeCard, svg, TAG_ICONS } from "./ui-card";
 import { diagnosticsSnapshot, diagnosticsSummary, onDiagnosticsChange, type Diagnostics } from "./diagnostics";
 import { formatDuration, MAX_RECORDING_SECONDS, recordingSupported, startRecording, type RecordingHandle, type RecordingKind } from "./recorder";
@@ -325,6 +326,7 @@ export function openComposer(
       ctx.fillStyle = "#111";
       for (const r of boxes) ctx.fillRect(r.x * canvas.width, r.y * canvas.height, r.w * canvas.width, r.h * canvas.height);
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+      if (blob) carryMarker(current.original, blob);
       if (blob && preview === current) current.blob = blob;
     })().catch(() => {
       statusEl.textContent = "The black-out couldn't be applied. Retake the preview or untick the screenshot.";

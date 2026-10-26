@@ -5055,3 +5055,14 @@ database migration, or production deployment is claimed.
 - Rebuilt by this change: the API no longer fails to start on a fresh local S3 store
   (moto/MinIO reject creating a bucket without a location outside us-east-1; R2's
   "auto" region does not need one). Verified on a fresh moto: created, then a no-op.
+
+# 2026-10-27: Screenshot view and card picture plan B (TDR-0197)
+
+- Sites that block Backline's preview (bot protection such as Cloudflare - e.g. Figma)
+  are recognised at once and the canvas shows every comment on its screenshot with a
+  marker where it was placed; "Screenshots" in the canvas bar shows the same view on any
+  site. New comments record that marker.
+- Card pictures: share image → extension start-page capture → newest comment
+  screenshot → sketch.
+- Extension 0.5.13 (`apps/web/public/backline-extension-0.5.13.zip`, 66663 bytes, SHA-256
+  `493a7b8d…c6a2`) carries the markers and the start-page card capture; 0.5.11 ZIP removed.

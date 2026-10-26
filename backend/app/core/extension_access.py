@@ -12,6 +12,8 @@ _ROUTES = (
     ("GET", rf"/api/v1/workspaces/{_ID}/projects"),
     ("POST", rf"/api/v1/workspaces/{_ID}/projects/resolve"),
     ("GET", rf"/api/v1/projects/{_ID}(?:/comments|/pages)?"),
+    # The start-page view offered as the project card's picture (TDR-0197).
+    ("PUT", rf"/api/v1/projects/{_ID}/preview/image"),
     ("POST", r"/api/v1/pages"),
     ("POST", r"/api/v1/uploads(?:/direct)?"),
     ("GET", rf"/api/v1/pages/{_ID}/comments"),

@@ -8,6 +8,7 @@ import { showSessionNotice } from "./session-notice";
 import { registerCurrentPage, realPageUrl, capturePageVersion } from "./page-registration";
 import { wireRealtimeUpdates } from "./realtime";
 import { captureScreenshot } from "./screenshot";
+import { markerOf, pinBox, withMarker } from "./capture-marker";
 import { createThreadManager } from "./thread-manager";
 import { ownCommentHandlers } from "./own-comments";
 import type { BacklineConfig, CommentRecord } from "./types";
@@ -537,6 +538,8 @@ async function init(config: BacklineConfig): Promise<void> {
     const commentPageId = pageId;
     const submission = createCommentSubmission(api, commentPageId, registeredDocumentUrl);
 
+    // The screenshot remembers where this pin was when it was taken (TDR-0197).
+    const shot = withMarker(captureScreenshot, () => pinBox(pin));
     const controls = openComposer(
       shadow,
       x,
@@ -547,7 +550,7 @@ async function init(config: BacklineConfig): Promise<void> {
             controls.setStatus(includeScreenshot ? "Capturing anchor + screenshot..." : "Saving the location...");
 
             const anchor = await computeAnchor(target, x, y);
-            const screenshotBlob = includeScreenshot ? previewed ?? await captureScreenshot() : null;
+            const screenshotBlob = includeScreenshot ? previewed ?? await shot() : null;
 
             let screenshotKey: string | null = null;
             if (screenshotBlob) {
@@ -577,6 +580,7 @@ async function init(config: BacklineConfig): Promise<void> {
                 ...(stepsToReproduce ? { steps_to_reproduce: stepsToReproduce } : {}),
               },
               screenshot_key: screenshotKey,
+              screenshot_marker: screenshotKey ? markerOf(screenshotBlob) : null,
               capture_status: screenshotKey ? "ok" : includeScreenshot ? "failed" : "skipped",
               attachments,
               tags,
@@ -610,7 +614,7 @@ async function init(config: BacklineConfig): Promise<void> {
       },
       (file) => uploadAttachment(api, projectId, file),
       composerDetails(),
-      captureScreenshot,
+      shot,
     );
   }, { signal: listenerLifetime.signal });
 

@@ -2242,6 +2242,64 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/preview/image": {
+      "put": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Offer Project Preview Image",
+        "description": "A screenshot of the site's start page from a member's own browser (the Backline\nextension), used as the card picture when the card has no real screenshot yet -\nsites that block Backline's servers still get one (TDR-0197). `used` says whether\nit was kept.",
+        "operationId": "offer_project_preview_image_api_v1_projects__project_id__preview_image_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewImageIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewImageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/duplicate": {
       "post": {
         "tags": [
@@ -10941,6 +10999,16 @@
             ],
             "title": "Screenshot Key"
           },
+          "screenshot_marker": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScreenshotMarker"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "capture_status": {
             "type": "string",
             "enum": [
@@ -11118,6 +11186,16 @@
               "skipped"
             ],
             "title": "Capture Status"
+          },
+          "screenshot_marker": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScreenshotMarker"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "attachments": {
             "items": {
@@ -14980,6 +15058,35 @@
         ],
         "title": "PortalResponse"
       },
+      "PreviewImageIn": {
+        "properties": {
+          "data_url": {
+            "type": "string",
+            "maxLength": 8000000,
+            "minLength": 32,
+            "title": "Data Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data_url"
+        ],
+        "title": "PreviewImageIn",
+        "description": "A member's own screenshot of the site's start page, offered as the card picture\n(TDR-0197) - the Backline extension sends it when it opens the site for review."
+      },
+      "PreviewImageOut": {
+        "properties": {
+          "used": {
+            "type": "boolean",
+            "title": "Used"
+          }
+        },
+        "type": "object",
+        "required": [
+          "used"
+        ],
+        "title": "PreviewImageOut"
+      },
       "ProjectAccessDetailOut": {
         "properties": {
           "project_id": {
@@ -16771,6 +16878,55 @@
         "title": "RoomCodeSet",
         "description": "No code generates a random one."
       },
+      "ScreenshotMarker": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Y"
+          },
+          "w": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "W"
+          },
+          "h": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "H"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "ScreenshotMarker",
+        "description": "Where a comment's pin (x, y) or drawn area (x, y, w, h) sits on its automatic\nscreenshot, as fractions of the image (0-1). The dashboard draws it on the\nscreenshot when the live preview can't load the site (TDR-0197)."
+      },
       "SearchResultOut": {
         "properties": {
           "kind": {
@@ -17824,6 +17980,16 @@
               "skipped"
             ],
             "title": "Capture Status"
+          },
+          "screenshot_marker": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScreenshotMarker"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "attachments": {
             "items": {

@@ -240,6 +240,39 @@ async def _bounded_request(
             await upstream.aclose()
 
 
+# Bot protection answers a datacenter fetch (the review proxy) with an interstitial whose
+# script would loop forever in the preview. Recognise it and tell the dashboard at once,
+# which then shows the feedback on its screenshots (TDR-0197).
+_CHALLENGE_MARKERS = (
+    "<title>just a moment",
+    "<title>attention required",
+    "/cdn-cgi/challenge-platform",
+    "cf-browser-verification",
+    "checking your browser",
+    "verify you are human",
+    "ddos-guard",
+    "_incapsula_resource",
+    "px-captcha",
+)
+_BLOCKED_PAGE = (
+    b'<!doctype html><html><head><meta charset="utf-8"><title>Preview blocked</title></head>'
+    b'<body style="font:14px/1.5 system-ui,sans-serif;padding:24px;color:#333">'
+    b"<p>This website's bot protection didn't let Backline's preview in. Review it with the "
+    b"Backline browser extension instead.</p>"
+    b'<script>try{parent.postMessage({type:"backline:site-blocked"},"*")}catch(e){}</script>'
+    b"</body></html>"
+)
+
+
+def _is_bot_challenge(upstream: httpx.Response) -> bool:
+    if upstream.headers.get("cf-mitigated", "").lower() == "challenge":
+        return True
+    if upstream.status_code not in (403, 429, 503):
+        return False
+    head = upstream.text[:20_000].lower()
+    return any(marker in head for marker in _CHALLENGE_MARKERS)
+
+
 def _forwarded_headers(headers: Mapping[str, str]) -> dict[str, str]:
     forwarded: dict[str, str] = {}
     for name, value in headers.items():
@@ -637,6 +670,14 @@ async def fetch_proxied_resource(
                 for name in _PASSTHROUGH_RESPONSE_HEADERS
                 if (value := upstream.headers.get(name)) is not None
             ),
+        )
+
+    if "text/html" in content_type and _is_bot_challenge(upstream):
+        return ProxiedResponse(
+            status_code=upstream.status_code,
+            content_type="text/html; charset=utf-8",
+            body=_BLOCKED_PAGE,
+            set_cookies=set_cookies,
         )
 
     if "text/html" in content_type:

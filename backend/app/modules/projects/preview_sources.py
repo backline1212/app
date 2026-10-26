@@ -80,7 +80,7 @@ async def _read_capped(response: httpx.Response, limit: int) -> bytes:
     return b"".join(chunks)
 
 
-def _usable(data: bytes) -> bool:
+def usable_picture(data: bytes) -> bool:
     from PIL import Image
 
     try:
@@ -122,6 +122,6 @@ async def social_image(url: str) -> bytes:
                     data = await _read_capped(image, MAX_IMAGE_BYTES)
             except (httpx.HTTPError, ValueError):
                 continue
-            if _usable(data):
+            if usable_picture(data):
                 return data
     raise ValueError("This site doesn't publish a share image (og:image) to use as its preview.")

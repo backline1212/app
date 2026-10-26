@@ -32,7 +32,7 @@ export function installDashboardBridge(): void {
   });
 }
 
-function readData(blob: Blob): Promise<string> {
+export function readData(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));

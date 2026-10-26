@@ -314,3 +314,14 @@ class ProjectHardDeleteResult(BaseModel):
     correlation_id: str
     status: Literal["deleted"]
     counts: ProjectDeletionCounts
+
+
+class PreviewImageIn(BaseModel):
+    """A member's own screenshot of the site's start page, offered as the card picture
+    (TDR-0197) - the Backline extension sends it when it opens the site for review."""
+
+    data_url: str = Field(min_length=32, max_length=8_000_000)
+
+
+class PreviewImageOut(BaseModel):
+    used: bool

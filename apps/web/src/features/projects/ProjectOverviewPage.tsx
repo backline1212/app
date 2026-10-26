@@ -37,6 +37,7 @@ import {
   ShareIcon,
 } from "./panel/icons";
 import { ProjectSidePanel } from "./panel/ProjectSidePanel";
+import { ScreenshotBoard } from "./ScreenshotBoard";
 import { canvasOrigin } from "./canvas-origin";
 import { CanvasResizer, type ResizePhase } from "./CanvasResizer";
 import { ProjectForm } from "./ProjectForm";
@@ -427,6 +428,12 @@ export function ProjectOverviewPage() {
       if (!canvasWindow || event.source !== canvasWindow || event.origin !== canvasOrigin(canvasRef.current)) return;
       if (event.data?.type === "backline:widget-error") {
         setWidgetError(typeof event.data.message === "string" ? event.data.message : "Unknown error");
+        return;
+      }
+      // The proxy recognised a bot-protection challenge instead of the site (TDR-0197):
+      // no point waiting for comment tools that can't connect.
+      if (event.data?.type === "backline:site-blocked") {
+        setWidgetError("This website's bot protection (for example Cloudflare) answered Backline's preview with a challenge page instead of the site.");
         return;
       }
       if (event.data?.type !== "backline:page-registered") return;
@@ -968,6 +975,14 @@ export function ProjectOverviewPage() {
     : widgetConnected ? iframeStatus : "loading";
   const canvasToolsReady = effectiveFrameStatus === "loaded" && !isCrossBrowserRenderActive;
   const previewFailed = effectiveFrameStatus === "error";
+  // Plan B (TDR-0197): feedback on its screenshots - automatic when the preview can't
+  // load the site, or chosen from the canvas bar.
+  const shotsRequested = searchParams.get("canvas") === "shots";
+  const showShots = previewFailed || shotsRequested;
+  function openFromShots(comment: CommentOut) {
+    setSelectedCommentId(comment.id);
+    updateViewParams({ panel: "comments" });
+  }
   const realBrowserSite = realBrowserSiteName(project.target_origin);
   const toolsUnavailableReason = previewFailed
     ? "Open with extension or retry the preview to leave feedback."
@@ -1223,6 +1238,14 @@ export function ProjectOverviewPage() {
                 <span className="bl-live-frame-lights" aria-hidden="true"><i /><i /><i /></span>
                 <span className="bl-live-frame-address" title={displayAddress}>{displayAddress.replace(/^https?:\/\//, "")}</span>
                 <span className="bl-live-frame-source"><i aria-hidden="true" />Website preview</span>
+                <button
+                  type="button"
+                  className={`bl-live-frame-shots${showShots ? " is-on" : ""}`}
+                  aria-pressed={showShots}
+                  disabled={previewFailed}
+                  title={previewFailed ? "The preview couldn't load, so feedback is shown on screenshots" : showShots ? "Back to the live preview" : "Show feedback on its screenshots"}
+                  onClick={() => updateViewParams({ canvas: shotsRequested ? null : "shots" })}
+                >Screenshots</button>
                 <button type="button" onClick={reloadPreview} aria-label="Reload proxy preview" title="Reload proxy preview">
                   <ReloadIcon width={13} height={13} className={iframeStatus === "loading" ? "bl-is-spinning" : ""} />
                 </button>
@@ -1236,33 +1259,44 @@ export function ProjectOverviewPage() {
                   onLoad={() => setIframeStatus("loaded")}
                   onError={() => setIframeStatus("error")}
                 />
-                {effectiveFrameStatus === "loading" && (
+                {effectiveFrameStatus === "loading" && !showShots && (
                   <div className="bl-iframe-state is-loading" role="status">
                     <span className="bl-review-loader" aria-hidden="true" />
                     <strong>Loading {displayAddress.replace(/^https?:\/\//, "")}</strong>
                     <span className="bl-iframe-steps" aria-hidden="true"><i /><i /><i /></span>
                     <p>Wait for the comment tools to connect. If this website needs its normal browser login, use Open with extension.</p>
-                    <button type="button" className="bl-quiet" onClick={() => updateViewParams({ panel: "comments" })}>View saved feedback</button>
+                    <button type="button" className="bl-quiet" onClick={() => updateViewParams({ canvas: "shots" })}>View saved feedback</button>
                   </div>
                 )}
-                {previewFailed && (
-                  <div className="bl-iframe-state is-error" role="alert">
-                    <span className="bl-review-state-icon is-warning"><GlobeIcon /></span>
-                    <strong>This website couldn't open in the preview</strong>
-                    <p>Your saved feedback is still available. Open with extension uses the real website and your normal login.</p>
-                    <div>
-                      {user && canComment && <button type="button" className="bl-button" onClick={() => nativeReviewTrigger.current?.click()}>Open with extension</button>}
-                      <button type="button" className="bl-button" onClick={() => updateViewParams({ panel: "comments" })}>View saved feedback</button>
-                      <button type="button" className="bl-quiet" onClick={reloadPreview}>Retry preview</button>
-                      <a className="bl-quiet" href={displayUrl} target="_blank" rel="noreferrer">Open live page</a>
-                      {canManageProject ? <button type="button" className="bl-quiet" onClick={() => setShowSettings(true)}>Check URL</button> : <p>Ask a project manager if the project URL needs changing.</p>}
-                    </div>
-                    {widgetError && <details><summary>Connection details</summary><p>{widgetError}</p></details>}
+                {showShots && (
+                  <div className="bl-iframe-shots">
+                    {previewFailed ? (
+                      <div className="bl-shotboard-note is-warning" role="alert">
+                        <span className="bl-review-state-icon is-warning"><GlobeIcon /></span>
+                        <div>
+                          <strong>This website couldn't open in the preview</strong>
+                          <p>It may block automated visitors or need its normal sign-in. Your feedback is shown on its screenshots below; Open with extension uses the real website.</p>
+                          <div className="bl-shotboard-actions">
+                            {user && canComment && <button type="button" className="bl-button" onClick={() => nativeReviewTrigger.current?.click()}>Open with extension</button>}
+                            <button type="button" className="bl-quiet" onClick={reloadPreview}>Retry preview</button>
+                            <a className="bl-quiet" href={displayUrl} target="_blank" rel="noreferrer">Open live page</a>
+                            {canManageProject ? <button type="button" className="bl-quiet" onClick={() => setShowSettings(true)}>Check URL</button> : null}
+                          </div>
+                          {widgetError && <details><summary>Connection details</summary><p>{widgetError}</p></details>}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bl-shotboard-note">
+                        <p>Feedback on the screenshots it was posted with. Select one to open its thread.</p>
+                        <button type="button" className="bl-quiet" onClick={() => updateViewParams({ canvas: null })}>Back to live preview</button>
+                      </div>
+                    )}
+                    <ScreenshotBoard comments={commentsQuery.data ?? []} pages={sortedPages} activePageId={activePage?.id ?? null} selectedId={selectedCommentId} onOpen={openFromShots} />
                   </div>
                 )}
               </div>
               <div className="bl-live-frame-meta">
-                <span className={previewFailed ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{previewFailed ? "Preview unavailable — use Open with extension or Retry preview" : !widgetConnected ? "Connecting comment tools…" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : mode === "view" ? "View only — open a pin to read it. Your role on this project can't add comments" : "Browse mode — comments are hidden, use the site as normal")}</span>
+                <span className={previewFailed ? "bl-frame-error" : undefined} title={widgetError ?? selectionStatus ?? undefined} role="status">{previewFailed ? "Preview unavailable — feedback is shown on its screenshots" : shotsRequested ? "Screenshot view — select a card to open its thread" : !widgetConnected ? "Connecting comment tools…" : selectionStatus ?? (mode === "comment" ? "Comment mode — click the page to place a pin" : mode === "draw" ? "Draw mode — click and drag to select an area" : mode === "view" ? "View only — open a pin to read it. Your role on this project can't add comments" : "Browse mode — comments are hidden, use the site as normal")}</span>
                 <span>Review inside Backline</span>
               </div>
               {!viewport && (
