@@ -62,7 +62,10 @@ export function PlanPricingCard({ plan, interval, currency, currentPlanId, canMa
       )}
 
       <ul className="bl-price-features">
-        {plan.features.map((feature) => (
+        {plan.features.map((feature) => /^Everything in .*plus:$/.test(feature.label) ? (
+          // "Everything in Free Starter, plus:" introduces the list rather than being one item.
+          <li key={feature.label} className="is-lead"><span>{feature.label}</span></li>
+        ) : (
           <li key={feature.label} className={feature.coming_soon ? "is-soon" : undefined}>
             <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
               {feature.coming_soon

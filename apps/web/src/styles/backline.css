@@ -3364,3 +3364,5 @@ td .bl-file-approval{margin-left:6px}
 .bl-marked-shot > img { max-width: 100%; }
 .bl-shot-frame .bl-marked-shot { display: block; width: 100%; }
 .bl-shot-frame .bl-marked-shot > img { width: 100%; height: auto; object-fit: initial; }
+.bl-project-type-card:disabled { opacity: .55; cursor: not-allowed; }
+.bl-price-features li.is-lead { font-weight: 600; color: var(--ink); padding-left: 0; }

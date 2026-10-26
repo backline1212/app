@@ -64,10 +64,12 @@ PLANS: dict[str, dict[str, Any]] = {
         "ai_credits_monthly": 200,
         "storage_gb": 20,
         "features": [
+            # Each paid tier says what it adds; without this line Solo Pro listed fewer
+            # features than Free and upgrading looked like losing some (TDR-0211).
+            _feature("Everything in Free Starter, plus:"),
             _feature("5 active projects"),
             _feature("5 team members"),
             _feature("200 AI review credits / month"),
-            _feature("Unlimited guest & client reviewers"),
             _feature("20 GB storage"),
         ],
     },
@@ -86,6 +88,7 @@ PLANS: dict[str, dict[str, Any]] = {
         "ai_credits_monthly": 1000,
         "storage_gb": 100,
         "features": [
+            _feature("Everything in Solo Pro, plus:"),
             _feature("20 active projects"),
             _feature("15 team members"),
             _feature("1,000 AI review credits / month (BugHunt AI)"),
@@ -109,6 +112,7 @@ PLANS: dict[str, dict[str, Any]] = {
         "ai_credits_monthly": 10000,
         "storage_gb": 1000,
         "features": [
+            _feature("Everything in Team Standard, plus:"),
             _feature("Unlimited projects"),
             _feature("100 team members"),
             _feature("10,000 AI review credits / month"),

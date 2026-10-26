@@ -340,11 +340,14 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         <div className="bl-project-type-body">
           <div className="bl-project-type-grid primary" role="radiogroup" aria-label="Project type">
             {PROJECT_TYPES.map((item) => (
-              <button key={item.id} type="button" role="radio" aria-checked={typeChosen && kind === item.id} className="bl-project-type-card" onClick={() => { if (kind !== item.id) { setFiles([]); setFileError(""); } setKind(item.id); setTypeChosen(true); }}><span className="bl-type-icon"><TypeIcon type={item.id} /></span><span><strong>{item.label}</strong><small>{item.description}</small></span></button>
+              <button key={item.id} type="button" role="radio" aria-checked={typeChosen && kind === item.id} disabled={atProjectLimit} className="bl-project-type-card" onClick={() => { if (kind !== item.id) { setFiles([]); setFileError(""); } setKind(item.id); setTypeChosen(true); }}><span className="bl-type-icon"><TypeIcon type={item.id} /></span><span><strong>{item.label}</strong><small>{item.description}</small></span></button>
             ))}
           </div>
         </div>
-        <footer className="bl-dialog-actions bl-dialog-actions-bordered"><button type="button" className="bl-quiet" onClick={onClose}>Cancel</button><button type="button" className="bl-button mint" disabled={!typeChosen} onClick={() => setPhase("details")}>Continue</button></footer>
+        <footer className="bl-dialog-actions bl-dialog-actions-bordered"><button type="button" className="bl-quiet" onClick={onClose}>Cancel</button>{atProjectLimit
+          // Nothing to fill in until there's room: say how to make some (TDR-0211).
+          ? <><Link className="bl-quiet" to={`/w/${workspace.slug}?display=list`} onClick={onClose}>Archive a project</Link><Link className="bl-button mint" to={`/w/${workspace.slug}/billing`} onClick={onClose}>See plans</Link></>
+          : <button type="button" className="bl-button mint" disabled={!typeChosen} onClick={() => setPhase("details")}>Continue</button>}</footer>
       </Dialog>
     );
   }

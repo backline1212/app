@@ -5161,3 +5161,9 @@ database migration, or production deployment is claimed.
 - Phone (iPhone 13 viewport) client review of an image project: join, tap to pin, post
   (#5). Ticket #4 in the dashboard shows pin "4" on the "Buy now" button the client
   clicked. Web lint/typecheck.
+
+# 2026-10-27: Project limit and plan lists (TDR-0211)
+
+- Free workspace at 2/2 projects: New project shows the limit with "Archive a project" /
+  "See plans"; billing lists "Everything in Free Starter, plus:"; sandbox upgrade to Solo
+  Pro updated the sidebar to "2 of 5 projects". ruff, mypy, web lint/typecheck.
