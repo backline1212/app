@@ -35,6 +35,9 @@ API and worker (same values for both):
   (`CLICKUP_*`, `JIRA_*`, `ASANA_*`), AI (`GROQ_API_KEYS` JSON array; without it AI
   actions say "AI is not configured"), `SENTRY_DSN`, review preview/custom domains
   (`PROXY_PREVIEW_DOMAIN`, `CUSTOM_DOMAIN_CNAME_TARGET`, `VERCEL_*`).
+  Card pictures from real page screenshots: `PREVIEW_SCREENSHOT_URL` (a screenshot service
+  URL with `{url}`, e.g. thum.io or Microlink; it receives each website project's start URL).
+  Without it, cards use the site's share image, the extension's capture or a comment screenshot.
 
 Web (Vercel): `VITE_API_BASE_URL`, `VITE_SENTRY_DSN` (optional),
 `VITE_EXTENSION_STORE_URL` (set once the Chrome Web Store listing is approved; until

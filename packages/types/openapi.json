@@ -15065,6 +15065,18 @@
             "maxLength": 8000000,
             "minLength": 32,
             "title": "Data Url"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 24
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
           }
         },
         "type": "object",
@@ -15845,6 +15857,35 @@
               }
             ],
             "title": "Preview Requested At"
+          },
+          "preview_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "screenshot",
+                  "share-image",
+                  "extension",
+                  "comment",
+                  "file"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Source"
+          },
+          "preview_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Ref"
           },
           "file_approval": {
             "anyOf": [

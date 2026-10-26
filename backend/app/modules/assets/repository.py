@@ -195,6 +195,23 @@ class AssetRepository:
         ).to_list(length=len(project_ids))
         return {row["_id"]: {"approved": row["approved"], "total": row["total"]} for row in rows}
 
+    async def current_ids(self, workspace_id: str, asset_ids: Sequence[str]) -> set[str]:
+        """Which of these files are still the current, non-archived version (a file
+        project's card picture is only shown while its file is, TDR-0198)."""
+        oids = [oid for oid in map(to_object_id, asset_ids) if oid is not None]
+        if not oids:
+            return set()
+        cursor = self.db.project_assets.find(
+            {
+                "workspace_id": workspace_id,
+                "_id": {"$in": oids},
+                "archived_at": None,
+                "superseded_by": None,
+            },
+            {"_id": 1},
+        )
+        return {str(doc["_id"]) async for doc in cursor}
+
     async def set_approval(
         self, workspace_id: str, project_id: str, asset_id: str, approval: dict[str, Any] | None
     ) -> bool:

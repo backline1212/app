@@ -4728,6 +4728,8 @@ export interface components {
         PreviewImageIn: {
             /** Data Url */
             data_url: string;
+            /** Asset Id */
+            asset_id?: string | null;
         };
         /** PreviewImageOut */
         PreviewImageOut: {
@@ -5054,6 +5056,10 @@ export interface components {
             preview_captured_at?: string | null;
             /** Preview Requested At */
             preview_requested_at?: string | null;
+            /** Preview Source */
+            preview_source?: ("screenshot" | "share-image" | "extension" | "comment" | "file") | null;
+            /** Preview Ref */
+            preview_ref?: string | null;
             file_approval?: components["schemas"]["FileApprovalSummary"] | null;
         };
         /**

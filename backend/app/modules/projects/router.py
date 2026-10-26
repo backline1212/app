@@ -196,6 +196,7 @@ async def offer_project_preview_image(
         project_id=project_id,
         workspace_id=require_workspace_context(session),
         data_url=body.data_url,
+        asset_id=body.asset_id,
     )
 
 

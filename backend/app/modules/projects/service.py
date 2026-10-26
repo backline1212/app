@@ -442,6 +442,7 @@ async def offer_preview_image(
     project_id: str,
     workspace_id: str,
     data_url: str,
+    asset_id: str | None = None,
 ) -> PreviewImageOut:
     doc = await ProjectRepository(db).find_by_id(project_id)
     if doc is None or doc["workspace_id"] != workspace_id:
@@ -453,7 +454,13 @@ async def offer_preview_image(
         picture = base64.b64decode(match.group(2), validate=True)
     except (binascii.Error, ValueError) as exc:
         raise ValidationError("The image data could not be read.") from exc
-    used = await preview_service.store_member_capture(db, doc, picture)
+    if asset_id is not None:
+        from app.modules.assets.repository import AssetRepository
+
+        asset = await AssetRepository(db).find(workspace_id, project_id, asset_id)
+        if asset is None or asset.get("archived_at") or asset.get("superseded_by"):
+            raise ValidationError("That file isn't a current file of this project.")
+    used = await preview_service.store_member_capture(db, doc, picture, asset_id=asset_id)
     return PreviewImageOut(used=used)
 
 

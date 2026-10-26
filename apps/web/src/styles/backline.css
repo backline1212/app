@@ -829,6 +829,10 @@ button{letter-spacing:inherit}
 .bl-project-art-shot img{position:absolute;left:0;top:25px;width:100%;height:calc(100% - 25px);object-fit:cover;object-position:top center;display:block;transition:transform .4s cubic-bezier(.2,.75,.25,1);transform-origin:top center}
 .bl-project:hover .bl-project-art-shot img{transform:scale(1.025)}
 .list .bl-project-art-shot img,.table .bl-project-art-shot img{top:0;height:100%}
+.bl-project-art-shot.is-share img{object-fit:contain;object-position:center}
+.bl-project-art-shot.is-share img.bl-art-fill{object-fit:cover;filter:blur(18px) saturate(1.2);opacity:.45;transform:scale(1.15)}
+.bl-project:hover .bl-project-art-shot.is-share img.bl-art-fill{transform:scale(1.15)}
+.bl-project-art-shot.is-file{background:var(--bl-paper)}.bl-project-art-shot.is-file img{top:0;height:100%;object-position:top center}
 .bl-preview-capturing{position:absolute;left:9px;bottom:9px;z-index:1;padding:3px 6px;border-radius:2px;background:var(--bl-glass);border:1px solid rgba(221,222,218,.85);font:10px var(--bl-mono);color:var(--bl-muted);animation:bl-capturing 1.6s ease-in-out infinite}
 @keyframes bl-capturing{50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.bl-preview-capturing{animation:none}}
