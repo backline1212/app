@@ -561,7 +561,6 @@ Optional, add later if you set them up:
 
 | Name | Value |
 |---|---|
-| `VITE_GOOGLE_OAUTH_CLIENT_ID` | from Part 12 |
 | `VITE_SENTRY_DSN` | from Part 13 |
 | `VITE_EXTENSION_STORE_URL` | Chrome Web Store listing URL, after Google approves the extension (optional) |
 
@@ -640,7 +639,7 @@ Skip this for launch if you like; email codes work on their own.
    GOOGLE_OAUTH_CLIENT_SECRET=...
    GOOGLE_OAUTH_REDIRECT_URI=https://app.yourdomain.com/auth/callback
    ```
-9. Add to **Vercel**: `VITE_GOOGLE_OAUTH_CLIENT_ID=...` then **redeploy**
+9. Nothing to add on Vercel: the dashboard asks the API for the Google sign-in URL.
 
 ---
 
@@ -889,5 +888,4 @@ every variable, which are required, and how to generate the secret ones.
 | Variable | Meaning |
 |---|---|
 | `VITE_API_BASE_URL` | Where the dashboard sends requests |
-| `VITE_GOOGLE_OAUTH_CLIENT_ID` | Google sign-in |
 | `VITE_SENTRY_DSN` | Error alerts |

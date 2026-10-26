@@ -6,14 +6,17 @@ from urllib.parse import urlparse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import ValidationError
-from app.core.events import append_event
 from app.core.permissions import Role, role_allows
 from app.core.project_access import can_view_project, session_hidden_project_ids
 from app.core.session import Session
-from app.modules.comments import events as comment_events
 from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
 from app.modules.comments.repository import CommentRepository
-from app.modules.comments.service import _broadcast_comment_event, _comment_out, serialize_comments
+from app.modules.comments.service import (
+    _broadcast_comment_event,
+    _comment_out,
+    _create_with_integration_intent,
+    serialize_comments,
+)
 from app.modules.dashboard.repository import DashboardRepository, page_title_match, root_pipeline
 from app.modules.dashboard.schemas import (
     ActivityListOut,
@@ -461,18 +464,19 @@ async def create_ticket(
             require_matching_replay(existing, candidate)
             return await ticket_out(existing)
     candidate["ticket_number"] = await CommentRepository(db).next_ticket_number(workspace_id)
-    doc = await CommentRepository(db).create(candidate)
+    # Like any other new ticket: reaches Slack/Teams/Discord/webhooks (TDR-0204).
+    doc = await _create_with_integration_intent(
+        db,
+        doc=candidate,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        actor_type="member",
+        actor_id=actor.user_id,
+        event_payload={"project_id": project_id},
+    )
     if doc is not candidate:
         return await ticket_out(doc)
     comment = await _comment_out(db, doc)
-    await append_event(
-        db,
-        workspace_id=workspace_id,
-        type=comment_events.COMMENT_CREATED,
-        actor_type="member",
-        actor_id=actor.user_id,
-        payload={"comment_id": comment.id, "project_id": project_id},
-    )
     await _broadcast_comment_event(
         event_type="comment.created",
         workspace_id=workspace_id,
