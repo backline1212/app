@@ -17,12 +17,14 @@ import type { WorkspaceOut } from "../workspaces/api";
 // One place to see and revoke every credential you hold in this workspace. There are
 // two kinds, issued by different backends:
 // - API keys are extension tokens (modules/extension_tokens). get_current_session
-//   accepts one as `Authorization: Bearer` on any member endpoint, so the same key
-//   powers the browser extension and scripts calling the REST API.
+//   accepts one as `Authorization: Bearer` on the review endpoints allowlisted in
+//   core/extension_access.py (projects, pages, comments, uploads), for 30 days. Keys
+//   the dashboard mints for one browser review (project_id set) aren't listed here.
 // - MCP tokens (modules/mcp) only authenticate the /mcp server. They are created on the
 //   MCP Server page, which also writes the per-client setup, so this page lists and
 //   revokes them but links there to create one.
-// Both kinds act as the member who created them, with that member's role.
+// Both kinds act as the member who created them. An API key stops when that member's
+// role changes; an MCP token follows their current role.
 
 type KeyRow =
   | { kind: "api"; id: string; name: string; createdAt: string; lastUsedAt: string | null; expiresAt: string | null }
@@ -98,7 +100,8 @@ export function ApiKeysPage() {
 
   const rows: KeyRow[] = [
     ...(apiKeys.data ?? [])
-      .filter((token) => !token.revoked_at)
+      // A browser review's own short-lived key isn't one the member created here.
+      .filter((token) => !token.revoked_at && !token.project_id && Date.parse(token.expires_at) > Date.now())
       .map((token): KeyRow => ({
         kind: "api",
         id: token.id,
@@ -135,8 +138,8 @@ export function ApiKeysPage() {
         <div>
           <h1>API keys</h1>
           <p>
-            Personal credentials for {workspace.name}. Every key acts as you, with your role, and stops working the
-            moment you revoke it or your role changes.
+            Personal credentials for {workspace.name}. Every key acts as you and stops working the moment you
+            revoke it. API keys also stop when your role changes; MCP tokens follow your current role.
           </p>
         </div>
       </header>
@@ -144,7 +147,7 @@ export function ApiKeysPage() {
       <section className="bl-attention bl-int-section">
         <header>
           <h2>Create an API key</h2>
-          <span>For scripts, CI and the browser extension.</span>
+          <span>For the browser extension and scripts that read projects or post feedback. Expires in 30 days.</span>
         </header>
         <div className="bl-mcp-body">
           <form className="bl-mcp-form" onSubmit={handleCreate}>
@@ -201,7 +204,8 @@ export function ApiKeysPage() {
           </div>
           <pre className="bl-code">{example}</pre>
           <p className="bl-mono">
-            Every endpoint, with request and response shapes:{" "}
+            A key can list projects, read and post pages and comments, and upload screenshots; account and
+            workspace settings stay in Backline. Request and response shapes:{" "}
             <a href={`${API_BASE_URL.replace(/\/+$/, "")}/docs`} target="_blank" rel="noreferrer">API reference ↗</a>
           </p>
         </div>

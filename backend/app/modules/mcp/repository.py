@@ -78,3 +78,11 @@ class McpTokenRepository:
         await self.db.mcp_personal_tokens.update_one(
             {"_id": token_id}, {"$set": {"revoked_at": datetime.now(UTC)}}
         )
+
+    async def revoke_all_for_user(self, user_id: ObjectId) -> None:
+        """Sign-out-everywhere and password change end MCP tokens too: they are
+        long-lived bearer tokens like extension connections."""
+        # workspace-scope-exempt: a user's own tokens across workspaces, revoked by user id
+        await self.db.mcp_personal_tokens.update_many(
+            {"user_id": user_id, "revoked_at": None}, {"$set": {"revoked_at": datetime.now(UTC)}}
+        )

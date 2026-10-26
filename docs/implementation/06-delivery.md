@@ -5073,3 +5073,12 @@ database migration, or production deployment is claimed.
   browser when the file is viewed). Share-image cards (e.g. YouTube's logo banner) are
   shown whole instead of cropped. Optional `PREVIEW_SCREENSHOT_URL` gives real page
   screenshots for public sites.
+
+# 2026-10-27: AI cost bounds and key fixes (TDR-0199)
+
+- AI: output cap, bounded thread context, per-member rate limit (10/min), team notes kept
+  out of client-thread summaries, key always released, one 5xx retry, prompt fencing.
+- MCP tokens are revoked by "Sign out everywhere" and password change.
+- API keys page copy matches what keys can do; browser-review keys hidden.
+- Verified: ruff, mypy, workspace scoping, web lint/typecheck; a mocked Groq run showed
+  a 502 retried on the second key, a `null` completion handled and no key left claimed.
