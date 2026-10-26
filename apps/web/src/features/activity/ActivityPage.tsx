@@ -62,6 +62,7 @@ const EVENT_PHRASES: Record<string, string> = {
   "asset.approved": "approved a file",
   "asset.approval_withdrawn": "withdrew approval of a file",
   "workspace.updated": "updated the workspace",
+  "workspace.plan_changed": "changed the plan to",
 };
 
 type ActivityItem = Schemas["ActivityListOut"]["items"][number];
