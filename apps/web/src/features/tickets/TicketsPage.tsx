@@ -27,6 +27,7 @@ const VIEW_LAYOUTS = [
 const VIEW_TABS: { key: string; label: string }[] = [
   { key: "all", label: "Everyone" },
   { key: "mine", label: "Assigned to me" },
+  { key: "new", label: "New from clients" },
   { key: "reply", label: "Needs your reply" },
   { key: "client", label: "Waiting on client" },
   { key: "overdue", label: "Overdue" },
@@ -82,6 +83,7 @@ export function TicketsPage() {
   const tabCounts: Record<string, number | undefined> = {
     all: dashboard.data?.tickets,
     mine: dashboard.data?.assigned_to_me,
+    new: dashboard.data?.new_from_clients,
     reply: dashboard.data?.needs_reply,
     client: dashboard.data?.waiting_on_client,
     overdue: dashboard.data?.overdue,
@@ -109,6 +111,7 @@ export function TicketsPage() {
   const narrowed = activeFilters.length > 0 || Boolean(params.get("search"));
   const emptyTab: Record<string, string> = {
     mine: "Nothing is assigned to you right now.",
+    new: "No new client feedback. Everything clients sent has an owner or is under way.",
     reply: "Nobody is waiting on a reply from you.",
     client: "Nothing is waiting on a client.",
     overdue: "Nothing is overdue.",

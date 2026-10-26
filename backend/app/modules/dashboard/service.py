@@ -239,6 +239,7 @@ async def summary(
         statuses=statuses,
         assigned_to_me=personal.get("assigned_to_me", 0),
         needs_reply=personal.get("needs_reply", 0),
+        new_from_clients=personal.get("new_from_clients", 0),
         waiting_on_client=personal.get("waiting_on_client", 0),
         overdue=personal.get("overdue", 0),
         project_stats=[

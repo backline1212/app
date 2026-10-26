@@ -64,6 +64,8 @@ class ReviewResolveOut(BaseModel):
     # The guest-board endpoint independently re-checks this setting server-side
     # regardless of what the client does with this flag (comments/service.py::list_guest_board).
     show_board_to_client: bool = False
+    # TDR-0207: how the entry page opens the website - "ask" keeps the sign-in question.
+    client_review_mode: Literal["ask", "preview", "extension"] = "ask"
     # Same as ShareLinkOut.preview_origin - the proxy-mode handoff destination.
     preview_origin: str | None = None
     # TDR-0057: the dashboard canvas's own link. It opens only inside the dashboard, for

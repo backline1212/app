@@ -55,6 +55,8 @@ function describe(notification: NotificationOut): string {
       return `${payload.actor_name || "Someone"} added you to ${payload.project_name || "a project"} as ${roleLabel(payload.role).toLowerCase()}`;
     case "file_approved":
       return `${payload.actor_name || "Someone"} approved ${payload.file_name || "a file"}${payload.version && Number(payload.version) > 1 ? ` (v${payload.version})` : ""}`;
+    case "client_feedback":
+      return `${payload.actor_name || "A client"} ${String(payload.reply) === "true" ? "replied on" : "left feedback on"} ${payload.project_name || "a project"}`;
     case "ownership_transferred":
       return `${payload.actor_name || "Someone"} made you the owner of this workspace`;
     default:

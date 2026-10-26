@@ -115,6 +115,12 @@ def normalize_origin(value: str) -> str:
     )
 
 
+# How a client opens a website project's review link (TDR-0207): straight into the
+# in-app preview, straight to the extension (sign-in or bot-protected sites), or the
+# entry page asks them. The team knows its site; a client usually doesn't.
+ClientReviewMode = Literal["ask", "preview", "extension"]
+
+
 class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     target_origin: str = Field(default="", max_length=500)
@@ -129,6 +135,7 @@ class ProjectCreate(BaseModel):
     visibility: ProjectVisibility = "workspace"
     default_role: ProjectRoleName = "editor"
     members: list[ProjectAccessMemberIn] = Field(default_factory=list, max_length=500)
+    client_review_mode: ClientReviewMode | None = None
 
     @field_validator("target_origin")
     @classmethod
@@ -236,6 +243,7 @@ class ProjectSettingsOut(BaseModel):
     # unless explicitly muted, matching the pre-existing always-on behavior this flag
     # is retrofitted in front of).
     slack_notifications_enabled: bool = True
+    client_review_mode: ClientReviewMode = "ask"
 
 
 class ProjectSettingsUpdate(BaseModel):
@@ -248,6 +256,7 @@ class ProjectSettingsUpdate(BaseModel):
     client_digest_enabled: bool | None = None
     enable_cross_browser_render: bool | None = None
     slack_notifications_enabled: bool | None = None
+    client_review_mode: ClientReviewMode | None = None
 
 
 class FileApprovalSummary(BaseModel):

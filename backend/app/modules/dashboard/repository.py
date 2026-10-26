@@ -88,6 +88,16 @@ def root_pipeline(
     ]
 
 
+# Client feedback nobody has picked up (TDR-0208): from a reviewer, not started,
+# unassigned. Root comments only - root_pipeline already limits to those.
+NEW_FROM_CLIENTS: dict[str, Any] = {
+    "author_type": "guest",
+    "by_team": {"$ne": True},
+    "status": "todo",
+    "$or": [{"assignee_ids": {"$size": 0}}, {"assignee_ids": {"$exists": False}}],
+}
+
+
 class DashboardRepository:
     def __init__(self, db: AsyncIOMotorDatabase[dict[str, Any]]) -> None:
         self.db = db
@@ -125,12 +135,15 @@ class DashboardRepository:
             match["waiting_on_ids"] = user_id
         elif filters.view == "client":
             match["waiting_on_client"] = True
+        elif filters.view == "new":
+            # In $and: the search filter above already uses the top-level $or.
+            match.setdefault("$and", []).append(NEW_FROM_CLIENTS)
         elif filters.view == "overdue":
             match["due_at"] = {
                 "$lt": datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0),
                 "$ne": None,
             }
-        if filters.view in ("reply", "client", "overdue") or filters.open_only:
+        if filters.view in ("reply", "client", "overdue", "new") or filters.open_only:
             match.setdefault("$and", []).append({"status": {"$nin": ["resolved", "wont_fix"]}})
         pipeline.append({"$match": match})
         pipeline.append(
@@ -287,6 +300,31 @@ class DashboardRepository:
                                                         "$in": [
                                                             user_id,
                                                             {"$ifNull": ["$waiting_on_ids", []]},
+                                                        ]
+                                                    },
+                                                ]
+                                            },
+                                            1,
+                                            0,
+                                        ]
+                                    }
+                                },
+                                "new_from_clients": {
+                                    "$sum": {
+                                        "$cond": [
+                                            {
+                                                "$and": [
+                                                    {"$eq": ["$author_type", "guest"]},
+                                                    {"$ne": ["$by_team", True]},
+                                                    {"$eq": ["$status", "todo"]},
+                                                    {
+                                                        "$eq": [
+                                                            {
+                                                                "$size": {
+                                                                    "$ifNull": ["$assignee_ids", []]
+                                                                }
+                                                            },
+                                                            0,
                                                         ]
                                                     },
                                                 ]

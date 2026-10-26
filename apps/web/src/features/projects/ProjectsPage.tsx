@@ -135,6 +135,8 @@ export function ProjectsPage() {
   const members = useQuery({ queryKey: qk.members(workspace.id), queryFn: () => listMembers(workspace.id) });
   const summary = useQuery({ queryKey: qk.dashboard(workspace.id), queryFn: () => getDashboard(workspace.id) });
   const attention = useQuery({ queryKey: qk.ticketsAttention(workspace.id), queryFn: () => listTickets(workspace.id, new URLSearchParams({ view: "reply", limit: "3" })) });
+  // Client feedback nobody has picked up yet (TDR-0208) - shown with what's waiting on you.
+  const fresh = useQuery({ queryKey: qk.ticketsNewFromClients(workspace.id), queryFn: () => listTickets(workspace.id, new URLSearchParams({ view: "new", limit: "3" })) });
   const stats = useMemo(() => new Map(summary.data?.project_stats.map((s) => [s.project_id, s]) ?? []), [summary.data]);
   const visible = useMemo(() => (projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (type === "all" || projectKind(p) === type) && (!params.get("client") || p.client_id === params.get("client")) && `${p.name} ${p.target_origin} ${p.start_url ?? ""}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "open" ? (stats.get(b.id)?.open ?? 0) - (stats.get(a.id)?.open ?? 0) : sort === "added" ? b.created_at.localeCompare(a.created_at) : (stats.get(b.id)?.last_activity_at ?? b.updated_at).localeCompare(stats.get(a.id)?.last_activity_at ?? a.updated_at)), [projects.data, archived, type, params, search, sort, stats]);
 
@@ -146,6 +148,13 @@ export function ProjectsPage() {
   const timeGreeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const headline = archived ? "Archived projects" : search ? `Results for "${search}"` : type !== "all" ? `${TYPE_LABELS[type] ?? "Projects"} projects` : firstName ? `${timeGreeting}, ${firstName}` : timeGreeting;
   const needsReply = summary.data?.needs_reply ?? 0;
+  const newFromClients = summary.data?.new_from_clients ?? 0;
+  const waitingTotal = (attention.data?.total ?? 0) + (fresh.data?.total ?? 0);
+  // Threads owed a reply first, then client feedback nobody has picked up.
+  const waitingItems = [
+    ...(attention.data?.items ?? []).map((ticket) => ({ ticket, fresh: false })),
+    ...(fresh.data?.items ?? []).map((ticket) => ({ ticket, fresh: true })),
+  ].slice(0, 4);
   const fullyResolved = (projects.data ?? []).filter((p) => !p.archived_at && (stats.get(p.id)?.total ?? 0) > 0 && stats.get(p.id)?.resolved === stats.get(p.id)?.total).map((p) => p.name);
 
   function projectCard(p: api.ProjectOut) {
@@ -238,7 +247,7 @@ export function ProjectsPage() {
   return <>
     <main className="bl-wrap">
       <header className="bl-head">
-        <div><h1>{headline}</h1><p>{archived ? "Finished for now. Restore a project to review it again." : search ? `${visible.length} result${visible.length === 1 ? "" : "s"} for "${search}".` : type !== "all" ? `Every ${(TYPE_LABELS[type] ?? "project").toLowerCase()} review, all in one place.` : <>{needsReply > 0 ? <><b>{needsReply} comment{needsReply === 1 ? "" : "s"}</b> {needsReply === 1 ? "is" : "are"} waiting on a reply from you</> : <><b>Nothing</b> is waiting on a reply from you</>}{fullyResolved.length > 0 ? `, and all feedback on ${joinNames(fullyResolved)} is resolved.` : "."}</>}</p></div>
+        <div><h1>{headline}</h1><p>{archived ? "Finished for now. Restore a project to review it again." : search ? `${visible.length} result${visible.length === 1 ? "" : "s"} for "${search}".` : type !== "all" ? `Every ${(TYPE_LABELS[type] ?? "project").toLowerCase()} review, all in one place.` : <>{needsReply > 0 ? <><b>{needsReply} comment{needsReply === 1 ? "" : "s"}</b> {needsReply === 1 ? "is" : "are"} waiting on a reply from you</> : newFromClients > 0 ? <><b>{newFromClients} new client comment{newFromClients === 1 ? "" : "s"}</b> {newFromClients === 1 ? "needs" : "need"} an owner</> : <><b>Nothing</b> is waiting on a reply from you</>}{fullyResolved.length > 0 ? `, and all feedback on ${joinNames(fullyResolved)} is resolved.` : "."}</>}</p></div>
         <div className="bl-head-actions">
           <time className="bl-mono bl-head-clock">{now.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}<br />{now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
         </div>
@@ -249,16 +258,16 @@ export function ProjectsPage() {
       {!archived && (
         <section className="bl-attention">
           <header>
-            <h2>Waiting on you{(attention.data?.total ?? 0) > 0 && <span className="bl-count">{attention.data?.total}</span>}</h2>
-            {(attention.data?.total ?? 0) > 0 && <Link to={`/w/${workspace.slug}/tickets?view=reply`}>View all →</Link>}
+            <h2>Waiting on you{waitingTotal > 0 && <span className="bl-count">{waitingTotal}</span>}</h2>
+            {waitingTotal > 0 && <Link to={`/w/${workspace.slug}/tickets?view=${(attention.data?.total ?? 0) > 0 ? "reply" : "new"}`}>View all →</Link>}
           </header>
-          {attention.isLoading ? (
+          {attention.isLoading || fresh.isLoading ? (
             <div className="bl-attention-empty" aria-hidden="true"><div className="bl-skeleton" style={{ height: 12, width: 240, borderRadius: 3 }} /></div>
-          ) : attention.isError ? (<p role="alert">Could not load items waiting on you. <button onClick={() => void attention.refetch()}>Retry</button></p>) : (attention.data?.items.length ?? 0) > 0 ? (
-            <div>{attention.data?.items.map((t) => <Link key={t.id} to={`/w/${workspace.slug}/tickets?comment=${t.id}&project_id=${t.project_id}`}><small>{t.project_name} · {t.page_title}</small><strong>{t.body}</strong><span>{t.author_name} · {timeAgo(t.created_at)}</span></Link>)}</div>
+          ) : attention.isError ? (<p role="alert">Could not load items waiting on you. <button onClick={() => void attention.refetch()}>Retry</button></p>) : waitingItems.length > 0 ? (
+            <div>{waitingItems.map(({ ticket: t, fresh: isNew }) => <Link key={t.id} to={`/w/${workspace.slug}/tickets?comment=${t.id}&project_id=${t.project_id}`}><small>{isNew && <span className="bl-new-client">New from client</span>}{t.project_name} · {t.page_title}</small><strong>{t.body}</strong><span>{t.author_name} · {timeAgo(t.created_at)}</span></Link>)}</div>
           ) : (
             <div className="bl-attention-empty">
-              <p>Tickets and comments waiting on your reply will show up here.</p>
+              <p>Client feedback that needs an owner, and threads waiting on your reply, show up here.</p>
               <button type="button" className="bl-quiet" onClick={() => setShowNewTicket(true)}><PlusIcon /> New ticket</button>
             </div>
           )}

@@ -16,6 +16,7 @@ NotificationType = Literal[
     "member_joined",
     "project_access_granted",
     "ownership_transferred",
+    "client_feedback",
 ]
 
 

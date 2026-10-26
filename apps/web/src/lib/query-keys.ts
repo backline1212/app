@@ -24,6 +24,7 @@ export const qk = {
   search: (id: string, query: string) => ["workspace", id, "search", query] as const,
   tickets: (id: string) => ["workspace", id, "tickets"] as const,
   ticketsAttention: (id: string) => ["workspace", id, "tickets", "attention"] as const,
+  ticketsNewFromClients: (id: string) => ["workspace", id, "tickets", "new-from-clients"] as const,
   ticketDetail: (id: string, ticketId: string) => ["workspace", id, "tickets", "detail", ticketId] as const,
   ticketsList: (id: string, queryKeyStr: string) => ["workspace", id, "tickets", queryKeyStr] as const,
   activity: (id: string) => ["workspace", id, "activity"] as const,

@@ -180,6 +180,61 @@ async def notify_comment_reply(
     )
 
 
+CLIENT_FEEDBACK_GAP_SECONDS = 10 * 60
+
+
+async def notify_client_feedback(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    project_id: str,
+    comment_id: str,
+    actor_name: str,
+    reply: bool = False,
+) -> None:
+    """A client (reviewer) left feedback (TDR-0208). Goes to the people who run the
+    project - its managers, its creator and the workspace's owners/admins - at most once
+    per person and project every 10 minutes, so a client working through a page doesn't
+    ring the bell for every pin. Best effort: never fails the comment."""
+    from app.core.redis_client import get_redis
+
+    try:
+        project = await ProjectRepository(db).find_by_id(project_id)
+        if project is None or project.get("workspace_id") != workspace_id:
+            return
+        recipients: set[str] = set()
+        if project.get("created_by"):
+            recipients.add(str(project["created_by"]))
+        for member in (project.get("access") or {}).get("members") or []:
+            if member.get("role") == "manager" and member.get("user_id"):
+                recipients.add(str(member["user_id"]))
+        for membership in await MembershipRepository(db).list_for_workspace(workspace_id):
+            if membership.get("role") in ("owner", "admin"):
+                recipients.add(str(membership["user_id"]))
+        slug = await _workspace_slug(db, workspace_id)
+        redis_client = get_redis()
+        for user_id in recipients:
+            throttle = f"client-feedback-notice:{user_id}:{project_id}"
+            if not await redis_client.set(throttle, "1", nx=True, ex=CLIENT_FEEDBACK_GAP_SECONDS):
+                continue
+            await _create_and_broadcast(
+                db,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                type=notification_events.CLIENT_FEEDBACK,
+                payload_json={
+                    "comment_id": comment_id,
+                    "project_id": project_id,
+                    "project_name": project.get("name", ""),
+                    "actor_name": actor_name,
+                    "reply": reply,
+                },
+                target_route=_comment_deep_link(slug, project_id, comment_id),
+            )
+    except Exception as exc:  # noqa: BLE001 - a notice must never fail the feedback
+        logger.warning("Client feedback notice skipped (%s)", exc.__class__.__name__)
+
+
 async def notify_comment_mention(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,

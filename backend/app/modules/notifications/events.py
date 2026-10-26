@@ -19,3 +19,5 @@ PROJECT_ACCESS_GRANTED = "project_access_granted"
 OWNERSHIP_TRANSFERRED = "ownership_transferred"
 # TDR-0184.
 FILE_APPROVED = "file_approved"
+# TDR-0208: a client (reviewer) left feedback on a project you run.
+CLIENT_FEEDBACK = "client_feedback"

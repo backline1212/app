@@ -116,6 +116,10 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   const [captureDeviceDetails, setCaptureDeviceDetails] = useState(project?.settings.capture_device_details ?? false);
   const [reviewerCanResolve, setReviewerCanResolve] = useState(project?.settings.reviewer_can_resolve ?? false);
   const [showBoardToClient, setShowBoardToClient] = useState(project?.settings.show_board_to_client ?? false);
+  // How clients open the review link (TDR-0207); the URL check suggests one until the
+  // person picks it themselves.
+  const [clientReviewMode, setClientReviewMode] = useState<ClientReviewMode>(project?.settings.client_review_mode ?? "ask");
+  const reviewModeEdited = useRef(Boolean(project));
   const [enableCrossBrowserRender, setEnableCrossBrowserRender] = useState(project?.settings.enable_cross_browser_render ?? false);
   const expectedVersion = useRef(project?.metadata_version ?? 0);
   const [loadingLatest, setLoadingLatest] = useState(false);
@@ -188,6 +192,9 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
             return;
           }
           setUrlCheck({ input, result, error: null });
+          if (!reviewModeEdited.current) {
+            setClientReviewMode(result.status === "ok" ? "preview" : result.status === "sign_in" || result.status === "blocked" ? "extension" : "ask");
+          }
         })
         .catch((error: unknown) => {
           if (controller.signal.aborted) return;
@@ -210,12 +217,13 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           reviewer_can_resolve: reviewerCanResolve,
           show_board_to_client: showBoardToClient,
           enable_cross_browser_render: enableCrossBrowserRender,
+          ...(type === "website" ? { client_review_mode: clientReviewMode } : {}),
         };
         preparedUpdate.current ??= { name: name.trim(), ...(type === "website" ? { target_origin: url.trim(), environment } : {}), client_id: clientId, new_client: newClient, settings, expected_metadata_version: expectedVersion.current, client_request_id: crypto.randomUUID() };
         return api.updateProject(project.id, preparedUpdate.current);
       }
       const members = Object.entries(grants).map(([user_id, role]) => ({ user_id, role }));
-      preparedCreate.current ??= { name: name.trim(), target_origin: type === "website" ? url.trim() : "", project_type: type, variant, environment, client_id: clientId, new_client: newClient, visibility, default_role: defaultRole, members, client_request_id: crypto.randomUUID() };
+      preparedCreate.current ??= { name: name.trim(), target_origin: type === "website" ? url.trim() : "", project_type: type, variant, environment, client_id: clientId, new_client: newClient, visibility, default_role: defaultRole, members, ...(type === "website" ? { client_review_mode: clientReviewMode } : {}), client_request_id: crypto.randomUUID() };
       const request = preparedCreate.current;
       const current = createdRef.current ?? await api.createProject(workspace.id, request.name, request.target_origin ?? "", request);
       createdRef.current = current;
@@ -278,7 +286,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
       const latest = await api.getProject(project.id);
       expectedVersion.current = latest.metadata_version ?? 0;
       setName(latest.name); setUrl(latest.start_url ?? latest.target_origin); setClient(latest.client_id ?? ""); setEnvironment(latest.environment); setEnvironmentEdited(true);
-      setCaptureDeviceDetails(latest.settings.capture_device_details); setReviewerCanResolve(latest.settings.reviewer_can_resolve); setShowBoardToClient(latest.settings.show_board_to_client); setEnableCrossBrowserRender(latest.settings.enable_cross_browser_render);
+      setCaptureDeviceDetails(latest.settings.capture_device_details); setReviewerCanResolve(latest.settings.reviewer_can_resolve); setShowBoardToClient(latest.settings.show_board_to_client); setEnableCrossBrowserRender(latest.settings.enable_cross_browser_render); setClientReviewMode(latest.settings.client_review_mode ?? "ask");
       setNewClientName(""); setNewClientContact(""); setNewClientEmail("");
       preparedUpdate.current = null; ambiguous.current = false; setRetryLocked(false); setDraftCopy(""); setPhase("details"); save.reset();
       cache.setQueryData(qk.project(latest.id), latest);
@@ -397,6 +405,16 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
           <div className="bl-form-section"><label htmlFor="project-url">Review URL <span className="bl-required">Required</span></label><input id="project-url" className="bl-input" required type="text" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); if (!environmentEdited) setEnvironment(detectEnvironment(event.target.value)); }} onBlur={() => { if (!name.trim() && url.trim()) { try { setName(new URL(/^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`).hostname.replace(/^www\./, "")); } catch { /* leave the name for the reviewer to type */ } } }} placeholder="staging.yoursite.com" disabled={Boolean(created) || save.isPending} aria-describedby="project-url-check" /><small>Backline loads this page each time a reviewer opens the project. HTTP and HTTPS addresses are supported.</small>
             <UrlCheckLine id="project-url-check" checking={checkingUrl && validUrl} check={urlCheck?.input === url.trim() ? urlCheck : null} />
           </div>
+          <fieldset className="bl-form-section bl-review-mode">
+            <legend>How clients open it</legend>
+            <div className="bl-segment" role="radiogroup" aria-label="How clients open it">
+              {CLIENT_REVIEW_MODES.map((option) => (
+                <button key={option.id} type="button" role="radio" aria-checked={clientReviewMode === option.id} disabled={Boolean(created) || save.isPending}
+                  onClick={() => { reviewModeEdited.current = true; setClientReviewMode(option.id); }}>{option.label}</button>
+              ))}
+            </div>
+            <small>{CLIENT_REVIEW_MODES.find((option) => option.id === clientReviewMode)?.help}</small>
+          </fieldset>
           <fieldset className="bl-environment-field" disabled={Boolean(created) || save.isPending}><legend>Environment</legend><div className="bl-segment"><button type="button" aria-pressed={environment === "staging"} onClick={() => { setEnvironment("staging"); setEnvironmentEdited(true); }}>Staging</button><button type="button" aria-pressed={environment === "live"} onClick={() => { setEnvironment("live"); setEnvironmentEdited(true); }}>Live</button></div><small>{environmentEdited ? "Manually selected." : "Detected from the domain — override it here if needed."}</small></fieldset>
         </> : !project ? <>{kind === "mobile" && <div className="bl-form-section">
           <label htmlFor="project-build">Build and device <span className="bl-optional">Optional</span></label>
@@ -435,6 +453,13 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
     </Dialog>
   );
 }
+
+type ClientReviewMode = Schemas["ProjectSettingsOut"]["client_review_mode"];
+const CLIENT_REVIEW_MODES: { id: ClientReviewMode; label: string; help: string }[] = [
+  { id: "preview", label: "In the preview", help: "Public pages: the review link opens the site in Backline's preview, nothing to install." },
+  { id: "extension", label: "With the extension", help: "Sites that need a sign-in or block previews: clients review the real site with the browser extension." },
+  { id: "ask", label: "Let them choose", help: "The review link asks the client whether the site needs a sign-in." },
+];
 
 function UrlCheckLine({ id, checking, check }: { id: string; checking: boolean; check: { result: api.UrlCheckOut | null; error: string | null } | null }) {
   if (checking) return <p id={id} className="bl-url-check" role="status">Checking the address…</p>;

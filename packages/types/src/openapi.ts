@@ -3576,6 +3576,11 @@ export interface components {
             assigned_to_me: number;
             /** Needs Reply */
             needs_reply: number;
+            /**
+             * New From Clients
+             * @default 0
+             */
+            new_from_clients: number;
             /** Waiting On Client */
             waiting_on_client: number;
             /** Overdue */
@@ -4540,7 +4545,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "file_approved" | "comment_assigned" | "comment_reply" | "comment_mention" | "comment_status_changed" | "share_link_created" | "integration_disconnected" | "deploy_recovery_completed" | "join_requested" | "member_joined" | "project_access_granted" | "ownership_transferred";
+            type: "file_approved" | "comment_assigned" | "comment_reply" | "comment_mention" | "comment_status_changed" | "share_link_created" | "integration_disconnected" | "deploy_recovery_completed" | "join_requested" | "member_joined" | "project_access_granted" | "ownership_transferred" | "client_feedback";
             /** Payload */
             payload: Record<string, never>;
             /** Target Route */
@@ -4912,6 +4917,8 @@ export interface components {
             default_role: "viewer" | "commenter" | "editor" | "manager";
             /** Members */
             members?: components["schemas"]["ProjectAccessMemberIn"][];
+            /** Client Review Mode */
+            client_review_mode?: ("ask" | "preview" | "extension") | null;
         };
         /** ProjectDeletionCounts */
         ProjectDeletionCounts: {
@@ -5193,6 +5200,12 @@ export interface components {
              * @default true
              */
             slack_notifications_enabled: boolean;
+            /**
+             * Client Review Mode
+             * @default ask
+             * @enum {string}
+             */
+            client_review_mode: "ask" | "preview" | "extension";
         };
         /**
          * ProjectSettingsUpdate
@@ -5213,6 +5226,8 @@ export interface components {
             enable_cross_browser_render?: boolean | null;
             /** Slack Notifications Enabled */
             slack_notifications_enabled?: boolean | null;
+            /** Client Review Mode */
+            client_review_mode?: ("ask" | "preview" | "extension") | null;
         };
         /** ProjectStatsOut */
         ProjectStatsOut: {
@@ -5405,6 +5420,12 @@ export interface components {
              * @default false
              */
             show_board_to_client: boolean;
+            /**
+             * Client Review Mode
+             * @default ask
+             * @enum {string}
+             */
+            client_review_mode: "ask" | "preview" | "extension";
             /** Preview Origin */
             preview_origin?: string | null;
             /**
@@ -6104,6 +6125,7 @@ export interface components {
              *       "notify_on_mention": true,
              *       "notify_on_reply": true,
              *       "notify_on_status_change": true,
+             *       "notify_on_client_feedback": true,
              *       "email_notifications": false,
              *       "daily_digest": true
              *     }
@@ -6137,6 +6159,11 @@ export interface components {
              * @default true
              */
             notify_on_status_change: boolean;
+            /**
+             * Notify On Client Feedback
+             * @default true
+             */
+            notify_on_client_feedback: boolean;
             /**
              * Email Notifications
              * @default false
@@ -8351,7 +8378,7 @@ export interface operations {
                 tag?: ("Bug" | "Copy" | "Design" | "Responsive" | "Content" | "Accessibility") | null;
                 assignee?: string | null;
                 assignees?: string[];
-                view?: "all" | "mine" | "reply" | "client" | "overdue";
+                view?: "all" | "mine" | "reply" | "client" | "overdue" | "new";
                 open_only?: boolean;
                 sort?: "newest" | "oldest" | "due" | "priority" | "status" | "project" | "assignee" | "tag";
                 offset?: number;

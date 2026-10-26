@@ -71,6 +71,8 @@ class UserPreferencesOut(BaseModel):
     notify_on_mention: bool = True
     notify_on_reply: bool = True
     notify_on_status_change: bool = True
+    # New feedback from clients on projects you manage (TDR-0208).
+    notify_on_client_feedback: bool = True
     # Explicit opt-in for instant feedback email; absent legacy values stay off.
     email_notifications: bool = False
     daily_digest: bool = True

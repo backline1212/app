@@ -59,6 +59,7 @@ class ProjectRepository:
         start_url: str | None = None,
         client_request_id: str | None = None,
         request_fingerprint: str | None = None,
+        settings: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         now = datetime.now(UTC)
         doc: dict[str, Any] = {
@@ -89,7 +90,7 @@ class ProjectRepository:
                     }
                 ],
             },
-            "settings_json": {"proxy_mode": False, "snippet_installed": False},
+            "settings_json": {"proxy_mode": False, "snippet_installed": False, **(settings or {})},
             "archived_at": None,
             "created_at": now,
             "updated_at": now,

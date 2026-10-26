@@ -185,6 +185,19 @@ def _require_own_comment(existing: dict[str, Any], actor: Actor) -> None:
         raise PermissionDeniedError("Only the comment's own author can do that.")
 
 
+# The seeded Example Project's client (workspaces/onboarding.py) has no review session.
+_SAMPLE_GUEST_NAMES = {"sample-guest-jordan": "Jordan (sample client)"}
+
+
+def guest_fallback_name(doc: dict[str, Any]) -> str:
+    return _SAMPLE_GUEST_NAMES.get(str(doc.get("author_guest_id")), "Guest")
+
+
+def is_client_reviewer(actor: Actor) -> bool:
+    """A real reviewer, not a member using the dashboard canvas's review session."""
+    return isinstance(actor, GuestSession) and not actor.member_user_id
+
+
 async def _stage_integration_event(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
@@ -366,10 +379,12 @@ async def _resolve_author_name(
     from app.modules.share_links.repository import GuestSessionRepository
 
     if read_context is not None:
-        return read_context.guests.get(doc["author_guest_id"], "Guest")
+        return read_context.guests.get(doc["author_guest_id"], guest_fallback_name(doc))
     guest = await GuestSessionRepository(db).find_by_id(doc["author_guest_id"])
     return (
-        guest["display_name"] if guest and guest["workspace_id"] == doc["workspace_id"] else "Guest"
+        guest["display_name"]
+        if guest and guest["workspace_id"] == doc["workspace_id"]
+        else guest_fallback_name(doc)
     )
 
 
@@ -631,6 +646,9 @@ async def create_comment(
         "author_type": "guest" if isinstance(actor, GuestSession) else "member",
         "author_member_id": actor.user_id if isinstance(actor, Session) else None,
         "author_guest_id": actor.guest_session_id if isinstance(actor, GuestSession) else None,
+        # A member commenting through the dashboard canvas session (TDR-0208): stored
+        # as guest-authored, but it is the team's own feedback, not a client's.
+        **({"by_team": True} if isinstance(actor, GuestSession) and actor.member_user_id else {}),
         "layer": effective_layer,
         "body": body,
         "status": "todo",
@@ -718,6 +736,14 @@ async def create_comment(
         project_id=page["project_id"],
         comment=comment_out,
     )
+    if is_client_reviewer(actor):
+        await notification_service.notify_client_feedback(
+            db,
+            workspace_id=page["workspace_id"],
+            project_id=page["project_id"],
+            comment_id=comment_out.id,
+            actor_name=comment_out.author_name,
+        )
     return comment_out
 
 
@@ -772,6 +798,9 @@ async def create_reply(
         "author_type": "guest" if is_guest else "member",
         "author_member_id": actor.user_id if isinstance(actor, Session) else None,
         "author_guest_id": actor.guest_session_id if isinstance(actor, GuestSession) else None,
+        # A member commenting through the dashboard canvas session (TDR-0208): stored
+        # as guest-authored, but it is the team's own feedback, not a client's.
+        **({"by_team": True} if isinstance(actor, GuestSession) and actor.member_user_id else {}),
         "layer": effective_layer,
         "body": body,
         "status": "todo",
@@ -858,6 +887,16 @@ async def create_reply(
     )
     if parent["author_type"] == "member" and parent.get("author_member_id"):
         reply_recipients.add(parent["author_member_id"])
+    if not reply_recipients and is_client_reviewer(actor):
+        # Nobody owns this thread yet: the client's follow-up still reaches the team.
+        await notification_service.notify_client_feedback(
+            db,
+            workspace_id=parent["workspace_id"],
+            project_id=parent_page["project_id"],
+            comment_id=parent_id,
+            actor_name=reply_author_name,
+            reply=True,
+        )
     for recipient_id in reply_recipients:
         await notification_service.notify_comment_reply(
             db,
@@ -1206,7 +1245,12 @@ async def serialize_comments(
             guests = await GuestSessionRepository(db).display_names_in_workspace(
                 workspace_id, list(guest_ids)
             )
-            context.guests.update({gid: guests.get(gid, "Guest") for gid in guest_ids})
+            context.guests.update(
+                {
+                    gid: guests.get(gid, guest_fallback_name({"author_guest_id": gid}))
+                    for gid in guest_ids
+                }
+            )
 
         evidence_keys: set[str] = set()
         for doc in batch:
