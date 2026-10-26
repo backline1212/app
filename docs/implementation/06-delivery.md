@@ -5185,3 +5185,13 @@ database migration, or production deployment is claimed.
 - Packaged from `main` with production endpoints (`apps/web/public/backline-extension-0.5.14.zip`,
   66704 bytes, SHA-256 `74136a2e…c713`): carries the composer fixes from TDR-0207/0213.
   0.5.12 ZIP removed; 0.5.13 kept as the previous package. Download link points at 0.5.14.
+# 2026-10-27: Delete my account (TDR-0214)
+
+- Browser: an owner of a team workspace was blocked with the workspace named; a new
+  sole-member account saw "Lee's studio closes… deleted after 30 days", got the code by
+  email, deleted, and landed on "Your account was deleted". Database: name/email
+  anonymised, password removed, old address free, workspace closed with room code and
+  memberships gone, review links revoked, projects archived, no live refresh tokens.
+  Purge: dry run listed the workspace (grace back-dated locally); `--apply` deleted its
+  project, comments and records and set `purged_at`.
+- ruff, mypy, workspace scoping, types regenerated, web lint/typecheck.

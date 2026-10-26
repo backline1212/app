@@ -173,6 +173,24 @@ class WorkspaceRepository:
         cursor = self.db.workspaces.find({"_id": {"$in": oids}})
         return {str(doc["_id"]): doc async for doc in cursor}
 
+    async def mark_closed(
+        self, workspace_id: str, *, closed_by: str, purge_after: datetime
+    ) -> None:
+        """A workspace whose only member deleted their account (TDR-0214). Nobody can
+        open it any more; scripts/purge_closed_workspaces.py removes its content later."""
+        oid = to_object_id(workspace_id)
+        await self.db.workspaces.update_one(
+            {"_id": oid},
+            {
+                "$set": {
+                    "closed_at": datetime.now(UTC),
+                    "closed_by": closed_by,
+                    "purge_after": purge_after,
+                    "room_code": None,
+                }
+            },
+        )
+
     async def find_by_room_code(self, room_code: str) -> dict[str, Any] | None:
         """`room_code` is stored normalized (workspaces/schemas.py's
         normalize_room_code) and unique among workspaces that have one."""

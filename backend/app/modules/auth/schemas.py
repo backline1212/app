@@ -116,6 +116,25 @@ class EmailChangeRequest(BaseModel):
     password: str | None = Field(default=None, max_length=PASSWORD_MAX_LENGTH)
 
 
+class AccountDeletionWorkspace(BaseModel):
+    workspace_id: str
+    name: str
+    projects: int = 0
+
+
+class AccountDeletionPreviewOut(BaseModel):
+    """What deleting the account would do (TDR-0214). `blocking` must be empty first."""
+
+    blocking: list[AccountDeletionWorkspace]
+    closing: list[AccountDeletionWorkspace]
+    leaving: list[AccountDeletionWorkspace]
+    purge_after_days: int
+
+
+class AccountDeletionConfirm(BaseModel):
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
 class EmailChangeConfirm(BaseModel):
     email: NormalizedEmail
     code: str = Field(min_length=1, max_length=12)

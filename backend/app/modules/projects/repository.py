@@ -318,6 +318,16 @@ class ProjectRepository:
             {"$set": patch, "$inc": {"metadata_version": 1}},
         )
 
+    async def archive_all_for_workspace(self, workspace_id: str) -> int:
+        """Closing a workspace (TDR-0214) archives what's still active, so the purge
+        can use the archived-project deletion path."""
+        now = datetime.now(UTC)
+        result = await self.db.projects.update_many(
+            {"workspace_id": workspace_id, "archived_at": None},
+            {"$set": {"archived_at": now, "updated_at": now}, "$inc": {"metadata_version": 1}},
+        )
+        return int(result.modified_count)
+
     async def archive(self, project_id: str) -> None:
         # workspace-scope-exempt: archive_project already verified ownership via
         # find_by_id before calling this, same as update() above.

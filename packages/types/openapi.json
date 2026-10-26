@@ -654,6 +654,89 @@
         ]
       }
     },
+    "/api/v1/auth/me/delete": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Preview Account Deletion",
+        "description": "What \"Delete my account\" would do to each workspace (TDR-0214).",
+        "operationId": "preview_account_deletion_api_v1_auth_me_delete_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeletionPreviewOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Delete Account",
+        "operationId": "delete_account_api_v1_auth_me_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeletionConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/me/delete/code": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Request Account Deletion Code",
+        "operationId": "request_account_deletion_code_api_v1_auth_me_delete_code_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/me/email": {
       "post": {
         "tags": [
@@ -9415,6 +9498,81 @@
           "access_token"
         ],
         "title": "AccessTokenOut"
+      },
+      "AccountDeletionConfirm": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "AccountDeletionConfirm"
+      },
+      "AccountDeletionPreviewOut": {
+        "properties": {
+          "blocking": {
+            "items": {
+              "$ref": "#/components/schemas/AccountDeletionWorkspace"
+            },
+            "type": "array",
+            "title": "Blocking"
+          },
+          "closing": {
+            "items": {
+              "$ref": "#/components/schemas/AccountDeletionWorkspace"
+            },
+            "type": "array",
+            "title": "Closing"
+          },
+          "leaving": {
+            "items": {
+              "$ref": "#/components/schemas/AccountDeletionWorkspace"
+            },
+            "type": "array",
+            "title": "Leaving"
+          },
+          "purge_after_days": {
+            "type": "integer",
+            "title": "Purge After Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "blocking",
+          "closing",
+          "leaving",
+          "purge_after_days"
+        ],
+        "title": "AccountDeletionPreviewOut",
+        "description": "What deleting the account would do (TDR-0214). `blocking` must be empty first."
+      },
+      "AccountDeletionWorkspace": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "projects": {
+            "type": "integer",
+            "title": "Projects",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "name"
+        ],
+        "title": "AccountDeletionWorkspace"
       },
       "ActivityListOut": {
         "properties": {

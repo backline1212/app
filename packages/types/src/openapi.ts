@@ -289,6 +289,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/me/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Account Deletion
+         * @description What "Delete my account" would do to each workspace (TDR-0214).
+         */
+        get: operations["preview_account_deletion_api_v1_auth_me_delete_get"];
+        put?: never;
+        /** Delete Account */
+        post: operations["delete_account_api_v1_auth_me_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/delete/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Account Deletion Code */
+        post: operations["request_account_deletion_code_api_v1_auth_me_delete_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me/email": {
         parameters: {
             query?: never;
@@ -2659,6 +2697,37 @@ export interface components {
             feature_flags: {
                 [key: string]: boolean;
             };
+        };
+        /** AccountDeletionConfirm */
+        AccountDeletionConfirm: {
+            /** Code */
+            code: string;
+        };
+        /**
+         * AccountDeletionPreviewOut
+         * @description What deleting the account would do (TDR-0214). `blocking` must be empty first.
+         */
+        AccountDeletionPreviewOut: {
+            /** Blocking */
+            blocking: components["schemas"]["AccountDeletionWorkspace"][];
+            /** Closing */
+            closing: components["schemas"]["AccountDeletionWorkspace"][];
+            /** Leaving */
+            leaving: components["schemas"]["AccountDeletionWorkspace"][];
+            /** Purge After Days */
+            purge_after_days: number;
+        };
+        /** AccountDeletionWorkspace */
+        AccountDeletionWorkspace: {
+            /** Workspace Id */
+            workspace_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Projects
+             * @default 0
+             */
+            projects: number;
         };
         /** ActivityListOut */
         ActivityListOut: {
@@ -6788,6 +6857,75 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    preview_account_deletion_api_v1_auth_me_delete_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeletionPreviewOut"];
+                };
+            };
+        };
+    };
+    delete_account_api_v1_auth_me_delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountDeletionConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_account_deletion_code_api_v1_auth_me_delete_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

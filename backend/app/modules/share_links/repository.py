@@ -90,6 +90,14 @@ class ShareLinkRepository:
             {"workspace_id": workspace_id, "project_id": project_id, "purpose": CANVAS_LINK_PURPOSE}
         )
 
+    async def revoke_all_for_workspace(self, workspace_id: str) -> int:
+        """Closing a workspace (TDR-0214) ends every review link in it."""
+        result = await self.db.share_links.update_many(
+            {"workspace_id": workspace_id, "revoked_at": None},
+            {"$set": {"revoked_at": datetime.now(UTC)}},
+        )
+        return int(result.modified_count)
+
     async def revoke(self, share_link_id: str) -> None:
         # workspace-scope-exempt: revoke_share_link already verified
         # doc["workspace_id"] == workspace_id via find_by_id before calling this.

@@ -7,6 +7,7 @@ from app.core.feature_flags import load_feature_flags
 from app.core.rate_limit import check_rate_limit, get_client_ip
 from app.core.redis_client import get_redis
 from app.core.session import Session, get_current_session
+from app.modules.auth import account_deletion
 from app.modules.auth import service as auth_service
 from app.modules.auth.oauth_state import (
     STATE_TTL_SECONDS,
@@ -16,6 +17,9 @@ from app.modules.auth.oauth_state import (
 )
 from app.modules.auth.schemas import (
     AccessTokenOut,
+    AccountDeletionConfirm,
+    AccountDeletionPreviewOut,
+    AccountDeletionWorkspace,
     AuthCapabilitiesOut,
     EmailChangeConfirm,
     EmailChangeRequest,
@@ -311,6 +315,47 @@ async def change_password(
         current_password=body.current_password,
         new_password=body.new_password,
     )
+
+
+@router.get("/me/delete", response_model=AccountDeletionPreviewOut)
+async def preview_account_deletion(
+    session: Session = Depends(get_current_session),
+) -> AccountDeletionPreviewOut:
+    """What "Delete my account" would do to each workspace (TDR-0214)."""
+    plan = await account_deletion.build_plan(get_db(), session.user_id)
+    return AccountDeletionPreviewOut(
+        blocking=[
+            AccountDeletionWorkspace(workspace_id=e["workspace_id"], name=e["name"])
+            for e in plan.blocking
+        ],
+        closing=[AccountDeletionWorkspace(**entry) for entry in plan.closing],
+        leaving=[
+            AccountDeletionWorkspace(workspace_id=e["workspace_id"], name=e["name"])
+            for e in plan.leaving
+        ],
+        purge_after_days=account_deletion.PURGE_GRACE.days,
+    )
+
+
+@router.post("/me/delete/code", status_code=204)
+async def request_account_deletion_code(session: Session = Depends(get_current_session)) -> None:
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:account-delete:user:{session.user_id}",
+        limit=3,
+        window_seconds=600,
+    )
+    await account_deletion.request_code(get_db(), session.user_id)
+
+
+@router.post("/me/delete", status_code=204)
+async def delete_account(
+    body: AccountDeletionConfirm,
+    response: Response,
+    session: Session = Depends(get_current_session),
+) -> None:
+    await account_deletion.delete_account(get_db(), session, code=body.code)
+    response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
 
 
 @router.post("/me/email", status_code=204)
