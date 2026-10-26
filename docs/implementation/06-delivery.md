@@ -5195,3 +5195,9 @@ database migration, or production deployment is claimed.
   Purge: dry run listed the workspace (grace back-dated locally); `--apply` deleted its
   project, comments and records and set `purged_at`.
 - ruff, mypy, workspace scoping, types regenerated, web lint/typecheck.
+
+# 2026-10-27: Replies move who owes the next reply (TDR-0215)
+
+- API check on a client ticket assigned to Sam: Maya's client-visible reply →
+  `waiting_on_client: true`; the client's answer → `waiting_on_client: false`,
+  `waiting_on_ids: [Sam]`. ruff, mypy, scoping, web typecheck.

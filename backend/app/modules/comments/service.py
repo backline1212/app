@@ -193,6 +193,43 @@ def guest_fallback_name(doc: dict[str, Any]) -> str:
     return _SAMPLE_GUEST_NAMES.get(str(doc.get("author_guest_id")), "Guest")
 
 
+async def _move_reply_owed(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    parent: dict[str, Any],
+    actor: Actor,
+    team_reply: bool,
+    layer: str,
+) -> None:
+    """Replies move who owes the next one (TDR-0215), so "Needs your reply" and
+    "Waiting on client" work without anyone ticking boxes:
+    - a client replies → no longer waiting on the client; the thread's assignees owe the
+      answer (anyone already marked stays marked);
+    - a teammate replies → they no longer owe one; if the client can see the reply on a
+      client thread, the thread now waits on the client.
+    Closed threads are left alone."""
+    if parent.get("status") in ("resolved", "wont_fix"):
+        return
+    current = list(parent.get("waiting_on_ids") or [])
+    if is_client_reviewer(actor):
+        owed = list(dict.fromkeys([*current, *(parent.get("assignee_ids") or [])]))
+        await CommentRepository(db).set_waiting(
+            parent["workspace_id"], str(parent["_id"]), waiting_on_ids=owed, waiting_on_client=False
+        )
+        return
+    if not team_reply:
+        return
+    replier = actor.user_id if isinstance(actor, Session) else actor.member_user_id
+    owed = [user_id for user_id in current if user_id != replier]
+    client_thread = parent.get("layer") == "client" and parent.get("author_type") == "guest"
+    await CommentRepository(db).set_waiting(
+        parent["workspace_id"],
+        str(parent["_id"]),
+        waiting_on_ids=owed,
+        waiting_on_client=True if (layer == "client" and client_thread) else None,
+    )
+
+
 def is_client_reviewer(actor: Actor) -> bool:
     """A real reviewer, not a member using the dashboard canvas's review session."""
     return isinstance(actor, GuestSession) and not actor.member_user_id
@@ -911,6 +948,9 @@ async def create_reply(
     # The client who left this feedback hears about a team answer they can see.
     team_reply = isinstance(actor, Session) or bool(
         isinstance(actor, GuestSession) and actor.member_user_id
+    )
+    await _move_reply_owed(
+        db, parent=parent, actor=actor, team_reply=team_reply, layer=effective_layer
     )
     if team_reply and effective_layer == "client" and parent["author_type"] == "guest":
         await _notify_guest_of_team_reply(

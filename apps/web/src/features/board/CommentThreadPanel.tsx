@@ -383,6 +383,7 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
               />
               Waiting on client
             </label>
+            <p className="bl-field-hint">Replies update these: a reply the client can see waits on the client; the client's answer goes back to the assignees.</p>
           </>
         )}
 
