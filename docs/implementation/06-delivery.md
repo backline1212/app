@@ -5091,3 +5091,10 @@ database migration, or production deployment is claimed.
 - Railway services refuse to start without `ENVIRONMENT` (verified with
   `RAILWAY_PROJECT_ID` set). Worker Sentry, job completion wait, trimmed API tracing.
 - Widget SDK cache header (verified on `/widget/sdk.js`).
+
+# 2026-10-27: Backend security hardening (TDR-0201)
+
+- Verified locally: 6 MB JSON body → 413; member JWT as guest header → 401; wrong sign-in
+  codes counted per address across codes; 12,000-character page text stored as 10,000;
+  a status change no longer sets `body_edited_at`, a text edit does.
+- ruff, mypy, workspace scoping, types regenerated, web lint/typecheck.

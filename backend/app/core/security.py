@@ -124,7 +124,11 @@ def decode_guest_token(token: str) -> GuestTokenClaims:
         payload = jwt.decode(token, settings.jwt_signing_key, algorithms=[ALGORITHM])
     except JWTError as exc:
         raise InvalidTokenError(str(exc)) from exc
-    claims = GuestTokenClaims.model_validate(payload)
+    try:
+        claims = GuestTokenClaims.model_validate(payload)
+    except ValidationError as exc:
+        # A valid JWT of another kind (e.g. a member access token) is just not a guest token.
+        raise InvalidTokenError("Not a guest token.") from exc
     if claims.scope != "guest":
         raise InvalidTokenError("Not a guest token.")
     return claims

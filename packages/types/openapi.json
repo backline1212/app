@@ -11240,6 +11240,18 @@
             ],
             "title": "Edited At"
           },
+          "body_edited_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Edited At"
+          },
           "revision": {
             "type": "integer",
             "title": "Revision",
@@ -11622,6 +11634,7 @@
               "type": "integer"
             },
             "type": "object",
+            "maxProperties": 10,
             "title": "Viewport"
           },
           "device_type": {
@@ -12314,10 +12327,12 @@
           },
           "node_hash": {
             "type": "string",
+            "maxLength": 128,
             "title": "Node Hash"
           },
           "ancestor_path_hash": {
             "type": "string",
+            "maxLength": 128,
             "title": "Ancestor Path Hash"
           },
           "click_offset_pct": {
@@ -17769,6 +17784,7 @@
           },
           "text_similarity_hash": {
             "type": "string",
+            "maxLength": 128,
             "title": "Text Similarity Hash"
           }
         },
@@ -18083,6 +18099,18 @@
               }
             ],
             "title": "Edited At"
+          },
+          "body_edited_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Edited At"
           },
           "revision": {
             "type": "integer",

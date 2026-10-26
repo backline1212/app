@@ -59,3 +59,15 @@ async def append_event_once(
         # Retrying a partially completed hard-delete must not produce a second audit
         # summary. The unique sparse correlation index applies only to such events.
         return
+
+
+async def was_removed_from_workspace(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, user_id: str, type: str
+) -> bool:
+    """Whether an admin ever removed this person from the workspace (a MEMBER_REMOVED
+    event naming them), so the room code alone can't bring them back (TDR-0201)."""
+    found = await db.events.find_one(
+        {"workspace_id": workspace_id, "type": type, "payload_json.user_id": user_id},
+        projection={"_id": 1},
+    )
+    return found is not None

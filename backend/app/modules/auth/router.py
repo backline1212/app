@@ -191,6 +191,13 @@ async def otp_request(body: OtpRequestRequest, request: Request) -> None:
         limit=settings.otp_request_rate_limit_per_minute,
         window_seconds=60,
     )
+    # And per address, so many IPs can't flood one inbox (TDR-0201).
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:otp-request:email:{body.email.strip().lower()}",
+        limit=6,
+        window_seconds=900,
+    )
     await auth_service.request_otp(get_db(), body.email)
 
 
@@ -198,6 +205,9 @@ async def otp_request(body: OtpRequestRequest, request: Request) -> None:
 async def otp_verify(body: OtpVerifyRequest, request: Request, response: Response) -> TokenPairOut:
     ua = request.headers.get("user-agent")
     ip = get_client_ip(request)
+    await check_rate_limit(
+        get_redis(), key=f"rate-limit:otp-verify:ip:{ip}", limit=20, window_seconds=60
+    )
     issued = await auth_service.verify_otp(get_db(), body.email, body.code, ua=ua, ip=ip)
     _set_refresh_cookie(response, issued.refresh_token)
     return TokenPairOut(access_token=issued.access_token, user=issued.user)

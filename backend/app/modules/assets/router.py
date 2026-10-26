@@ -8,7 +8,7 @@ from app.core.db import get_db
 from app.core.permissions import require_project_permission
 from app.core.rate_limit import actor_rate_limit_key, check_rate_limit
 from app.core.redis_client import get_redis
-from app.core.session import Actor, Session, get_current_actor
+from app.core.session import Actor, GuestSession, Session, get_current_actor
 from app.modules.assets import service
 from app.modules.assets.schemas import (
     AssetApprovalUpdate,
@@ -18,6 +18,7 @@ from app.modules.assets.schemas import (
     Region,
 )
 from app.modules.comments.schemas import CommentOut
+from app.modules.comments.service import guest_safe_comment
 
 router = APIRouter(tags=["assets"])
 
@@ -158,4 +159,6 @@ async def create_comment(
         limit=get_settings().comment_create_rate_limit_per_minute,
         window_seconds=60,
     )
-    return await service.create_comment(get_db(), project_id, asset_id, actor, body)
+    created = await service.create_comment(get_db(), project_id, asset_id, actor, body)
+    # A retried create can return a comment the team has since worked (TDR-0201).
+    return guest_safe_comment(created) if isinstance(actor, GuestSession) else created

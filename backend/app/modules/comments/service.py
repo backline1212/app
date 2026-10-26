@@ -491,6 +491,7 @@ async def _comment_out(
         attachments=attachments,
         created_at=doc["created_at"],
         edited_at=doc.get("edited_at"),
+        body_edited_at=doc.get("body_edited_at"),
         revision=doc.get("revision", 0),
         ticket_number=doc.get("ticket_number"),
     )
@@ -955,7 +956,9 @@ async def edit_comment(
     _require_own_comment(existing, actor)
     await _require_member_can_comment(db, existing, actor)
 
-    if not await repo.update(existing["workspace_id"], comment_id, {"body": body}):
+    if not await repo.update(
+        existing["workspace_id"], comment_id, {"body": body, "body_edited_at": datetime.now(UTC)}
+    ):
         raise NotFoundError("Comment not found.")
 
     page = await _page_for_broadcast(db, existing["page_id"])
