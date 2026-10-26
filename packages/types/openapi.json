@@ -3343,7 +3343,8 @@
                 "mine",
                 "reply",
                 "client",
-                "overdue"
+                "overdue",
+                "new"
               ],
               "type": "string",
               "default": "all",
@@ -11965,6 +11966,11 @@
             "type": "integer",
             "title": "Needs Reply"
           },
+          "new_from_clients": {
+            "type": "integer",
+            "title": "New From Clients",
+            "default": 0
+          },
           "waiting_on_client": {
             "type": "integer",
             "title": "Waiting On Client"
@@ -14501,7 +14507,8 @@
               "join_requested",
               "member_joined",
               "project_access_granted",
-              "ownership_transferred"
+              "ownership_transferred",
+              "client_feedback"
             ],
             "title": "Type"
           },
@@ -15543,6 +15550,22 @@
             "type": "array",
             "maxItems": 500,
             "title": "Members"
+          },
+          "client_review_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ask",
+                  "preview",
+                  "extension"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Review Mode"
           }
         },
         "type": "object",
@@ -16172,6 +16195,16 @@
             "type": "boolean",
             "title": "Slack Notifications Enabled",
             "default": true
+          },
+          "client_review_mode": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "preview",
+              "extension"
+            ],
+            "title": "Client Review Mode",
+            "default": "ask"
           }
         },
         "type": "object",
@@ -16259,6 +16292,22 @@
               }
             ],
             "title": "Slack Notifications Enabled"
+          },
+          "client_review_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ask",
+                  "preview",
+                  "extension"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Review Mode"
           }
         },
         "type": "object",
@@ -16817,6 +16866,16 @@
             "type": "boolean",
             "title": "Show Board To Client",
             "default": false
+          },
+          "client_review_mode": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "preview",
+              "extension"
+            ],
+            "title": "Client Review Mode",
+            "default": "ask"
           },
           "preview_origin": {
             "anyOf": [
@@ -18593,6 +18652,7 @@
               "notify_on_mention": true,
               "notify_on_reply": true,
               "notify_on_status_change": true,
+              "notify_on_client_feedback": true,
               "email_notifications": false,
               "daily_digest": true
             }
@@ -18631,6 +18691,11 @@
           "notify_on_status_change": {
             "type": "boolean",
             "title": "Notify On Status Change",
+            "default": true
+          },
+          "notify_on_client_feedback": {
+            "type": "boolean",
+            "title": "Notify On Client Feedback",
             "default": true
           },
           "email_notifications": {

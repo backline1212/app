@@ -28,7 +28,7 @@ function InfoShell({ title, children }: { title: string; children: React.ReactNo
 export function PrivacyPage() {
   return (
     <InfoShell title="Privacy notice">
-      <p className="bl-info-lead">This notice explains what Backline receives when you use its website-review extension and portal. Last updated October 25, 2026.</p>
+      <p className="bl-info-lead">This notice explains what Backline receives when you use its website-review extension and portal. Last updated October 27, 2026.</p>
 
       <section>
         <h2>What a review sends to Backline</h2>
@@ -42,6 +42,11 @@ export function PrivacyPage() {
         <h2>Why the data is used</h2>
         <p>Backline uses this information to connect a review to the right project and page, save and display feedback and evidence, recover comment positions after page changes, control access, and operate and protect the service. Authorized workspace members can see project feedback. Guest reviewers see only the project content and comment layers their review invitation permits.</p>
         <p>If a workspace connects an integration, selected project or comment updates can be sent to its chosen Slack, Discord, Microsoft Teams or webhook destination. A member can also send selected work to ClickUp, Trello, Jira, Asana, GitHub, GitLab or Linear. If a user invokes an AI feature, the content submitted to that feature can be sent to Groq when configured. These actions are separate from simply installing the extension.</p>
+      </section>
+
+      <section>
+        <h2>On your device</h2>
+        <p>When you join a review as a client, your review session is kept in this browser tab. If you tick "Remember me on this device", your session, name and email for that review link are also kept in this browser's local storage, so you return as yourself from the team's emails. "Leave review" removes them.</p>
       </section>
 
       <section>

@@ -69,6 +69,7 @@ async def create_project(
         default_role=body.default_role,
         members=body.members,
         viewer=session,
+        client_review_mode=body.client_review_mode,
     )
 
 

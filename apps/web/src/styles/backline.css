@@ -3346,3 +3346,16 @@ td .bl-file-approval{margin-left:6px}
 .bl-url-check.is-ok { color: var(--mint-deep); }
 .bl-url-check.is-info { color: var(--ink-2); }
 .bl-url-check.is-warn { color: var(--amber-ink, var(--ink-2)); background: var(--amber-tint); border-radius: 6px; padding: 6px 8px; }
+/* "How clients open it" in the project form (TDR-0207). */
+.bl-review-mode { border: 0; padding: 0; margin-top: 2px; }
+.bl-review-mode legend { margin-bottom: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.bl-review-mode .bl-segment { display: inline-flex; flex-wrap: wrap; }
+.bl-review-mode .bl-segment button { text-transform: none; font-size: 12px; padding: 6px 10px; }
+.bl-review-mode .bl-segment button[aria-checked=true] { background: var(--bl-ink); color: var(--bl-invert-fg); }
+.bl-review-mode small { display: block; margin-top: 6px; }
+/* "New from client" marker in the dashboard's Waiting on you list (TDR-0208). */
+.bl-new-client { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 999px; background: var(--mint-tint); color: var(--mint-deep); font-size: 10.5px; font-weight: 600; line-height: 16px; }
+/* "Remember me on this device" on the review entry form (TDR-0208). */
+.bl-gate-remember { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: start; margin: 4px 0 2px; font-size: 13px; color: var(--ink); cursor: pointer; }
+.bl-gate-remember input { margin-top: 2px; accent-color: var(--bl-accent-fill); }
+.bl-gate-remember .bl-gate-hint { grid-column: 2; margin-top: 2px; }

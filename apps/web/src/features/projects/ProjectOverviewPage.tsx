@@ -445,6 +445,12 @@ export function ProjectOverviewPage() {
       frameDrivenPageRef.current = pageId;
       setCurrentPageId(pageId);
       setIframeStatus("loaded");
+      // A page the preview just registered (the first visit, or a link followed inside
+      // the site) isn't in the tab list yet.
+      const knownPages = queryClient.getQueryData<PageOut[]>(qk.projectPages(projectId ?? ""));
+      if (!knownPages?.some((page) => page.id === pageId)) {
+        void queryClient.invalidateQueries({ queryKey: qk.projectPages(projectId ?? "") });
+      }
       // The page a drawer comment was on has loaded: now it can be shown.
       const pending = pendingRevealRef.current;
       if (pending) {
@@ -461,7 +467,7 @@ export function ProjectOverviewPage() {
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [updateSearchParams]);
+  }, [updateSearchParams, projectId, queryClient]);
 
   // Clicking an existing pin inside the canvas (widget thread-manager.ts) opens the
   // Comments drawer on that comment's detail - the reverse of clicking a comment in the
@@ -1103,7 +1109,7 @@ export function ProjectOverviewPage() {
             </div>
           )}
           {!pagesQuery.isLoading && !pagesQuery.error && sortedPages.length === 0 && (
-            <span className="bl-review-page-empty">No saved pages yet. The first proxied visit can register one.</span>
+            <span className="bl-review-page-empty">No pages yet. Pages you open in the preview are added here.</span>
           )}
           {sortedPages.map((page, index) => (
             <button

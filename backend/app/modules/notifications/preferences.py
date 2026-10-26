@@ -9,4 +9,5 @@ FEEDBACK_PREFERENCES = {
     events.COMMENT_STATUS_CHANGED: "notify_on_status_change",
     # A file version signed off (TDR-0184) is the same kind of news as a status change.
     events.FILE_APPROVED: "notify_on_status_change",
+    events.CLIENT_FEEDBACK: "notify_on_client_feedback",
 }

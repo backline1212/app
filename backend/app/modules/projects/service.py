@@ -78,6 +78,7 @@ def _project_out(doc: dict[str, Any], viewer: Session | None = None) -> ProjectO
         "reviewer_can_resolve": False,
         "show_board_to_client": False,
         "client_digest_enabled": False,
+        "client_review_mode": "ask",
     }
     settings_merged = {**settings_defaults, **settings_json}
 
@@ -195,6 +196,7 @@ async def create_project(
     new_client: ClientCreate | None = None,
     client_request_id: str | None = None,
     resolve_existing_origin: bool = False,
+    client_review_mode: str | None = None,
 ) -> ProjectOut:
     # Deferred import: share_links.service itself imports this module (to check a
     # project exists before creating/listing links for it), so importing it at module
@@ -231,6 +233,7 @@ async def create_project(
             "default_role": default_role,
             "members": [m.model_dump(mode="json") for m in members or []],
             "new_client": new_client.model_dump(mode="json") if new_client else None,
+            **({"client_review_mode": client_review_mode} if client_review_mode else {}),
         }
     )
 
@@ -285,6 +288,7 @@ async def create_project(
             start_url=start_url,
             client_request_id=client_request_id,
             request_fingerprint=fingerprint,
+            settings={"client_review_mode": client_review_mode} if client_review_mode else None,
             session=session,
         )
         await append_event(
@@ -758,6 +762,7 @@ async def duplicate_project(
         client_digest_enabled=original.settings.client_digest_enabled,
         enable_cross_browser_render=original.settings.enable_cross_browser_render,
         slack_notifications_enabled=original.settings.slack_notifications_enabled,
+        client_review_mode=original.settings.client_review_mode,
     )
     await update_project_settings(
         db,

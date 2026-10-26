@@ -331,6 +331,7 @@ const HOST_STYLES = `
   }
   .bl-card button.bl-cp-cancel:hover:not(:disabled) { background: var(--bl-paper); color: var(--bl-ink); }
   .bl-card button.bl-submit {
+    white-space: nowrap;
     display: inline-flex; align-items: center; gap: 7px; background: var(--bl-ink); color: #fff;
     border: 0; border-radius: 3px; padding: 8px 14px; font-size: 12.5px; font-weight: 600;
   }

@@ -217,8 +217,8 @@ export function openComposer(
         <span class="bl-cp-lbl">TAG THIS AS</span>
         <div class="bl-cp-tags" role="group" aria-label="Tag this as">
           ${COMPOSER_TAGS.map(
-            (tag, i) =>
-              `<button type="button" class="bl-cp-tag" data-tag="${tag}" aria-pressed="${i === 0}">${svg(TAG_ICONS[tag])}${tag}</button>`,
+            (tag) =>
+              `<button type="button" class="bl-cp-tag" data-tag="${tag}" aria-pressed="false">${svg(TAG_ICONS[tag])}${tag}</button>`,
           ).join("")}
         </div>
       </div>
@@ -458,7 +458,9 @@ export function openComposer(
       statusEl.textContent = message;
     },
   );
-  let selectedTag: ComposerTag = COMPOSER_TAGS[0];
+  // No tag until the reviewer picks one: preselecting "Bug" filed copy and design notes
+  // as bugs (TDR-0207). Clicking the selected tag again clears it.
+  let selectedTag: ComposerTag | null = null;
   let submitted = false;
   let retryLocked = false;
   // Set once the post succeeded: the card lingers a moment to show "Comment posted.",
@@ -492,8 +494,9 @@ export function openComposer(
 
   for (const button of tagButtons) {
     button.addEventListener("click", () => {
-      selectedTag = button.dataset.tag as ComposerTag;
-      for (const other of tagButtons) other.setAttribute("aria-pressed", String(other === button));
+      const tag = button.dataset.tag as ComposerTag;
+      selectedTag = selectedTag === tag ? null : tag;
+      for (const other of tagButtons) other.setAttribute("aria-pressed", String(other.dataset.tag === selectedTag));
     });
   }
 
@@ -566,7 +569,7 @@ export function openComposer(
     // Capture/anchor/upload callbacks can throw before they reach their API error
     // handler. Handle both synchronous throws and rejected promises here so every
     // adapter keeps the draft and restores its controls for an explicit retry.
-    void redacting.then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: [selectedTag], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null, stepsToReproduce: stepsInput?.value.trim() || null, includeScreenshot: shotInput.checked, screenshot: shotInput.checked ? preview?.blob : undefined })).then((ok) => {
+    void redacting.then(() => onSubmit({ body, attachments: attachments.getAttachments(), tags: selectedTag ? [selectedTag] : [], diagnostics: diagInput.checked ? diagnosticsSnapshot() : null, stepsToReproduce: stepsInput?.value.trim() || null, includeScreenshot: shotInput.checked, screenshot: shotInput.checked ? preview?.blob : undefined })).then((ok) => {
       if (closed) return;
       if (ok) {
         posted = true;

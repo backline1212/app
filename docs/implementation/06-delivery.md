@@ -5136,3 +5136,17 @@ database migration, or production deployment is claimed.
   bot-protection note; a closed port showed "couldn't reach". Plan card showed "0 of 2
   projects" then "1 of 2" after creating one. ruff, mypy, types regenerated, web
   lint/typecheck.
+
+# 2026-10-27: Client journey fixes (TDR-0207, TDR-0208)
+
+- Walked the whole loop in the browser: owner signs up → creates a website project →
+  client joins the review link → comments on the site → owner sees it in "Waiting on you"
+  and the bell → replies (client visible) and resolves → client gets both emails → client
+  returns from a new tab as themselves.
+- Verified: preview-mode project skips the sign-in question; composer has no preselected
+  tag (posted comment stored with `Copy` only after choosing it); dashboard showed "3 new
+  client comments need an owner"; notification rendered with the comment; worker sent
+  "New reply to your feedback" and "Your feedback was addressed"; "Remember me" resumed in
+  a fresh context and "Leave review" cleared it. Migration dry run: 0 to mark locally.
+- ruff, mypy, scoping, types regenerated, web/widget lint and typecheck, widget build
+  (36.4 KB gzip).

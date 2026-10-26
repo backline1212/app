@@ -24,7 +24,7 @@ class TicketFilters(BaseModel):
     # "Show work for": any of these people (user ids, or "unassigned"). Takes over from
     # the single `assignee` when given; that one stays for older clients.
     assignees: list[str] = Field(default_factory=list, max_length=50)
-    view: Literal["all", "mine", "reply", "client", "overdue"] = "all"
+    view: Literal["all", "mine", "reply", "client", "overdue", "new"] = "all"
     # Leave out resolved and won't-fix tickets (the MCP server's default listing).
     open_only: bool = False
     sort: Literal["newest", "oldest", "due", "priority", "status", "project", "assignee", "tag"] = (
@@ -86,6 +86,9 @@ class DashboardOut(BaseModel):
     tickets: int
     assigned_to_me: int
     needs_reply: int
+    # Open client feedback nobody has picked up yet: posted by a reviewer, still "Not
+    # started", no assignee (TDR-0208).
+    new_from_clients: int = 0
     waiting_on_client: int
     overdue: int
     statuses: dict[str, int]

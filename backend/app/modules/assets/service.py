@@ -34,6 +34,7 @@ from app.modules.comments.service import (
     _broadcast_comment_event,
     _comment_out,
     _create_with_integration_intent,
+    is_client_reviewer,
 )
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.service import get_project
@@ -637,4 +638,14 @@ async def create_comment(
         project_id=project_id,
         comment=comment,
     )
+    if is_client_reviewer(actor):
+        from app.modules.notifications.service import notify_client_feedback
+
+        await notify_client_feedback(
+            db,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            comment_id=comment.id,
+            actor_name=comment.author_name,
+        )
     return comment

@@ -255,6 +255,7 @@ async def resolve_share_link(
         start_url=project_start_url(project) or None,
         ask_reviewer_name=link.get("ask_reviewer_name", True),
         show_board_to_client=project.get("settings_json", {}).get("show_board_to_client", False),
+        client_review_mode=project.get("settings_json", {}).get("client_review_mode", "ask"),
         preview_origin=_preview_origin(link),
         canvas_only=is_canvas_link(link),
         review_url=f"{get_settings().public_dashboard_base_url.rstrip('/')}/"

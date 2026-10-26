@@ -13,7 +13,9 @@ import type { PublicBranding } from "../workspaces/branding-api";
 import { useBrandAccent } from "../../lib/use-brand-accent";
 import {
   clearStoredGuestSession,
+  getRememberedReviewer,
   getStoredGuestSession,
+  setRememberedReviewer,
   setStoredGuestSession,
   type StoredGuestSession,
 } from "./guest-session";
@@ -29,8 +31,10 @@ export function ReviewEntryPage() {
   const { shareToken } = useParams<{ shareToken: string }>();
   const [sessionShareToken, setSessionShareToken] = useState(shareToken);
   const sessionMatchesLink = sessionShareToken === shareToken;
-  const [displayName, setDisplayName] = useState("");
-  const [email, setEmail] = useState("");
+  const remembered = shareToken ? getRememberedReviewer(shareToken) : null;
+  const [displayName, setDisplayName] = useState(remembered?.displayName ?? "");
+  const [email, setEmail] = useState(remembered?.email ?? "");
+  const [rememberMe, setRememberMe] = useState(true);
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,6 +69,9 @@ export function ReviewEntryPage() {
   });
   useDocumentTitle([resolved?.project_name, resolved?.branding?.display_name ?? "Review"]);
   useBrandAccent(resolved?.branding?.accent_color);
+  // The team chose how clients open this site (TDR-0207); only "ask" shows the question.
+  const reviewMode = resolved?.client_review_mode ?? "ask";
+  const effectiveNeedsLogin = siteNeedsLogin ?? (reviewMode === "preview" ? "no" : reviewMode === "extension" ? "yes" : null);
   const activeToken = sessionMatchesLink ? assetGuest ?? pendingHandoff?.token ?? "" : "";
   const sessionStatus = useQuery({
     queryKey: qk.guestSession(activeToken),
@@ -177,7 +184,8 @@ export function ReviewEntryPage() {
         guestSessionToken: result.guest_session_token,
         displayName: result.display_name,
       };
-      setStoredGuestSession(shareToken, session);
+      setStoredGuestSession(shareToken, session, rememberMe);
+      setRememberedReviewer(shareToken, rememberMe ? { displayName: result.display_name, email: email.trim() } : null);
       if (currentLink.current !== originalLink) return;
       setDisplayName(result.display_name);
       setPasscode("");
@@ -236,7 +244,10 @@ export function ReviewEntryPage() {
         return;
       }
     }
-    if (shareToken) clearStoredGuestSession(shareToken);
+    if (shareToken) {
+      clearStoredGuestSession(shareToken);
+      setRememberedReviewer(shareToken, null);
+    }
     if (currentLink.current !== originalLink) return;
     // Full reload, not just resetting local state: it also drops the in-memory
     // React Query cache for this guest's session-scoped data and returns to a
@@ -292,25 +303,26 @@ export function ReviewEntryPage() {
           <div className="bl-gate-head">
             <BrandHeader branding={resolved.branding} />
             <h3 id="ggTitle">Review {resolved.project_name}</h3>
-            <p id="ggSub">Joined as {displayName}. Choose how to open the website.</p>
+            <p id="ggSub">Joined as {displayName}.{reviewMode === "ask" ? " Choose how to open the website." : ""}</p>
           </div>
           <div className="bl-gate-body">
             <ol className="bl-review-steps" aria-label="Review steps"><li>Joined review</li><li aria-current="step">Open website</li><li>Leave feedback</li></ol>
-            <fieldset className="bl-review-question"><legend>Does this website ask you to sign in?</legend>
-              <label><input type="radio" name="site-login" checked={siteNeedsLogin === "yes"} onChange={() => setSiteNeedsLogin("yes")} />Yes, or I'm not sure</label>
-              <label><input type="radio" name="site-login" checked={siteNeedsLogin === "no"} onChange={() => setSiteNeedsLogin("no")} />No, it's a public page</label>
-            </fieldset>
-            {siteNeedsLogin === null && <p role="status">Choose an option above to continue to the website.</p>}
-            {siteNeedsLogin === "yes" && <p>Use your normal browser and website account. We'll guide you through the extension setup if needed.</p>}
-            {siteNeedsLogin === "no" && <p>Open the review in a new tab, click an element and save your feedback. Keep this page open to return to your review.</p>}
+            {reviewMode === "ask" && <fieldset className="bl-review-question"><legend>Does this website ask you to sign in?</legend>
+              <label><input type="radio" name="site-login" checked={effectiveNeedsLogin === "yes"} onChange={() => setSiteNeedsLogin("yes")} />Yes, or I'm not sure</label>
+              <label><input type="radio" name="site-login" checked={effectiveNeedsLogin === "no"} onChange={() => setSiteNeedsLogin("no")} />No, it's a public page</label>
+            </fieldset>}
+            {effectiveNeedsLogin === null && <p role="status">Choose an option above to continue to the website.</p>}
+            {effectiveNeedsLogin === "yes" && <p>Use your normal browser and website account. We'll guide you through the extension setup if needed.</p>}
+            {effectiveNeedsLogin === "no" && <p>Open the review in a new tab, click an element and save your feedback. Keep this page open to return to your review.</p>}
             <p className="bl-policy-note">Website sign-in is separate from joining {resolved.branding?.hide_backline_branding ? "this review" : "Backline"}. A review link doesn't give access to the website's private pages.</p>
             {leaveError && <p role="alert" className="bl-error">{leaveError}</p>}
             {!online && <p role="status">You're offline. Reconnect to start or rejoin a review.</p>}
           </div>
           <div className="bl-gate-foot" style={{ flexDirection: "column" }}>
-            {siteNeedsLogin === "yes" && <NativeReviewButton projectId={resolved.project_id} url={resolved.start_url ?? resolved.target_origin}
+            {effectiveNeedsLogin === "yes" && <NativeReviewButton projectId={resolved.project_id} url={resolved.start_url ?? resolved.target_origin}
               guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} />}
-            {siteNeedsLogin === "no" && <>
+            {effectiveNeedsLogin === "yes" && reviewMode === "extension" && <button type="button" className="bl-quiet" onClick={() => setSiteNeedsLogin("no")}>Can't install extensions? Open the preview instead</button>}
+            {effectiveNeedsLogin === "no" && <>
               <button type="button" className="bl-button" disabled={openingSite || !online} onClick={() => void openWebsiteReview()}>{openingSite ? "Opening…" : "Open website review ↗"}</button>
               {openError && <p role="alert" className="bl-error">{openError}</p>}
               <details><summary>Page doesn't load or asks for sign-in?</summary><p>Open the real website with the extension to keep its normal login.</p><NativeReviewButton projectId={resolved.project_id} url={resolved.start_url ?? resolved.target_origin} guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} /></details>
@@ -399,6 +411,12 @@ export function ReviewEntryPage() {
               />
               <div className="bl-gate-hint">Get an email when the team replies to or resolves your feedback. Only used for this review.</div>
             </div>
+
+            <label className="bl-gate-remember">
+              <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
+              Remember me on this device
+              <span className="bl-gate-hint">Come back from the team's emails as yourself. Leave review forgets you.</span>
+            </label>
 
             {resolved.requires_passcode && (
               <div className="bl-gate-field">
