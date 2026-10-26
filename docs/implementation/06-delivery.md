@@ -5039,3 +5039,9 @@ database migration, or production deployment is claimed.
   "Application startup complete", so the next failed deploy's logs show whether start-up
   stalled (index checks or the storage bucket) or never began (build or image pull).
   This change also redeploys the API with current code.
+
+# 2026-10-26: Website cards show the site's share image (TDR-0196)
+
+- Card pictures no longer need the server browser: the worker uses the site's `og:image`
+  through the SSRF-guarded client. Works in production as soon as the worker runs; no
+  setting to change.

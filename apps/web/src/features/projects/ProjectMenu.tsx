@@ -132,7 +132,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
   const restore = useMutation({ mutationFn: () => api.restoreProject(project.id), onSuccess: async () => { await refreshWorkspace(); setConfirmRestore(false); toast("Project restored."); } });
   const refreshPreview = useMutation({
     mutationFn: () => api.refreshProjectPreview(project.id),
-    onSuccess: async () => { await refreshWorkspace(); toast("Taking a new screenshot of the site. The card updates in a moment."); },
+    onSuccess: async () => { await refreshWorkspace(); toast("Fetching a new picture of the site. The card updates in a moment."); },
     onError: (error) => toast(error instanceof Error ? error.message : "Could not refresh the preview.", "error"),
   });
 
@@ -169,7 +169,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
         {item("Rename project", "rename", () => { renameVersion.current = project.metadata_version ?? 0; renameRequest.current = null; setRenameLocked(false); rename.reset(); reloadRename.reset(); setRenameValue(project.name); setRenaming(true); setOpen(false); }, { disabled: !canManage, note: !canManage ? managersNote : undefined })}
         {item("Ticket board", "board", () => { setOpen(false); navigate(`/w/${workspaceSlug}/p/${project.id}/board`); }, { disabled: Boolean(project.archived_at) })}
         {onManagePages && item("Manage pages", "page", () => { setOpen(false); onManagePages(); }, { disabled: Boolean(project.archived_at) || !canEdit, note: project.archived_at ? "Restore to edit" : !canEdit ? editorsNote : undefined })}
-        {(project.project_type ?? "website") === "website" && item(project.preview_status === "queued" ? "Capturing preview…" : "Refresh preview", "camera", () => { setOpen(false); refreshPreview.mutate(); }, { disabled: Boolean(project.archived_at) || !canEdit || refreshPreview.isPending || project.preview_status === "queued", note: project.archived_at ? "Restore to edit" : !canEdit ? editorsNote : "Retake the card's screenshot" })}
+        {(project.project_type ?? "website") === "website" && item(project.preview_status === "queued" ? "Capturing preview…" : "Refresh preview", "camera", () => { setOpen(false); refreshPreview.mutate(); }, { disabled: Boolean(project.archived_at) || !canEdit || refreshPreview.isPending || project.preview_status === "queued", note: project.archived_at ? "Restore to edit" : !canEdit ? editorsNote : "Fetch the site's picture again" })}
         {(project.project_type ?? "website") !== "website" && item("Manage files", "page", () => { setOpen(false); setShowFiles(true); }, { disabled: Boolean(project.archived_at), note: project.archived_at ? "Restore project first" : undefined })}
         <div className="bl-dropdown-sep" role="separator" />
         {item("Duplicate project", "duplicate", () => { setConfirmDuplicate(true); setOpen(false); }, { disabled: !canEdit, note: !canEdit ? editorsNote : undefined })}
