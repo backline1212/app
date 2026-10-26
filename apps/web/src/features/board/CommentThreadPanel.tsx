@@ -1,4 +1,5 @@
 import { LayerBadge, RecoveryBadge } from "@backline/ui";
+import { MarkedShot } from "../../components/MarkedShot";
 import { roleLabel } from "../../lib/project-roles";
 import { useProjectRole } from "../projects/use-project";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,7 +56,7 @@ function ThreadMessage({ comment, teamOnly = false, children, extra }: { comment
       {extra}
       {comment.screenshot_url && (
         <a href={comment.screenshot_url} target="_blank" rel="noreferrer">
-          <img className="bl-screenshot" src={comment.screenshot_url} alt="Captured review context" />
+          <MarkedShot imgClassName="bl-screenshot" src={comment.screenshot_url} alt="Captured review context" marker={comment.screenshot_marker} label={comment.ticket_number} />
         </a>
       )}
       {comment.attachments.length > 0 && (

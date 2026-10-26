@@ -1,4 +1,5 @@
 import type { Schemas } from "@backline/types";
+import { MarkedShot } from "../../../../components/MarkedShot";
 import { Avatar, LayerBadge, RecoveryBadge } from "@backline/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { roleLabel } from "../../../../lib/project-roles";
@@ -293,7 +294,7 @@ function Message({ comment, showContext, extra }: { comment: CommentOut; showCon
           <div className="bl-cd-att">
             {comment.screenshot_url && (
               <a href={comment.screenshot_url} target="_blank" rel="noreferrer" className="bl-cd-shot">
-                <img src={comment.screenshot_url} alt="Captured review context" />
+                <MarkedShot src={comment.screenshot_url} alt="Captured review context" marker={comment.screenshot_marker} label={comment.ticket_number} />
               </a>
             )}
             {comment.attachments.map((attachment) =>
