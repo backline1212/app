@@ -5122,3 +5122,8 @@ database migration, or production deployment is claimed.
 - Verified locally with a webhook connection: a standalone ticket and a file comment each
   produced one `comment.created` event and one pending delivery; a retried file comment
   returned the same id with no second delivery. ruff, mypy, web typecheck.
+
+# 2026-10-27: Lazy error reporting (TDR-0205)
+
+- Verified: web lint/typecheck/build (entry 137.4 KB gzip; with a DSN Sentry is its own
+  chunk), sign-in page renders with no console errors.
