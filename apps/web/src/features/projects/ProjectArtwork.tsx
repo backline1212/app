@@ -168,9 +168,15 @@ export function ProjectArtwork({ project, open = 0, total = 0 }: { project: api.
     );
   }
 
-  if (type === "website" && shot.src) {
+  if (shot.src) {
+    // A site's share image is a designed banner (often a logo), not the page: shown
+    // whole over a soft fill of itself instead of cropped like a screenshot. File
+    // projects show their first file (TDR-0198).
+    const share = project.preview_source === "share-image";
+    const kind = share ? " is-share" : project.preview_source === "file" ? ` is-file is-${type}` : "";
     return (
-      <div className="bl-project-art bl-project-art-shot" aria-hidden="true">
+      <div className={`bl-project-art bl-project-art-shot${kind}`} aria-hidden="true">
+        {share && <img className="bl-art-fill" src={shot.src} alt="" decoding="async" />}
         <img src={shot.src} alt="" decoding="async" onError={shot.onError} />
       </div>
     );

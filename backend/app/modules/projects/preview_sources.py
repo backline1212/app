@@ -91,6 +91,29 @@ def usable_picture(data: bytes) -> bool:
     return bool(width >= MIN_WIDTH and height >= MIN_HEIGHT and width * height <= 40_000_000)
 
 
+async def service_screenshot(template: str, url: str) -> bytes:
+    """A screenshot of `url` from the operator's screenshot service (TDR-0198). The
+    service fetches the site, not Backline; the request still goes through the guard."""
+    from urllib.parse import quote
+
+    async with (
+        guarded_client(
+            timeout=httpx.Timeout(45.0),
+            follow_redirects=True,
+            max_redirects=5,
+            headers={"User-Agent": _USER_AGENT},
+        ) as client,
+        client.stream("GET", template.replace("{url}", quote(url, safe=""))) as response,
+    ):
+        content_type = response.headers.get("content-type", "").split(";")[0].lower()
+        if response.status_code >= 400 or content_type not in _IMAGE_TYPES:
+            raise ValueError(f"The screenshot service answered {response.status_code}.")
+        data = await _read_capped(response, MAX_IMAGE_BYTES)
+    if not usable_picture(data):
+        raise ValueError("The screenshot service returned an unusable image.")
+    return data
+
+
 async def social_image(url: str) -> bytes:
     """The site's own share image, as bytes. Raises ValueError when there is none."""
     async with guarded_client(

@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     # Off until worker egress isolation blocks internal networks, metadata, DNS
     # rebinding and non-HTTP browser traffic. A page route hook alone is insufficient.
     server_browser_enabled: bool = False
+    # Optional screenshot service for project card pictures (TDR-0198), a URL with a
+    # "{url}" placeholder, e.g. "https://image.thum.io/get/width/1280/crop/800/{url}".
+    # It receives each website project's start URL. Empty: share image instead.
+    preview_screenshot_url: str = ""
 
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db_name: str = "backline_local"

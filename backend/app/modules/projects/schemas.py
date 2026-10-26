@@ -16,6 +16,9 @@ ProjectType = Literal["website", "image", "pdf"]
 # of build/device screenshots. Keeps every website/file review path unchanged.
 ProjectVariant = Literal["webapp", "mobile"]
 PreviewStatus = Literal["queued", "ready", "failed"]
+# What the card picture is (TDR-0196/0197/0198): a server or extension screenshot of the
+# site, the site's own share image, a comment's screenshot, or a file project's file.
+PreviewSource = Literal["screenshot", "share-image", "extension", "comment", "file"]
 Environment = Literal["live", "staging"]
 # TDR-0056 project-level access. Order matters: each role includes the ones before it.
 ProjectRoleName = Literal["viewer", "commenter", "editor", "manager"]
@@ -272,6 +275,9 @@ class ProjectOut(BaseModel):
     # When the capture now queued (or last attempted) was asked for, so a client can
     # stop waiting on one that never ran.
     preview_requested_at: datetime | None = None
+    preview_source: PreviewSource | None = None
+    # What the picture shows: the site URL, or "asset:<id>" for a file project's file.
+    preview_ref: str | None = None
     # Project lists only, for file projects with files (TDR-0185).
     file_approval: FileApprovalSummary | None = None
 
@@ -321,6 +327,8 @@ class PreviewImageIn(BaseModel):
     (TDR-0197) - the Backline extension sends it when it opens the site for review."""
 
     data_url: str = Field(min_length=32, max_length=8_000_000)
+    # File projects: the file the thumbnail shows (TDR-0198). Websites leave it out.
+    asset_id: str | None = Field(default=None, max_length=24)
 
 
 class PreviewImageOut(BaseModel):

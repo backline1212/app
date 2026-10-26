@@ -5066,3 +5066,10 @@ database migration, or production deployment is claimed.
   screenshot → sketch.
 - Extension 0.5.13 (`apps/web/public/backline-extension-0.5.13.zip`, 66663 bytes, SHA-256
   `493a7b8d…c6a2`) carries the markers and the start-page card capture; 0.5.11 ZIP removed.
+
+# 2026-10-27: Card pictures for files; share images shown whole (TDR-0198)
+
+- Image, mobile-app and PDF cards show their first file (thumbnail made in a member's
+  browser when the file is viewed). Share-image cards (e.g. YouTube's logo banner) are
+  shown whole instead of cropped. Optional `PREVIEW_SCREENSHOT_URL` gives real page
+  screenshots for public sites.

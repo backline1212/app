@@ -10,7 +10,8 @@ import { ticketRef } from "../../lib/ticket-ref";
 import { Avatar, LayerBadge, StatusBadge } from "@backline/ui";
 import { STATUS_COLORS, TAGS } from "../../lib/workflow";
 import * as api from "./api";
-import type { ProjectOut } from "../projects/api";
+import { offerProjectPicture, type ProjectOut } from "../projects/api";
+import { cardThumbnail } from "./card-thumbnail";
 import { projectCan } from "../../lib/project-roles";
 import { ManageFilesDialog } from "./ManageFilesDialog";
 import { AssetPreview } from "./AssetPreview";
@@ -243,6 +244,21 @@ export function AssetReview({
   const mediaKey = `${asset?.id}:${page}`;
   const mediaReady = readyKey === mediaKey && !fileAccessDenied;
   const onMediaReady = useCallback((ready: boolean) => setReadyKey(ready ? mediaKey : ""), [mediaKey]);
+  // The project card's picture (TDR-0198): a member looking at the project's first file
+  // (page 1 of a PDF) offers a thumbnail of it, once per tab, unless the card already
+  // shows that file.
+  useEffect(() => {
+    if (guest || !mediaReady || !asset || !project || !canComment || page !== 1) return;
+    if (assets.data?.[0]?.id !== asset.id || project.preview_ref === `asset:${asset.id}`) return;
+    const key = `backline:card-picture:${asset.id}`;
+    try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, "1"); } catch { return; }
+    const media = sheetRef.current?.querySelector<HTMLImageElement | HTMLCanvasElement>("img, canvas:not([hidden])");
+    const dataUrl = media ? cardThumbnail(media) : null;
+    if (!dataUrl) return;
+    void offerProjectPicture(projectId, dataUrl, asset.id).then((result) => {
+      if (result.used) void cache.invalidateQueries({ predicate: (query) => query.queryKey[0] === "workspace" && query.queryKey[2] === "projects" });
+    }).catch(() => undefined);
+  }, [guest, mediaReady, asset, project, canComment, page, assets.data, projectId, cache]);
   const [mediaFailure, setMediaFailure] = useState<string | null>(null);
   useEffect(() => {
     if (locationProtected || resolvingRequested || !asset) return;

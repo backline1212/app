@@ -25,8 +25,13 @@ from app.core.config import get_settings
 from app.core.review_url import project_start_url
 from app.core.server_browser import require_server_browser
 from app.core.ssrf_guard import assert_safe_to_fetch
+from app.modules.assets.repository import AssetRepository
 from app.modules.pages.repository import PageRepository
-from app.modules.projects.preview_sources import social_image, usable_picture
+from app.modules.projects.preview_sources import (
+    service_screenshot,
+    social_image,
+    usable_picture,
+)
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.schemas import ProjectOut
 from app.modules.storage.quota import store_bytes
@@ -88,7 +93,12 @@ def _capture_due(doc: dict[str, Any], now: datetime, *, force: bool = False) -> 
         return True
     # A member's real screenshot from the extension beats the share image a refresh
     # without the server browser would fetch; keep it (TDR-0197).
-    if preview.get("source") == "extension" and not get_settings().server_browser_enabled:
+    settings = get_settings()
+    if (
+        preview.get("source") == "extension"
+        and not settings.server_browser_enabled
+        and not settings.preview_screenshot_url
+    ):
         return False
     if status == "failed":
         return requested_at is None or now - requested_at > RETRY_FAILED_AFTER
@@ -155,10 +165,19 @@ async def with_previews(
                 preview["requested_at"] = datetime.now(UTC)
 
     keys: dict[str, str] = {}
+    sources: dict[str, str] = {}
+    # A file project's thumbnail (TDR-0198) is shown while its file is still current.
+    live_files = await _current_files(db, docs)
     for doc in docs:
         preview = doc.get("preview") or {}
-        if preview.get("key") and preview.get("key_origin") == project_start_url(doc):
+        ref = preview.get("key_origin")
+        if not preview.get("key") or not ref:
+            continue
+        if ref == project_start_url(doc) or (
+            ref.startswith("asset:") and ref.removeprefix("asset:") in live_files
+        ):
             keys[str(doc["_id"])] = preview["key"]
+            sources[str(doc["_id"])] = preview.get("source") or "screenshot"
     # Plan B (TDR-0197): a site that blocks the capture worker (bot protection) or has
     # no share image still has a picture once someone comments on it with the extension
     # or the review link - the newest comment screenshot.
@@ -169,6 +188,7 @@ async def with_previews(
         ).items():
             keys[project_id] = shot_key
             fallback_at[project_id] = shot_at
+            sources[project_id] = "comment"
     except Exception:  # noqa: BLE001 - a missing fallback costs a picture, not the list
         logger.warning("Could not look up comment screenshots for previews", exc_info=True)
     try:
@@ -189,31 +209,62 @@ async def with_previews(
                     "preview_captured_at": fallback_at.get(str(doc["_id"]))
                     or (_aware(preview.get("captured_at")) if key else None),
                     "preview_requested_at": _aware(preview.get("requested_at")),
+                    "preview_source": sources.get(str(doc["_id"])),
+                    "preview_ref": preview.get("key_origin")
+                    if str(doc["_id"]) in sources and sources[str(doc["_id"])] != "comment"
+                    else None,
                 }
             )
         )
     return result
 
 
+async def _current_files(
+    db: AsyncIOMotorDatabase[dict[str, Any]], docs: list[dict[str, Any]]
+) -> set[str]:
+    wanted: dict[str, list[str]] = {}
+    for doc in docs:
+        ref = (doc.get("preview") or {}).get("key_origin") or ""
+        if doc.get("project_type") in ("image", "pdf") and ref.startswith("asset:"):
+            wanted.setdefault(doc["workspace_id"], []).append(ref.removeprefix("asset:"))
+    current: set[str] = set()
+    assets = AssetRepository(db)
+    for workspace_id, asset_ids in wanted.items():
+        current |= await assets.current_ids(workspace_id, asset_ids)
+    return current
+
+
 async def store_member_capture(
-    db: AsyncIOMotorDatabase[dict[str, Any]], doc: dict[str, Any], picture: bytes
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    doc: dict[str, Any],
+    picture: bytes,
+    *,
+    asset_id: str | None = None,
 ) -> bool:
-    """Keep a member's screenshot of the start page (the extension, TDR-0197) as the
-    card picture unless the card already has a recent real screenshot."""
-    if not _wants_preview(doc):
-        return False
+    """Keep a picture from a member's own browser as the card picture: the extension's
+    view of a website's start page (TDR-0197) unless the card already has a recent real
+    screenshot, or a file project's thumbnail of one of its current files (TDR-0198)
+    unless the card already shows that file."""
     now = datetime.now(UTC)
     preview = doc.get("preview") or {}
-    origin = project_start_url(doc)
-    captured_at = _aware(preview.get("captured_at"))
-    has_real_shot = (
-        preview.get("status") == "ready"
-        and preview.get("key_origin") == origin
-        and preview.get("source", "screenshot") in ("screenshot", "extension")
-        and captured_at is not None
-        and now - captured_at < STALE_AFTER
-    )
-    if has_real_shot or not usable_picture(picture):
+    if doc.get("project_type") in ("image", "pdf"):
+        if asset_id is None or doc.get("archived_at") is not None:
+            return False
+        origin, source = f"asset:{asset_id}", "file"
+        already = preview.get("status") == "ready" and preview.get("key_origin") == origin
+    else:
+        if asset_id is not None or not _wants_preview(doc):
+            return False
+        origin, source = project_start_url(doc), "extension"
+        captured_at = _aware(preview.get("captured_at"))
+        already = (
+            preview.get("status") == "ready"
+            and preview.get("key_origin") == origin
+            and preview.get("source", "screenshot") in ("screenshot", "extension")
+            and captured_at is not None
+            and now - captured_at < STALE_AFTER
+        )
+    if already or not usable_picture(picture):
         return False
     thumbnail = await asyncio.to_thread(_thumbnail, picture)
     workspace_id, project_id = doc["workspace_id"], str(doc["_id"])
@@ -248,7 +299,7 @@ async def store_member_capture(
         key=key,
         origin=origin,
         captured_at=now,
-        source="extension",
+        source=source,
     )
     if before is None:
         await _delete_quietly(db, workspace_id, key)
@@ -366,6 +417,12 @@ async def run_capture(
         try:
             picture = await _screenshot(origin)
         except Exception as exc:  # noqa: BLE001 - any navigation/render failure is reportable
+            errors.append(str(exc))
+    service = get_settings().preview_screenshot_url
+    if picture is None and service:
+        try:
+            picture = await service_screenshot(service, origin)
+        except Exception as exc:  # noqa: BLE001 - fall back to the share image
             errors.append(str(exc))
     if picture is None:
         source = "share-image"

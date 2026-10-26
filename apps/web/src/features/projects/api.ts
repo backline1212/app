@@ -58,6 +58,15 @@ export function duplicateProject(projectId: string) {
   return apiFetch<ProjectOut>(`/api/v1/projects/${projectId}/duplicate`, { method: "POST" });
 }
 
+/** Offer a picture for the project's card from this browser: a website's start page
+ * (the extension) or a file project's file (TDR-0197/0198). The API decides if it's kept. */
+export function offerProjectPicture(projectId: string, dataUrl: string, assetId?: string) {
+  return apiFetch<Schemas["PreviewImageOut"]>(`/api/v1/projects/${projectId}/preview/image`, {
+    method: "PUT",
+    body: JSON.stringify({ data_url: dataUrl, asset_id: assetId ?? null } satisfies Schemas["PreviewImageIn"]),
+  });
+}
+
 /** Retake the card's screenshot of the site (TDR-0058); the worker captures it. */
 export function refreshProjectPreview(projectId: string) {
   return apiFetch<ProjectOut>(`/api/v1/projects/${projectId}/preview`, { method: "POST" });
