@@ -215,7 +215,8 @@ async def _complete(prompt: str, *, json_mode: bool = False, max_tokens: int = 1
                 await cool_down_key(redis_client, claim, settings.groq_rate_limit_cooldown_seconds)
                 cooled = True
         except httpx.HTTPError as exc:
-            raise ExternalServiceError(f"Groq request failed: {exc}") from exc
+            logger.warning("Groq request failed: %s", exc)
+            raise ExternalServiceError("AI couldn't be reached. Try again in a moment.") from exc
         finally:
             # A cancelled or failed call must not leave the key claimed until its lock
             # expires; a cooled key is already held by its cool-down.
@@ -241,17 +242,21 @@ async def _complete(prompt: str, *, json_mode: bool = False, max_tokens: int = 1
             response.raise_for_status()
             data = response.json()
         except (httpx.HTTPStatusError, ValueError) as exc:
-            raise ExternalServiceError(f"Groq request failed: {exc}") from exc
+            logger.warning("Groq request failed: %s", exc)
+            raise ExternalServiceError("AI couldn't be reached. Try again in a moment.") from exc
 
         choices = data.get("choices") or []
         if not choices:
-            raise ExternalServiceError("Groq returned no completion choices.")
+            raise ExternalServiceError("AI returned no answer. Try again.")
         message = choices[0].get("message") or {}
         content = message.get("content") if isinstance(message, dict) else None
         return content if isinstance(content, str) else ""
 
     if saw_auth_error:
-        raise ExternalServiceError("Groq rejected every configured GROQ_API_KEYS entry.")
+        logger.error("Groq rejected every configured GROQ_API_KEYS entry.")
+        raise ExternalServiceError(
+            "AI is misconfigured on this deployment. Ask an administrator to check its keys."
+        )
     raise AIServiceBusyError("AI is busy right now - try again in a moment.")
 
 

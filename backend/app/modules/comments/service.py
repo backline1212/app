@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import logging
+import uuid
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -1590,8 +1591,15 @@ async def _notify_guest_comment_resolved(
     if context is None:
         return
     pool = await get_arq_pool()
+    # One email per resolve: the key is stable across retries of this job, and the job
+    # id stops a double enqueue (TDR-0203).
+    key = f"guest-resolved:{comment_doc['_id']}:{comment_doc.get('revision', 0)}"
     await pool.enqueue_job(
-        "send_guest_resolved_email_job", comment_body=comment_doc["body"], **context
+        "send_guest_resolved_email_job",
+        comment_body=comment_doc["body"],
+        idempotency_key=key,
+        _job_id=key,
+        **context,
     )
 
 
@@ -1616,11 +1624,14 @@ async def _notify_guest_of_team_reply(
         if not await get_redis().set(throttle, "1", nx=True, ex=CLIENT_REPLY_EMAIL_GAP_SECONDS):
             return
         pool = await get_arq_pool()
+        key = f"guest-reply:{parent['_id']}:{uuid.uuid4().hex}"
         await pool.enqueue_job(
             "send_guest_reply_email_job",
             comment_body=parent["body"],
             reply_author=reply_author,
             reply_body=reply_body,
+            idempotency_key=key,
+            _job_id=key,
             **context,
         )
     except Exception as exc:

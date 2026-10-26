@@ -99,6 +99,7 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
   const uploading = useRef(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [suggestedReplies, setSuggestedReplies] = useState<string[]>([]);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -163,6 +164,7 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
       // no longer exists - leaving them up would read as if they still apply to the
       // (now longer) thread.
       setSummary(null);
+      setSummaryError(null);
       setSuggestedReplies([]);
       setSuggestError(null);
     },
@@ -217,13 +219,16 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
   async function handleSummarize() {
     if (!workspaceQuery.data?.id) return;
     setIsSummarizing(true);
+    setSummaryError(null);
     try {
       const res = await summarizeThread(workspaceQuery.data.id, projectId, comment.id);
       setSummary(res.summary);
     } catch (err) {
-      setSummary(aiErrorMessage(err, "Failed to generate summary."));
+      // Shown as an error, not inside the "AI Summary" box as if the AI had said it.
+      setSummaryError(aiErrorMessage(err, "Could not summarize this thread right now."));
     } finally {
       setIsSummarizing(false);
+      void queryClient.invalidateQueries({ queryKey: qk.aiUsage(workspaceQuery.data.id) });
     }
   }
 
@@ -238,6 +243,7 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
       setSuggestError(aiErrorMessage(err, "Could not suggest replies right now."));
     } finally {
       setIsSuggesting(false);
+      void queryClient.invalidateQueries({ queryKey: qk.aiUsage(workspaceQuery.data.id) });
     }
   }
 
@@ -390,6 +396,7 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
           )}
         </div>
 
+        {summaryError && <p role="alert" className="bl-error">{summaryError}</p>}
         {summary && (
           <div className="bl-attention" style={{ padding: "10px", marginBottom: "16px", borderRadius: "4px" }}>
             <strong>✨ AI Summary:</strong>
