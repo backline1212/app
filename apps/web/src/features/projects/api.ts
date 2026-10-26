@@ -27,6 +27,17 @@ export function listProjects(workspaceId: string, includeArchived = false): Prom
   return apiFetch<ProjectOut[]>(`/api/v1/workspaces/${workspaceId}/projects?include_archived=${includeArchived}`);
 }
 
+export type UrlCheckOut = Schemas["UrlCheckOut"];
+
+/** Whether a review URL loads, before the project is saved (TDR-0206). */
+export function checkProjectUrl(workspaceId: string, url: string, signal?: AbortSignal): Promise<UrlCheckOut> {
+  return apiFetch<UrlCheckOut>(`/api/v1/workspaces/${workspaceId}/projects/check-url`, {
+    method: "POST",
+    body: JSON.stringify({ url }),
+    signal,
+  });
+}
+
 export function createProject(
   workspaceId: string,
   name: string,

@@ -654,6 +654,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/projects/check-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Project Url
+         * @description Checks a review URL before a website project is saved (TDR-0206).
+         */
+        post: operations["check_project_url_api_v1_workspaces__workspace_id__projects_check_url_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/projects/resolve": {
         parameters: {
             query?: never;
@@ -6016,6 +6036,29 @@ export interface components {
             /** Content Length */
             content_length: number;
         };
+        /** UrlCheckIn */
+        UrlCheckIn: {
+            /** Url */
+            url: string;
+        };
+        /**
+         * UrlCheckOut
+         * @description What the new-project form shows under the review URL (TDR-0206). `url` is the
+         *     address to save - with http:// when the site only answers there.
+         */
+        UrlCheckOut: {
+            /** Url */
+            url: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "sign_in" | "blocked" | "error_status" | "unreachable";
+            /** Http Status */
+            http_status: number | null;
+            /** Message */
+            message: string;
+        };
         /** UsageMetricsOut */
         UsageMetricsOut: {
             /** Projects Used */
@@ -7496,6 +7539,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_project_url_api_v1_workspaces__workspace_id__projects_check_url_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UrlCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UrlCheckOut"];
                 };
             };
             /** @description Validation Error */

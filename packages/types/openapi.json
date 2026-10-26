@@ -1891,6 +1891,64 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_id}/projects/check-url": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Check Project Url",
+        "description": "Checks a review URL before a website project is saved (TDR-0206).",
+        "operationId": "check_project_url_api_v1_workspaces__workspace_id__projects_check_url_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UrlCheckIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UrlCheckOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/projects/resolve": {
       "post": {
         "tags": [
@@ -18365,6 +18423,64 @@
           "content_length"
         ],
         "title": "UploadRequest"
+      },
+      "UrlCheckIn": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "UrlCheckIn"
+      },
+      "UrlCheckOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "sign_in",
+              "blocked",
+              "error_status",
+              "unreachable"
+            ],
+            "title": "Status"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "status",
+          "http_status",
+          "message"
+        ],
+        "title": "UrlCheckOut",
+        "description": "What the new-project form shows under the review URL (TDR-0206). `url` is the\naddress to save - with http:// when the site only answers there."
       },
       "UsageMetricsOut": {
         "properties": {

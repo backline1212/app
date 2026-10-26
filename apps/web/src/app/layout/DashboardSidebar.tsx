@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { TranslationKeys } from "../../lib/i18n";
+import { getSubscription } from "../../features/billing/api";
 import { getDashboard } from "../../features/tickets/api";
 import { listMembers, type WorkspaceOut } from "../../features/workspaces/api";
 import { WorkspaceSwitcherPopover } from "../../features/workspaces/WorkspaceSwitcherPopover";
@@ -78,6 +79,14 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
   const { data } = useQuery({ queryKey: qk.dashboard(workspace.id), queryFn: () => getDashboard(workspace.id) });
   const query = new URLSearchParams(location.search);
   const people = useQuery({ queryKey: qk.members(workspace.id), queryFn: () => listMembers(workspace.id) });
+  // Viewers can't read billing; their card keeps the plain project count.
+  const subscription = useQuery({
+    queryKey: qk.subscription(workspace.id),
+    queryFn: () => getSubscription(workspace.id),
+    enabled: workspace.role !== "viewer",
+    staleTime: 60_000,
+  });
+  const usage = subscription.data?.usage;
   const { pathname } = location;
   const onTickets = pathname === `${base}/tickets`;
   const onPage = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
@@ -197,10 +206,16 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
     </nav>
     <footer className="bl-rail-foot">
       <div className="bl-plan-card">
-        <div className="bl-plan-top"><span className="bl-plan-name">{workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1)} plan</span><span className="bl-plan-count">{data?.projects ?? "—"} project{data?.projects === 1 ? "" : "s"}</span></div>
-        <p>One place for your team's client reviews.</p>
-        <Link onClick={onNavigate} className="bl-btn-plan" to={`${base}/billing`}>Compare plans</Link>
+        <div className="bl-plan-top"><span className="bl-plan-name">{subscription.data?.plan_name ?? workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1)} plan</span><span className="bl-plan-count">{usage ? planCount(usage.projects_used, usage.projects_limit, "project") : `${data?.projects ?? "—"} project${data?.projects === 1 ? "" : "s"}`}</span></div>
+        <p>{usage ? `${planCount(usage.ai_credits_used, usage.ai_credits_limit, "AI credit")} this month` : "One place for your team's client reviews."}</p>
+        <Link onClick={onNavigate} className="bl-btn-plan" to={`${base}/billing`}>{usage?.projects_limit != null && usage.projects_used >= usage.projects_limit ? "Upgrade for more projects" : "Compare plans"}</Link>
       </div>
     </footer>
   </aside>;
+}
+
+/** "1 of 2 projects", or "3 projects" on an unlimited plan. */
+function planCount(used: number, limit: number | null | undefined, noun: string): string {
+  const plural = (n: number) => `${noun}${n === 1 ? "" : "s"}`;
+  return limit == null ? `${used} ${plural(used)}` : `${used} of ${limit} ${plural(limit)}`;
 }
