@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 from typing import TYPE_CHECKING
 
 import boto3
@@ -105,29 +106,46 @@ def _presign_client() -> S3Client:
     return _signing_client
 
 
+# Signed GET URLs are reused for half their lifetime (TDR-0202). Each list response used
+# to sign afresh, so the URL changed on every poll: the browser re-downloaded the same
+# screenshot and media elements keyed by URL remounted. Bounded; cleared when full.
+_SIGNED_REUSE_SECONDS = 1800
+_SIGNED_CACHE_MAX = 20_000
+_signed_cache: dict[str, tuple[str, float]] = {}
+
+
+def _sign_get(key: str, expires_in: int) -> str:
+    cacheable = expires_in == 3600
+    now = time.monotonic()
+    if cacheable:
+        hit = _signed_cache.get(key)
+        if hit is not None and now - hit[1] < _SIGNED_REUSE_SECONDS:
+            return hit[0]
+    url: str = _presign_client().generate_presigned_url(
+        "get_object",
+        Params={
+            "Bucket": get_settings().r2_bucket_name,
+            "Key": key,
+            "ResponseCacheControl": "private, max-age=300",
+        },
+        ExpiresIn=expires_in,
+    )
+    if cacheable:
+        if len(_signed_cache) >= _SIGNED_CACHE_MAX:
+            _signed_cache.clear()
+        _signed_cache[key] = (url, now)
+    return url
+
+
 async def generate_presigned_get(key: str, expires_in: int = 3600) -> str:
     """18-Storage-Deployment.md §18.2: screenshots are never served from a public
     bucket - a signed GET (1 hour TTL) is generated on-demand whenever a comment is
     read, since a screenshot's page context may not be intended as publicly enumerable
     even for a client-visible comment. §18.3 additionally asks for a short (5 min)
     Cache-Control on the response, since the URL itself is signed and rotates - found
-    missing during the Milestone 11 hardening audit (docs/tdr/0010)."""
-    settings = get_settings()
-
-    def _generate() -> str:
-        client = _presign_client()
-        url: str = client.generate_presigned_url(
-            "get_object",
-            Params={
-                "Bucket": settings.r2_bucket_name,
-                "Key": key,
-                "ResponseCacheControl": "private, max-age=300",
-            },
-            ExpiresIn=expires_in,
-        )
-        return url
-
-    return await asyncio.to_thread(_generate)
+    missing during the Milestone 11 hardening audit (docs/tdr/0010). A URL is reused
+    for up to 30 minutes, so it always has at least 30 minutes left."""
+    return await asyncio.to_thread(_sign_get, key, expires_in)
 
 
 async def generate_presigned_gets(keys: list[str], expires_in: int = 3600) -> dict[str, str]:
@@ -135,24 +153,7 @@ async def generate_presigned_gets(keys: list[str], expires_in: int = 3600) -> di
     list signs a card preview per project, and a boto3 client per key is the slow part."""
     if not keys:
         return {}
-    settings = get_settings()
-
-    def _generate() -> dict[str, str]:
-        client = _presign_client()
-        return {
-            key: client.generate_presigned_url(
-                "get_object",
-                Params={
-                    "Bucket": settings.r2_bucket_name,
-                    "Key": key,
-                    "ResponseCacheControl": "private, max-age=300",
-                },
-                ExpiresIn=expires_in,
-            )
-            for key in keys
-        }
-
-    return await asyncio.to_thread(_generate)
+    return await asyncio.to_thread(lambda: {key: _sign_get(key, expires_in) for key in keys})
 
 
 async def upload_bytes(key: str, data: bytes, content_type: str) -> None:
@@ -251,6 +252,7 @@ async def list_object_keys(prefixes: list[str]) -> list[str]:
 async def delete_object(key: str) -> None:
     """Idempotently remove one object; S3 DELETE succeeds when the key is absent."""
     settings = get_settings()
+    _signed_cache.pop(key, None)
 
     def _delete() -> None:
         _make_client().delete_object(Bucket=settings.r2_bucket_name, Key=key)

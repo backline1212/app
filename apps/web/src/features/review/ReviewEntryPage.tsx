@@ -69,7 +69,9 @@ export function ReviewEntryPage() {
   const sessionStatus = useQuery({
     queryKey: qk.guestSession(activeToken),
     queryFn: ({ signal }) => reviewApi.getGuestSessionStatus(activeToken, signal),
-    enabled: Boolean(activeToken), retry: false, refetchInterval: 15_000,
+    // Only notices a link revoked while the tab is open; every other guest request
+    // would fail too, so a minute is soon enough (TDR-0202).
+    enabled: Boolean(activeToken), retry: false, refetchInterval: 60_000,
   });
   const sessionEnded = sessionStatus.error instanceof ApiError && [401, 403, 404].includes(sessionStatus.error.status);
 

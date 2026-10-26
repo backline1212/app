@@ -5098,3 +5098,9 @@ database migration, or production deployment is claimed.
   codes counted per address across codes; 12,000-character page text stored as 10,000;
   a status change no longer sets `body_edited_at`, a text edit does.
 - ruff, mypy, workspace scoping, types regenerated, web lint/typecheck.
+
+# 2026-10-27: Polling and signed-URL cost (TDR-0202)
+
+- Comments version reads a projection; guest session check every 60 s; signed URLs reused
+  for 30 minutes (checked: same key → same URL; other expiry → fresh URL).
+- ruff, mypy; web lint/typecheck.

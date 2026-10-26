@@ -166,7 +166,12 @@ class CommentRepository:
         )
 
     async def list_for_member(
-        self, workspace_id: str, page_id: str, *, since: datetime | None = None
+        self,
+        workspace_id: str,
+        page_id: str,
+        *,
+        since: datetime | None = None,
+        projection: dict[str, int] | None = None,
     ) -> list[dict[str, Any]]:
         """A member sees every layer - the layer filter here is a no-op, present only
         so both list methods have the same shape and a reviewer of this file sees the
@@ -178,11 +183,16 @@ class CommentRepository:
         }
         if since is not None:
             query["created_at"] = {"$gt": since}
-        cursor = self.db.comments.find(query).sort("created_at", 1)
+        cursor = self.db.comments.find(query, projection).sort("created_at", 1)
         return [doc async for doc in cursor]
 
     async def list_for_guest_session(
-        self, workspace_id: str, page_id: str, *, since: datetime | None = None
+        self,
+        workspace_id: str,
+        page_id: str,
+        *,
+        since: datetime | None = None,
+        projection: dict[str, int] | None = None,
     ) -> list[dict[str, Any]]:
         """`layer: "client"` is hard-coded into the query filter - there is no parameter
         that lets a caller ask for `team` layer comments on behalf of a guest session
@@ -197,7 +207,7 @@ class CommentRepository:
         }
         if since is not None:
             query["created_at"] = {"$gt": since}
-        cursor = self.db.comments.find(query).sort("created_at", 1)
+        cursor = self.db.comments.find(query, projection).sort("created_at", 1)
         docs = [doc async for doc in cursor]
 
         # A client-layer reply is only visible while its thread is: a thread moved to
