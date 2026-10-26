@@ -503,8 +503,10 @@ async def revoke_all_sessions(db: AsyncIOMotorDatabase[dict[str, Any]], user_id:
     # Browser-extension connections are long-lived bearer tokens; "sign out of all
     # sessions" must end them as well.
     from app.modules.extension_tokens.repository import ExtensionTokenRepository
+    from app.modules.mcp.repository import McpTokenRepository
 
     await ExtensionTokenRepository(db).revoke_all_for_user(user_object_id)
+    await McpTokenRepository(db).revoke_all_for_user(user_object_id)
 
 
 MAX_ACTIVE_SESSIONS = 5
@@ -618,10 +620,13 @@ async def change_password(
     )
     if current_sid:
         await RefreshTokenRepository(db).revoke_other_families(user_doc["_id"], current_sid)
-    # A changed password also ends extension connections made with the old one.
+    # A changed password also ends extension connections and MCP tokens made with the
+    # old one.
     from app.modules.extension_tokens.repository import ExtensionTokenRepository
+    from app.modules.mcp.repository import McpTokenRepository
 
     await ExtensionTokenRepository(db).revoke_all_for_user(user_doc["_id"])
+    await McpTokenRepository(db).revoke_all_for_user(user_doc["_id"])
 
 
 def _email_change_purpose(user_id: str) -> str:

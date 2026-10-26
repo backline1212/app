@@ -35,7 +35,10 @@ export function AssetPreview({ asset, projectId, pageNumber, guest, onReady, onF
   if (failure) {
     const missing = content.error instanceof ApiError && content.error.code === "FILE_MISSING";
     return <div className="bl-asset-loading" role="alert">
-      <p>{missing ? `${asset.filename} is missing from storage. Upload it again from Manage files; its comments stay in the Comments panel.` : failure}</p>
+      <p>{!missing ? failure
+        // A client reviewer can't replace files, so they're pointed at the team instead.
+        : guest ? `${asset.filename} isn't available right now. Let the team know so they can upload it again; comments stay in the Comments panel.`
+        : `${asset.filename} is missing from storage. Upload it again from Manage files; its comments stay in the Comments panel.`}</p>
       <div className="bl-asset-loading-actions">
         {missing && onManageFiles && <button type="button" className="bl-button" onClick={onManageFiles}>Manage files</button>}
         <button type="button" className={missing && onManageFiles ? "bl-quiet" : "bl-button"} onClick={() => { onReady(false); setImageError(false); void content.refetch(); }}>Retry file</button>
