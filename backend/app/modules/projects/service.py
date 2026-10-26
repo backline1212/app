@@ -21,7 +21,6 @@ from app.core.project_access import (
     session_project_role,
 )
 from app.core.review_url import project_start_url, review_origin
-from app.core.server_browser import require_server_browser
 from app.core.session import Session
 from app.modules.billing.limits import require_within_plan_limit, run_plan_change
 from app.modules.clients.repository import ClientRepository
@@ -427,7 +426,6 @@ async def refresh_project_preview(
         raise ValidationError("Only website projects have a site preview.")
     if doc.get("archived_at") is not None:
         raise ValidationError("Restore this project to refresh its preview.")
-    require_server_browser()
     await preview_service.queue_capture(db, doc, force=True)
     return await get_project(
         db, project_id=project_id, workspace_id=workspace_id, viewer=viewer, with_preview=True

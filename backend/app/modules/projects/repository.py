@@ -371,6 +371,7 @@ class ProjectRepository:
         key: str,
         origin: str,
         captured_at: datetime,
+        source: str = "screenshot",
     ) -> dict[str, Any] | None:
         """Record a finished capture, unless a newer one was queued meanwhile. Returns
         the project as it was before, so the caller can delete the screenshot it
@@ -383,6 +384,7 @@ class ProjectRepository:
                     "preview.key": key,
                     "preview.key_origin": origin,
                     "preview.captured_at": captured_at,
+                    "preview.source": source,
                     "preview.error": None,
                 }
             },

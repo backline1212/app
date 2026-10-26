@@ -1,8 +1,10 @@
-"""Project card previews (TDR-0058): a screenshot of the top of a website project's
-site, so the projects grid shows each site as it looks instead of a generic sketch.
+"""Project card previews (TDR-0058): a picture of a website project's site, so the
+projects grid shows each site instead of a generic sketch.
 
-Captures run on the worker (app/workers/project_preview.py), which has Playwright's
-Chromium installed; the API only decides when one is due and queues it. A capture is
+Captures run on the worker (app/workers/project_preview.py); the API only decides when
+one is due and queues it. With SERVER_BROWSER_ENABLED the worker screenshots the top of
+the page in Chromium; otherwise, or when that fails, it uses the site's own share image
+(og:image, TDR-0196 - preview_sources.py), which needs no browser. A capture is
 due when a website project has none yet, its review URL changed, the last one is a
 week old, or the last attempt failed long enough ago to try again. Listing projects
 queues whatever is due, so projects saved before this existed get a preview the first
@@ -21,8 +23,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.arq_pool import get_arq_pool
 from app.core.config import get_settings
 from app.core.review_url import project_start_url
-from app.core.server_browser import UNAVAILABLE_MESSAGE, require_server_browser
+from app.core.server_browser import require_server_browser
 from app.core.ssrf_guard import assert_safe_to_fetch
+from app.modules.projects.preview_sources import social_image
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.schemas import ProjectOut
 from app.modules.storage.quota import store_bytes
@@ -93,8 +96,6 @@ async def queue_capture(
 ) -> bool:
     """Queue a capture for this project if one is due. Never raises: a card preview
     isn't worth failing the request that noticed it was missing."""
-    if not get_settings().server_browser_enabled:
-        return False
     now = datetime.now(UTC)
     if not _capture_due(doc, now, force=force):
         return False
@@ -220,13 +221,17 @@ async def _screenshot(url: str) -> bytes:
             await browser.close()
 
 
-def _thumbnail(png: bytes) -> bytes:
+def _thumbnail(picture: bytes) -> bytes:
     from PIL import Image
 
-    with Image.open(io.BytesIO(png)) as image:
-        rgb = image.convert("RGB")
-        height = round(rgb.height * THUMBNAIL_WIDTH / rgb.width)
-        small = rgb.resize((THUMBNAIL_WIDTH, height), Image.Resampling.LANCZOS)
+    with Image.open(io.BytesIO(picture)) as image:
+        rgba = image.convert("RGBA")
+        # Transparent share images (logos on a clear background) go on white, not black.
+        rgb = Image.new("RGB", rgba.size, (255, 255, 255))
+        rgb.paste(rgba, mask=rgba.getchannel("A"))
+        width = min(THUMBNAIL_WIDTH, rgb.width)
+        height = round(rgb.height * width / rgb.width)
+        small = rgb.resize((width, height), Image.Resampling.LANCZOS)
         out = io.BytesIO()
         small.save(out, "JPEG", quality=80, optimize=True, progressive=True)
         return out.getvalue()
@@ -244,9 +249,6 @@ async def run_capture(
     preview = doc.get("preview") or {}
     if preview.get("token") != token or not _wants_preview(doc):
         return
-    if not get_settings().server_browser_enabled:
-        await repo.fail_preview(workspace_id, project_id, token=token, error=UNAVAILABLE_MESSAGE)
-        return
     origin = preview.get("origin") or project_start_url(doc)
 
     try:
@@ -254,9 +256,25 @@ async def run_capture(
     except ValueError as exc:
         await repo.fail_preview(workspace_id, project_id, token=token, error=str(exc))
         return
+    picture: bytes | None = None
+    source = "screenshot"
+    errors: list[str] = []
+    if get_settings().server_browser_enabled:
+        try:
+            picture = await _screenshot(origin)
+        except Exception as exc:  # noqa: BLE001 - any navigation/render failure is reportable
+            errors.append(str(exc))
+    if picture is None:
+        source = "share-image"
+        try:
+            picture = await social_image(origin)
+        except Exception as exc:  # noqa: BLE001 - unreachable site, no share image, ...
+            errors.append(str(exc))
     try:
-        thumbnail = await asyncio.to_thread(_thumbnail, await _screenshot(origin))
-    except Exception as exc:  # noqa: BLE001 - any navigation/render failure is reportable
+        if picture is None:
+            raise ValueError(" ".join(errors) or "No preview picture was found.")
+        thumbnail = await asyncio.to_thread(_thumbnail, picture)
+    except Exception as exc:  # noqa: BLE001
         await repo.fail_preview(workspace_id, project_id, token=token, error=str(exc))
         return
 
@@ -280,6 +298,7 @@ async def run_capture(
         key=key,
         origin=origin,
         captured_at=datetime.now(UTC),
+        source=source,
     )
     if before is None:
         await _delete_quietly(db, workspace_id, key)  # superseded while rendering
