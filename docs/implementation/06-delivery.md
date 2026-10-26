@@ -5045,3 +5045,13 @@ database migration, or production deployment is claimed.
 - Card pictures no longer need the server browser: the worker uses the site's `og:image`
   through the SSRF-guarded client. Works in production as soon as the worker runs; no
   setting to change.
+
+# 2026-10-27: Railway build failures were infrastructure; local start-up fix
+
+- Railway's own diagnosis of the failed builds (#126 on app and worker): "Infrastructure
+  Error - the builder lost its connection (buildkitd.sock: use of closed network
+  connection) before any build step ran; the commit's changes did not cause it." The
+  earlier one-off failures fit the same pattern. Fix: rebuild the same code.
+- Rebuilt by this change: the API no longer fails to start on a fresh local S3 store
+  (moto/MinIO reject creating a bucket without a location outside us-east-1; R2's
+  "auto" region does not need one). Verified on a fresh moto: created, then a no-op.

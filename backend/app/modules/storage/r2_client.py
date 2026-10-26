@@ -14,14 +14,14 @@ if TYPE_CHECKING:
 from app.core.config import get_settings
 
 
-def _make_client() -> S3Client:
+def _make_client(region: str | None = None) -> S3Client:
     settings = get_settings()
     return boto3.client(
         "s3",
         endpoint_url=settings.r2_endpoint_url,
         aws_access_key_id=settings.r2_access_key_id,
         aws_secret_access_key=settings.r2_secret_access_key,
-        region_name=settings.r2_region,
+        region_name=region or settings.r2_region,
         config=BotoConfig(
             signature_version="s3v4",
             connect_timeout=5,
@@ -41,7 +41,18 @@ async def ensure_bucket_exists() -> None:
         try:
             client.head_bucket(Bucket=settings.r2_bucket_name)
         except ClientError:
-            client.create_bucket(Bucket=settings.r2_bucket_name)
+            try:
+                client.create_bucket(Bucket=settings.r2_bucket_name)
+            except ClientError as exc:
+                # R2 ("auto") creates without a location. Stores that model AWS regions
+                # (moto, MinIO in local development) refuse that outside us-east-1, so
+                # the API used to fail to start on a fresh local store.
+                if (
+                    exc.response.get("Error", {}).get("Code")
+                    != "IllegalLocationConstraintException"
+                ):
+                    raise
+                _make_client("us-east-1").create_bucket(Bucket=settings.r2_bucket_name)
 
     await asyncio.to_thread(_ensure)
 
