@@ -5155,3 +5155,9 @@ database migration, or production deployment is claimed.
 
 - Walked: Team → Invite people → invite email → sign in with code → "Welcome to Backline"
   with a name field → "Good evening, Sam". Web lint/typecheck.
+
+# 2026-10-27: File review and ticket screenshots (TDR-0210)
+
+- Phone (iPhone 13 viewport) client review of an image project: join, tap to pin, post
+  (#5). Ticket #4 in the dashboard shows pin "4" on the "Buy now" button the client
+  clicked. Web lint/typecheck.

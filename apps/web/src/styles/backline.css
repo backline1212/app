@@ -3359,3 +3359,8 @@ td .bl-file-approval{margin-left:6px}
 .bl-gate-remember { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: start; margin: 4px 0 2px; font-size: 13px; color: var(--ink); cursor: pointer; }
 .bl-gate-remember input { margin-top: 2px; accent-color: var(--bl-accent-fill); }
 .bl-gate-remember .bl-gate-hint { grid-column: 2; margin-top: 2px; }
+/* Screenshot + pin/area marker (MarkedShot). The wrapper is the image's own box. */
+.bl-marked-shot { position: relative; display: inline-block; max-width: 100%; line-height: 0; vertical-align: top; }
+.bl-marked-shot > img { max-width: 100%; }
+.bl-shot-frame .bl-marked-shot { display: block; width: 100%; }
+.bl-shot-frame .bl-marked-shot > img { width: 100%; height: auto; object-fit: initial; }

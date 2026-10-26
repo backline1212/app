@@ -1,6 +1,6 @@
 import { StatusBadge } from "@backline/ui";
-import type { CSSProperties } from "react";
 
+import { MarkedShot } from "../../components/MarkedShot";
 import { redactReviewUrl } from "../../lib/review-page-path";
 import { ticketRef } from "../../lib/ticket-ref";
 import { timeAgo } from "../../lib/time";
@@ -55,11 +55,6 @@ export function ScreenshotBoard({
           <div className="bl-shotboard-grid">
             {items.map((comment) => {
               const marker = comment.screenshot_marker;
-              const markerStyle = marker ? ({
-                left: `${marker.x * 100}%`,
-                top: `${marker.y * 100}%`,
-                ...(marker.w != null && marker.h != null ? { width: `${marker.w * 100}%`, height: `${marker.h * 100}%` } : {}),
-              } as CSSProperties) : undefined;
               return (
                 <button
                   key={comment.id}
@@ -70,12 +65,7 @@ export function ScreenshotBoard({
                 >
                   <span className="bl-shot-frame">
                     {comment.screenshot_url ? (
-                      <>
-                        <img src={comment.screenshot_url} alt="" loading="lazy" decoding="async" />
-                        {marker && (marker.w != null && marker.h != null
-                          ? <span className="bl-shot-area" style={markerStyle} aria-hidden="true" />
-                          : <span className="bl-shot-pin" style={markerStyle} aria-hidden="true">{comment.ticket_number ?? "•"}</span>)}
-                      </>
+                      <MarkedShot src={comment.screenshot_url} alt="" marker={marker} label={comment.ticket_number} />
                     ) : (
                       <span className="bl-shot-none">{comment.capture_status === "skipped" ? "Posted without a screenshot" : "No screenshot"}</span>
                     )}

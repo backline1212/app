@@ -138,7 +138,8 @@ export function AssetReview({
   const [body, setBody] = useState("");
   const [readyKey, setReadyKey] = useState("");
   const [reply, setReply] = useState("");
-  const [tag, setTag] = useState<(typeof TAGS)[number]>("Design");
+  // No tag until the reviewer picks one (TDR-0207); clicking it again clears it.
+  const [tag, setTag] = useState<(typeof TAGS)[number] | null>(null);
   const [layer, setLayer] = useState<"client" | "team">("client");
   const [files, setFiles] = useState<Schemas["AttachmentIn"][]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(0);
@@ -352,7 +353,7 @@ export function AssetReview({
   });
   function submitComment() {
     if (posting.current || !canComment || !body.trim() || body.trim().length > 10_000 || uploadingFiles > 0 || recording || (!prepared.current && (!asset || !draft || !mediaReady))) return;
-    prepared.current ??= { assetId: asset!.id, payload: { body: body.trim(), region: { ...draft! }, layer, tags: [tag], attachments: files, client_request_id: crypto.randomUUID() } };
+    prepared.current ??= { assetId: asset!.id, payload: { body: body.trim(), region: { ...draft! }, layer, tags: tag ? [tag] : [], attachments: files, client_request_id: crypto.randomUUID() } };
     posting.current = true; setSaveWarning(""); post.mutate();
   }
   async function addFiles(selected: File[]) {
@@ -980,7 +981,7 @@ export function AssetReview({
         onSubmit={(e) => { e.preventDefault(); submitComment(); }}
       >
         <div className="bl-asset-composer-head">
-          <span className="bl-asset-composer-av" aria-hidden="true">{(guestName ?? "You").trim().slice(0, 2).toUpperCase()}</span>
+          <span className="bl-asset-composer-av" aria-hidden="true">{nameInitials(guestName ?? "You")}</span>
           <strong>New comment</strong>
           <span className="bl-asset-composer-loc" title={asset?.filename}>{asset?.filename}{isPdf ? ` · p.${draft.page_number}` : ""}</span>
           <button type="button" className="bl-asset-composer-close" aria-label="Cancel comment" disabled={post.isPending} onClick={cancelComment}>×</button>
@@ -991,7 +992,7 @@ export function AssetReview({
             <span className="cp-lbl">Tag this as</span>
             <div className="cp-tags" role="group" aria-label="Tag this as">
               {TAGS.map((t) => (
-                <button type="button" key={t} className="cp-tag" aria-pressed={tag === t} onClick={() => setTag(t)}>{t}</button>
+                <button type="button" key={t} className="cp-tag" aria-pressed={tag === t} onClick={() => setTag((current) => (current === t ? null : t))}>{t}</button>
               ))}
             </div>
           </div>
@@ -1065,4 +1066,11 @@ export function AssetReview({
     </footer>
     {showFiles && project && <ManageFilesDialog project={project} onClose={() => setShowFiles(false)} onVersionUploaded={(saved, replaced) => setSwitchTo({ saved, replacedId: replaced.id })} />}
   </main>;
+}
+
+/** "Kim Lee" → "KL", "Kim" → "KI". */
+function nameInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+  return (words[0] ?? "").slice(0, 2).toUpperCase();
 }
