@@ -17,13 +17,20 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.13 (2026-10-27, supersedes 0.5.2-0.5.12)
+## Update ready: 0.5.14 (2026-10-27, supersedes 0.5.2-0.5.13)
+
+0.5.14 = 0.5.13 plus composer fixes shared with the website SDK: no tag is preselected
+(copy and design notes were saved as "Bug"), the device label follows the real device
+on phones, and the post button no longer wraps (TDR-0207, TDR-0213). Package 66704 bytes,
+SHA-256 `74136a2ec9c97f83b416a4159b327f2ace2a58dcd020ac6157cdbe27b8a6c713`. Same targets and permissions. Submit 0.5.14.
+
+## Previous: 0.5.13 (2026-10-27)
 
 0.5.13 = 0.5.12 plus screenshot markers on new comments (where the pin or area was on its
 screenshot) and, for team members, the start-page view offered as the project card's
 picture when Backline's servers can't fetch the site (TDR-0197). Package 66663 bytes,
 SHA-256 `493a7b8da27c164981bdc912555260bde53cab5134fda79d36bf0c0cb195c6a2`. Same targets
-and permissions. Submit 0.5.13.
+and permissions.
 
 ## Previous: 0.5.12 (2026-10-25)
 

@@ -5179,3 +5179,9 @@ database migration, or production deployment is claimed.
 - iPhone 13 viewport on the test site: label now follows the saved device type. Widget
   lint/typecheck/build (36.4 KB gzip). Assignment check: assigning a client ticket to a
   teammate notified them and removed it from "New from clients".
+
+# 2026-10-27: Extension 0.5.14
+
+- Packaged from `main` with production endpoints (`apps/web/public/backline-extension-0.5.14.zip`,
+  66704 bytes, SHA-256 `74136a2e…c713`): carries the composer fixes from TDR-0207/0213.
+  0.5.12 ZIP removed; 0.5.13 kept as the previous package. Download link points at 0.5.14.
