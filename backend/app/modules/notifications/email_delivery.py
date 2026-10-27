@@ -27,6 +27,7 @@ _SUBJECTS = {
     events.COMMENT_MENTION: "You were mentioned in feedback",
     events.COMMENT_STATUS_CHANGED: "Your feedback status changed",
     events.FILE_APPROVED: "A file you uploaded was approved",
+    events.CLIENT_FEEDBACK: "A client left feedback",
 }
 
 
@@ -87,7 +88,9 @@ async def _send_claimed(
     if recipient is None:
         return "skipped"
     email, link = recipient
-    subject = _SUBJECTS[doc["type"]]
+    # A type without its own subject still sends (a KeyError here failed the job and
+    # left the sweep retrying it - TDR-0216).
+    subject = _SUBJECTS.get(doc["type"], "New activity on your feedback")
     envelope = doc.get("email_envelope")
     if envelope is not None and envelope["to"] != email:
         # Never replay an envelope to an old address after an account change.
