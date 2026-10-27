@@ -26,7 +26,8 @@ are in [go-live-checklist-2026-10-25.md](go-live-checklist-2026-10-25.md).
 - Quick checks in the go-live checklist (sign-in, guest comment, client reply email,
   file approval, extension page, `/health`).
 - Dashboard CSP (TDR-0188): open the deployed app with DevTools and confirm no
-  Content-Security-Policy errors, including Razorpay checkout and Sentry.
+  Content-Security-Policy errors, including Razorpay checkout and Sentry. With
+  `VITE_SENTRY_DSN` set, violations also arrive in Sentry as "CSP blocked …" (TDR-0224).
 - BUG-09: the old example.com preview failure still has no proven root cause; capture
   request/response evidence on production and verify a fix.
 - BUG-12 (proxy 307/308) and QA-02/QA-03 passed locally; repeat on production. QA-03
@@ -54,8 +55,6 @@ are in [go-live-checklist-2026-10-25.md](go-live-checklist-2026-10-25.md).
 
 ## 4. Suggestions
 
-- **CSP reporting:** add a `report-to` endpoint for the dashboard policy so production
-  violations are seen, not guessed.
 - **Client emails:** show the workspace logo when branding is set; today the header is
   the brand name.
 - **Screenshots:** an optional full-page capture (black-outs and preview are done).
@@ -64,6 +63,17 @@ are in [go-live-checklist-2026-10-25.md](go-live-checklist-2026-10-25.md).
   lifecycle rule; a load test before a wider launch.
 - **Install guides:** links to a short video or doc page per platform, once the
   marketing site exists.
+
+## Shipped 2026-10-27 (product walkthroughs, round 3)
+
+backline1212/app#147 replies move "Needs your reply"/"Waiting on client" (TDR-0215) · #148
+client-feedback email subject (TDR-0216) · #149 "New from clients" tab filter, missing
+screenshots (TDR-0217) · #150 Delete workspace for owners (TDR-0218) · #151 review
+follow-ups: purge isolation, first-sign-in name, edit-form URL line, remembered
+reviewer, reply-owed edge cases (TDR-0219) · #152 activity repeats and project names,
+client initials (TDR-0220) · #153 archived projects show "This review is closed"
+(TDR-0221) · #154 renewal reminder emails and sidebar notice (TDR-0222) · #155 "Email me
+a sign-in code" (TDR-0223) · CSP violations reported to Sentry (TDR-0224).
 
 ## Shipped 2026-10-27 (product walkthroughs, round 2)
 

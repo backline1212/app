@@ -5250,3 +5250,11 @@ database migration, or production deployment is claimed.
 - Browser: signed in as Sam (member) from "Email me a sign-in code" → code → "Skip for
   now" → dashboard ("Good evening, Sam", 1 waiting on a reply).
 - web lint/typecheck.
+
+# 2026-10-27: CSP violations to Sentry (TDR-0224)
+
+- Browser: dev server with a test DSN and a strict image policy; three blocked
+  `https://example.org/secret-N.png?token=…` images produced one Sentry event "CSP
+  blocked img-src: https://example.org" with no path or token; a blocked stylesheet
+  produced its own event.
+- web lint/typecheck.
