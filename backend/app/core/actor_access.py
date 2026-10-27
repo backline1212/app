@@ -15,6 +15,12 @@ from app.modules.share_links.repository import (
 )
 from app.modules.workspaces.repository import MembershipRepository
 
+# What a client sees on a link to an archived project (TDR-0221).
+ARCHIVED_REVIEW_MESSAGE = (
+    "This review is closed - the team archived the project. "
+    "Ask them if you still need to leave feedback."
+)
+
 
 async def _check_canvas_member(
     db: AsyncIOMotorDatabase[dict[str, Any]],
@@ -98,7 +104,7 @@ async def resolve_actor_project_access(
         db, project_id=project_id, workspace_id=link["workspace_id"]
     )
     if project.archived_at:
-        raise PermissionDeniedError("This project is archived.")
+        raise PermissionDeniedError(ARCHIVED_REVIEW_MESSAGE, details={"reason": "project_archived"})
 
     guest_workspace_id: str = link["workspace_id"]
     await GuestSessionRepository(db).touch_last_seen(
