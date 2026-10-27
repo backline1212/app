@@ -5206,3 +5206,7 @@ database migration, or production deployment is claimed.
 
 - With email notifications on, a client comment produced "Backline: A client left
   feedback" from the worker (previously a KeyError). ruff, mypy.
+# 2026-10-27: New-from-clients tab and missing screenshots (TDR-0217)
+
+- Tickets → New from clients showed 3 rows (was 6); a Board card whose screenshot object
+  was gone showed "Screenshot unavailable". Web lint/typecheck.

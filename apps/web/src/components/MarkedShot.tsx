@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 
+import { ShotImage } from "./ShotImage";
+
 export interface ShotMarker {
   x: number;
   y: number;
@@ -29,7 +31,7 @@ export function MarkedShot({ src, alt, marker, label, imgClassName }: {
     : undefined;
   return (
     <span className="bl-marked-shot">
-      <img className={imgClassName} src={src} alt={alt} loading="lazy" decoding="async" />
+      <ShotImage className={imgClassName} src={src} alt={alt} loading="lazy" decoding="async" />
       {marker && (area
         ? <span className="bl-shot-area" style={style} aria-hidden="true" />
         : <span className="bl-shot-pin" style={style} aria-hidden="true">{label ?? "•"}</span>)}

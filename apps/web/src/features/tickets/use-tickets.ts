@@ -17,7 +17,7 @@ import { useToast } from "../../components/Toast";
 // A value outside these - an old bookmark, a hand-edited link - used to fail the whole
 // request with a 422 and leave the list empty; it is now just ignored.
 const ALLOWED: Record<string, readonly string[]> = {
-  view: ["all", "mine", "reply", "client", "overdue"],
+  view: ["all", "mine", "reply", "client", "overdue", "new"],
   sort: ["newest", "oldest", "due", "priority", "status", "project", "assignee", "tag"],
   status: WORKFLOW_STATUSES,
   priority: ["high", "medium", "low"],
