@@ -1,9 +1,10 @@
 """Emails the owner before a prepaid plan ends (TDR-0222).
 
 Plans don't renew automatically (TDR-0052), so without a reminder a workspace drops to
-Free Starter limits on the day its period ends. The owner hears 7 days and 1 day before;
-each reminder is recorded on the workspace per period, so a re-run or a renewal that
-extends the period never repeats one."""
+Free Starter limits on the day its period ends. The owner hears 7 days and 1 day before.
+The job runs hourly, so the 1-day reminder still gets retries inside its last day; each
+reminder is recorded on the workspace per period, so a re-run or a renewal that extends
+the period never repeats one."""
 
 import logging
 from datetime import UTC, datetime, timedelta
@@ -50,7 +51,7 @@ async def send_renewal_reminders(db: AsyncIOMotorDatabase[dict[str, Any]]) -> in
             if await _remind_owner(db, workspace, period_end, stage, key):
                 sent += 1
         except Exception:
-            # Unclaimed on failure, so tomorrow's run tries again.
+            # Unclaimed on failure, so the next hourly run tries again.
             logger.exception("Renewal reminder failed for workspace %s", workspace_id)
     return sent
 
@@ -77,7 +78,9 @@ async def _remind_owner(
         return False
     plan_name = get_plan_definition(str(workspace["plan"]))["name"]
     ends = f"{period_end:%B} {period_end.day}"
-    when = "tomorrow" if stage == 1 else f"on {ends}"
+    # From calendar dates, not the stage: a period ending this afternoon ends "today".
+    days_away = (period_end.date() - datetime.now(UTC).date()).days
+    when = "today" if days_away <= 0 else "tomorrow" if days_away == 1 else f"on {ends}"
     billing = (
         f"{get_settings().public_dashboard_base_url.rstrip('/')}" f"/w/{workspace['slug']}/billing"
     )
@@ -96,8 +99,9 @@ async def _remind_owner(
             ),
             idempotency_key=f"renewal/{workspace_id}/{key}",
         )
-    except Exception:
-        # Release the claim so the next daily run retries this reminder.
+    except BaseException:
+        # Release the claim (also on cancellation: a job timeout or shutdown) so the
+        # next hourly run retries this reminder.
         await WorkspaceRepository(db).release_renewal_reminder(workspace_id, key)
         raise
     return True

@@ -51,7 +51,7 @@ async def purge_due_workspaces(
                 entry["error"] = type(exc).__name__
                 await db.workspaces.update_one(
                     {"_id": workspace["_id"]},
-                    {"$set": {"purge_failed_at": datetime.now(UTC), "purge_error": str(exc)[:300]}},
+                    {"$set": {"purge_failed_at": datetime.now(UTC), "purge_error": entry["error"]}},
                 )
             else:
                 entry["projects_deleted"] = len(projects)
@@ -88,5 +88,9 @@ async def _purge_workspace(
         # workspace-scope-exempt: deletes only this closed workspace's records
         await db[collection].delete_many({"workspace_id": workspace_id})
     await db.workspaces.update_one(
-        {"_id": workspace["_id"]}, {"$set": {"purged_at": datetime.now(UTC)}}
+        {"_id": workspace["_id"]},
+        {
+            "$set": {"purged_at": datetime.now(UTC)},
+            "$unset": {"purge_failed_at": "", "purge_error": ""},
+        },
     )

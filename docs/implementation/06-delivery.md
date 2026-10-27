@@ -5258,3 +5258,10 @@ database migration, or production deployment is claimed.
   blocked img-src: https://example.org" with no path or token; a blocked stylesheet
   produced its own event.
 - web lint/typecheck.
+
+# 2026-10-27: Review follow-ups 2 (TDR-0225)
+
+- Local: period ending 23:00 UTC today → "ends today" email. Archived website project:
+  proxied page answers "This review is closed" with the new message; JSON callers get
+  `details.reason = "project_archived"`. Test data restored.
+- ruff, mypy, scoping.
