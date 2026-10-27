@@ -5201,3 +5201,8 @@ database migration, or production deployment is claimed.
 - API check on a client ticket assigned to Sam: Maya's client-visible reply →
   `waiting_on_client: true`; the client's answer → `waiting_on_client: false`,
   `waiting_on_ids: [Sam]`. ruff, mypy, scoping, web typecheck.
+
+# 2026-10-27: Client feedback email fix (TDR-0216)
+
+- With email notifications on, a client comment produced "Backline: A client left
+  feedback" from the worker (previously a KeyError). ruff, mypy.
