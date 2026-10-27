@@ -2520,6 +2520,7 @@ a.bl-table-name:hover{background:var(--hov,#EDEEEB)}
 .bl-plan-name{font-size:13px;font-weight:600}
 .bl-plan-count{font:10px var(--mono);color:var(--ink-3)}
 .bl-plan-card p{margin:0 0 10px;font-size:12px;line-height:1.4;color:var(--ink-3)}
+.bl-plan-card p.bl-plan-ending{color:var(--amber-ink);font-weight:600}
 .bl-btn-plan{display:block;width:100%;padding:7px;border-radius:4px;background:var(--mint);color:#0B0B0B;font-size:12.5px;font-weight:600;text-align:center}
 .bl-btn-plan:hover{background:#57d3a4}
 

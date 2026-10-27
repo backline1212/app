@@ -36,6 +36,7 @@ from app.workers.notifications import (
 )
 from app.workers.project_preview import capture_project_preview_job
 from app.workers.recovery import run_recovery_pipeline_job
+from app.workers.renewal_reminders import send_renewal_reminders_job
 from app.workers.snapshot_delivery import (
     deliver_snapshot_revision_job,
     sweep_snapshot_deliveries_job,
@@ -80,6 +81,7 @@ class WorkerSettings:
         reconcile_storage_reservation_job,
         sweep_storage_reservations_job,
         purge_closed_workspaces_job,
+        send_renewal_reminders_job,
     ]
     # Real headless-browser renders (Chromium/WebKit/Firefox via Playwright) are
     # meaningfully heavier than every other job here - cap how many run at once so a
@@ -97,6 +99,7 @@ class WorkerSettings:
         cron(sweep_notification_emails_job, second=30),
         cron(sweep_storage_reservations_job, second=45),
         cron(purge_closed_workspaces_job, hour=3, minute=17),
+        cron(send_renewal_reminders_job, hour=10, minute=7),
     ]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     # A deploy's SIGTERM lets running jobs (an email send, a digest) finish first

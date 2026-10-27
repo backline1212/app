@@ -196,6 +196,37 @@ class WorkspaceRepository:
         normalize_room_code) and unique among workspaces that have one."""
         return await self.db.workspaces.find_one({"room_code": room_code})
 
+    async def paid_periods_ending(self, before: datetime) -> list[dict[str, Any]]:
+        """Open workspaces on a paid plan whose prepaid period ends between now and
+        `before` (TDR-0222's renewal reminders)."""
+        cursor = self.db.workspaces.find(
+            {
+                "plan": {"$nin": [None, "free"]},
+                "current_period_end": {"$gt": datetime.now(UTC), "$lte": before},
+                "closed_at": None,
+            },
+            {"_id": 1, "name": 1, "slug": 1, "plan": 1, "current_period_end": 1},
+        )
+        return [doc async for doc in cursor]
+
+    async def claim_renewal_reminder(self, workspace_id: str, key: str) -> bool:
+        """Records reminder `key` once; False when it was already sent."""
+        oid = to_object_id(workspace_id)
+        if oid is None:
+            return False
+        result = await self.db.workspaces.update_one(
+            {"_id": oid, "renewal_reminders_sent": {"$ne": key}},
+            {"$addToSet": {"renewal_reminders_sent": key}},
+        )
+        return result.modified_count == 1
+
+    async def release_renewal_reminder(self, workspace_id: str, key: str) -> None:
+        oid = to_object_id(workspace_id)
+        if oid is not None:
+            await self.db.workspaces.update_one(
+                {"_id": oid}, {"$pull": {"renewal_reminders_sent": key}}
+            )
+
     async def set_fields(self, workspace_id: str, patch: dict[str, Any]) -> None:
         """A plain $set on the workspace document (dotted paths allowed)."""
         oid = to_object_id(workspace_id)
