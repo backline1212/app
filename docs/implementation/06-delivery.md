@@ -5218,3 +5218,9 @@ database migration, or production deployment is claimed.
   workspace". Account deletion re-checked after moving the close into the shared
   function: sole-member workspace closed with reason `owner_deleted_account`.
 - ruff, mypy, scoping, types regenerated, web lint/typecheck.
+
+# 2026-10-27: Review follow-ups (TDR-0219)
+
+- Browser: Edit project on an unchanged URL shows no "Checking the address…" line; a
+  review link with a remembered reviewer opens with name and email filled in.
+- ruff, mypy, scoping, web lint/typecheck.

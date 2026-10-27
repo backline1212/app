@@ -287,11 +287,12 @@ function SignInPage() {
   const needsName = Boolean(user && (!user.name.trim() || user.name.trim().toLowerCase() === user.email.split("@")[0].toLowerCase()));
   const [profileName, setProfileName] = useState("");
 
-  async function saveProfileName() {
+  async function saveProfileName(): Promise<string | null> {
     const next = profileName.trim();
-    if (!needsName || !next || !user) return;
+    if (!needsName || !next || !user) return null;
     const updated = await updateProfile({ name: next });
     updateUser({ ...user, name: updated.name });
+    return updated.name;
   }
 
   async function handleSetPassword(event: FormEvent) {
@@ -303,11 +304,12 @@ function SignInPage() {
     }
     if (!beginAuth()) return;
     try {
-      await saveProfileName();
+      const savedName = await saveProfileName();
       await savePassword(newPassword);
       // The account modal's has_password gate (TDR-0034) would otherwise still show
       // stale "no password to change" copy until the next token refresh.
-      if (user) updateUser({ ...user, has_password: true });
+      // `user` is this render's copy, so keep the name just saved with it.
+      if (user) updateUser({ ...user, name: savedName ?? user.name, has_password: true });
       finishSignIn();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save that password.");

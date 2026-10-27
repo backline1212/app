@@ -212,7 +212,11 @@ async def _move_reply_owed(
         return
     current = list(parent.get("waiting_on_ids") or [])
     if is_client_reviewer(actor):
-        owed = list(dict.fromkeys([*current, *(parent.get("assignee_ids") or [])]))
+        # Older threads only carry the single `assignee_id`.
+        assignees = parent.get("assignee_ids") or (
+            [parent["assignee_id"]] if parent.get("assignee_id") else []
+        )
+        owed = list(dict.fromkeys([*current, *assignees]))
         await CommentRepository(db).set_waiting(
             parent["workspace_id"], str(parent["_id"]), waiting_on_ids=owed, waiting_on_client=False
         )
@@ -221,7 +225,12 @@ async def _move_reply_owed(
         return
     replier = actor.user_id if isinstance(actor, Session) else actor.member_user_id
     owed = [user_id for user_id in current if user_id != replier]
-    client_thread = parent.get("layer") == "client" and parent.get("author_type") == "guest"
+    # Dashboard canvas notes are stored guest-authored but are the team's own (`by_team`).
+    client_thread = (
+        parent.get("layer") == "client"
+        and parent.get("author_type") == "guest"
+        and not parent.get("by_team")
+    )
     await CommentRepository(db).set_waiting(
         parent["workspace_id"],
         str(parent["_id"]),
