@@ -132,6 +132,13 @@ code{font-size:12px;color:#8E3419}</style></head>"""
 
 def _error_page(exc: BacklineError) -> HTMLResponse:
     message = html.escape(exc.message or "The website could not be loaded.")
+    if exc.details.get("reason") == "project_archived":
+        # Not a site problem: the team archived the project (TDR-0225).
+        return HTMLResponse(
+            _ERROR_PAGE_HEAD
+            + f"<body><main><h1>This review is closed</h1><p>{message}</p></main></body></html>",
+            status_code=exc.status_code,
+        )
     body = (
         _ERROR_PAGE_HEAD
         + "<body><main><h1>This website couldn't be loaded for review</h1>"

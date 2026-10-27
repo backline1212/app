@@ -14,6 +14,7 @@ from urllib.parse import unquote_plus, urlsplit, urlunsplit
 import httpx
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.core.actor_access import ARCHIVED_REVIEW_MESSAGE
 from app.core.config import get_settings
 from app.core.errors import ConflictError, ExternalServiceError, NotFoundError
 from app.core.review_url import review_origin
@@ -553,8 +554,10 @@ async def fetch_proxied_resource(
         raise ConflictError("This review link has expired.")
 
     project = await ProjectRepository(db).find_by_id(link["project_id"])
-    if project is None or project.get("archived_at"):
+    if project is None:
         raise NotFoundError("Project not found.")
+    if project.get("archived_at"):
+        raise NotFoundError(ARCHIVED_REVIEW_MESSAGE, details={"reason": "project_archived"})
     target_origin = review_origin(project["target_origin"])
 
     upstream_url = f"{target_origin}/{path.lstrip('/')}"

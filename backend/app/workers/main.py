@@ -99,7 +99,8 @@ class WorkerSettings:
         cron(sweep_notification_emails_job, second=30),
         cron(sweep_storage_reservations_job, second=45),
         cron(purge_closed_workspaces_job, hour=3, minute=17),
-        cron(send_renewal_reminders_job, hour=10, minute=7),
+        # Hourly, so a failed or missed 1-day reminder is retried before the plan ends.
+        cron(send_renewal_reminders_job, minute=7),
     ]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     # A deploy's SIGTERM lets running jobs (an email send, a digest) finish first
