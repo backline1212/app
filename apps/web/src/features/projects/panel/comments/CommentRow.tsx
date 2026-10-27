@@ -1,4 +1,5 @@
 import { Avatar, LayerBadge, RecoveryBadge } from "@backline/ui";
+import { ShotImage } from "../../../../components/ShotImage";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useProjectRole } from "../../use-project";
 import { useEffect, useRef, useState } from "react";
@@ -265,7 +266,7 @@ export function CommentRow({
           onClick={(event) => event.stopPropagation()}
           className="bl-comment-shot-link"
         >
-          <img src={comment.screenshot_url} alt="Captured review context" className="bl-comment-shot" />
+          <ShotImage src={comment.screenshot_url} alt="Captured review context" className="bl-comment-shot" />
         </a>
       ) : comment.capture_status === "failed" ? (
         <span className="bl-comment-shot-failed">Screenshot capture failed</span>

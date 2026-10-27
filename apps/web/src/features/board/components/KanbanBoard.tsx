@@ -1,4 +1,5 @@
 import { LayerBadge, RecoveryBadge } from "@backline/ui";
+import { ShotImage } from "../../../components/ShotImage";
 import type { UseMutationResult } from "@tanstack/react-query";
 
 import { WORKFLOW_STATUSES as STATUSES, STATUS_COLORS, STATUS_LABELS } from "../../../lib/workflow";
@@ -73,7 +74,7 @@ export function KanbanBoard({
                   className="bl-kanban-card"
                 >
                   {comment.screenshot_url && (
-                    <img
+                    <ShotImage
                       src={comment.screenshot_url}
                       alt=""
                       className="bl-kanban-shot"

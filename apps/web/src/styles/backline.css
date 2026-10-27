@@ -3380,3 +3380,5 @@ td .bl-file-approval{margin-left:6px}
 .bl-danger-text { color: var(--bl-danger-fill); }
 .bl-button.bl-danger { background: var(--bl-danger-fill); border-color: var(--bl-danger-fill); color: #fff; }
 .bl-field-hint { margin: 2px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--ink-3); }
+/* A screenshot that couldn't load (TDR-0217). */
+.bl-shot-missing { display: grid; place-items: center; min-height: 72px; width: 100%; padding: 12px; border: 1px dashed var(--line); border-radius: 4px; background: var(--bl-subtle, var(--paper)); color: var(--ink-3); font-size: 11.5px; line-height: 1.3; text-align: center; }
