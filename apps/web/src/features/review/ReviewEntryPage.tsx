@@ -357,6 +357,10 @@ export function ReviewEntryPage() {
       resolveError instanceof ApiError
         ? resolveError.message
         : "This review link could not be opened.";
+    // An archived project: retrying or asking for a new link won't help (TDR-0221).
+    if (resolveError instanceof ApiError && resolveError.details.reason === "project_archived") {
+      return <ErrorScreen title="This review is closed" message="The team archived this project. Ask them if you still need to leave feedback." hint={null} />;
+    }
     return <ErrorScreen message={message} onRetry={() => void reloadReview()} />;
   }
 
@@ -451,16 +455,18 @@ export function ReviewEntryPage() {
   );
 }
 
-function ErrorScreen({ message, onRetry, retryLabel = "Try again", signIn }: { message: string; onRetry?: () => void; retryLabel?: string; signIn?: boolean }) {
+const LINK_HINT = "If the link has expired or been revoked, ask the project team for a new link.";
+
+function ErrorScreen({ title = "Could not join", message, hint = LINK_HINT, onRetry, retryLabel = "Try again", signIn }: { title?: string; message: string; hint?: string | null; onRetry?: () => void; retryLabel?: string; signIn?: boolean }) {
   return (
     <div className="bl-gate-scrim">
       <div className="bl-gate-modal" role="dialog" aria-modal="true">
         <div className="bl-gate-head">
-          <h3>Could not join</h3>
+          <h3>{title}</h3>
         </div>
         <div className="bl-gate-body">
           <div className="bl-error" style={{ margin: 0 }}>{message}</div>
-          <p>If the link has expired or been revoked, ask the project team for a new link.</p>
+          {hint && <p>{hint}</p>}
         </div>
         <div className="bl-gate-foot">{onRetry && <button type="button" className="bl-button" onClick={onRetry}>{retryLabel}</button>}{signIn && <Link className="bl-button" to="/login">Sign in to Backline</Link>}</div>
       </div>

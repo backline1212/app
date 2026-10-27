@@ -8,7 +8,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
-from app.core.actor_access import resolve_actor_project_access
+from app.core.actor_access import ARCHIVED_REVIEW_MESSAGE, resolve_actor_project_access
 from app.core.config import get_settings
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationError
 from app.core.events import append_event
@@ -239,8 +239,11 @@ async def resolve_share_link(
     _ensure_active(link)
 
     project = await ProjectRepository(db).find_by_id(link["project_id"])
-    if project is None or project.get("archived_at"):
+    if project is None:
         raise NotFoundError("Project not found.")
+    if project.get("archived_at"):
+        # A valid link to a paused project: say so rather than "not found" (TDR-0221).
+        raise NotFoundError(ARCHIVED_REVIEW_MESSAGE, details={"reason": "project_archived"})
 
     return ReviewResolveOut(
         share_link_id=str(link["_id"]),
@@ -299,8 +302,10 @@ async def create_guest_session(
             raise PermissionDeniedError("Incorrect passcode.")
 
     project = await ProjectRepository(db).find_by_id(link["project_id"])
-    if project is None or project.get("archived_at"):
-        raise NotFoundError("Project not found or archived.")
+    if project is None:
+        raise NotFoundError("Project not found.")
+    if project.get("archived_at"):
+        raise NotFoundError(ARCHIVED_REVIEW_MESSAGE, details={"reason": "project_archived"})
 
     guest_repo = GuestSessionRepository(db)
     guest_doc = await guest_repo.create(

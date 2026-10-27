@@ -5230,3 +5230,10 @@ database migration, or production deployment is claimed.
 - Browser: Activity shows "Kim Lee opened the review link in Northwind site ×6" and
   "updated the project Spring banner"; Clients list avatar reads "NT".
 - web lint/typecheck.
+
+# 2026-10-27: Closed review screen (TDR-0221)
+
+- Browser (phone): archived the PDF project, opened its link: "This review is closed -
+  The team archived this project…", no retry. Restored it: the link opens again. PDF
+  project created, reviewed as a client on a phone, comment pinned on page 2.
+- ruff, mypy, web lint/typecheck.
