@@ -71,6 +71,7 @@ function SignInPage() {
   const [params] = useSearchParams();
   const invitedToCode = params.get("use") === "code";
   const [step, setStep] = useState<"signin" | "signup" | "help" | "code" | "newpw">(invitedToCode ? "help" : "signin");
+  const [codeFirst, setCodeFirst] = useState(invitedToCode);
   const [email, setEmail] = useState(() => (params.get("email") ?? "").slice(0, 320));
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -334,11 +335,12 @@ function SignInPage() {
     finishSignIn();
   }
 
-  function goToHelp() {
+  function goToHelp(useCode = false) {
     if (authPending.current) return;
     setError(null);
     setCodePurpose("signin");
     setPassword("");
+    setCodeFirst(useCode);
     setStep("help");
   }
 
@@ -422,7 +424,7 @@ function SignInPage() {
                 <div className="lg-f" id="lgf-inPw">
                   <div className="lg-lbl">
                     <label htmlFor="lgInPw">Password</label>
-                    <button type="button" className="lg-forgot" onClick={goToHelp} disabled={isSubmitting}>Forgot password?</button>
+                    <button type="button" className="lg-forgot" onClick={() => goToHelp()} disabled={isSubmitting}>Forgot password?</button>
                   </div>
                   <span className={`lg-inp pw${capsOn ? " capson" : ""}`}>
                     <input
@@ -466,9 +468,11 @@ function SignInPage() {
                   {isSubmitting ? <span className="lg-spin"></span> : null}
                   Sign in
                 </button>
+                {/* Teammates who joined from an invite or with Google often have no
+                    password; the code sign-in shouldn't hide behind "Forgot password?". */}
                 <p className="lg-new">
-                  Joined with Google or a code? <em>You may not have a password</em> — use
-                  “Forgot password?” above and we'll email you a sign-in code.
+                  No password yet?{" "}
+                  <button type="button" onClick={() => goToHelp(true)} disabled={isSubmitting}>Email me a sign-in code</button>
                 </p>
               </form>
               <div className="lg-swap">
@@ -596,7 +600,7 @@ function SignInPage() {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
                 Back to sign in
               </button>
-              <h1>{invitedToCode ? "Sign in with an email code" : "Trouble signing in?"}</h1>
+              <h1>{codeFirst ? "Sign in with an email code" : "Trouble signing in?"}</h1>
               <p className="lg-lede">
                 Tell us the email on the account and we send a six-digit code that signs
                 you in. It works whether or not you ever set a password.
