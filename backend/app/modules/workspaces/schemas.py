@@ -45,6 +45,12 @@ class WorkspaceOut(BaseModel):
     members_can_create_projects: bool = True
 
 
+class WorkspaceDeleteRequest(BaseModel):
+    """TDR-0218: the owner types the workspace's name to confirm."""
+
+    confirm_name: str = Field(min_length=1, max_length=200)
+
+
 class RoomCodeSet(BaseModel):
     """No code generates a random one."""
 

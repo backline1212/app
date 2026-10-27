@@ -49,6 +49,8 @@ from app.modules.workspaces.schemas import (
     WorkspaceOut,
 )
 
+CLOSED_WORKSPACE_GRACE = timedelta(days=30)
+
 logger = logging.getLogger("backline.workspaces")
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
@@ -1031,3 +1033,55 @@ async def reject_join_request(
         payload={"user_id": req["user_id"], "request_id": request_id},
     )
     await _publish_members_changed(workspace_id)
+
+
+async def close_workspace(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    actor_user_id: str,
+    reason: str,
+) -> datetime:
+    """Closes a workspace (TDR-0214/0218): projects archived, review links revoked, room
+    code cleared, every membership removed, `purge_after` set 30 days out. Nobody can
+    open it; workspaces/purge.py deletes its content after that. Returns purge_after."""
+    from app.modules.projects.repository import ProjectRepository
+    from app.modules.share_links.repository import ShareLinkRepository
+
+    purge_after = datetime.now(UTC) + CLOSED_WORKSPACE_GRACE
+    await ProjectRepository(db).archive_all_for_workspace(workspace_id)
+    await ShareLinkRepository(db).revoke_all_for_workspace(workspace_id)
+    await WorkspaceRepository(db).mark_closed(
+        workspace_id, closed_by=actor_user_id, purge_after=purge_after
+    )
+    memberships = MembershipRepository(db)
+    for membership in await memberships.list_for_workspace(workspace_id):
+        await memberships.delete(workspace_id=workspace_id, membership_id=str(membership["_id"]))
+    await append_event(
+        db,
+        workspace_id=workspace_id,
+        type=workspace_events.WORKSPACE_CLOSED,
+        actor_type="member",
+        actor_id=actor_user_id,
+        payload={"reason": reason, "purge_after": purge_after.isoformat()},
+    )
+    await _publish_members_changed(workspace_id)
+    return purge_after
+
+
+async def delete_workspace(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    actor: Session,
+    confirm_name: str,
+) -> None:
+    """Settings → Delete workspace (owner only). The typed name must match."""
+    workspace = await WorkspaceRepository(db).find_by_id(workspace_id)
+    if workspace is None or workspace.get("closed_at"):
+        raise NotFoundError("Workspace not found.")
+    if confirm_name.strip() != workspace["name"].strip():
+        raise ValidationError("Type the workspace's name exactly to confirm.")
+    await close_workspace(
+        db, workspace_id=workspace_id, actor_user_id=actor.user_id, reason="deleted_by_owner"
+    )

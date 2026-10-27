@@ -39,6 +39,7 @@ from app.modules.auth.schemas import (
     UserOut,
     UserUpdateRequest,
 )
+from app.modules.workspaces.service import CLOSED_WORKSPACE_GRACE
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -333,7 +334,7 @@ async def preview_account_deletion(
             AccountDeletionWorkspace(workspace_id=e["workspace_id"], name=e["name"])
             for e in plan.leaving
         ],
-        purge_after_days=account_deletion.PURGE_GRACE.days,
+        purge_after_days=CLOSED_WORKSPACE_GRACE.days,
     )
 
 

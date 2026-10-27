@@ -38,6 +38,17 @@ export function SettingsPage() {
     },
     onError: (error) => toast(error instanceof Error ? error.message : "Could not update the workspace.", "error"),
   });
+  const [deleting, setDeleting] = useState(false);
+  const [deleteName, setDeleteName] = useState("");
+  const remove = useMutation({
+    mutationFn: () => workspacesApi.deleteWorkspace(workspace.id, deleteName),
+    onSuccess: async () => {
+      setDeleting(false);
+      await queryClient.invalidateQueries({ queryKey: qk.workspaces() });
+      navigate("/", { replace: true });
+    },
+  });
+
   const leave = useMutation({
     mutationFn: () => workspacesApi.leaveWorkspace(workspace.id),
     onSuccess: async () => {
@@ -170,6 +181,43 @@ export function SettingsPage() {
           )}
         </div>
       </section>
+
+      {role === "owner" && (
+        <section className="ws-card">
+          <header>
+            <h2>Delete workspace</h2>
+            <p>Close {workspace.name} for everyone.</p>
+          </header>
+          <div className="ws-settings-body">
+            <p className="ws-settings-note">
+              Everyone loses access at once and review links stop working. Projects, files and comments are deleted
+              permanently 30 days later. Billing and audit records are kept.
+            </p>
+            <button type="button" className="bl-quiet danger" onClick={() => { setDeleteName(""); remove.reset(); setDeleting(true); }}>
+              Delete {workspace.name}…
+            </button>
+          </div>
+        </section>
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title={`Delete ${workspace.name}?`}
+          message={
+            <>
+              <p>Everyone in it loses access now; its projects, files and comments are deleted after 30 days. Type the workspace name to confirm.</p>
+              <input className="bl-input" aria-label="Workspace name" value={deleteName} onChange={(event) => setDeleteName(event.target.value)} placeholder={workspace.name} autoFocus />
+              {remove.error && <p className="bl-error" role="alert">{remove.error.message}</p>}
+            </>
+          }
+          confirmLabel={remove.isPending ? "Deleting…" : "Delete workspace"}
+          destructive
+          pending={remove.isPending}
+          confirmDisabled={deleteName.trim() !== workspace.name.trim()}
+          onConfirm={() => remove.mutate()}
+          onCancel={() => setDeleting(false)}
+        />
+      )}
 
       {leaving && (
         <ConfirmDialog

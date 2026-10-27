@@ -23,6 +23,7 @@ from app.modules.workspaces.schemas import (
     RoomCodeSet,
     TransferOwnershipRequest,
     WorkspaceCreate,
+    WorkspaceDeleteRequest,
     WorkspaceOut,
     WorkspaceUpdate,
 )
@@ -243,6 +244,19 @@ async def leave_workspace(
 ) -> None:
     require_workspace_match(session, workspace_id)
     await workspace_service.leave_workspace(get_db(), workspace_id=workspace_id, actor=session)
+
+
+@router.post("/workspaces/{workspace_id}/delete", status_code=204)
+async def delete_workspace(
+    workspace_id: str,
+    body: WorkspaceDeleteRequest,
+    session: Session = Depends(require_permission("workspace:delete")),
+) -> None:
+    """Closes the workspace for everyone; its content is purged 30 days later (TDR-0218)."""
+    require_workspace_match(session, workspace_id)
+    await workspace_service.delete_workspace(
+        get_db(), workspace_id=workspace_id, actor=session, confirm_name=body.confirm_name
+    )
 
 
 @router.post("/workspaces/{workspace_id}/transfer-ownership", status_code=204)
