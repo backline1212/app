@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import type { Schemas } from "@backline/types";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { Dialog } from "../../components/Dialog";
+import { nameInitials } from "../../lib/initials";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { useToast } from "../../components/Toast";
 import { PlusIcon, SearchIcon } from "../../components/icons";
@@ -113,7 +114,7 @@ export function ClientsPage() {
                   <tr key={client.id}>
                     <td>
                       <button type="button" className="bl-text-button" onClick={() => setEdit(client)}>
-                        <span className="bl-avatar">{client.name.slice(0, 2).toUpperCase()}</span>
+                        <span className="bl-avatar">{nameInitials(client.name)}</span>
                         <span>
                           <strong>{client.name}</strong>
                           <small>{client.contact_name || "No contact"}{client.email ? ` · ${client.email}` : ""}</small>
@@ -179,7 +180,7 @@ export function ClientsPage() {
                 <tr key={client.id}>
                   <td>
                     <span className="bl-text-button">
-                      <span className="bl-avatar">{client.name.slice(0, 2).toUpperCase()}</span>
+                      <span className="bl-avatar">{nameInitials(client.name)}</span>
                       <span>
                         <strong>{client.name}</strong>
                         <small>{client.contact_name || "No contact"}{client.email ? ` · ${client.email}` : ""}</small>

@@ -21,6 +21,7 @@ import { isMediaAttachment } from "../comments/media";
 import { ProjectMenu } from "../projects/ProjectMenu";
 import { ArrowLeftIcon, CheckCircleIcon, CommentsIcon, PointerIcon, ShareIcon, ZoomInIcon, ZoomOutIcon } from "../projects/panel/icons";
 import type { Schemas } from "@backline/types";
+import { nameInitials } from "../../lib/initials";
 
 type Comment = Schemas["CommentOut"];
 
@@ -1068,9 +1069,3 @@ export function AssetReview({
   </main>;
 }
 
-/** "Kim Lee" → "KL", "Kim" → "KI". */
-function nameInitials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length >= 2) return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
-  return (words[0] ?? "").slice(0, 2).toUpperCase();
-}
