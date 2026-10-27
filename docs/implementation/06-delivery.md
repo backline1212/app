@@ -5244,3 +5244,9 @@ database migration, or production deployment is claimed.
   none; period end within a day → "ends tomorrow" email; both keys recorded. Sidebar card
   showed "Plan ends in 5 days · Renew plan". Test data restored.
 - ruff, mypy, scoping, web lint/typecheck.
+
+# 2026-10-27: Code sign-in link (TDR-0223)
+
+- Browser: signed in as Sam (member) from "Email me a sign-in code" → code → "Skip for
+  now" → dashboard ("Good evening, Sam", 1 waiting on a reply).
+- web lint/typecheck.
