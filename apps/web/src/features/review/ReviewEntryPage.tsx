@@ -89,7 +89,10 @@ export function ReviewEntryPage() {
     setSessionShareToken(shareToken);
     setError(null);
     setPasscode("");
-    setDisplayName("");
+    // Keep a returning reviewer's remembered name and email (TDR-0219).
+    const again = shareToken ? getRememberedReviewer(shareToken) : null;
+    setDisplayName(again?.displayName ?? "");
+    setEmail(again?.email ?? "");
     setRecoveryBlocked(false);
     setSiteNeedsLogin(null);
     setLeaveError(null);

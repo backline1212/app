@@ -177,10 +177,12 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
   // The review URL is checked as it's typed (TDR-0206): whether it loads, needs sign-in
   // or is bot-protected - and http:// when the site doesn't answer on https.
   const [urlCheck, setUrlCheck] = useState<{ input: string; result: api.UrlCheckOut | null; error: string | null } | null>(null);
-  const checkingUrl = type === "website" && !created && Boolean(url.trim()) && urlCheck?.input !== url.trim();
+  // The saved address isn't re-checked, so it isn't "checking" either.
+  const savedUrl = Boolean(project && url.trim() === (project.start_url ?? project.target_origin));
+  const checkingUrl = type === "website" && !created && Boolean(url.trim()) && !savedUrl && urlCheck?.input !== url.trim();
   useEffect(() => {
     const input = url.trim();
-    if (type !== "website" || created || !input || (project && input === (project.start_url ?? project.target_origin))) { setUrlCheck(null); return; }
+    if (type !== "website" || created || !input || savedUrl) { setUrlCheck(null); return; }
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       api.checkProjectUrl(workspace.id, input, controller.signal)
@@ -202,7 +204,7 @@ export function ProjectForm({ workspace, project, initialType, initialClientId, 
         });
     }, 700);
     return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [url, type, created, project, workspace.id]);
+  }, [url, type, created, project, savedUrl, workspace.id]);
 
   const save = useMutation({
     mutationFn: async () => {
