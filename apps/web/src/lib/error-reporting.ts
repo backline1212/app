@@ -16,9 +16,36 @@ function sentry(): Promise<SentryModule | null> {
   return loading;
 }
 
+// Content-Security-Policy violations on the dashboard (TDR-0224). The policy lives in
+// vercel.json, on a different origin from the API, so instead of a report-uri the
+// browser's own event is forwarded - once per directive and blocked origin, at most
+// ten a page, so a looping script can't flood the project.
+const reportedViolations = new Set<string>();
+
+function blockedOrigin(uri: string): string {
+  try {
+    return new URL(uri).origin;
+  } catch {
+    return uri; // "inline", "eval", "data" and similar keywords
+  }
+}
+
+function reportCspViolation(event: SecurityPolicyViolationEvent): void {
+  const blocked = blockedOrigin(event.blockedURI);
+  const key = `${event.effectiveDirective} ${blocked}`;
+  if (reportedViolations.has(key) || reportedViolations.size >= 10) return;
+  reportedViolations.add(key);
+  void sentry().then((module) => module?.captureMessage(`CSP blocked ${event.effectiveDirective}: ${blocked}`, {
+    level: "warning",
+    tags: { csp_directive: event.effectiveDirective, csp_disposition: event.disposition },
+    extra: { blocked, source: event.sourceFile ? blockedOrigin(event.sourceFile) : null, line: event.lineNumber },
+  }));
+}
+
 /** Starts error reporting after the app has rendered; a no-op without a DSN. */
 export function startErrorReporting(): void {
   if (!dsn) return;
+  document.addEventListener("securitypolicyviolation", reportCspViolation);
   const start = () => void sentry();
   if ("requestIdleCallback" in window) window.requestIdleCallback(start, { timeout: 3000 });
   else setTimeout(start, 1000);
