@@ -5224,3 +5224,9 @@ database migration, or production deployment is claimed.
 - Browser: Edit project on an unchanged URL shows no "Checking the address…" line; a
   review link with a remembered reviewer opens with name and email filled in.
 - ruff, mypy, scoping, web lint/typecheck.
+
+# 2026-10-27: Activity repeats and client initials (TDR-0220)
+
+- Browser: Activity shows "Kim Lee opened the review link in Northwind site ×6" and
+  "updated the project Spring banner"; Clients list avatar reads "NT".
+- web lint/typecheck.

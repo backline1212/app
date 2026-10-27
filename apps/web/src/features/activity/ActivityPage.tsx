@@ -72,13 +72,19 @@ function eventPhrase(event: ActivityItem) {
   return EVENT_PHRASES[event.type] ?? event.type.replace(/\./g, " ").replace(/_/g, " ");
 }
 
+// Who did it, for grouping: a client gets a new guest session (and actor id) each time
+// they open the link, so guests are matched by the name they gave.
+function actorKey(event: ActivityItem) {
+  return event.actor_type === "guest" ? `guest:${event.actor_name ?? ""}` : `${event.actor_type}:${event.actor_id ?? ""}`;
+}
+
 // Back-to-back repeats of the same thing by the same person on the same project
 // (a client reopening a review link five times) read as one row with a count.
 function collapseRepeats(events: ActivityItem[]): { event: ActivityItem; count: number }[] {
   const rows: { event: ActivityItem; count: number }[] = [];
   for (const event of events) {
     const last = rows[rows.length - 1];
-    if (last && !event.comment_id && !event.name && last.event.type === event.type && last.event.actor_id === event.actor_id && last.event.project_id === event.project_id && !last.event.comment_id && !last.event.name) last.count += 1;
+    if (last && !event.comment_id && !event.name && last.event.type === event.type && actorKey(last.event) === actorKey(event) && last.event.project_id === event.project_id && !last.event.comment_id && !last.event.name) last.count += 1;
     else rows.push({ event, count: 1 });
   }
   return rows;
@@ -156,6 +162,8 @@ export function ActivityPage() {
                       {event.actor_type === "guest" && <span className="bl-activity-role">Client</span>}
                       {" " + eventPhrase(event)}
                       {event.name && <> <span className="bl-activity-obj">{event.name}</span></>}
+                      {/* "updated the project" alone doesn't say which one. */}
+                      {!event.name && project && event.type.startsWith("project.") && <> <span className="bl-activity-obj">{project.name}</span></>}
                       {event.ticket_number != null && <> <span className="bl-tid">#{event.ticket_number}</span></>}
                       {event.comment_excerpt && <span className="bl-activity-excerpt"> “{event.comment_excerpt}”</span>}
                       {project && !event.type.startsWith("project.") && <span className="bl-activity-in"> in {project.name}</span>}
