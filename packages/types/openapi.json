@@ -1634,6 +1634,57 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_id}/delete": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Delete Workspace",
+        "description": "Closes the workspace for everyone; its content is purged 30 days later (TDR-0218).",
+        "operationId": "delete_workspace_api_v1_workspaces__workspace_id__delete_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceDeleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/transfer-ownership": {
       "post": {
         "tags": [
@@ -19126,6 +19177,22 @@
           "name"
         ],
         "title": "WorkspaceCreate"
+      },
+      "WorkspaceDeleteRequest": {
+        "properties": {
+          "confirm_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Confirm Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "confirm_name"
+        ],
+        "title": "WorkspaceDeleteRequest",
+        "description": "TDR-0218: the owner types the workspace's name to confirm."
       },
       "WorkspaceOut": {
         "properties": {

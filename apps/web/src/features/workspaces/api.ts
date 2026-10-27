@@ -96,6 +96,14 @@ export function leaveWorkspace(workspaceId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/workspaces/${workspaceId}/leave`, { method: "POST" });
 }
 
+/** Owner only: closes the workspace for everyone; content is deleted 30 days later. */
+export function deleteWorkspace(workspaceId: string, confirmName: string): Promise<void> {
+  return apiFetch<void>(`/api/v1/workspaces/${workspaceId}/delete`, {
+    method: "POST",
+    body: JSON.stringify({ confirm_name: confirmName }),
+  });
+}
+
 export function transferOwnership(workspaceId: string, memberId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/workspaces/${workspaceId}/transfer-ownership`, {
     method: "POST",

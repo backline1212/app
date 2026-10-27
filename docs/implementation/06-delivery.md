@@ -5210,3 +5210,11 @@ database migration, or production deployment is claimed.
 
 - Tickets → New from clients showed 3 rows (was 6); a Board card whose screenshot object
   was gone showed "Screenshot unavailable". Web lint/typecheck.
+
+# 2026-10-27: Delete workspace (TDR-0218)
+
+- Browser: owner typed the name (button disabled until it matched), workspace closed
+  (no members, no live links, projects archived), owner landed on "Create your
+  workspace". Account deletion re-checked after moving the close into the shared
+  function: sole-member workspace closed with reason `owner_deleted_account`.
+- ruff, mypy, scoping, types regenerated, web lint/typecheck.

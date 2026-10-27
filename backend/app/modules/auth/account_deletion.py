@@ -16,7 +16,7 @@ session and token is revoked. The email address can sign up again.
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from bson import ObjectId
@@ -24,11 +24,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.email import send_email
 from app.core.errors import AuthenticationError, ConflictError
-from app.core.events import append_event
 from app.core.security import generate_otp_code, hash_secret
 from app.core.session import Session
 
-PURGE_GRACE = timedelta(days=30)
 DELETED_NAME = "Deleted user"
 
 
@@ -112,11 +110,8 @@ async def delete_account(
     from app.modules.auth.repository import UserRepository
     from app.modules.auth.service import _verify_and_consume_otp, revoke_all_sessions
     from app.modules.notifications.repository import NotificationRepository
-    from app.modules.projects.repository import ProjectRepository
-    from app.modules.share_links.repository import ShareLinkRepository
-    from app.modules.workspaces import events as workspace_events
-    from app.modules.workspaces.repository import MembershipRepository, WorkspaceRepository
-    from app.modules.workspaces.service import leave_workspace
+    from app.modules.workspaces.repository import MembershipRepository
+    from app.modules.workspaces.service import close_workspace, leave_workspace
 
     users = UserRepository(db)
     user = await users.find_by_id(session.user_id)
@@ -150,25 +145,12 @@ async def delete_account(
             ),
         )
 
-    purge_after = datetime.now(UTC) + PURGE_GRACE
     for entry in plan.closing:
-        workspace_id = entry["workspace_id"]
-        await ProjectRepository(db).archive_all_for_workspace(workspace_id)
-        await ShareLinkRepository(db).revoke_all_for_workspace(workspace_id)
-        await WorkspaceRepository(db).mark_closed(
-            workspace_id, closed_by=session.user_id, purge_after=purge_after
-        )
-        for membership in await memberships.list_for_workspace(workspace_id):
-            await memberships.delete(
-                workspace_id=workspace_id, membership_id=str(membership["_id"])
-            )
-        await append_event(
+        await close_workspace(
             db,
-            workspace_id=workspace_id,
-            type=workspace_events.WORKSPACE_CLOSED,
-            actor_type="member",
-            actor_id=session.user_id,
-            payload={"reason": "owner_deleted_account", "purge_after": purge_after.isoformat()},
+            workspace_id=entry["workspace_id"],
+            actor_user_id=session.user_id,
+            reason="owner_deleted_account",
         )
 
     await revoke_all_sessions(db, session.user_id)

@@ -63,6 +63,8 @@ PERMISSIONS: dict[str, frozenset[Role]] = {
     # The owner can ask too; the service tells them to hand ownership over first.
     "workspace:leave": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
     "workspace:transfer_ownership": frozenset({Role.OWNER}),
+    # TDR-0218: closes the workspace for everyone; content is purged 30 days later.
+    "workspace:delete": frozenset({Role.OWNER}),
 }
 
 

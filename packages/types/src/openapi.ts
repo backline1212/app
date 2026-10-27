@@ -602,6 +602,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete Workspace
+         * @description Closes the workspace for everyone; its content is purged 30 days later (TDR-0218).
+         */
+        post: operations["delete_workspace_api_v1_workspaces__workspace_id__delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/transfer-ownership": {
         parameters: {
             query?: never;
@@ -6323,6 +6343,14 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * WorkspaceDeleteRequest
+         * @description TDR-0218: the owner types the workspace's name to confirm.
+         */
+        WorkspaceDeleteRequest: {
+            /** Confirm Name */
+            confirm_name: string;
+        };
         /** WorkspaceOut */
         WorkspaceOut: {
             /** Id */
@@ -7500,6 +7528,39 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_workspace_api_v1_workspaces__workspace_id__delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceDeleteRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
