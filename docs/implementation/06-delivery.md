@@ -5237,3 +5237,10 @@ database migration, or production deployment is claimed.
   The team archived this project…", no retry. Restored it: the link opens again. PDF
   project created, reviewed as a client on a phone, comment pinned on page 2.
 - ruff, mypy, web lint/typecheck.
+
+# 2026-10-27: Renewal reminders (TDR-0222)
+
+- Local: period end set 5 days out → one "ends on November 1" email; a second run sent
+  none; period end within a day → "ends tomorrow" email; both keys recorded. Sidebar card
+  showed "Plan ends in 5 days · Renew plan". Test data restored.
+- ruff, mypy, scoping, web lint/typecheck.

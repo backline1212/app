@@ -87,6 +87,10 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
     staleTime: 60_000,
   });
   const usage = subscription.data?.usage;
+  // Prepaid plans don't renew on their own (TDR-0222): say so in the last week.
+  const periodEnd = subscription.data?.plan_id !== "free" ? subscription.data?.current_period_end : null;
+  const daysLeft = periodEnd ? Math.ceil((new Date(periodEnd).getTime() - Date.now()) / 86_400_000) : null;
+  const endingSoon = daysLeft !== null && daysLeft <= 7;
   const { pathname } = location;
   const onTickets = pathname === `${base}/tickets`;
   const onPage = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
@@ -207,8 +211,10 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
     <footer className="bl-rail-foot">
       <div className="bl-plan-card">
         <div className="bl-plan-top"><span className="bl-plan-name">{subscription.data?.plan_name ?? workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1)} plan</span><span className="bl-plan-count">{usage ? planCount(usage.projects_used, usage.projects_limit, "project") : `${data?.projects ?? "—"} project${data?.projects === 1 ? "" : "s"}`}</span></div>
-        <p>{usage ? `${planCount(usage.ai_credits_used, usage.ai_credits_limit, "AI credit")} this month` : "One place for your team's client reviews."}</p>
-        <Link onClick={onNavigate} className="bl-btn-plan" to={`${base}/billing`}>{usage?.projects_limit != null && usage.projects_used >= usage.projects_limit ? "Upgrade for more projects" : "Compare plans"}</Link>
+        {endingSoon
+          ? <p className="bl-plan-ending">{(daysLeft ?? 0) <= 1 ? "Plan ends within a day" : `Plan ends in ${daysLeft} days`}</p>
+          : <p>{usage ? `${planCount(usage.ai_credits_used, usage.ai_credits_limit, "AI credit")} this month` : "One place for your team's client reviews."}</p>}
+        <Link onClick={onNavigate} className="bl-btn-plan" to={`${base}/billing`}>{endingSoon ? (subscription.data?.is_owner ? "Renew plan" : "See plan") : usage?.projects_limit != null && usage.projects_used >= usage.projects_limit ? "Upgrade for more projects" : "Compare plans"}</Link>
       </div>
     </footer>
   </aside>;
