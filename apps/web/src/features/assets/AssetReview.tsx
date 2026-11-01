@@ -856,7 +856,8 @@ export function AssetReview({
               {reply.trim() && !selectedComment && <div className="bl-form"><p role="status">The original thread is unavailable. Your reply text is still here; copy it before closing. An unconfirmed reply may already have been saved.</p><textarea className="bl-input" readOnly aria-label="Preserved reply text" value={reply} onFocus={event => event.target.select()} /><button type="button" className="bl-button" disabled={replyMutation.isPending} onClick={() => { setReply(""); setReplyFiles([]); replyPrepared.current = null; setReplyLocked(false); setReplyCopyStatus(""); }}>Close reply draft</button></div>}
               {selectedComment ? (
                 <div className="bl-asset-thread">
-                  <button type="button" className="bl-asset-back" disabled={hasDraft} onClick={() => setSelected('')}>← All comments</button>
+                  <button type="button" className="bl-asset-back" disabled={hasDraft} title={hasDraft ? "Send or clear your reply first" : undefined} onClick={() => setSelected('')}><ArrowLeftIcon width={13} height={13} /> All comments</button>
+                  {hasDraft && <p className="bl-field-hint">Send or clear your reply to go back to all comments.</p>}
                   <article className="bl-asset-thread-root">
                     <header>
                       <Avatar name={selectedComment.author_name} size={26} />

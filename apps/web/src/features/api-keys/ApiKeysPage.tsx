@@ -13,6 +13,7 @@ import * as extensionTokensApi from "../extension-tokens/api";
 import * as mcpApi from "../mcp/api";
 import { MCP_CLIENT_BY_ID } from "../mcp/clients";
 import type { WorkspaceOut } from "../workspaces/api";
+import { useToast } from "../../components/Toast";
 
 // One place to see and revoke every credential you hold in this workspace. There are
 // two kinds, issued by different backends:
@@ -78,10 +79,12 @@ export function ApiKeysPage() {
     },
   });
 
+  const { toast } = useToast();
   const revoke = useMutation({
     mutationFn: (row: KeyRow) =>
       row.kind === "api" ? extensionTokensApi.revokeExtensionToken(row.id) : mcpApi.revokeMcpToken(row.id),
     onSuccess: (_, row) => {
+      toast(`${row.name} was revoked.`);
       setRevokeCandidate(null);
       if (revealed?.id === row.id) setRevealed(null);
       void queryClient.invalidateQueries({ queryKey: row.kind === "api" ? apiKeysQuery : mcpKeysQuery });

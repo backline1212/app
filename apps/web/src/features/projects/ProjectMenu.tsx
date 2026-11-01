@@ -234,7 +234,7 @@ function HardDeleteDialog({ project, onClose, onDeleted }: { project: ProjectOut
         <p className="bl-retention-note">{preview.data.retention_notice}</p>
         {hasUnsafeReferences && <div className="bl-state-panel" role="alert"><span className="bl-confirm-icon warning"><MenuIcon name="archive" /></span><h3>Cannot delete yet</h3><p>The dry-run found {preview.data.counts.unsafe_object_references} object reference(s) outside this project's accepted storage prefixes. Resolve them, then run the preview again before permanent deletion.</p><button type="button" className="bl-quiet" onClick={() => preview.refetch()}>Re-check</button></div>}
         {!hasUnsafeReferences && <>
-          <label className="bl-delete-confirm-label">Type <strong>{project.name}</strong> to confirm<input className="bl-input" value={typedName} onChange={(event) => setTypedName(event.target.value)} autoFocus autoComplete="off" /></label>
+          <label className="bl-delete-confirm-label">Type <strong>{project.name}</strong> to confirm<input className="bl-input" value={typedName} onChange={(event) => setTypedName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && nameMatches && !confirm.isPending) confirm.mutate(); }} autoFocus autoComplete="off" /></label>
           {confirm.isError && <p role="alert" className="bl-error">{confirm.error.message}</p>}
         </>}
       </>}

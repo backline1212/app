@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { WORKFLOW_STATUSES as STATUSES, STATUS_LABELS } from "../../../lib/workflow";
 import type { MemberOut } from "../../workspaces/api";
 import { CONNECTION_DOT, CONNECTION_LABEL, type Filters } from "./types";
+import { ArrowLeftIcon } from "../../../components/icons";
 
 interface BoardHeaderProps {
   connectionStatus: string;
@@ -35,7 +36,7 @@ export function BoardHeader({
       <div className="bl-board-head">
         <div>
           <Link className="bl-quiet bl-back-link" to={`/w/${workspaceSlug}/p/${projectId}`}>
-            ← Back to {projectName || "project"}
+            <ArrowLeftIcon width={14} height={14} /> Back to {projectName || "project"}
           </Link>
           <p className="bl-eyebrow">Project workflow</p>
           <div className="bl-board-title-row">
@@ -48,7 +49,7 @@ export function BoardHeader({
             {CONNECTION_LABEL[connectionStatus]}
           </span>
           </div>
-          <p>Review, assign, and move every comment through a clear delivery workflow.</p>
+          <p>Review, assign, and move every ticket through a clear delivery workflow.</p>
         </div>
         <div className="bl-segment" aria-label="Board layout">
           <button

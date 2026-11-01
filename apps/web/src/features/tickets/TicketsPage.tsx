@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "../../lib/use-document-title";
-import { STATUS_COLORS, STATUS_LABELS } from "../../lib/workflow";
-import { PlusIcon } from "../../components/icons";
+import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES } from "../../lib/workflow";
+import { PlusIcon, SearchIcon } from "../../components/icons";
 import { EmptyArt } from "../../components/illustrations";
 import type { WorkspaceOut } from "../workspaces/api";
 import type * as api from "./api";
@@ -58,6 +58,20 @@ export function TicketsPage() {
     assignees,
     offset,
   } = useTickets(workspace.id, params, setParams);
+  // Search, status and priority are API filters the page never offered (TDR-0229);
+  // the typed text is applied after a short pause so each keystroke isn't a request.
+  const [searchText, setSearchText] = useState(params.get("search") ?? "");
+  useEffect(() => {
+    const value = searchText.trim();
+    if (value === (params.get("search") ?? "")) return;
+    const timer = window.setTimeout(() => set("search", value), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchText]); // eslint-disable-line react-hooks/exhaustive-deps
+  // "Clear filters", a chip or a link changes the URL: show what is actually applied.
+  const appliedSearch = params.get("search") ?? "";
+  useEffect(() => {
+    setSearchText((text) => (text.trim() === appliedSearch ? text : appliedSearch));
+  }, [appliedSearch]);
   // Bulk triage selection: screen state for this list, not a filter, so not in the URL.
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
@@ -97,7 +111,7 @@ export function TicketsPage() {
       ? [{ label: projects.data?.find((p) => p.id === params.get("project_id"))?.name ?? "Project", onClear: () => set("project_id", "") }]
       : []),
     ...(params.get("open") === "1" && !params.get("status") ? [{ label: "Open only", onClear: () => set("open", "") }] : []),
-    ...(params.get("priority") ? [{ label: `${params.get("priority")} priority`, onClear: () => set("priority", "") }] : []),
+    ...(params.get("priority") ? [{ label: `${PRIORITY_LABELS[params.get("priority")!] ?? params.get("priority")} priority`, onClear: () => set("priority", "") }] : []),
     ...(params.get("tag") ? [{ label: params.get("tag")!, onClear: () => set("tag", "") }] : []),
     ...assignees.map((a) => ({
       label: a === "unassigned" ? "Unassigned" : (members.data?.find((m) => m.user_id === a)?.name ?? a),
@@ -182,6 +196,21 @@ export function TicketsPage() {
       </div>
 
 
+      <div className="bl-ticket-filterbar">
+        <label className="bl-search-field bl-ticket-search">
+          <SearchIcon width={14} height={14} />
+          <input type="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search tickets…" aria-label="Search tickets" />
+        </label>
+        <select className="bl-select bl-ticket-filter" aria-label="Filter by status" value={params.get("status") ?? ""} onChange={(event) => set("status", event.target.value)}>
+          <option value="">Any status</option>
+          {WORKFLOW_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
+        </select>
+        <select className="bl-select bl-ticket-filter" aria-label="Filter by priority" value={params.get("priority") ?? ""} onChange={(event) => set("priority", event.target.value)}>
+          <option value="">Any priority</option>
+          {Object.entries(PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </div>
+
       <div className="bl-toolbar">
         <span className="bl-mono">{query.data?.total ?? "—"} {query.data?.total === 1 ? "TICKET" : "TICKETS"}</span>
         <div className="bl-tool-right">
@@ -225,6 +254,12 @@ export function TicketsPage() {
           onDone={(result) => { setBulkResult(result); setSelectedIds(new Set(result.failedIds)); }} />
       )}
 
+      {(display === "board" || display === "calendar") && (query.data?.total ?? 0) > tickets.length && (
+        // Board and Calendar show the current page only; say so instead of looking complete.
+        <p className="bl-partial-note" role="status">
+          Showing {tickets.length} of {query.data?.total} tickets. Narrow the list with search or filters, or use Next below.
+        </p>
+      )}
       {display === "board" ? (
         <TicketBoard tickets={tickets} members={members.data ?? []} update={update} onOpen={(id) => set("comment", id)} />
       ) : display === "calendar" ? (
@@ -317,3 +352,5 @@ export function TicketsPage() {
     </main>
   );
 }
+
+const PRIORITY_LABELS: Record<string, string> = { high: "High", medium: "Medium", low: "Low" };

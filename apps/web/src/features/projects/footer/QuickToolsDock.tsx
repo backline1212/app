@@ -3,7 +3,7 @@ import { useOnClickOutside } from "../../../lib/use-click-outside";
 import { useFocusTrap } from "../../../lib/use-focus-trap";
 import { ThemeToggle } from "../../../components/ThemeToggle";
 import { CommentsIcon } from "../panel/icons";
-import { GearIcon } from "../../../components/icons";
+import { GearIcon, RegionIcon } from "../../../components/icons";
 import { BrandMark } from "../../../components/BrandMark";
 import { NotificationBell } from "../../notifications/NotificationBell";
 
@@ -77,10 +77,11 @@ export function QuickToolsDock({ environment, mode, canComment = true, toolsRead
           <BrandMark compact />
         </div>
         <div className="bl-dock-divider" />
-        <button type="button" className="bl-dock-env">
+        {/* A label, not a control: it used to look clickable and do nothing. */}
+        <span className="bl-dock-env" title="Environment">
           <span className={`bl-review-environment is-${environment}`}><i aria-hidden="true" /></span>
-          {environment}
-        </button>
+          {environment.charAt(0).toUpperCase() + environment.slice(1)}
+        </span>
         <div className="bl-dock-divider" />
         {canComment && (
           <>
@@ -88,7 +89,7 @@ export function QuickToolsDock({ environment, mode, canComment = true, toolsRead
               <CommentsIcon width={16} height={16} />
             </button>
             <button type="button" className={`bl-dock-btn ${mode === "draw" ? "active" : ""}`} disabled={!toolsReady} onClick={() => onModeChange?.("draw")} aria-label="Draw Region (D)" title={toolsReady ? "Draw Region (D)" : toolsUnavailableReason}>
-              <span style={{ fontSize: "16px", lineHeight: 1 }}>✛</span>
+              <RegionIcon width={16} height={16} />
             </button>
           </>
         )}

@@ -3,6 +3,8 @@ import { useCallback, useMemo, useState } from "react";
 import { useOutletContext, useParams, useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
+import { useToast } from "../../components/Toast";
+import { STATUS_LABELS } from "../../lib/workflow";
 import { EmptyArt } from "../../components/illustrations";
 import * as integrationsApi from "../integrations/api";
 import { useProject, useProjectRole } from "../projects/use-project";
@@ -97,11 +99,12 @@ export function BoardPage() {
     setSearchParams(next, { replace: true });
   }
 
+  const { toast } = useToast();
   const { data: project } = useProject(projectId);
   const { canEdit, canComment } = useProjectRole(projectId);
   useDocumentTitle([project?.name, "Board"]);
 
-  const { data: comments, isLoading } = useQuery({
+  const { data: comments, isLoading, error: commentsError, refetch: refetchComments } = useQuery({
     queryKey: qk.projectComments(projectId ?? ""),
     queryFn: () => boardApi.listProjectComments(projectId!),
     enabled: !!projectId,
@@ -116,36 +119,10 @@ export function BoardPage() {
     queryKey: qk.integrations(workspace.id),
     queryFn: () => integrationsApi.listIntegrations(workspace.id),
   });
-  const clickupIntegration = (integrations ?? []).find((i) => i.type === "clickup");
-  const trelloIntegration = (integrations ?? []).find((i) => i.type === "trello");
-  const jiraIntegration = (integrations ?? []).find((i) => i.type === "jira");
-  const asanaIntegration = (integrations ?? []).find((i) => i.type === "asana");
-  const [taskLinks, setTaskLinks] = useState<Record<string, string>>({});
-
-  const createClickUpTaskMutation = useMutation({
-    mutationFn: (commentId: string) =>
-      integrationsApi.createClickUpTask(commentId, clickupIntegration!.id),
-    onSuccess: (result, commentId) =>
-      setTaskLinks((prev) => ({ ...prev, [commentId]: result.task_url })),
-  });
-  const createTrelloCardMutation = useMutation({
-    mutationFn: (commentId: string) =>
-      integrationsApi.createTrelloCard(commentId, trelloIntegration!.id),
-    onSuccess: (result, commentId) =>
-      setTaskLinks((prev) => ({ ...prev, [commentId]: result.card_url })),
-  });
-  const createJiraIssueMutation = useMutation({
-    mutationFn: (commentId: string) =>
-      integrationsApi.createJiraIssue(commentId, jiraIntegration!.id),
-    onSuccess: (result, commentId) =>
-      setTaskLinks((prev) => ({ ...prev, [commentId]: result.issue_url })),
-  });
-  const createAsanaTaskMutation = useMutation({
-    mutationFn: (commentId: string) =>
-      integrationsApi.createAsanaTask(commentId, asanaIntegration!.id),
-    onSuccess: (result, commentId) =>
-      setTaskLinks((prev) => ({ ...prev, [commentId]: result.task_url })),
-  });
+  // Trackers are sent from the ticket dialog, which remembers what was already filed and
+  // shows sending/errors; the board's own buttons forgot after a reload, so the same
+  // issue could be filed twice (TDR-0229).
+  const hasTracker = (integrations ?? []).some((item) => item.kind === "tracker" && !item.needs_destination);
 
   const memberName = useMemo(() => {
     const byId = new Map((members ?? []).map((member) => [member.user_id, member.name]));
@@ -247,9 +224,10 @@ export function BoardPage() {
       if (rows.some(row => !row)) throw new Error("The selection changed. Reload the board before updating it.");
       return Promise.all(rows.map(row => boardApi.updateComment(row!.id, { status }, row!.revision ?? 0)));
     },
-    onSuccess: () => {
+    onSuccess: (saved, status) => {
       setSelected(new Set());
       invalidate();
+      toast(`${saved.length} ticket${saved.length === 1 ? "" : "s"} moved to ${STATUS_LABELS[status]}.`, "success");
     },
     onError: invalidate,
   });
@@ -345,15 +323,7 @@ export function BoardPage() {
           repliesByParent={repliesByParent}
           setOpenThreadId={setOpenThreadId}
           updateMutation={updateMutation}
-          taskLinks={taskLinks}
-          clickupIntegration={clickupIntegration}
-          trelloIntegration={trelloIntegration}
-          jiraIntegration={jiraIntegration}
-          asanaIntegration={asanaIntegration}
-          createClickUpTaskMutation={createClickUpTaskMutation}
-          createTrelloCardMutation={createTrelloCardMutation}
-          createJiraIssueMutation={createJiraIssueMutation}
-          createAsanaTaskMutation={createAsanaTaskMutation}
+          hasTracker={hasTracker}
           canEdit={canEdit}
           canComment={canComment}
         />
@@ -381,9 +351,18 @@ export function BoardPage() {
         />
       )}
 
-      {filtered.length === 0 && (
-        <div className="bl-empty"><EmptyArt kind="search" /><strong>No matching comments</strong><p>Try clearing one or more board filters.</p></div>
-      )}
+      {commentsError ? (
+        <div className="bl-empty" role="alert">
+          <EmptyArt kind="search" />
+          <strong>The board couldn't load</strong>
+          <p>{commentsError.message}</p>
+          <button type="button" className="bl-quiet" onClick={() => void refetchComments()}>Try again</button>
+        </div>
+      ) : filtered.length === 0 && (Object.values(filters).some(Boolean) ? (
+        <div className="bl-empty"><EmptyArt kind="search" /><strong>No matching tickets</strong><p>Try clearing one or more board filters.</p></div>
+      ) : (
+        <div className="bl-empty"><EmptyArt kind="search" /><strong>No tickets yet</strong><p>Feedback left on this project's review link shows up here.</p></div>
+      ))}
     </main>
   );
 }

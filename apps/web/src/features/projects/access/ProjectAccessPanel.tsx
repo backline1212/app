@@ -49,7 +49,16 @@ export function ProjectAccessPanel({
   const general = useMutation({
     mutationFn: (changes: { visibility?: ProjectVisibility; default_role?: ProjectRole }) =>
       projectsApi.updateProjectAccess(projectId, changes),
-    onSuccess: (detail) => settle(detail),
+    onSuccess: (detail, changes) => {
+      settle(detail);
+      // Going private can cut people off in one click: say so, with a way back.
+      if (changes.visibility) {
+        const previous: ProjectVisibility = changes.visibility === "private" ? "workspace" : "private";
+        toast(changes.visibility === "private" ? "Only people added can open this project now." : `Everyone at ${workspaceName} can open this project now.`, "success", {
+          action: { label: "Undo", onClick: () => general.mutate({ visibility: previous }) },
+        });
+      }
+    },
     onError,
   });
   const setRole = useMutation({
@@ -62,8 +71,15 @@ export function ProjectAccessPanel({
     onError,
   });
   const remove = useMutation({
-    mutationFn: (userId: string) => projectsApi.removeProjectMember(projectId, userId),
-    onSuccess: () => settle(),
+    mutationFn: (person: { userId: string; name: string; role: ProjectRole | null; isPrivate: boolean }) =>
+      projectsApi.removeProjectMember(projectId, person.userId),
+    onSuccess: (_result, person) => {
+      settle();
+      const role = person.role;
+      toast(person.isPrivate ? `${person.name} was removed from this project.` : `${person.name} is back to the default role.`, "success", role ? {
+        action: { label: "Undo", onClick: () => setRole.mutate({ userId: person.userId, role }) },
+      } : undefined);
+    },
     onError,
   });
 
@@ -182,7 +198,7 @@ export function ProjectAccessPanel({
               isPrivate={detail.visibility === "private"}
               defaultRole={detail.default_role as ProjectRole}
               onRole={(role) => setRole.mutate({ userId: person.user_id, role })}
-              onRemove={() => remove.mutate(person.user_id)}
+              onRemove={() => remove.mutate({ userId: person.user_id, name: person.name, role: (person.project_role as ProjectRole | null) ?? null, isPrivate: detail.visibility === "private" })}
             />
           ))}
         </ul>

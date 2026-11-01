@@ -14,6 +14,7 @@ import type { ShareLinkOut } from "./api";
 import { InstallCodeDialog } from "./InstallCodeDialog";
 import { reviewLinkState, useReviewLinkClock } from "./link-state";
 import { reviewLinkUrl, useReviewDomain } from "../workspaces/review-url";
+import { ArrowLeftIcon } from "../../components/icons";
 
 
 // Full manager for every link a project has ever had (active and revoked), linked to
@@ -65,9 +66,7 @@ export function ShareLinksPage() {
       // A Website tools link does nothing until its tag is on the site.
       if (created.mode === "snippet") setInstallFor(created);
     },
-    onError: (err: unknown) => {
-      toast(err instanceof Error ? err.message : "Could not create share link.", "error");
-    },
+    // Shown inline next to the form/dialog, not also as a toast.
   });
 
   const revokeMutation = useMutation({
@@ -77,9 +76,7 @@ export function ShareLinksPage() {
       await queryClient.invalidateQueries({ queryKey: qk.shareLinks(projectId ?? "") });
       toast("Share link revoked.");
     },
-    onError: (err: unknown) => {
-      toast(err instanceof Error ? err.message : "Could not revoke share link.", "error");
-    },
+    // Shown inline next to the form/dialog, not also as a toast.
   });
 
   async function copyLink(id: string, token: string) {
@@ -95,7 +92,7 @@ export function ShareLinksPage() {
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
-      setCopyError("Select the link and copy it manually.");
+      setCopyError("Copying isn't allowed here. Click the link address and copy it with Ctrl+C (⌘C on a Mac).");
     }
   }
 
@@ -106,7 +103,7 @@ export function ShareLinksPage() {
       <header className="bl-head">
         <div>
           <Link className="bl-quiet bl-back-link" to={`/w/${workspaceSlug}/p/${projectId}`}>
-            ← Back to {project?.name || "project"}
+            <ArrowLeftIcon width={14} height={14} /> Back to {project?.name || "project"}
           </Link>
           <h1>Share links</h1>
           <p>Every review link created for this project, active and revoked.</p>
@@ -147,7 +144,14 @@ export function ShareLinksPage() {
                   return (
                     <tr key={link.id}>
                       <td>
-                        <span className="bl-mono">{link.token}</span>
+                        {/* The full address, so it can be copied by hand when the clipboard is blocked. */}
+                        <input
+                          className="bl-input bl-mono bl-share-url"
+                          readOnly
+                          value={reviewUrl(link.token)}
+                          aria-label="Review link address"
+                          onFocus={(event) => event.currentTarget.select()}
+                        />
                         {link.has_passcode && <small>Passcode required</small>}
                         {!!link.domain_restrictions?.length && <small className="bl-error">Old website filter - it doesn't check who the reviewer is. Replace this link with a passcode-protected one.</small>}
                         {link.comment_export_permission && <small>Guest export is unavailable.</small>}

@@ -284,6 +284,7 @@ function AttachProjectsDialog({ workspaceId, client, clients, projects, onClose 
 }
 
 function ClientForm({ workspaceId, client, onClose }: { workspaceId: string; client?: api.Client; onClose: () => void }) {
+  const { toast } = useToast();
   const cache = useQueryClient();
   const [name, setName] = useState(client?.name ?? "");
   const [contact, setContact] = useState(client?.contact_name ?? "");
@@ -313,6 +314,7 @@ function ClientForm({ workspaceId, client, onClose }: { workspaceId: string; cli
     onSettled: () => { submitting.current = false; },
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: qk.clients(workspaceId) });
+      toast(client ? "Client updated." : `${name.trim() || "Client"} added.`);
       onClose();
     }
   });

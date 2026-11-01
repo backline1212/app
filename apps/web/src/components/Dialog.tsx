@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useFocusTrap } from "../lib/use-focus-trap";
 import { popOpenDialog, pushOpenDialog } from "../lib/dialog-stack";
+import { XIcon } from "./icons";
 
 export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -22,7 +23,7 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
   // depending on browser-native behavior alone.
   useFocusTrap(ref, true);
   return <dialog ref={ref} className="bl-dialog" aria-label={title} onCancel={event => { event.preventDefault(); onClose(); }}>
-    <header className="bl-dialog-head"><h2>{title}</h2><button type="button" className="bl-icon" aria-label="Close dialog" onClick={onClose}>×</button></header>
+    <header className="bl-dialog-head"><h2>{title}</h2><button type="button" className="bl-icon" aria-label="Close dialog" onClick={onClose}><XIcon /></button></header>
     {children}
   </dialog>;
 }

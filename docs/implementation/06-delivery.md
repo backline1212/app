@@ -5288,3 +5288,12 @@ database migration, or production deployment is claimed.
   archived project → 409 "…Restore it to change its tickets."; after restoring, 200.
   File comment with a real guest upload → created; with a forged key → refused.
 - ruff, mypy, scoping, types regenerated, web typecheck.
+
+# 2026-11-01: Dashboard UX audit fixes (TDR-0229)
+
+- Browser: Tickets search "blue" → `?search=blue`, 1 row; priority High → chip "High
+  priority"; Clear filters emptied the search box. Board list: select + In progress →
+  "1 ticket moved to In progress." (reverted). Share links field shows
+  `http://localhost:5173/review/l_5L…`. Activity had no raw event names. Add client dialog
+  opens with `bl-dialog-in`.
+- web lint/typecheck.

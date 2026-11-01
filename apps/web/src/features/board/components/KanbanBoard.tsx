@@ -5,13 +5,6 @@ import type { UseMutationResult } from "@tanstack/react-query";
 
 import { WORKFLOW_STATUSES as STATUSES, STATUS_COLORS, STATUS_LABELS } from "../../../lib/workflow";
 import { ticketRef } from "../../../lib/ticket-ref";
-import type {
-  CreateAsanaTaskResult,
-  CreateClickUpTaskResult,
-  CreateJiraIssueResult,
-  CreateTrelloCardResult,
-  IntegrationOut,
-} from "../../integrations/api";
 import type { CommentOut, CommentStatus } from "../api";
 import { commentContext } from "./types";
 
@@ -28,15 +21,8 @@ interface KanbanBoardProps {
     Error,
     { commentId: string; patch: { status?: CommentStatus; assignee_id?: string | null } }
   >;
-  taskLinks: Record<string, string>;
-  clickupIntegration: IntegrationOut | undefined;
-  trelloIntegration: IntegrationOut | undefined;
-  jiraIntegration: IntegrationOut | undefined;
-  asanaIntegration: IntegrationOut | undefined;
-  createClickUpTaskMutation: UseMutationResult<CreateClickUpTaskResult, Error, string>;
-  createTrelloCardMutation: UseMutationResult<CreateTrelloCardResult, Error, string>;
-  createJiraIssueMutation: UseMutationResult<CreateJiraIssueResult, Error, string>;
-  createAsanaTaskMutation: UseMutationResult<CreateAsanaTaskResult, Error, string>;
+  /** A tracker is connected: cards offer "Send to tracker…", which opens the ticket. */
+  hasTracker?: boolean;
 }
 
 export function KanbanBoard({
@@ -45,15 +31,7 @@ export function KanbanBoard({
   repliesByParent,
   setOpenThreadId,
   updateMutation,
-  taskLinks,
-  clickupIntegration,
-  trelloIntegration,
-  jiraIntegration,
-  asanaIntegration,
-  createClickUpTaskMutation,
-  createTrelloCardMutation,
-  createJiraIssueMutation,
-  createAsanaTaskMutation,
+  hasTracker = false,
   canEdit = true,
   canComment = true,
 }: KanbanBoardProps) {
@@ -110,7 +88,7 @@ export function KanbanBoard({
                         patch: { status: e.target.value as CommentStatus },
                       })
                     }
-                    aria-label="Change comment status"
+                    aria-label="Change ticket status"
                     className="bl-select bl-kanban-status"
                     disabled={!canEdit}
                     title={canEdit ? undefined : "Editors and managers change status"}
@@ -121,59 +99,19 @@ export function KanbanBoard({
                       </option>
                     ))}
                   </select>
-                  {taskLinks[comment.id] ? (
-                    <a
-                      href={taskLinks[comment.id]}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="bl-text-link"
+                  {canEdit && hasTracker && (
+                    <button
+                      type="button"
+                      onClick={() => setOpenThreadId(comment.id)}
+                      className="bl-text-link muted"
                     >
-                      View linked task
-                    </a>
-                  ) : canEdit && (
-                    <div className="bl-kanban-integrations">
-                      {clickupIntegration && (
-                        <button
-                          onClick={() => createClickUpTaskMutation.mutate(comment.id)}
-                          disabled={createClickUpTaskMutation.isPending}
-                          className="bl-text-link muted"
-                        >
-                          Send to ClickUp
-                        </button>
-                      )}
-                      {trelloIntegration && (
-                        <button
-                          onClick={() => createTrelloCardMutation.mutate(comment.id)}
-                          disabled={createTrelloCardMutation.isPending}
-                          className="bl-text-link muted"
-                        >
-                          Send to Trello
-                        </button>
-                      )}
-                      {jiraIntegration && (
-                        <button
-                          onClick={() => createJiraIssueMutation.mutate(comment.id)}
-                          disabled={createJiraIssueMutation.isPending}
-                          className="bl-text-link muted"
-                        >
-                          Send to Jira
-                        </button>
-                      )}
-                      {asanaIntegration && (
-                        <button
-                          onClick={() => createAsanaTaskMutation.mutate(comment.id)}
-                          disabled={createAsanaTaskMutation.isPending}
-                          className="bl-text-link muted"
-                        >
-                          Send to Asana
-                        </button>
-                      )}
-                    </div>
+                      Send to tracker…
+                    </button>
                   )}
                 </article>
               ))}
             {filtered.filter((comment) => comment.status === status).length === 0 && (
-              <p className="bl-kanban-empty">No comments</p>
+              <p className="bl-kanban-empty">No tickets</p>
             )}
           </div>
         </section>
