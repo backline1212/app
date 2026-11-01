@@ -5,6 +5,7 @@ import {
   createApiClient,
   createCommentSubmission,
   createShadowRoot,
+  scrollBehavior,
   createThreadManager,
   ownCommentHandlers,
   postThreadReply,
@@ -86,7 +87,7 @@ async function buildFreshContext(): Promise<AnnotationContext | null> {
   const generation = contextGeneration;
   const info = nativeInfo;
   const connection = info ? null : await getConnection();
-  if (!info && !connection) throw new Error("Open this project's Browser review button in Backline first.");
+  if (!info && !connection) throw new Error("Open the project in Backline and choose Open with extension first.");
   const api = info ? createNativeApi(pageUrl) : createApiClient(API_BASE_URL, () => ({
     Authorization: `Bearer ${connection!.token}`,
   }));
@@ -196,7 +197,7 @@ function activatePointMode(ctx: AnnotationContext): () => void {
       async ({ body, attachments, tags, diagnostics, stepsToReproduce, includeScreenshot, screenshot: previewed }) => {
         try {
           const created = await submission.submit(async () => {
-            controls.setStatus(includeScreenshot ? "Capturing anchor + screenshot..." : "Saving the location...");
+            controls.setStatus(includeScreenshot ? "Saving your comment and screenshot…" : "Saving your comment…");
             const anchor = await computeAnchor(target, x, y);
             const screenshotBlob = includeScreenshot ? previewed ?? await shot() : null;
 
@@ -303,9 +304,54 @@ async function activate(mode: AnnotationMode): Promise<void> {
   } else {
     deactivateCurrentMode = activatePointMode(ctx);
   }
+  // Started from the popup there is no review toolbar, so nothing on the page said how
+  // to get the site back: every click kept starting a comment until a reload.
+  if (!toolbar) showPopupModePill(mode);
+}
+
+let popupModePill: { host: Element; label: HTMLElement } | null = null;
+
+function showPopupModePill(mode: AnnotationMode): void {
+  const text = mode === "region" ? "Drag over an area to comment" : "Click anything to comment";
+  if (popupModePill) {
+    popupModePill.label.textContent = text;
+    return;
+  }
+  const shadow = createShadowRoot();
+  const style = document.createElement("style");
+  style.textContent = `
+    .pill{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:10px;
+      padding:8px 8px 8px 14px;border:1px solid #dddeda;border-radius:999px;background:#0b0b0b;color:#fff;font:13px system-ui;box-shadow:0 5px 24px #0003;
+      animation:pill-in .18s ease-out}
+    .pill button{font:inherit;border:0;border-radius:999px;padding:7px 14px;background:#69deb2;color:#0b0b0b;font-weight:600;cursor:pointer;min-height:32px}
+    @keyframes pill-in{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+    @media (prefers-reduced-motion: reduce){.pill{animation:none}}
+  `;
+  const pill = document.createElement("div");
+  pill.className = "pill";
+  pill.setAttribute("role", "status");
+  const label = document.createElement("span");
+  label.textContent = text;
+  const done = document.createElement("button");
+  done.type = "button";
+  done.textContent = "Done";
+  done.title = "Stop commenting and use the site normally";
+  done.addEventListener("click", (event) => {
+    event.stopPropagation();
+    browse();
+  });
+  pill.append(label, done);
+  shadow.append(style, pill);
+  popupModePill = { host: shadow.host, label };
+}
+
+function hidePopupModePill(): void {
+  popupModePill?.host.remove();
+  popupModePill = null;
 }
 
 function browse(): void {
+  hidePopupModePill();
   cancelEmptyComposer();
   deactivateCurrentMode?.();
   deactivateCurrentMode = null;
@@ -372,23 +418,28 @@ async function startNativeReview(): Promise<void> {
 }
 
 // Backline's servers can't always fetch a site for its project card (bot protection,
-// sign-in). A member's review opens on the project's start page, so that view is offered
-// as the card picture - at most once a day per project; the API keeps it only when the
-// card has no real screenshot yet (TDR-0197). Overlays are hidden during the capture.
+// sign-in). A member's review opens on the project's start page, so the toolbar offers
+// that view as the card picture - at most once a day per project; the API keeps it only
+// when the card has no real screenshot yet (TDR-0197). Nothing is captured unless the
+// member chooses it (TDR-0227). Overlays are hidden during the capture.
 async function offerCardPicture(info: NativeReviewInfo): Promise<void> {
   const key = `card-picture:${info.project.id}`;
   const last = Number((await chrome.storage.local.get(key))[key]) || 0;
   if (Date.now() - last < 24 * 3600_000) return;
   if (document.readyState !== "complete") await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  if (nativeInfo !== info || window.scrollY > 4 || composerHasDraft()) return;
-  const shot = await captureNativeScreenshot();
-  if (!shot) return;
+  if (nativeInfo !== info || !toolbar) return;
   await chrome.storage.local.set({ [key]: Date.now() });
-  await nativeMessage("native-review-api", {
-    path: `/api/v1/projects/${info.project.id}/preview/image`,
-    method: "PUT",
-    body: JSON.stringify({ data_url: await readData(shot) }),
+  toolbar.offer("Use this view as the project picture", async () => {
+    if (nativeInfo !== info) throw new Error("This review has ended.");
+    if (composerHasDraft()) throw new Error("Post or cancel your comment first.");
+    const shot = await captureNativeScreenshot();
+    if (!shot) throw new Error("Couldn't take a picture of this view.");
+    await nativeMessage("native-review-api", {
+      path: `/api/v1/projects/${info.project.id}/preview/image`,
+      method: "PUT",
+      body: JSON.stringify({ data_url: await readData(shot) }),
+    });
+    return "Saved. The project card shows this view when it has no screenshot of its own.";
   });
 }
 
@@ -429,7 +480,7 @@ async function focusComment(info: NativeReviewInfo, commentId: string): Promise<
     toolbar?.error("This page doesn't show the element the comment points to right now. Sign in or open the same state, then choose Comment.");
     return;
   }
-  element.scrollIntoView({ behavior: "smooth", block: "center" });
+  element.scrollIntoView({ behavior: scrollBehavior(), block: "center" });
   // Let the scroll and the pin's own position tracking settle first.
   setTimeout(() => {
     if (context !== ctx) return;

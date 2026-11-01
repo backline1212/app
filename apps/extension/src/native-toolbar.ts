@@ -14,6 +14,7 @@ export function createNativeToolbar(info: NativeReviewInfo, onMode: (mode: Revie
     .native-bar button,.native-bar a {font:inherit;border:1px solid #dddeda;border-radius:7px;padding:8px 10px;background:#fff;color:#0b0b0b;cursor:pointer;text-decoration:none;}
     .native-bar button[aria-pressed=true] {background:#e3f8ef;border-color:#0a6b4b;}
     .native-status {flex-basis:100%;font-size:12px;max-width:530px;color:#515650;}
+    .native-bar button.native-offer {background:#fff;border:1px dashed #0a6b4b;color:#0a6b4b;}
     .native-title {max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 8px;}
   `;
   shadow.appendChild(style);
@@ -82,8 +83,27 @@ export function createNativeToolbar(info: NativeReviewInfo, onMode: (mode: Revie
     shadow.host.remove();
     setCardBottomInset(12);
   }
+  /** A one-off action the user has to choose (nothing happens until they click). */
+  function offer(label: string, run: () => Promise<string>): void {
+    if (accessEnded || removed) return;
+    const button = document.createElement("button");
+    button.textContent = label;
+    button.className = "native-offer";
+    const dismiss = document.createElement("button");
+    dismiss.textContent = "Not now";
+    dismiss.onclick = () => { button.remove(); dismiss.remove(); };
+    button.onclick = () => {
+      button.disabled = true;
+      dismiss.remove();
+      void run().then(message => { if (!removed) status.textContent = message; }, error => {
+        if (!removed) status.textContent = error instanceof Error ? error.message : String(error);
+      }).finally(() => button.remove());
+    };
+    bar.insertBefore(button, status);
+    bar.insertBefore(dismiss, status);
+  }
   return {
-    setMode, remove, error: (message: string) => { if (!accessEnded && !removed) status.textContent = message; },
+    setMode, remove, offer, error: (message: string) => { if (!accessEnded && !removed) status.textContent = message; },
     endAccess: (message: string) => {
       accessEnded = true;
       title.textContent = "Backline";

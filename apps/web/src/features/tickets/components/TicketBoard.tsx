@@ -7,6 +7,7 @@ import { reviewTicketPath } from "../../../lib/review-page-path";
 import type { MemberOut } from "../../workspaces/api";
 import * as api from "../api";
 import type { TicketUpdateMutation } from "./types";
+import { HScroll } from "../../../components/HScroll";
 
 /**
  * The design's ticket board (design/index.html's tBoard/taskCard): one column per
@@ -33,7 +34,7 @@ export function TicketBoard({
   }
 
   return (
-    <div className="bl-tboard">
+    <HScroll className="bl-tboard" label="Ticket board">
       {WORKFLOW_STATUSES.map((s) => {
         const column = tickets.filter((t) => t.status === s);
         return (
@@ -120,6 +121,6 @@ export function TicketBoard({
           </section>
         );
       })}
-    </div>
+    </HScroll>
   );
 }

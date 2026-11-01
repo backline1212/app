@@ -95,7 +95,7 @@ export function capturePageVersion(api: ApiClient, pageId: string, shadow: Shado
     panel.appendChild(text);
     if (!pending) {
       const retry = document.createElement("button");
-      retry.type = "button"; retry.textContent = "Retry version capture";
+      retry.type = "button"; retry.textContent = "Try again";
       retry.addEventListener("click", () => {
         if (location.href !== expectedDocumentUrl) { text.textContent = "The page changed. Reopen review on the current page before capturing its version."; retry.disabled = true; return; }
         if (!running) void run();
@@ -118,7 +118,7 @@ export function capturePageVersion(api: ApiClient, pageId: string, shadow: Shado
     } catch (error) {
       // Account/session recovery owns auth failures, not this optional capture UI.
       if (!(error instanceof WidgetApiError && [401, 403].includes(error.status))) {
-        notice(`Page version could not be captured. Feedback can still be saved. ${error instanceof Error ? error.message : "Try again when the page settles."}`, false);
+        notice("Couldn't save a copy of this page. Your feedback still saves.", false);
       }
     } finally { window.clearTimeout(slow); running = false; }
   }

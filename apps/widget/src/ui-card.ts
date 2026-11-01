@@ -62,6 +62,11 @@ const EDGE_GAP = 12;
 let bottomInset = EDGE_GAP;
 const layoutListeners = new Set<() => void>();
 
+/** Smooth scrolling unless the reviewer asked their system for reduced motion. */
+export function scrollBehavior(): ScrollBehavior {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+}
+
 export function setCardBottomInset(px: number): void {
   const next = Math.max(EDGE_GAP, px);
   if (next === bottomInset) return;

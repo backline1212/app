@@ -18,14 +18,20 @@ export async function apiRequest<T>(
   token: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...init.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...init.headers,
+      },
+    });
+  } catch {
+    // fetch only throws when the request never got an answer (offline, DNS, blocked).
+    throw new ExtensionApiError(0, "NETWORK_ERROR", "Can't reach Backline - check your connection.");
+  }
 
   if (!response.ok) {
     if (response.status === 404 && response.headers.get("x-railway-fallback") === "true") {

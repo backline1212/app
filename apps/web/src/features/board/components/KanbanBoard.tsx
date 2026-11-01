@@ -1,5 +1,6 @@
 import { LayerBadge, RecoveryBadge } from "@backline/ui";
 import { ShotImage } from "../../../components/ShotImage";
+import { HScroll } from "../../../components/HScroll";
 import type { UseMutationResult } from "@tanstack/react-query";
 
 import { WORKFLOW_STATUSES as STATUSES, STATUS_COLORS, STATUS_LABELS } from "../../../lib/workflow";
@@ -57,7 +58,7 @@ export function KanbanBoard({
   canComment = true,
 }: KanbanBoardProps) {
   return (
-    <div className="bl-kanban-grid">
+    <HScroll className="bl-kanban-grid" label="Project board">
       {STATUSES.map((status) => (
         <section key={status} className="bl-kanban-column">
           <header className="bl-kanban-column-head">
@@ -177,6 +178,6 @@ export function KanbanBoard({
           </div>
         </section>
       ))}
-    </div>
+    </HScroll>
   );
 }

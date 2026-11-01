@@ -20,7 +20,7 @@ import {
   showTooltip,
   type ComposerDetails,
 } from "./ui";
-import { setCardBottomInset } from "./ui-card";
+import { setCardBottomInset, scrollBehavior } from "./ui-card";
 import { cancelEmptyComposer, composerHasDraft, nudgeComposer, discardComposerForTeardown } from "./ui-composer";
 import { createModeBar } from "./ui-mode-bar";
 import { postThreadReply } from "./thread-reply";
@@ -325,7 +325,7 @@ async function init(config: BacklineConfig): Promise<void> {
         reportLocated(topId, false, "element-missing");
         return;
       }
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.scrollIntoView({ behavior: scrollBehavior(), block: "center" });
       reportLocated(topId, true);
       // Give the scroll (and position-tracker's own viewport re-check) a moment to
       // settle before opening the thread.
@@ -413,6 +413,8 @@ async function init(config: BacklineConfig): Promise<void> {
         tooltip,
         composerDetails,
         onCommentCreated: announceCreated,
+        // Dragging over a link or button must not also click it (same as the extension).
+        interceptEvents: true,
       });
     }
   };
@@ -486,7 +488,9 @@ async function init(config: BacklineConfig): Promise<void> {
     }
   }, { signal: listenerLifetime.signal });
 
-  document.addEventListener("click", (event) => {
+  // Capture phase on window: a site handler on document or the element itself (SPA
+  // router links, menus, add-to-cart) used to run before this and navigate away.
+  window.addEventListener("click", (event) => {
     if (currentMode !== "comment") return;
     const target = event.target as Element | null;
     if (!target || target.closest("[data-backline-root]")) return;
@@ -495,6 +499,7 @@ async function init(config: BacklineConfig): Promise<void> {
     // from following a link underneath).
     if (composerHasDraft()) {
       event.preventDefault();
+      event.stopImmediatePropagation();
       nudgeComposer();
       return;
     }
@@ -509,6 +514,7 @@ async function init(config: BacklineConfig): Promise<void> {
     // session. This was found via a genuinely live "Learn more" link on
     // https://example.com pointing at iana.org.
     event.preventDefault();
+    event.stopImmediatePropagation();
 
     // pageX/pageY (document-relative, scroll-inclusive), not clientX/clientY
     // (viewport-relative) - renderPin/openComposer are position: absolute now
@@ -547,7 +553,7 @@ async function init(config: BacklineConfig): Promise<void> {
       async ({ body, attachments, tags, diagnostics, stepsToReproduce, includeScreenshot, screenshot: previewed }) => {
         try {
           const created = await submission.submit(async () => {
-            controls.setStatus(includeScreenshot ? "Capturing anchor + screenshot..." : "Saving the location...");
+            controls.setStatus(includeScreenshot ? "Saving your comment and screenshot…" : "Saving your comment…");
 
             const anchor = await computeAnchor(target, x, y);
             const screenshotBlob = includeScreenshot ? previewed ?? await shot() : null;
@@ -616,7 +622,7 @@ async function init(config: BacklineConfig): Promise<void> {
       composerDetails(),
       shot,
     );
-  }, { signal: listenerLifetime.signal });
+  }, { signal: listenerLifetime.signal, capture: true });
 
   // A single-page app navigates with history.pushState and never reloads this script,
   // so without this every comment after the first in-app navigation (signing in, say)

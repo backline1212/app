@@ -1,7 +1,7 @@
 import { parseUserAgent } from "./user-agent";
 import { ATTACHMENT_ACCEPT, setupAttachments, type AttachmentResult } from "./ui-attachments";
 import { carryMarker } from "./capture-marker";
-import { cardHeaderHtml, escapeHtml, observeCardPlacement, placeCard, svg, TAG_ICONS } from "./ui-card";
+import { cardHeaderHtml, escapeHtml, observeCardPlacement, placeCard, svg, TAG_ICONS, scrollBehavior } from "./ui-card";
 import { diagnosticsSnapshot, diagnosticsSummary, onDiagnosticsChange, type Diagnostics } from "./diagnostics";
 import { formatDuration, MAX_RECORDING_SECONDS, recordingSupported, startRecording, type RecordingHandle, type RecordingKind } from "./recorder";
 
@@ -228,7 +228,7 @@ export function openComposer(
       </div>
       <div class="bl-cp-shots">
         <div class="bl-attachments"></div>
-        <button type="button" class="bl-attach-button bl-cp-attach">${svg(IMAGE_ICON, 1.8, 14)}<span class="bl-cp-attach-label">Attach a screenshot</span></button>
+        <button type="button" class="bl-attach-button bl-cp-attach">${svg(IMAGE_ICON, 1.8, 14)}<span class="bl-cp-attach-label">Attach a file</span></button>
         ${recordingSupported("screen") ? `<button type="button" class="bl-cp-attach bl-cp-record" data-kind="screen" title="Record your screen (up to ${MAX_RECORDING_SECONDS / 60} minutes)">${svg(RECORD_ICON, 1.8, 14)}<span>Record screen</span></button>` : ""}
         ${recordingSupported("voice") ? `<button type="button" class="bl-cp-attach bl-cp-record" data-kind="voice" title="Record a voice note (up to ${MAX_RECORDING_SECONDS / 60} minutes)">${svg(MIC_ICON, 1.8, 14)}<span>Voice note</span></button>` : ""}
         <input type="file" class="bl-attach-input" accept="${ATTACHMENT_ACCEPT}" multiple hidden aria-label="Choose files to attach" />
@@ -456,7 +456,7 @@ export function openComposer(
     composer,
     uploadFile,
     (count) => {
-      attachLabel.textContent = count > 0 ? "Add another" : "Attach a screenshot";
+      attachLabel.textContent = count > 0 ? "Add another" : "Attach a file";
     },
     (message) => {
       statusEl.textContent = message;
@@ -490,7 +490,7 @@ export function openComposer(
       if (!retryLocked) statusEl.textContent = "Post or cancel this comment first.";
       textarea.focus({ preventScroll: true });
     }
-    composer.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    composer.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
   }
 
   const handle = { hasDraft, nudge, cancel };
@@ -517,6 +517,7 @@ export function openComposer(
     stopPlacement();
     stopAutoGrow();
     removeOutsideClickListener();
+    window.removeEventListener("beforeunload", guardUnload);
     clearPreview();
     textarea.value = "";
     composer.remove();
@@ -649,8 +650,27 @@ export function openComposer(
   }
   for (const button of recordButtons) button.addEventListener("click", () => void toggleRecording(button));
 
-  closeButton.addEventListener("click", cancel);
-  cancelButton.addEventListener("click", cancel);
+  // Same two-step discard as Escape: one stray click on x or Cancel used to throw away
+  // a written comment, its attachments and recording.
+  function requestCancel(): void {
+    if (submitted || !hasDraft() || Date.now() < discardArmedUntil) {
+      cancel();
+      return;
+    }
+    discardArmedUntil = Date.now() + 3000;
+    statusEl.textContent = retryLocked
+      ? "Saving is unconfirmed. Click again to close; check Backline before posting another comment."
+      : "Click again to discard this comment.";
+  }
+  closeButton.addEventListener("click", requestCancel);
+  cancelButton.addEventListener("click", requestCancel);
+  // A reload or closed tab loses the draft too; let the browser ask first.
+  const guardUnload = (event: BeforeUnloadEvent): void => {
+    if (closed || submitted || !hasDraft()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  };
+  window.addEventListener("beforeunload", guardUnload);
   submitButton.addEventListener("click", submit);
   copyButton.addEventListener("click", () => {
     void navigator.clipboard?.writeText(textarea.value).then(() => {
