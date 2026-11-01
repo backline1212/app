@@ -12,7 +12,7 @@ export { postThreadReply } from "./thread-reply";
 
 export { createShadowRoot, openComposer, renderPin, showTooltip } from "./ui";
 export { composerHasDraft, nudgeComposer, cancelEmptyComposer, discardComposerForTeardown } from "./ui-composer";
-export { setCardBottomInset } from "./ui-card";
+export { scrollBehavior, setCardBottomInset } from "./ui-card";
 export type { ComposerDetails, ComposerResult } from "./ui";
 
 export { anchorPointFor, computeAnchor, computeRegionAnchor, resolveAnchorElement, waitForAnchorElement } from "./anchor";

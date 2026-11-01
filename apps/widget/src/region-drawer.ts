@@ -81,7 +81,10 @@ export function setupRegionDrawer({
   const previousCursor = document.body.style.cursor;
   document.body.style.cursor = "crosshair";
 
-  function onMouseDown(e: MouseEvent) {
+  // Pointer events, so Draw works with a finger or pen too (mouse-only events left a
+  // phone scrolling the page instead of drawing).
+  function onMouseDown(e: PointerEvent) {
+    if (!e.isPrimary) return;
     target = e.target as Element | null;
     if (!target || target.closest("[data-backline-root]")) return;
     // Starting a new area would leave a half-written comment behind; point back at it.
@@ -109,7 +112,7 @@ export function setupRegionDrawer({
     shadow.appendChild(overlay);
   }
 
-  function onMouseMove(e: MouseEvent) {
+  function onMouseMove(e: PointerEvent) {
     if (!isDrawing || !overlay) return;
     const currentX = e.pageX;
     const currentY = e.pageY;
@@ -265,15 +268,21 @@ export function setupRegionDrawer({
     event.stopImmediatePropagation();
   };
   if (interceptEvents) document.addEventListener("click", suppressClick, true);
-  document.addEventListener("mousedown", onMouseDown, interceptEvents);
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseup", onMouseUp);
+  document.addEventListener("pointerdown", onMouseDown, interceptEvents);
+  document.addEventListener("pointermove", onMouseMove);
+  document.addEventListener("pointerup", onMouseUp);
+  document.addEventListener("pointercancel", onMouseUp);
+  // Touch drags draw instead of scrolling the page while Draw is on.
+  const previousTouchAction = document.documentElement.style.touchAction;
+  document.documentElement.style.touchAction = "none";
 
   return () => {
     if (interceptEvents) document.removeEventListener("click", suppressClick, true);
-    document.removeEventListener("mousedown", onMouseDown, interceptEvents);
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
+    document.removeEventListener("pointerdown", onMouseDown, interceptEvents);
+    document.removeEventListener("pointermove", onMouseMove);
+    document.removeEventListener("pointerup", onMouseUp);
+    document.removeEventListener("pointercancel", onMouseUp);
+    document.documentElement.style.touchAction = previousTouchAction;
     document.body.style.cursor = previousCursor;
   };
 }

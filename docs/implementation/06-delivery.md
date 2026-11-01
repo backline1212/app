@@ -5265,3 +5265,16 @@ database migration, or production deployment is claimed.
   proxied page answers "This review is closed" with the new message; JSON callers get
   `details.reason = "project_archived"`. Test data restored.
 - ruff, mypy, scoping.
+
+# 2026-11-01: Extension 0.5.15 and board scrolling (TDR-0226, TDR-0227)
+
+- Chromium with the unpacked extension (local API): Open with extension as Maya → toolbar
+  offered "Use this view as the project picture"; 0 uploads before the click, 1 after,
+  then "Saved. The project card shows this view…".
+- Client review (desktop): Comment mode click on "Buy now" opened the composer, no
+  navigation, site click handlers fired 0 times; Cancel on a draft → "Click again to
+  discard this comment.", second Cancel closed it. Phone: touch drag in Draw drew an
+  area and opened the composer without scrolling.
+- Release ZIP: 67787 bytes, SHA-256 `87517e58…7e46f`, permissions `storage`, `scripting`,
+  `<all_urls>`; production API/dashboard targets.
+- widget/extension/web lint + typecheck, widget build.

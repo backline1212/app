@@ -170,15 +170,33 @@ async function handleActivate(mode: AnnotationMode): Promise<void> {
     activateStatus.textContent = "Could not find the current tab.";
     return;
   }
+  let reply: { ok?: boolean; error?: string } | undefined;
   try {
-    await chrome.tabs.sendMessage(tab.id, { type: "activate-annotation", mode });
-    window.close();
+    reply = await chrome.tabs.sendMessage(tab.id, { type: "activate-annotation", mode });
   } catch {
-    // The content script isn't injected on chrome://, the Chrome Web Store, or a page
-    // that hasn't finished loading yet - no manifest permission fixes that, so this is
-    // just surfaced to the user rather than retried.
-    activateStatus.textContent = "Backline can't run on this page.";
+    // No content script: chrome:// and Web Store pages never get one, and a tab that was
+    // already open when the extension was installed or updated needs a reload first.
+    const url = tab.url ?? "";
+    if (/^https?:/i.test(url)) {
+      activateStatus.textContent = "Reload this page to use Backline on it, then try again. ";
+      const reload = document.createElement("button");
+      reload.type = "button";
+      reload.className = "secondary";
+      reload.textContent = "Reload page";
+      reload.onclick = () => { void chrome.tabs.reload(tab.id!); window.close(); };
+      activateStatus.appendChild(reload);
+    } else {
+      activateStatus.textContent = "Backline can't run on this page. Open the website you want to review.";
+    }
+    return;
   }
+  // The page answers with its own error (read-only access, plan limit, offline...);
+  // show it here instead of closing the popup on a click that did nothing.
+  if (reply && reply.ok === false) {
+    activateStatus.textContent = reply.error || "Couldn't start commenting on this page.";
+    return;
+  }
+  window.close();
 }
 
 connectForm.addEventListener("submit", (event) => void handleConnectSubmit(event));

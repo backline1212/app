@@ -17,7 +17,43 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## Update ready: 0.5.14 (2026-10-27, supersedes 0.5.2-0.5.13)
+## 0.5.14 was rejected (2026-10-31); resubmit 0.5.15
+
+The rejection email/Status page names the violation; it wasn't available when 0.5.15 was
+prepared, so 0.5.15 fixes every likely cause found in a compliance review (TDR-0227):
+
+- **No capture without a user action.** Since 0.5.13 the extension took a screenshot of
+  the tab and uploaded it as the project card picture by itself; this also contradicted
+  the submitted `activeTab` justification ("user-initiated screenshots"). Now the toolbar
+  only offers "Use this view as the project picture" and captures when it is clicked.
+- **Permissions:** `activeTab` removed (unused next to the `<all_urls>` host permission).
+  0.5.15 requests `storage`, `scripting` and `<all_urls>` only - fewer than 0.4.13.
+- **Disclosure:** the privacy notice now states the console/network diagnostics and the
+  screen/voice recordings (what, when, masking, opt-out) and the opt-in card picture.
+
+**Before resubmitting, update the dashboard (Privacy practices tab) to match:**
+
+| Field | Value |
+| --- | --- |
+| storage | Keeps the optional Backline workspace connection in extension-local storage and review state in extension-session storage. |
+| scripting | Injects the packaged review tools (and the packaged page-diagnostics script) into the website tab the user opens for review from Backline, including tabs open before install. |
+| host permissions `<all_urls>` | Agencies review their clients' sites, which can be any HTTP/HTTPS origin; also used for the user-requested screenshot of the visible tab when posting a comment (`tabs.captureVisibleTab`). |
+| Remote code | No. All scripts are in the package; API responses are data. |
+| Data collected | Personally identifiable information (name, email), Authentication information (Backline token), Personal communications (comments and replies), Website content (page text snapshot, screenshots, console/network error entries, recordings the user makes), Web history (URLs of the pages the user reviews). |
+| Certifications | Not sold; not used for unrelated purposes; not used for creditworthiness. |
+
+Add to the description: "While you review, Backline can attach the page's console and
+network errors to your comment (you can untick it). Screen and voice recordings are only
+made when you press Record."
+
+Reviewer instructions: give a working test account (email + password) on production and a
+project with a reachable website, and say "Open the project → Open with extension". If
+the reviewer can't sign in, Google rejects for functionality.
+
+Package: `apps/web/public/backline-extension-0.5.15.zip`, 67787 bytes, SHA-256
+`87517e585c761b3b7fb5299b69c9a2153ce13f2793c76c0421eb7b7c5267e46f`.
+
+## Previous: 0.5.14 (2026-10-27, supersedes 0.5.2-0.5.13) - rejected
 
 0.5.14 = 0.5.13 plus composer fixes shared with the website SDK: no tag is preselected
 (copy and design notes were saved as "Bug"), the device label follows the real device
