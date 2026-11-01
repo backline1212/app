@@ -263,7 +263,7 @@ export function ProjectsPage() {
           </header>
           {attention.isLoading || fresh.isLoading ? (
             <div className="bl-attention-empty" aria-hidden="true"><div className="bl-skeleton" style={{ height: 12, width: 240, borderRadius: 3 }} /></div>
-          ) : attention.isError ? (<p role="alert">Could not load items waiting on you. <button onClick={() => void attention.refetch()}>Retry</button></p>) : waitingItems.length > 0 ? (
+          ) : attention.isError || fresh.isError ? (<p role="alert">Could not load items waiting on you. <button onClick={() => { void attention.refetch(); void fresh.refetch(); }}>Retry</button></p>) : waitingItems.length > 0 ? (
             <div>{waitingItems.map(({ ticket: t, fresh: isNew }) => <Link key={t.id} to={`/w/${workspace.slug}/tickets?comment=${t.id}&project_id=${t.project_id}`}><small>{isNew && <span className="bl-new-client">New from client</span>}{t.project_name} · {t.page_title}</small><strong>{t.body}</strong><span>{t.author_name} · {timeAgo(t.created_at)}</span></Link>)}</div>
           ) : (
             <div className="bl-attention-empty">

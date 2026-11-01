@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useToast } from "../../components/Toast";
 import { qk } from "../../lib/query-keys";
 import * as brandingApi from "./branding-api";
@@ -60,9 +61,17 @@ export function BrandingSettings({ workspace, canEdit }: { workspace: WorkspaceO
     },
     onError: (error) => toast(error instanceof Error ? error.message : "Verification failed.", "error"),
   });
+  // Removing a live domain breaks every review link that uses it, so it's confirmed.
+  const [removing, setRemoving] = useState<brandingApi.CustomDomain | null>(null);
   const remove = useMutation({
     mutationFn: (id: string) => brandingApi.removeDomain(workspace.id, id),
-    onSuccess: () => { void refreshDomains(); void cache.invalidateQueries({ queryKey: qk.branding(workspace.id) }); },
+    onSuccess: () => {
+      toast(`${removing?.host ?? "The domain"} was removed.`, "success");
+      setRemoving(null);
+      void refreshDomains();
+      void cache.invalidateQueries({ queryKey: qk.branding(workspace.id) });
+    },
+    onError: (error) => toast(error instanceof Error ? error.message : "The domain could not be removed.", "error"),
   });
 
   function submit(event: FormEvent) {
@@ -74,6 +83,17 @@ export function BrandingSettings({ workspace, canEdit }: { workspace: WorkspaceO
   const locked = data && !data.can_customize;
   const billing = <Link to={`/w/${workspace.slug}/billing`}>See plans</Link>;
   return <>
+    {removing && <ConfirmDialog
+      title={`Remove ${removing.host}?`}
+      message={removing.status === "verified" && removing.connected
+        ? "This domain is live. Review links that use it will stop working, and clients will need links on the Backline address instead."
+        : "The domain's setup is removed. You can add it again later."}
+      confirmLabel="Remove domain"
+      destructive
+      pending={remove.isPending}
+      onConfirm={() => remove.mutate(removing.id)}
+      onCancel={() => setRemoving(null)}
+    />}
     <section className="ws-card">
       <header>
         <h2>Client branding</h2>
@@ -142,7 +162,7 @@ export function BrandingSettings({ workspace, canEdit }: { workspace: WorkspaceO
               <span className={`bl-domain-state is-${domain.status === "verified" ? (domain.connected ? "live" : "verified") : domain.status}`}>{domain.status === "verified" ? (domain.connected ? "Live" : "Verified") : "Waiting for DNS"}</span>
               {canEdit && <span className="bl-domain-actions">
                 <button type="button" className="bl-quiet" disabled={verify.isPending} onClick={() => verify.mutate(domain.id)}>{verify.isPending && verify.variables === domain.id ? "Checking…" : domain.status === "verified" ? "Check again" : "Verify"}</button>
-                <button type="button" className="bl-quiet" disabled={remove.isPending} onClick={() => remove.mutate(domain.id)}>Remove</button>
+                <button type="button" className="bl-quiet" disabled={remove.isPending} onClick={() => setRemoving(domain)}>Remove</button>
               </span>}
             </div>
             {!(domain.status === "verified" && domain.connected) && <ol className="bl-domain-steps">

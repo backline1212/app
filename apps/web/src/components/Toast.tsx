@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -9,6 +10,7 @@ import {
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { getTopOpenDialog, subscribeOpenDialogs } from "../lib/dialog-stack";
+import { AlertIcon, CheckIcon, SpinnerIcon, XIcon } from "./icons";
 
 type ToastVariant = "success" | "error" | "warning" | "progress";
 
@@ -23,6 +25,8 @@ interface ToastItem {
   variant: ToastVariant;
   addedAt: number;
   action?: ToastAction;
+  /** Auto-dismiss after this long; null stays until dismissed. */
+  delay: number | null;
 }
 
 interface ToastContextValue {
@@ -39,6 +43,8 @@ const AUTO_DISMISS_MS: Record<ToastVariant, number | null> = {
   progress: null, // manual dismiss only
 };
 
+// A toast with a button (Undo) needs time to reach for it.
+const ACTION_MIN_MS = 8000;
 const DEDUP_WINDOW_MS = 1000;
 const MAX_TOASTS = 4;
 
@@ -70,16 +76,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const id = genId();
       setItems((prev) => {
         // LIFO: new item at start; keep only MAX_TOASTS (oldest = last = auto-clear)
-        const next = [{ id, message, variant, addedAt: now, action: options?.action }, ...prev];
+        const base = AUTO_DISMISS_MS[variant];
+        const delay = base !== null && options?.action ? Math.max(base, ACTION_MIN_MS) : base;
+        const next = [{ id, message, variant, addedAt: now, action: options?.action, delay }, ...prev];
         return next.slice(0, MAX_TOASTS);
       });
-
-      const delay = AUTO_DISMISS_MS[variant];
-      if (delay !== null) {
-        setTimeout(() => dismiss(id), delay);
-      }
     },
-    [dismiss],
+    [],
   );
 
   return (
@@ -97,11 +100,11 @@ export function useToast(): ToastContextValue {
   return ctx;
 }
 
-const ICONS: Record<ToastVariant, string> = {
-  success: "✓",
-  error: "✕",
-  warning: "⚠",
-  progress: "↻",
+const ICONS: Record<ToastVariant, ReactNode> = {
+  success: <CheckIcon width={14} height={14} />,
+  error: <XIcon width={14} height={14} />,
+  warning: <AlertIcon width={14} height={14} />,
+  progress: <SpinnerIcon width={14} height={14} className="bl-is-spinning" />,
 };
 
 function ToastContainer({
@@ -139,9 +142,26 @@ function ToastEntry({
   onDismiss: (id: string) => void;
 }) {
   const role = item.variant === "error" ? "alert" : "status";
+  // The timer pauses while the pointer or keyboard focus is on the toast, so an
+  // Undo doesn't vanish while someone is reaching for it.
+  const [paused, setPaused] = useState(false);
+  const remaining = useRef(item.delay);
+  useEffect(() => {
+    if (remaining.current === null || paused) return;
+    const started = Date.now();
+    const timer = window.setTimeout(() => onDismiss(item.id), remaining.current);
+    return () => {
+      window.clearTimeout(timer);
+      if (remaining.current !== null) remaining.current = Math.max(1000, remaining.current - (Date.now() - started));
+    };
+  }, [paused, item.id, onDismiss]);
   return (
     <div
       className={`bl-toast ${item.variant}`}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
       role={role}
       aria-live={item.variant === "error" ? "assertive" : "polite"}
       aria-atomic="true"
@@ -168,7 +188,7 @@ function ToastEntry({
         aria-label="Dismiss notification"
         onClick={() => onDismiss(item.id)}
       >
-        ×
+        <XIcon width={14} height={14} />
       </button>
     </div>
   );

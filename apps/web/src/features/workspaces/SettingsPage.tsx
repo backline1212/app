@@ -206,7 +206,7 @@ export function SettingsPage() {
           message={
             <>
               <p>Everyone in it loses access now; its projects, files and comments are deleted after 30 days. Type the workspace name to confirm.</p>
-              <input className="bl-input" aria-label="Workspace name" value={deleteName} onChange={(event) => setDeleteName(event.target.value)} placeholder={workspace.name} autoFocus />
+              <input className="bl-input" aria-label="Workspace name" value={deleteName} onChange={(event) => setDeleteName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && deleteName.trim() === workspace.name.trim() && !remove.isPending) remove.mutate(); }} placeholder={workspace.name} autoFocus />
               {remove.error && <p className="bl-error" role="alert">{remove.error.message}</p>}
             </>
           }

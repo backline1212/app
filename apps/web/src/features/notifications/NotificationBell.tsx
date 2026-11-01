@@ -12,6 +12,7 @@ import { useAuth } from "../auth/AuthContext";
 import { roleLabel } from "../../lib/project-roles";
 import { timeAgo } from "../../lib/time";
 import { STATUS_LABELS } from "../../lib/workflow";
+import { PROVIDERS } from "../integrations/providers";
 import * as notificationsApi from "./api";
 import type { NotificationOut } from "./api";
 
@@ -44,7 +45,7 @@ function describe(notification: NotificationOut): string {
     case "share_link_created":
       return "A new share link was created for a project";
     case "integration_disconnected":
-      return `Your ${payload.integration_type ?? ""} integration was disconnected after repeated delivery failures`;
+      return `Your ${PROVIDERS.find((item) => item.type === payload.integration_type)?.name ?? "integration"} integration keeps failing to post. Check its connection in Integrations.`;
     case "deploy_recovery_completed":
       return "Comment anchors were re-mapped after a deploy";
     case "join_requested":

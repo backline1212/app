@@ -13,6 +13,7 @@ import { listProjectComments, type CommentOut } from "../board/api";
 import { listPages } from "../projects/api";
 import { useProject } from "../projects/use-project";
 import type { WorkspaceOut } from "../workspaces/api";
+import { ArrowLeftIcon } from "../../components/icons";
 
 type StatusFilter = "all" | "open" | "closed";
 
@@ -75,7 +76,7 @@ export function ReviewReportPage() {
   return (
     <main className="bl-report">
       <div className="bl-report-controls" aria-label="Report options">
-        <Link className="bl-quiet" to={`/w/${workspace.slug}/p/${projectId}`}>← Back to review</Link>
+        <Link className="bl-quiet" to={`/w/${workspace.slug}/p/${projectId}`}><ArrowLeftIcon width={14} height={14} /> Back to review</Link>
         <label>Show
           <select value={status} onChange={(e) => update("status", e.target.value === "all" ? null : e.target.value)}>
             <option value="all">All feedback</option>

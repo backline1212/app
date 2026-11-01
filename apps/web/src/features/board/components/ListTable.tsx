@@ -15,6 +15,7 @@ interface ListTableProps {
   setOpenThreadId: (id: string | null) => void;
   bulkUpdateMutation: {
     mutate: (status: CommentStatus) => void;
+    isPending?: boolean;
   };
 }
 
@@ -33,13 +34,14 @@ export function ListTable({
     <div className="bl-board-list">
       {canEdit && selected.size > 0 && (
         <div className="bl-board-bulkbar">
-          <span>{selected.size} selected</span>
+          <span>{bulkUpdateMutation.isPending ? "Updating…" : `${selected.size} selected`}</span>
           <select
+            disabled={bulkUpdateMutation.isPending}
             onChange={(e) => {
               if (e.target.value) bulkUpdateMutation.mutate(e.target.value as CommentStatus);
               e.target.value = "";
             }}
-            aria-label="Change status for selected comments"
+            aria-label="Change status for selected tickets"
             className="bl-select"
           >
             <option value="">Change status to...</option>
@@ -55,17 +57,17 @@ export function ListTable({
       <table className="bl-table">
         <thead>
           <tr>
-            <th className="bl-board-check">
+            {canEdit && <th className="bl-board-check">
               <input
                 type="checkbox"
                 checked={selected.size > 0 && selected.size === filtered.length}
                 onChange={(e) =>
                   setSelected(e.target.checked ? new Set(filtered.map((c) => c.id)) : new Set())
                 }
-                aria-label="Select all comments"
+                aria-label="Select all tickets"
               />
-            </th>
-            <th>Comment</th>
+            </th>}
+            <th>Ticket</th>
             <th>Layer</th>
             <th>Status</th>
             <th>Assignee</th>
@@ -75,14 +77,14 @@ export function ListTable({
         <tbody>
           {filtered.map((comment) => (
             <tr key={comment.id}>
-              <td className="bl-board-check">
+              {canEdit && <td className="bl-board-check">
                 <input
                   type="checkbox"
                   checked={selected.has(comment.id)}
                   onChange={() => toggleSelected(comment.id)}
-                  aria-label={`Select comment: ${comment.body.slice(0, 60)}`}
+                  aria-label={`Select ticket: ${comment.body.slice(0, 60)}`}
                 />
-              </td>
+              </td>}
               <td>
                 <button
                   onClick={() => setOpenThreadId(comment.id)}

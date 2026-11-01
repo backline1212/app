@@ -123,9 +123,9 @@ export function AiTab({ workspaceId, projectId, onViewComment }: AiTabProps) {
 
       {result && !disabled && (
         <div className="flex flex-col gap-5 text-left">
-          <p role="status">Reviewed {result.analyzed_comment_count} comments. Updated {(result.updated_comment_ids ?? []).length} priorities.{(result.skipped_comment_ids ?? []).length > 0 ? ` Left ${(result.skipped_comment_ids ?? []).length} changed comments untouched; review those suggestions manually.` : ""}</p>
+          <p role="status">Reviewed {plural(result.analyzed_comment_count, "ticket")}. Updated {plural((result.updated_comment_ids ?? []).length, "priority", "priorities")}.{(result.skipped_comment_ids ?? []).length > 0 ? ` Left ${plural((result.skipped_comment_ids ?? []).length, "changed ticket")} untouched; review those suggestions manually.` : ""}</p>
           <div className="bl-attention" style={{ padding: 10, borderRadius: 4 }}>
-            <strong>✨ Summary:</strong>
+            <strong className="bl-ai-summary-label"><SparkleIcon width={13} height={13} stroke="none" fill="currentColor" /> Summary:</strong>
             <p style={{ marginTop: 4 }}>{result.summary}</p>
           </div>
 
@@ -211,4 +211,8 @@ export function AiTab({ workspaceId, projectId, onViewComment }: AiTabProps) {
       </button>
     </div>
   );
+}
+
+function plural(count: number, one: string, many = `${one}s`): string {
+  return `${count} ${count === 1 ? one : many}`;
 }

@@ -174,7 +174,7 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
     <nav aria-label="Workspace navigation" className="bl-nav">
       {primaryLinks.map(iconLink)}
 
-      <RailGroup id="statuses" label="Comments by status" open={sections.open.statuses} onToggle={() => sections.toggle("statuses")}>
+      <RailGroup id="statuses" label="Tickets by status" open={sections.open.statuses} onToggle={() => sections.toggle("statuses")}>
         {WORKFLOW_STATUSES.filter((s) => s !== "wont_fix").map((s) => (
           <RailLink
             key={s}

@@ -17,7 +17,7 @@ function downloadReceipt(invoice: InvoiceOut, workspaceName: string) {
     `Receipt:        ${invoice.invoice_number}`,
     `Workspace:      ${workspaceName}`,
     `Paid on:        ${formatDate(invoice.paid_at)}`,
-    `Plan:           ${invoice.plan_name} (${invoice.interval})`,
+    `Plan:           ${invoice.plan_name} (${intervalLabel(invoice.interval)})`,
     `Covers:         ${formatDate(invoice.period_start)} - ${formatDate(invoice.period_end)}`,
     `Amount:         ${formatMoney(invoice.amount_paid, invoice.currency)}`,
     `Paid via:       ${PROVIDER_LABEL[invoice.provider]}`,
@@ -78,7 +78,7 @@ export function InvoiceHistorySection({
                     {invoice.provider === "sandbox" && <em className="bl-compare-soon">Test</em>}
                   </td>
                   <td>{formatDate(invoice.paid_at)}</td>
-                  <td>{invoice.plan_name} · {invoice.interval}</td>
+                  <td>{invoice.plan_name} · {intervalLabel(invoice.interval)}</td>
                   <td>{formatDate(invoice.period_start)} – {formatDate(invoice.period_end)}</td>
                   <td><strong>{formatMoney(invoice.amount_paid, invoice.currency)}</strong></td>
                   <td className="bl-invoice-actions">
@@ -100,4 +100,9 @@ export function InvoiceHistorySection({
       )}
     </section>
   );
+}
+
+/** Same words as the plan toggle: "Monthly" / "Yearly", not the API's "annual". */
+function intervalLabel(interval: string): string {
+  return interval === "annual" ? "Yearly" : interval === "monthly" ? "Monthly" : interval;
 }
