@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -23,6 +24,8 @@ from app.modules.browser_render.schemas import (
 from app.modules.pages.repository import PageRepository
 from app.modules.projects import service as project_service
 from app.modules.storage.r2_client import generate_presigned_get
+
+logger = logging.getLogger("backline.browser_render")
 
 # A render older than this is served straight from cache instead of re-running a
 # headless browser - QA clicking back and forth between viewports/orientations on the
@@ -209,8 +212,10 @@ async def run_render(
     # a private/internal address before launching Playwright at all.
     try:
         assert_safe_to_fetch(url)
-    except ValueError as exc:
-        await repo.mark_failed(doc_id=doc["_id"], error=str(exc)[:500])
+    except ValueError:
+        await repo.mark_failed(
+            doc_id=doc["_id"], error="This address can't be rendered: it isn't a public website."
+        )
         return
 
     await repo.mark_rendering(doc_id=doc["_id"])
@@ -236,7 +241,15 @@ async def run_render(
             finally:
                 await browser_instance.close()
     except Exception as exc:  # noqa: BLE001 - any Playwright/navigation failure is reportable, not a bug
-        await repo.mark_failed(doc_id=doc["_id"], error=str(exc)[:500])
+        # Shown to users: a fixed message, with the detail kept in the logs.
+        logger.warning("Browser render failed (%s): %s", type(exc).__name__, str(exc)[:300])
+        await repo.mark_failed(
+            doc_id=doc["_id"],
+            error=(
+                "The page couldn't be rendered. "
+                "It may block automated browsers or load too slowly."
+            ),
+        )
         return
 
     key = (
@@ -253,6 +266,9 @@ async def run_render(
             content_type="image/png",
         )
     except Exception as exc:
-        await repo.mark_failed(doc_id=doc["_id"], error=str(exc)[:500])
+        logger.warning("Browser render upload failed (%s)", type(exc).__name__)
+        await repo.mark_failed(
+            doc_id=doc["_id"], error="The screenshot couldn't be saved. Try again."
+        )
         return
     await repo.mark_ready(doc_id=doc["_id"], screenshot_key=key)

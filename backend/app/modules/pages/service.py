@@ -131,7 +131,17 @@ async def register_page(
     """Idempotent on url_normalized (09-Snapshot-Engine.md, 11-Database.md §11.7) - a
     guest revisiting an already-registered page is a no-op, not a duplicate."""
     workspace_id = await resolve_actor_project_access(db, actor, project_id)
+    # Only real website pages are registered here. File projects' pages and the team
+    # tickets holder are internal `backline://` pages the server creates itself; letting
+    # a reviewer register one exposed it outside the file checks (TDR-0228).
+    if not url.strip().lower().startswith(("http://", "https://")):
+        raise ValidationError("Only http and https pages can be reviewed.")
+    project = await ProjectRepository(db).find_in_workspace(workspace_id, project_id)
+    if project is None or project.get("project_type", "website") != "website":
+        raise ValidationError("Pages can only be added to website projects.")
     url_normalized = normalize_url(url)
+    if not url_normalized.startswith(("http://", "https://")):
+        raise ValidationError("Only http and https pages can be reviewed.")
 
     repo = PageRepository(db)
     existing = await repo.find_by_normalized_url(workspace_id, project_id, url_normalized)

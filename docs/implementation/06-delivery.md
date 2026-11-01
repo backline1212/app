@@ -5278,3 +5278,13 @@ database migration, or production deployment is claimed.
 - Release ZIP: 67787 bytes, SHA-256 `87517e58…7e46f`, permissions `storage`, `scripting`,
   `<all_urls>`; production API/dashboard targets.
 - widget/extension/web lint + typecheck, widget build.
+
+# 2026-11-01: Backend audit fixes (TDR-0228)
+
+- Local: departing-member cleanup revoked an MCP token, an extension token and a canvas
+  session for that workspace. Guest `POST /pages`: `backline://…` and `javascript:` →
+  "Only http and https pages can be reviewed."; on an image project → "Pages can only be
+  added to website projects."; an http page still registers. PATCH on a ticket in an
+  archived project → 409 "…Restore it to change its tickets."; after restoring, 200.
+  File comment with a real guest upload → created; with a forged key → refused.
+- ruff, mypy, scoping, types regenerated, web typecheck.

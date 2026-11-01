@@ -4,6 +4,7 @@ Branding (name, colour, logo, support email) and custom domains are Team plan an
 above; hiding Backline's own branding from client review pages is Enterprise. All of it
 only changes what *clients* see on review links - the team dashboard is unchanged."""
 
+import logging
 import secrets
 from datetime import UTC, datetime
 from typing import Any
@@ -23,6 +24,9 @@ from app.modules.branding.schemas import (
 )
 from app.modules.storage.r2_client import generate_presigned_get, upload_bytes
 from app.modules.workspaces.repository import WorkspaceRepository
+
+logger = logging.getLogger("backline.branding")
+_DNS_FAILED = "DNS lookup failed. Check the record at your DNS provider and try again."
 
 _BRANDING_PLANS = {"team", "enterprise"}
 _WHITE_LABEL_PLANS = {"enterprise"}
@@ -232,7 +236,8 @@ async def _attach_to_web_project(host: str) -> tuple[bool, str | None]:
                 json={"name": host},
             )
     except httpx.HTTPError as exc:
-        return False, f"Verified, but connecting the domain failed: {exc}"
+        logger.warning("Vercel domain connect failed (%s)", type(exc).__name__)
+        return False, "Verified, but connecting the domain failed. Try again in a minute."
     if response.status_code in (200, 201) or (
         response.status_code == 409 and "already" in response.text.lower()
     ):
@@ -255,9 +260,10 @@ async def verify_domain(
         await repo.update(
             workspace_id,
             domain_id,
-            {"last_error": f"DNS lookup failed: {exc}", "last_checked_at": now},
+            {"last_error": _DNS_FAILED, "last_checked_at": now},
         )
-        return _domain_out({**doc, "last_error": f"DNS lookup failed: {exc}"})
+        logger.info("DNS lookup failed for a custom domain (%s)", type(exc).__name__)
+        return _domain_out({**doc, "last_error": _DNS_FAILED})
     if expected not in records:
         pending: dict[str, Any] = {
             "status": "pending" if doc["status"] != "verified" else "verified",

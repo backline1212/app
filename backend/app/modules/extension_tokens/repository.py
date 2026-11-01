@@ -72,6 +72,14 @@ class ExtensionTokenRepository:
         ).sort("created_at", -1)
         return [doc async for doc in cursor]
 
+    async def revoke_for_workspace_member(self, *, workspace_id: str, user_id: ObjectId) -> None:
+        """Leaving or being removed from a workspace ends that workspace's tokens, so
+        a later re-invite doesn't bring an old token back to life."""
+        await self.db.extension_tokens.update_many(
+            {"workspace_id": workspace_id, "user_id": user_id, "revoked_at": None},
+            {"$set": {"revoked_at": datetime.now(UTC)}},
+        )
+
     async def revoke_all_for_user(self, user_id: ObjectId) -> None:
         """Sign-out-everywhere and password change end extension connections too."""
         from datetime import UTC, datetime

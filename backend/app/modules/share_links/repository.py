@@ -207,6 +207,13 @@ class GuestSessionRepository:
             {"$set": {"last_seen_at": now}},
         )
 
+    async def end_for_workspace_member(self, *, workspace_id: str, member_user_id: str) -> None:
+        """A member who leaves or is removed loses their dashboard canvas sessions."""
+        await self.db.guest_sessions.update_many(
+            {"workspace_id": workspace_id, "member_user_id": member_user_id, "ended_at": None},
+            {"$set": {"ended_at": datetime.now(UTC)}},
+        )
+
     async def end_all_for_member(self, member_user_id: str) -> None:
         """Sign-out-everywhere, password and email changes end the member's dashboard
         canvas sessions too, in every workspace (TDR-0201)."""

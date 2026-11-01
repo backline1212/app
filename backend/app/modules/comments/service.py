@@ -253,7 +253,7 @@ async def _stage_integration_event(
     comment_id: str,
     session: AsyncIOMotorClientSession,
     status: str | None = None,
-) -> None:
+) -> list[dict[str, Any]]:
     # Deferred imports avoid the integrations service's dependency on comments.
     from app.modules.integrations.dispatch_repository import IntegrationDispatchRepository
     from app.modules.integrations.factory import NOTIFIER_TYPES
@@ -264,12 +264,13 @@ async def _stage_integration_event(
         project is None
         or project["workspace_id"] != workspace_id
         or not (project.get("settings_json") or {}).get("slack_notifications_enabled", True)
+        or project.get("archived_at")
     ):
-        return
+        return []
     integrations = await IntegrationRepository(db).list_for_workspace_in_transaction(
         workspace_id, session=session
     )
-    await IntegrationDispatchRepository(db).create_comment_event(
+    return await IntegrationDispatchRepository(db).create_comment_event(
         workspace_id=workspace_id,
         project_id=project_id,
         comment_id=comment_id,
@@ -296,8 +297,10 @@ async def _create_with_integration_intent(
     event_payload: dict[str, Any],
 ) -> dict[str, Any]:
     repo = CommentRepository(db)
+    staged: list[dict[str, Any]] = []
 
     async def create(session: AsyncIOMotorClientSession) -> dict[str, Any]:
+        staged.clear()  # with_transaction may run this more than once
         if not await PageRepository(db).mark_referenced(
             workspace_id, str(doc["page_id"]), session=session
         ):
@@ -312,19 +315,23 @@ async def _create_with_integration_intent(
             payload={"comment_id": str(created["_id"]), **event_payload},
             session=session,
         )
-        await _stage_integration_event(
-            db,
-            workspace_id=workspace_id,
-            project_id=project_id,
-            event_type="comment.created",
-            comment_id=str(created["_id"]),
-            session=session,
+        staged.extend(
+            await _stage_integration_event(
+                db,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                event_type="comment.created",
+                comment_id=str(created["_id"]),
+                session=session,
+            )
         )
         return created
 
     try:
         async with await db.client.start_session() as session:
-            return await session.with_transaction(create)
+            committed: dict[str, Any] = await session.with_transaction(create)
+        await _queue_dispatches(staged)
+        return committed
     except DuplicateKeyError:
         request_id = doc.get("client_request_id")
         if request_id is None:
@@ -349,8 +356,10 @@ async def _update_with_integration_intent(
     event_payload: dict[str, Any],
 ) -> tuple[dict[str, Any], bool]:
     repo = CommentRepository(db)
+    staged: list[dict[str, Any]] = []
 
     async def update(session: AsyncIOMotorClientSession) -> tuple[dict[str, Any], bool]:
+        staged.clear()
         before = await repo.find_in_workspace(workspace_id, comment_id, session=session)
         if before is None:
             raise NotFoundError("Comment not found.")
@@ -378,19 +387,44 @@ async def _update_with_integration_intent(
             session=session,
         )
         if status_changed:
-            await _stage_integration_event(
-                db,
-                workspace_id=workspace_id,
-                project_id=project_id,
-                event_type="comment.status_changed",
-                comment_id=comment_id,
-                status=patch["status"],
-                session=session,
+            staged.extend(
+                await _stage_integration_event(
+                    db,
+                    workspace_id=workspace_id,
+                    project_id=project_id,
+                    event_type="comment.status_changed",
+                    comment_id=comment_id,
+                    status=patch["status"],
+                    session=session,
+                )
             )
         return before, status_changed
 
     async with await db.client.start_session() as session:
-        return await session.with_transaction(update)
+        result: tuple[dict[str, Any], bool] = await session.with_transaction(update)
+    await _queue_dispatches(staged)
+    return result
+
+
+async def _queue_dispatches(rows: list[dict[str, Any]]) -> None:
+    """Slack/Teams/Discord/webhook posts go out right after the comment commits instead
+    of waiting for the minute sweep (TDR-0228). Best effort: the sweep still picks up
+    anything that couldn't be queued, with the same job id, so nothing runs twice."""
+    if not rows:
+        return
+    try:
+        from app.core.arq_pool import get_arq_pool
+
+        pool = await get_arq_pool()
+        for row in rows:
+            await pool.enqueue_job(
+                "deliver_integration_dispatch_job",
+                workspace_id=row["workspace_id"],
+                dispatch_id=str(row["_id"]),
+                _job_id=f"integration:{row['_id']}:{row['after'].isoformat()}",
+            )
+    except Exception as exc:
+        logger.warning("Queueing integration delivery failed (%s)", type(exc).__name__)
 
 
 async def _resolve_author_name(
@@ -927,7 +961,9 @@ async def create_reply(
     # (notifications/service.py's _create_and_broadcast) refuses a non-member id
     # either way, so this can never notify a guest.
     reply_author_name = await _resolve_author_name(db, created)
-    actor_member_id = actor.user_id if isinstance(actor, Session) else ""
+    # A teammate replying on the dashboard canvas is a guest session carrying their
+    # member id; they shouldn't be notified about their own reply.
+    actor_member_id = actor.user_id if isinstance(actor, Session) else (actor.member_user_id or "")
     reply_recipients = set(
         parent.get("assignee_ids", [parent["assignee_id"]] if parent.get("assignee_id") else [])
     )
@@ -1149,6 +1185,10 @@ async def delete_comment_moderated(
         or existing["workspace_id"] != workspace_id
     ):
         raise NotFoundError("Comment not found.")
+    await _require_open_project(db, workspace_id, existing["page_id"])
+    if existing.get("parent_id") is None and await repo.list_replies(comment_id):
+        # Deleting only the first message would orphan its replies; delete the thread.
+        raise ConflictError("This comment has replies. Delete the whole thread instead.")
 
     await repo.soft_delete(comment_id)
     page = await _page_for_broadcast(db, existing["page_id"])
@@ -1189,6 +1229,7 @@ async def delete_thread_moderated(
         raise NotFoundError("Comment not found.")
     if existing.get("parent_id") is not None:
         raise ValidationError("Only a top-level comment can be deleted as a thread.")
+    await _require_open_project(db, workspace_id, existing["page_id"])
 
     replies = await repo.list_replies(comment_id)
     await repo.soft_delete_many([comment_id, *(str(r["_id"]) for r in replies)])
@@ -1411,6 +1452,20 @@ async def list_comments_for_project(
     return await serialize_comments(db, workspace_id=workspace_id, docs=docs)
 
 
+async def _require_open_project(
+    db: AsyncIOMotorDatabase[dict[str, Any]], workspace_id: str, page_id: str
+) -> None:
+    """Tickets in an archived project are read-only (TDR-0228): reads were already
+    refused for members, but a PATCH or MCP update still changed status and posted it
+    to Slack."""
+    page = await PageRepository(db).find_by_id(page_id)
+    if page is None or page.get("workspace_id") != workspace_id:
+        return
+    project = await ProjectRepository(db).find_in_workspace(workspace_id, page["project_id"])
+    if project is not None and project.get("archived_at"):
+        raise ConflictError("This project is archived. Restore it to change its tickets.")
+
+
 async def update_comment(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
@@ -1436,6 +1491,7 @@ async def update_comment(
         # rather than crash partway through one.
         raise NotFoundError("Comment not found.")
     project_id = page["project_id"]
+    await _require_open_project(db, workspace_id, existing["page_id"])
 
     patch: dict[str, Any] = {}
     if body is not None:
@@ -1511,6 +1567,9 @@ async def update_comment(
         patch.update(waiting_on_ids=[], waiting_on_client=False)
 
     expected_revision = changes.expected_revision if changes is not None else None
+    if "body" in patch and patch["body"] != existing.get("body"):
+        # Board edits go through here too; show "edited" like edit_comment does.
+        patch["body_edited_at"] = datetime.now(UTC)
     before, status_changed = await _update_with_integration_intent(
         db,
         workspace_id=workspace_id,
@@ -1888,8 +1947,13 @@ async def toggle_layer(
         or existing.get("deleted_at") is not None
     ):
         raise NotFoundError("Comment not found.")
+    await _require_open_project(db, workspace_id, existing["page_id"])
 
-    if not await repo.update(workspace_id, comment_id, {"layer": layer}):
+    layer_patch: dict[str, Any] = {"layer": layer}
+    if layer == "team":
+        # The client can no longer see or answer it, so it isn't waiting on them.
+        layer_patch["waiting_on_client"] = False
+    if not await repo.update(workspace_id, comment_id, layer_patch):
         raise NotFoundError("Comment not found.")
     page = await _page_for_broadcast(db, existing["page_id"])
     await append_event(
@@ -1951,6 +2015,7 @@ async def reanchor(
 
     if existing.get("anchor", {}).get("kind") == "asset":
         raise ValidationError("Use the file review controls to move this file comment.")
+    await _require_open_project(db, workspace_id, existing["page_id"])
 
     if not await repo.update(
         workspace_id,

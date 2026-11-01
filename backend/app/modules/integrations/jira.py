@@ -238,7 +238,10 @@ class JiraIntegration:
                             )
                         except httpx.HTTPError:
                             pass
-                        raise ExternalServiceError(f"Jira issue creation failed: {exc}") from exc
+                        raise ExternalServiceError(
+                            "The Jira issue was not created: the screenshot could not be attached. "
+                            "Try again."
+                        ) from exc
 
                 issue_url = f"{config['site_url'].rstrip('/')}/browse/{issue['key']}"
                 return issue["key"], issue_url

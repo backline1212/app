@@ -223,17 +223,33 @@ class RevisionRepository:
         lease: datetime,
         success: bool,
     ) -> None:
+        match = {
+            "workspace_id": workspace_id,
+            "_id": to_object_id(revision_id),
+            "delivery_state": "processing",
+            "delivery_after": lease,
+        }
+        if success:
+            await self.db.revisions.update_one(
+                match,
+                {"$set": {"delivery_state": "done", "delivery_after": datetime.now(UTC)}},
+            )
+            return
+        # A revision that keeps failing backs off (1, 2, 4 ... 60 minutes) and stops
+        # after 8 tries instead of re-running the recovery pipeline every minute
+        # forever (TDR-0228).
+        doc = await self.db.revisions.find_one(match, {"delivery_failures": 1})
+        if doc is None:
+            return
+        failures = int(doc.get("delivery_failures") or 0) + 1
         await self.db.revisions.update_one(
-            {
-                "workspace_id": workspace_id,
-                "_id": to_object_id(revision_id),
-                "delivery_state": "processing",
-                "delivery_after": lease,
-            },
+            match,
             {
                 "$set": {
-                    "delivery_state": "done" if success else "pending",
-                    "delivery_after": datetime.now(UTC) + timedelta(minutes=1),
+                    "delivery_state": "failed" if failures >= 8 else "pending",
+                    "delivery_failures": failures,
+                    "delivery_after": datetime.now(UTC)
+                    + timedelta(minutes=min(60, 2 ** (failures - 1))),
                 }
             },
         )

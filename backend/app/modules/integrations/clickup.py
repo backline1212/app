@@ -138,7 +138,10 @@ class ClickUpIntegration:
                             )
                         except httpx.HTTPError:
                             pass
-                        raise ExternalServiceError(f"ClickUp task creation failed: {exc}") from exc
+                        raise ExternalServiceError(
+                            "The ClickUp task was not created: the screenshot could not be "
+                            "attached. Try again."
+                        ) from exc
                 return task["id"], task["url"]
         except httpx.HTTPError as exc:
             raise ExternalServiceError(

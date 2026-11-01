@@ -93,7 +93,10 @@ class TrelloIntegration:
                             )
                         except httpx.HTTPError:
                             pass
-                        raise ExternalServiceError(f"Trello card creation failed: {exc}") from exc
+                        raise ExternalServiceError(
+                            "The Trello card was not created: the screenshot could not be "
+                            "attached. Try again."
+                        ) from exc
                 return card["id"], card["shortUrl"]
         except httpx.HTTPError as exc:
             raise ExternalServiceError(
