@@ -19,6 +19,7 @@ from app.core.errors import (
     ValidationError,
 )
 from app.core.events import append_event, was_removed_from_workspace
+from app.core.mongo_utils import to_object_id
 from app.core.project_access import (
     WORKSPACE_MANAGER_ROLES,
     access_settings,
@@ -487,10 +488,26 @@ async def _clean_up_departed_member(
     db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, membership: dict[str, Any]
 ) -> None:
     """After someone leaves or is removed: their reports move up to their manager,
-    and their project entries go (TDR-0056) so rejoining starts from the defaults."""
+    their project entries go (TDR-0056) so rejoining starts from the defaults, and
+    their MCP/extension tokens and canvas sessions for this workspace end (TDR-0228) -
+    otherwise a re-invite would revive a token left on an old laptop or CI config."""
+    from app.modules.extension_tokens.repository import ExtensionTokenRepository
+    from app.modules.mcp.repository import McpTokenRepository
     from app.modules.projects.repository import ProjectRepository
+    from app.modules.share_links.repository import GuestSessionRepository
 
     user_id = membership["user_id"]
+    user_oid = to_object_id(user_id)
+    if user_oid is not None:
+        await McpTokenRepository(db).revoke_for_workspace_member(
+            workspace_id=workspace_id, user_id=user_oid
+        )
+        await ExtensionTokenRepository(db).revoke_for_workspace_member(
+            workspace_id=workspace_id, user_id=user_oid
+        )
+    await GuestSessionRepository(db).end_for_workspace_member(
+        workspace_id=workspace_id, member_user_id=user_id
+    )
     await MembershipRepository(db).reassign_reports(
         workspace_id=workspace_id,
         from_user_id=user_id,

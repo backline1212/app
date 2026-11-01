@@ -43,7 +43,7 @@ from app.modules.storage.r2_client import (
     download_bytes_limited,
     generate_presigned_get,
 )
-from app.modules.storage.service import require_project_upload
+from app.modules.storage.service import validate_upload_reference
 from app.modules.workspaces.repository import MembershipRepository
 
 MAX_ASSET_SIZE = 20 * 1024 * 1024
@@ -477,7 +477,10 @@ async def set_approval(
         },
     )
     uploader = asset.get("created_by")
-    if body.approved and uploader and uploader != actor_id:
+    approver_member = (
+        actor.user_id if isinstance(actor, Session) else (actor.member_user_id or actor_id)
+    )
+    if body.approved and uploader and uploader not in (actor_id, approver_member):
         from app.modules.notifications import service as notification_service
 
         await notification_service.notify_file_approved(
@@ -577,8 +580,17 @@ async def create_comment(
         raise ValidationError("The selected page does not exist.")
     if not body.body.strip():
         raise ValidationError("Comment text is required.")
+    # The same check page comments and replies get: the upload was issued to this
+    # reviewer, exists, and is the declared type (TDR-0228).
     for attachment in body.attachments:
-        require_project_upload(attachment.key, workspace_id, project_id)
+        await validate_upload_reference(
+            db,
+            actor=actor,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            key=attachment.key,
+            content_type=attachment.content_type,
+        )
     actor_type, actor_id = actor_identity(actor)
     candidate: dict[str, Any] = {
         "workspace_id": workspace_id,

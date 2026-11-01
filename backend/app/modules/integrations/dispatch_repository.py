@@ -55,11 +55,15 @@ class IntegrationDispatchRepository:
         integration_ids: list[str],
         status: str | None = None,
         session: AsyncIOMotorClientSession,
-    ) -> None:
+    ) -> list[dict[str, Any]]:
+        """The new rows (id, workspace, `after`) so the caller can queue them as soon as
+        its transaction commits."""
         if not integration_ids:
-            return
-        now = datetime.now(UTC)
-        await self.db.integration_dispatches.insert_many(
+            return []
+        # Millisecond precision, as Mongo stores it, so a job id built from `after` here
+        # matches the one the sweep builds from the stored row.
+        now = datetime.now(UTC).replace(microsecond=datetime.now(UTC).microsecond // 1000 * 1000)
+        result = await self.db.integration_dispatches.insert_many(
             [
                 {
                     "workspace_id": workspace_id,
@@ -77,8 +81,12 @@ class IntegrationDispatchRepository:
             ],
             session=session,
         )
+        return [
+            {"_id": inserted_id, "workspace_id": workspace_id, "after": now}
+            for inserted_id in result.inserted_ids
+        ]
 
-    async def due(self, limit: int = 50) -> list[dict[str, Any]]:
+    async def due(self, limit: int = 500) -> list[dict[str, Any]]:
         # workspace-scope-exempt: internal worker sweep discovers only pending rows.
         # Every claim and downstream project/integration lookup is workspace-scoped.
         cursor = self.db.integration_dispatches.find(

@@ -156,7 +156,10 @@ class AsanaIntegration:
                             )
                         except httpx.HTTPError:
                             pass
-                        raise ExternalServiceError(f"Asana task creation failed: {exc}") from exc
+                        raise ExternalServiceError(
+                            "The Asana task was not created: the screenshot could not be attached. "
+                            "Try again."
+                        ) from exc
                 return task["gid"], task["permalink_url"]
         except httpx.HTTPError as exc:
             raise ExternalServiceError(

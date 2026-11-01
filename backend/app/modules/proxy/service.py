@@ -654,7 +654,10 @@ async def fetch_proxied_resource(
                 *cookie_events,
             )
     except httpx.HTTPError as exc:
-        raise ExternalServiceError(f"Could not reach the reviewed site: {exc}") from exc
+        # Not the raw error: it can name internal hosts and is shown to clients.
+        raise ExternalServiceError(
+            "Could not reach the reviewed site. It may be down or blocking previews."
+        ) from exc
     finally:
         await client.aclose()
 

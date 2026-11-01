@@ -10,12 +10,16 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.arq_pool import get_arq_pool
 from app.core.config import get_settings
+from app.core.events import append_event
+from app.core.redis_client import get_redis
 from app.modules.comments.repository import CommentRepository
 from app.modules.comments.service import _comment_out
+from app.modules.integrations import events as integration_events
 from app.modules.integrations.dispatch_repository import IntegrationDispatchRepository
 from app.modules.integrations.factory import NOTIFIER_TYPES, get_notifier
 from app.modules.integrations.repository import IntegrationRepository
 from app.modules.integrations.service import build_event_context
+from app.modules.notifications.service import notify_integration_disconnected
 from app.modules.pages.repository import PageRepository
 from app.modules.projects.repository import ProjectRepository
 from app.modules.workspaces.repository import WorkspaceRepository
@@ -134,6 +138,8 @@ async def deliver_integration_dispatch(
             dispatch_id,
             type(exc).__name__,
         )
+        if attempts >= 8:
+            await _report_dead_integration(db, doc, type(exc).__name__)
         return
     await repo.finish(
         workspace_id=workspace_id,
@@ -141,6 +147,51 @@ async def deliver_integration_dispatch(
         lease=doc["lease"],
         state=state,
     )
+
+
+async def _report_dead_integration(
+    db: AsyncIOMotorDatabase[dict[str, Any]], doc: dict[str, Any], error_type: str
+) -> None:
+    """A delivery that gave up after every retry is logged to Activity and the person
+    who connected the integration is told - at most once a day per integration - so a
+    revoked Slack/Teams webhook doesn't fail silently forever (TDR-0228)."""
+    workspace_id = doc["workspace_id"]
+    integration = await IntegrationRepository(db).find_in_workspace(
+        workspace_id, doc["integration_id"]
+    )
+    if integration is None:
+        return
+    integration_id = str(integration["_id"])
+    try:
+        first_today = await get_redis().set(
+            f"integration-dead:{integration_id}", "1", nx=True, ex=86400
+        )
+    except Exception:
+        first_today = True  # Redis down: better a repeat notice than none
+    if not first_today:
+        return
+    await append_event(
+        db,
+        workspace_id=workspace_id,
+        type=integration_events.WEBHOOK_DELIVERY_FAILED,
+        actor_type="system",
+        actor_id=None,
+        payload={
+            "integration_id": integration_id,
+            "integration_type": integration["type"],
+            "event_type": doc["event_type"],
+            "project_id": doc.get("project_id"),
+            "error": error_type,
+        },
+    )
+    if integration.get("connected_by"):
+        await notify_integration_disconnected(
+            db,
+            workspace_id=workspace_id,
+            integration_id=integration_id,
+            integration_type=integration["type"],
+            connected_by=integration["connected_by"],
+        )
 
 
 async def sweep_integration_dispatches(db: AsyncIOMotorDatabase[dict[str, Any]]) -> int:

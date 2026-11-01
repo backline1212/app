@@ -10374,6 +10374,8 @@
         "properties": {
           "key": {
             "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
             "title": "Key"
           },
           "filename": {
@@ -10384,6 +10386,8 @@
           },
           "content_type": {
             "type": "string",
+            "maxLength": 127,
+            "minLength": 1,
             "title": "Content Type"
           }
         },

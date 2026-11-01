@@ -149,6 +149,7 @@ async def _digest_counts(
         if await _visible(db, workspace_id, membership, {"page_id": row["_id"]}, cache):
             new += int(row["count"])
     now = datetime.now(UTC)
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     overdue = due_soon = 0
     due = await repo.open_assigned_due_before(
         workspace_id, membership["user_id"], now + timedelta(hours=24)
@@ -158,7 +159,9 @@ async def _digest_counts(
             continue
         due_at = ticket["due_at"]
         due_at = due_at.replace(tzinfo=UTC) if due_at.tzinfo is None else due_at
-        if due_at < now:
+        # Same cutoff as the Overdue view the email links to: due before today (UTC);
+        # a ticket due later today counts as due soon (TDR-0228).
+        if due_at < start_of_today:
             overdue += 1
         else:
             due_soon += 1

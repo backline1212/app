@@ -132,9 +132,9 @@ class AttachmentIn(BaseModel):
     it for client-side icon/preview decisions and re-deriving from a file extension is
     one more thing that could drift from what was actually uploaded."""
 
-    key: str
+    key: str = Field(min_length=1, max_length=512)
     filename: str = Field(min_length=1, max_length=255)
-    content_type: str
+    content_type: str = Field(min_length=1, max_length=127)
 
 
 class AttachmentOut(BaseModel):
