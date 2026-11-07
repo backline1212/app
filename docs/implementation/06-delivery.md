@@ -5327,3 +5327,11 @@ database migration, or production deployment is claimed.
 - Release ZIP: 68550 bytes, SHA-256 `ef0dbb55…4e50c020`; permissions `storage`;
   host `<all_urls>`; no `chrome.scripting` in the bundle; production targets.
 - widget/extension/web lint + typecheck, widget build.
+
+# 2026-11-07: Widget attachment checks and fade-in (TDR-0233)
+
+- Client review, desktop: attaching `note.txt` → "note.txt can't be attached. Use an
+  image, PDF, Word, Excel or Markdown file, or a recording."; a PNG uploaded (201) and its
+  chip showed as attached. The composer also offered "Attach 1 console error, 1 warning,
+  1 failed request" on the website SDK (TDR-0232 fix).
+- widget lint + typecheck + build.

@@ -394,6 +394,17 @@ const HOST_STYLES = `
     .bl-card button.bl-submit, .bl-card button.bl-cp-cancel, .bl-card .bl-attach-button { min-height: 42px; }
     .bl-card textarea, .bl-card input[type="text"], .bl-card input[type="email"] { font-size: 16px; }
   }
+
+  /* Cards, toasts and the hint fade in instead of popping (TDR-0233). @starting-style
+     plays it once, when the element first appears, so the composer's "nudge" shake
+     doesn't replay it; older browsers just show them at once. */
+  .bl-card, .bl-toast, .bl-tooltip { transition: opacity .14s ease-out, translate .14s ease-out; }
+  @starting-style {
+    .bl-card, .bl-toast, .bl-tooltip { opacity: 0; translate: 0 4px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bl-card, .bl-toast, .bl-tooltip { transition: none; }
+  }
 `;
 
 // A constructed stylesheet isn't inline markup, so a site whose CSP forbids inline
