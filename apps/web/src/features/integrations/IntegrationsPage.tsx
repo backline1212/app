@@ -22,7 +22,7 @@ const SECTIONS: { kind: ProviderKind; title: string; blurb: string }[] = [
   {
     kind: "notifier",
     title: "Notifications",
-    blurb: "Post new comments, replies and status changes as they happen. Failed posts are retried for about 5 minutes.",
+    blurb: "Post new comments, replies and status changes as they happen. Failed posts are retried for about an hour; if they keep failing, whoever connected it is notified.",
   },
 ];
 

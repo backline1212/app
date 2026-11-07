@@ -170,18 +170,31 @@ class JiraIntegration:
     async def list_destinations(self, ctx: IntegrationContext) -> list[Destination]:
         base, headers = await _session(ctx)
         try:
+            # Every page, not just the first 100: a project past it could never be
+            # picked, and saving it was refused as unreachable (TDR-0235). Capped.
+            projects: list[dict[str, Any]] = []
             async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
-                response = await client.get(
-                    f"{base}/rest/api/3/project/search",
-                    params={"maxResults": 100, "orderBy": "name", "expand": "issueTypes"},
-                )
-                response.raise_for_status()
+                for start in range(0, 1000, 100):
+                    response = await client.get(
+                        f"{base}/rest/api/3/project/search",
+                        params={
+                            "maxResults": 100,
+                            "startAt": start,
+                            "orderBy": "name",
+                            "expand": "issueTypes",
+                        },
+                    )
+                    response.raise_for_status()
+                    page = response.json()
+                    projects.extend(page.get("values", []))
+                    if page.get("isLast", True) or not page.get("values"):
+                        break
         except httpx.HTTPError as exc:
             raise ExternalServiceError(
                 f"Could not load Jira projects: {http_error_detail(exc)}"
             ) from exc
         destinations = []
-        for project in response.json().get("values", []):
+        for project in projects:
             issue_type = _pick_issue_type(project.get("issueTypes", []))
             destinations.append(
                 Destination(
@@ -223,11 +236,14 @@ class JiraIntegration:
                 if comment.screenshot_url:
                     try:
                         screenshot_bytes = await fetch_screenshot(comment.screenshot_url)
-                        await client.post(
+                        attached = await client.post(
                             f"{base}/rest/api/3/issue/{issue['key']}/attachments",
                             headers={**headers, "X-Atlassian-Token": "no-check"},
                             files={"file": ("screenshot.png", screenshot_bytes, "image/png")},
                         )
+                        # A refused upload (403/413) used to file the ticket without its
+                        # screenshot and no warning (TDR-0235).
+                        attached.raise_for_status()
                     except httpx.HTTPError as exc:
                         # Best-effort cleanup: the issue already exists server-side, so
                         # without this a failed attachment upload leaves an orphaned

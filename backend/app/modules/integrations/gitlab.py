@@ -47,19 +47,27 @@ class GitLabIntegration:
     async def list_destinations(self, ctx: IntegrationContext) -> list[Destination]:
         await _guard(ctx.config)
         try:
+            # Every page (capped at 1,000 projects), not just the first 100 (TDR-0235).
+            projects: list[dict[str, Any]] = []
             async with guarded_client(timeout=15.0, headers=_headers(ctx.config)) as client:
-                response = await client.get(
-                    f"{_base(ctx.config)}/api/v4/projects",
-                    params={
-                        "membership": "true",
-                        "min_access_level": 20,
-                        "simple": "true",
-                        "archived": "false",
-                        "order_by": "last_activity_at",
-                        "per_page": 100,
-                    },
-                )
-                response.raise_for_status()
+                for page in range(1, 11):
+                    response = await client.get(
+                        f"{_base(ctx.config)}/api/v4/projects",
+                        params={
+                            "membership": "true",
+                            "min_access_level": 20,
+                            "simple": "true",
+                            "archived": "false",
+                            "order_by": "last_activity_at",
+                            "per_page": 100,
+                            "page": page,
+                        },
+                    )
+                    response.raise_for_status()
+                    batch = response.json()
+                    projects.extend(batch)
+                    if len(batch) < 100:
+                        break
         except httpx.HTTPError as exc:
             raise ExternalServiceError(
                 f"Could not load GitLab projects: {http_error_detail(exc)}"
@@ -70,7 +78,7 @@ class GitLabIntegration:
                 name=project["path_with_namespace"],
                 extra={"project_path": project["path_with_namespace"]},
             )
-            for project in response.json()
+            for project in projects
         ]
 
     async def create_item(

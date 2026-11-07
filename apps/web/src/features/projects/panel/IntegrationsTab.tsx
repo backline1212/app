@@ -12,6 +12,7 @@ import type { WorkspaceOut } from "../../workspaces/api";
 import * as projectsApi from "../api";
 import type { ProjectOut } from "../api";
 import { ChevronIcon } from "./icons";
+import { projectCan } from "../../../lib/project-roles";
 
 interface IntegrationsTabProps {
   project: ProjectOut;
@@ -50,7 +51,14 @@ export function IntegrationsTab({ project, workspaceId, workspaceSlug }: Integra
     onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.project(project.id) }),
   });
 
-  const connectedByType = new Map((integrations ?? []).map((integration) => [integration.type, integration]));
+  // A provider can be connected more than once (two GitHub accounts, say); the row
+  // shows how many, and disconnecting several happens on the Integrations page.
+  const connectionsByType = new Map<string, typeof integrations>();
+  for (const integration of integrations ?? []) {
+    connectionsByType.set(integration.type, [...(connectionsByType.get(integration.type) ?? []), integration]);
+  }
+  // Muting a project's notifications changes project settings: managers only (TDR-0235).
+  const canMute = projectCan(project, "manage");
   const hasNotifier = (integrations ?? []).some((integration) => integration.kind === "notifier");
   const openSettings = () => navigate(`/w/${workspaceSlug}/integrations`);
 
@@ -71,14 +79,17 @@ export function IntegrationsTab({ project, workspaceId, workspaceSlug }: Integra
       {expanded && (
         <div className="flex flex-col gap-2">
           {PROVIDERS.map((provider) => {
-            const connected = connectedByType.get(provider.type);
+            const connections = connectionsByType.get(provider.type) ?? [];
+            const connected = connections[0];
             return (
               <div key={provider.type} className="bl-connector-row">
                 <span className="bl-connector-name">
                   <ProviderMark provider={provider} />
                   <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                     {provider.name}
-                    {connected?.kind === "tracker" && (
+                    {connections.length > 1 ? (
+                      <small className="bl-mono" style={{ fontWeight: 400 }}>{connections.length} connections</small>
+                    ) : connected?.kind === "tracker" && (
                       <small className="bl-mono" style={{ fontWeight: 400 }}>
                         {connected.needs_destination ? "Choose where tickets go" : connected.destination_label}
                       </small>
@@ -92,7 +103,8 @@ export function IntegrationsTab({ project, workspaceId, workspaceSlug }: Integra
                     checked={!!connected}
                     disabled={disconnect.isPending || (!canManage && !connected)}
                     onChange={() => {
-                      if (connected && canManage) setPendingDisconnect(connected);
+                      if (connections.length > 1) openSettings();
+                      else if (connected && canManage) setPendingDisconnect(connected);
                       else if (!connected) openSettings();
                     }}
                     aria-label={connected ? `Disconnect ${provider.name}` : `Connect ${provider.name}`}
@@ -114,7 +126,8 @@ export function IntegrationsTab({ project, workspaceId, workspaceSlug }: Integra
               type="checkbox"
               className="bl-switch-input"
               checked={project.settings.slack_notifications_enabled}
-              disabled={muteNotifications.isPending}
+              disabled={muteNotifications.isPending || !canMute}
+              title={canMute ? undefined : "Project managers turn this on or off"}
               onChange={(event) => muteNotifications.mutate(event.target.checked)}
               aria-label="Slack, Discord, Teams and webhook notifications for this project"
             />
@@ -123,6 +136,9 @@ export function IntegrationsTab({ project, workspaceId, workspaceSlug }: Integra
             </span>
           </label>
         </div>
+      )}
+      {muteNotifications.isError && (
+        <p role="alert" className="bl-error">{muteNotifications.error instanceof Error ? muteNotifications.error.message : "Couldn't change notifications for this project."}</p>
       )}
       <p className="bl-inline-note">
         {canManage

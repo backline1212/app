@@ -174,7 +174,8 @@ async def _complete(prompt: str, *, json_mode: bool = False, max_tokens: int = 1
     saw_auth_error = False
     retried_server_error = False
 
-    for _ in range(len(settings.groq_api_keys)):
+    # One extra round so a single-key deployment can retry a Groq 5xx once.
+    for _ in range(len(settings.groq_api_keys) + 1):
         claim = await acquire_key(
             redis_client,
             settings.groq_api_keys,
@@ -236,6 +237,8 @@ async def _complete(prompt: str, *, json_mode: bool = False, max_tokens: int = 1
         if response.status_code >= 500 and not retried_server_error:
             retried_server_error = True
             logger.warning("Groq answered %d; retrying once", response.status_code)
+            # The key itself is fine; it may serve the retry.
+            tried.discard(claim.index)
             continue
 
         try:
@@ -257,6 +260,8 @@ async def _complete(prompt: str, *, json_mode: bool = False, max_tokens: int = 1
         raise ExternalServiceError(
             "AI is misconfigured on this deployment. Ask an administrator to check its keys."
         )
+    if retried_server_error:
+        raise ExternalServiceError("AI couldn't answer right now. Try again in a moment.")
     raise AIServiceBusyError("AI is busy right now - try again in a moment.")
 
 

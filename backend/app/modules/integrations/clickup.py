@@ -122,11 +122,14 @@ class ClickUpIntegration:
                 if comment.screenshot_url:
                     try:
                         screenshot_bytes = await fetch_screenshot(comment.screenshot_url)
-                        await client.post(
+                        attached = await client.post(
                             f"{CLICKUP_API_BASE}/task/{task['id']}/attachment",
                             headers={"Authorization": token},
                             files={"attachment": ("screenshot.png", screenshot_bytes, "image/png")},
                         )
+                        # A refused upload (403/413) used to file the ticket without its
+                        # screenshot and no warning (TDR-0235).
+                        attached.raise_for_status()
                     except httpx.HTTPError as exc:
                         # Best-effort cleanup: the task already exists server-side, so
                         # without this a failed attachment upload leaves an orphaned task

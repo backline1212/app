@@ -18,10 +18,11 @@ TRELLO_API_BASE = "https://api.trello.com/1"
 
 
 def _auth(config: dict[str, Any]) -> dict[str, str]:
-    return {
-        "key": decrypt_secret(config["api_key_encrypted"]),
-        "token": decrypt_secret(config["token_encrypted"]),
-    }
+    """Trello's key and token as an Authorization header. They used to go in the query
+    string, where any error message quoting the request URL exposed them (TDR-0235)."""
+    key = decrypt_secret(config["api_key_encrypted"])
+    token = decrypt_secret(config["token_encrypted"])
+    return {"Authorization": f'OAuth oauth_consumer_key="{key}", oauth_token="{token}"'}
 
 
 class TrelloIntegration:
@@ -36,8 +37,8 @@ class TrelloIntegration:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.get(
                     f"{TRELLO_API_BASE}/members/me/boards",
+                    headers=_auth(ctx.config),
                     params={
-                        **_auth(ctx.config),
                         "filter": "open",
                         "fields": "name",
                         "lists": "open",
@@ -65,8 +66,8 @@ class TrelloIntegration:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
                     f"{TRELLO_API_BASE}/cards",
+                    headers=auth,
                     params={
-                        **auth,
                         "idList": config["list_id"],
                         "name": issue_title(comment),
                         "desc": plain_description(comment, backlink_url),
@@ -78,18 +79,21 @@ class TrelloIntegration:
                 if comment.screenshot_url:
                     try:
                         screenshot_bytes = await fetch_screenshot(comment.screenshot_url)
-                        await client.post(
+                        attached = await client.post(
                             f"{TRELLO_API_BASE}/cards/{card['id']}/attachments",
-                            params=auth,
+                            headers=auth,
                             files={"file": ("screenshot.png", screenshot_bytes, "image/png")},
                         )
+                        # A refused upload (403/413) used to file the ticket without its
+                        # screenshot and no warning (TDR-0235).
+                        attached.raise_for_status()
                     except httpx.HTTPError as exc:
                         # Best-effort cleanup: the card already exists server-side, so
                         # without this a failed attachment upload leaves an orphaned card
                         # and a retry would create a duplicate.
                         try:
                             await client.delete(
-                                f"{TRELLO_API_BASE}/cards/{card['id']}", params=auth
+                                f"{TRELLO_API_BASE}/cards/{card['id']}", headers=auth
                             )
                         except httpx.HTTPError:
                             pass
@@ -109,7 +113,7 @@ class TrelloIntegration:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(
-                    f"{TRELLO_API_BASE}/members/me", params=_auth(ctx.config)
+                    f"{TRELLO_API_BASE}/members/me", headers=_auth(ctx.config)
                 )
             return response.status_code == 200
         except httpx.HTTPError:

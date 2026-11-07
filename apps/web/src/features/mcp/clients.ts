@@ -192,6 +192,7 @@ export interface McpToolInfo {
 export const MCP_TOOLS: McpToolInfo[] = [
   { name: "list_projects", write: false, description: "Projects with their open ticket counts." },
   { name: "list_tickets", write: false, description: "Open tickets, highest priority first; filter by project, status, priority, assignee or text." },
+  { name: "list_project_deployments", write: false, description: "Recent deploys for a project and whether their versions were captured." },
   { name: "get_ticket", write: false, description: "The full thread, page URL, pinned element, screenshot and tracker links for “#12”." },
   { name: "generate_implementation_prompt", write: false, description: "A ready-to-work brief for fixing one ticket." },
   { name: "reply_to_ticket", write: true, description: "Post a reply - team-only by default, client-visible on request." },

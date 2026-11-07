@@ -160,7 +160,11 @@ export function DeploySyncDialog({ project, onClose, onSelectPage }: {
           <span className="bl-mono">{row.delivery_id}{row.commit_ref ? ` · ${row.commit_ref}` : ""}</span>
           <small>Deployed {formatDate(row.deployed_at, { dateStyle: "medium", timeStyle: "short" })} · Received {formatDate(row.received_at, { dateStyle: "medium", timeStyle: "short" })}</small>
           {row.status === "awaiting_review" && <p>Open or reload the configured starting page in member review. Snapshot submissions already in progress before this notification cannot complete it.</p>}
-          {row.status === "captured" && <p>Version {row.revision_id?.slice(-8)} · {row.recovery_delivery_state === "done" ? "Version delivery complete. Review ticket recovery results separately." : "Version delivery pending; the worker retries failures."}</p>}
+          {row.status === "captured" && <p>Version {row.revision_id?.slice(-8)} · {row.recovery_delivery_state === "done"
+            ? "Version delivery complete. Review ticket recovery results separately."
+            : row.recovery_delivery_state === "failed"
+              ? "Version delivery failed after several tries. Send the deploy again from CI to retry."
+              : "Version delivery pending; the worker retries failures."}</p>}
           {row.page_id && <button type="button" className="bl-quiet" disabled={pending || Boolean(secret) || retryRequest || retryRevoke} onClick={() => { onSelectPage(row.page_id!); onClose(); }}>Open page</button>}
         </li>)}</ol>
         {history.hasNextPage && <button type="button" className="bl-button" disabled={history.isFetchingNextPage} onClick={() => void history.fetchNextPage()}>{history.isFetchingNextPage ? "Loading…" : "Load older deployments"}</button>}
