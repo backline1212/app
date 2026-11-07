@@ -5306,3 +5306,12 @@ database migration, or production deployment is claimed.
 - Chromium with the unpacked extension: "–" collapsed the toolbar to "Northwind site ·
   Show tools"; "Show tools" restored it.
 - widget/extension lint + typecheck, widget build.
+
+# 2026-11-07: Browser job slots, encrypted chat webhooks (TDR-0231)
+
+- Local: two `browser_slot()` holders took both slots; a third raised `Retry(defer=15)`;
+  both released after. Worker restarted with 31 functions and `max_jobs = 10`.
+- Migration on a test Slack row: dry run found 1, `--apply` encrypted 1; the row then
+  had only `webhook_url_encrypted` and `chat_webhook_url` returned the original URL.
+  Test row removed.
+- ruff, mypy, scoping.

@@ -11,7 +11,7 @@ cron mechanics.
 """
 
 import sentry_sdk
-from arq import cron
+from arq import cron, func
 from arq.connections import RedisSettings
 from sentry_sdk.integrations.arq import ArqIntegration
 
@@ -76,18 +76,19 @@ class WorkerSettings:
         send_member_notification_email_job,
         sweep_notification_emails_job,
         resume_project_hard_delete_job,
-        render_browser_snapshot_job,
-        capture_project_preview_job,
+        # Browser jobs wait for a free slot (browser_slots.py) by being deferred, so
+        # they get many more tries than the default 5.
+        func(render_browser_snapshot_job, max_tries=40),
+        func(capture_project_preview_job, max_tries=40),
         reconcile_storage_reservation_job,
         sweep_storage_reservations_job,
         purge_closed_workspaces_job,
         send_renewal_reminders_job,
     ]
-    # Real headless-browser renders (Chromium/WebKit/Firefox via Playwright) are
-    # meaningfully heavier than every other job here - cap how many run at once so a
-    # burst of "Capture As" clicks across projects can't exhaust the worker
-    # container's memory the way an unbounded queue would.
-    max_jobs = 3
+    # Browser renders are limited separately to BROWSER_SLOTS at a time
+    # (browser_slots.py, TDR-0231), so this no longer has to be tiny: emails, digests,
+    # integration posts and the heartbeat don't wait behind slow renders.
+    max_jobs = 10
     # 17.6: the 09:00 UTC daily digest queues durable per-recipient work. The minute
     # sweep recovers interrupted work; new daily windows remain gated to >=09:00 UTC.
     cron_jobs = [

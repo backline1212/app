@@ -22,3 +22,12 @@ def encrypt_secret(value: str) -> str:
 
 def decrypt_secret(token: str) -> str:
     return _get_fernet().decrypt(token.encode()).decode()
+
+
+def chat_webhook_url(config: dict[str, object]) -> str:
+    """A Slack/Discord/Teams integration's webhook URL - the credential itself. New
+    integrations store it encrypted (TDR-0231); older rows still hold it in plain text."""
+    encrypted = config.get("webhook_url_encrypted")
+    if isinstance(encrypted, str):
+        return decrypt_secret(encrypted)
+    return str(config["webhook_url"])

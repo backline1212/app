@@ -7,6 +7,7 @@ from typing import Any
 
 from app.core.db import get_db
 from app.modules.browser_render.service import run_render
+from app.workers.browser_slots import browser_slot
 
 
 async def render_browser_snapshot_job(
@@ -21,14 +22,15 @@ async def render_browser_snapshot_job(
     height: int,
     orientation: str,
 ) -> None:
-    await run_render(
-        get_db(),
-        workspace_id=workspace_id,
-        project_id=project_id,
-        page_id=page_id,
-        url=url,
-        browser=browser,
-        width=width,
-        height=height,
-        orientation=orientation,
-    )
+    async with browser_slot():
+        await run_render(
+            get_db(),
+            workspace_id=workspace_id,
+            project_id=project_id,
+            page_id=page_id,
+            url=url,
+            browser=browser,
+            width=width,
+            height=height,
+            orientation=orientation,
+        )

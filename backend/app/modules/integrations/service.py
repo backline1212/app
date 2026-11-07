@@ -168,7 +168,7 @@ async def _config_for(body: IntegrationCreate) -> tuple[dict[str, Any], str | No
     """(config_json, one-time signing secret). Every credential is Fernet-encrypted
     before it reaches Mongo; the destination is optional (picked after connecting)."""
     if isinstance(body, SlackIntegrationCreate | DiscordIntegrationCreate | TeamsIntegrationCreate):
-        return {"webhook_url": body.webhook_url, **_toggles(body)}, None
+        return {"webhook_url_encrypted": encrypt_secret(body.webhook_url), **_toggles(body)}, None
     if isinstance(body, WebhookIntegrationCreate):
         secret = body.secret or f"blwh_{secrets.token_urlsafe(32)}"
         return (

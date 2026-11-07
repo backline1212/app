@@ -5,9 +5,11 @@ from typing import Any
 
 from app.core.db import get_db
 from app.modules.projects.preview_service import run_capture
+from app.workers.browser_slots import browser_slot
 
 
 async def capture_project_preview_job(
     ctx: dict[str, Any], *, workspace_id: str, project_id: str, token: str
 ) -> None:
-    await run_capture(get_db(), workspace_id=workspace_id, project_id=project_id, token=token)
+    async with browser_slot():
+        await run_capture(get_db(), workspace_id=workspace_id, project_id=project_id, token=token)

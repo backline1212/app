@@ -2,6 +2,7 @@ from typing import Any
 
 import httpx
 
+from app.core.encryption import chat_webhook_url
 from app.modules.comments.schemas import CommentOut
 from app.modules.integrations.base import (
     EventContext,
@@ -43,7 +44,7 @@ class DiscordIntegration:
         if is_team_only_blocked(comment, config):
             return
         heading = "New reply" if comment.parent_id else "New comment"
-        await self._post(config["webhook_url"], _format_message(comment, heading, event))
+        await self._post(chat_webhook_url(config), _format_message(comment, heading, event))
 
     async def on_status_changed(
         self, comment: CommentOut, config: dict[str, Any], event: EventContext
@@ -51,7 +52,7 @@ class DiscordIntegration:
         if not config.get("notify_status_changes", True) or is_team_only_blocked(comment, config):
             return
         heading = f"Status changed to {comment.status.replace('_', ' ')}"
-        await self._post(config["webhook_url"], _format_message(comment, heading, event))
+        await self._post(chat_webhook_url(config), _format_message(comment, heading, event))
 
     async def on_project_updated(
         self, project: dict[str, Any], config: dict[str, Any], backlink_url: str
@@ -59,12 +60,14 @@ class DiscordIntegration:
         if not config.get("notify_project_updates", True):
             return
         name = project.get("name", "Untitled project")
-        await self._post(config["webhook_url"], f"**Project updated**\n[{name}](<{backlink_url}>)")
+        await self._post(
+            chat_webhook_url(config), f"**Project updated**\n[{name}](<{backlink_url}>)"
+        )
 
     async def test_connection(self, ctx: IntegrationContext) -> bool:
         try:
             await self._post(
-                ctx.config["webhook_url"],
+                chat_webhook_url(ctx.config),
                 "Backline is connected - comment notifications will appear here.",
             )
             return True
