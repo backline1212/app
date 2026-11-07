@@ -5,6 +5,7 @@
 export function showTooltip(shadow: ShadowRoot): { dismiss: () => void } {
   const tooltip = document.createElement("div");
   tooltip.className = "bl-tooltip";
+  tooltip.setAttribute("role", "status");
   tooltip.textContent = "Click anything on the page to leave feedback. Choose Browse to use the site normally.";
   shadow.appendChild(tooltip);
   const timer = setTimeout(() => tooltip.remove(), 6000);

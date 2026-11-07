@@ -21,6 +21,15 @@ export interface AttachmentInfo {
 // enforcement is server-side.
 export const ATTACHMENT_ACCEPT =
   "image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/markdown,.md,video/webm,video/mp4,audio/webm,audio/mp4,audio/ogg";
+const ACCEPTED_TYPES = new Set(ATTACHMENT_ACCEPT.split(",").filter((item) => !item.startsWith(".")));
+
+function isAcceptedFile(file: File): boolean {
+  if (ACCEPTED_TYPES.has(file.type)) return true;
+  // Recorders add codecs ("audio/webm;codecs=opus"); Markdown often has no MIME type.
+  if (ACCEPTED_TYPES.has(file.type.split(";")[0])) return true;
+  return /\.(md|markdown)$/i.test(file.name);
+}
+
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 // Screen/voice recordings made in the composer may use the server's full 20 MiB cap.
 const MAX_RECORDING_BYTES = 20 * 1024 * 1024;
@@ -67,6 +76,12 @@ export function setupAttachments(
     if (disabled) return;
     for (const file of files) {
       const media = file.type.startsWith("video/") || file.type.startsWith("audio/");
+      // Pasted files and the picker's "All files" skip the accept list; checking here
+      // says why at once instead of failing the upload with a Retry that can't help.
+      if (!isAcceptedFile(file)) {
+        onProblem?.(`${file.name} can't be attached. Use an image, PDF, Word, Excel or Markdown file, or a recording.`);
+        continue;
+      }
       if (file.size > (media ? MAX_RECORDING_BYTES : MAX_ATTACHMENT_BYTES)) {
         onProblem?.(`${file.name} is over ${media ? 20 : 10} MB and wasn't attached.`);
         continue;
@@ -103,17 +118,31 @@ export function setupAttachments(
         retryButton.hidden = true;
         failureLabel.hidden = true;
         pending += 1;
+        let failure: { message: string; retryable: boolean } | null = null;
         void uploadFile(file)
-          .catch(() => null)
+          .catch((error: unknown) => {
+            // A refusal (wrong type, too large, not allowed) won't change on retry; a
+            // network or server error might.
+            const status = typeof (error as { status?: unknown })?.status === "number" ? (error as { status: number }).status : 0;
+            failure = {
+              message: error instanceof Error && error.message ? error.message : "",
+              retryable: status === 0 || status >= 500 || status === 429,
+            };
+            return null;
+          })
           .then((uploadedResult) => {
             pending -= 1;
             if (removed) return;
             chip.classList.remove("bl-attachment-pending");
             if (!uploadedResult) {
+              const why = failure as { message: string; retryable: boolean } | null;
+              const retryable = why?.retryable ?? true;
               chip.classList.add("bl-attachment-failed");
-              retryButton.hidden = false;
+              retryButton.hidden = !retryable;
               failureLabel.hidden = false;
-              onProblem?.(`${file.name} couldn't be uploaded. Retry or remove it.`);
+              onProblem?.(retryable
+                ? `${file.name} couldn't be uploaded${why?.message ? ` (${why.message})` : ""}. Retry or remove it.`
+                : `${file.name} can't be attached: ${why?.message || "the file was refused"}. Remove it.`);
               return;
             }
             result = uploadedResult;
