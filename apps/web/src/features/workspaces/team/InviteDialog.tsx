@@ -32,7 +32,9 @@ export function InviteDialog({
     onSuccess: (member) => {
       void queryClient.invalidateQueries({ queryKey: qk.members(workspace.id) });
       void queryClient.invalidateQueries({ queryKey: qk.accessMatrix(workspace.id) });
-      toast(`Invite sent to ${member.email}.`, "success");
+      // The member is added either way; the email can fail at the provider (TDR-0234).
+      if (member.invite_email_sent === false) toast(`${member.email} was added, but the invitation email couldn't be sent. Use Resend invite on their profile.`, "warning");
+      else toast(`Invite sent to ${member.email}.`, "success");
       onClose();
     },
     onError: (error) => setUpgradePlan(planLimitUpgrade(error)),

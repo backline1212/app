@@ -52,6 +52,11 @@ export function listMembers(workspaceId: string): Promise<MemberOut[]> {
   return apiFetch<MemberOut[]>(`/api/v1/workspaces/${workspaceId}/members`);
 }
 
+/** Sends the invitation email again to someone who hasn't signed in yet. */
+export function resendInvite(workspaceId: string, memberId: string): Promise<MemberOut> {
+  return apiFetch<MemberOut>(`/api/v1/workspaces/${workspaceId}/members/${memberId}/resend-invite`, { method: "POST" });
+}
+
 export function inviteMember(
   workspaceId: string,
   email: string,

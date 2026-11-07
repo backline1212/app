@@ -35,10 +35,15 @@ function downloadReceipt(invoice: InvoiceOut, workspaceName: string) {
 export function InvoiceHistorySection({
   invoices,
   isLoading,
+  error,
+  onRetry,
   workspaceName,
 }: {
   invoices: InvoiceOut[];
   isLoading: boolean;
+  /** A failed load isn't "no invoices yet" (TDR-0234). */
+  error?: Error | null;
+  onRetry?: () => void;
   workspaceName: string;
 }) {
   return (
@@ -52,6 +57,11 @@ export function InvoiceHistorySection({
 
       {isLoading ? (
         <p className="bl-billing-muted" role="status">Loading invoices…</p>
+      ) : error ? (
+        <p className="bl-error" role="alert">
+          Invoices couldn't load: {error.message}{" "}
+          {onRetry && <button type="button" className="bl-quiet" onClick={onRetry}>Try again</button>}
+        </p>
       ) : invoices.length === 0 ? (
         <div className="bl-billing-empty">
           <InvoiceArt />

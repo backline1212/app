@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import anyio
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 from pymongo.read_concern import ReadConcern
@@ -66,6 +67,7 @@ def _user_out(doc: dict[str, Any]) -> UserOut:
         avatar_url=doc.get("avatar_url"),
         preferences=doc.get("preferences", {}),
         has_password=bool(doc.get("password_hash")),
+        uses_google="google" in (doc.get("auth_providers") or []),
     )
 
 
@@ -159,6 +161,17 @@ async def login_with_google(
         auth_provider="google",
     )
     existing = await _record_email_proof(db, existing)
+    # An invited teammate's account is named after their email ("dev.sam") until they
+    # choose a name; the email-code sign-in asks for one, Google sign-in skipped it. Take
+    # Google's name (and photo, if none) while the placeholder is still there (TDR-0234).
+    placeholder = str(existing.get("email", "")).split("@")[0].lower()
+    current_name = str(existing.get("name") or "").strip()
+    if user_info.name and (not current_name or current_name.lower() == placeholder):
+        changes: dict[str, Any] = {"name": user_info.name}
+        if user_info.avatar_url and not existing.get("avatar_url"):
+            changes["avatar_url"] = user_info.avatar_url
+        await user_repo.update(existing["_id"], changes)
+        existing = {**existing, **changes}
     await user_repo.touch_login(existing["_id"], "google")
 
     return await _issue_tokens(db, existing, auth_method="google", ua=ua, ip=ip)
@@ -322,8 +335,12 @@ async def _verify_and_consume_otp(
     failures_key = f"otp-failures:{purpose or 'login'}:{email.strip().lower()}"
     redis_client = get_redis()
     if int(await redis_client.get(failures_key) or 0) >= OTP_FAILURES_PER_HOUR:
+        # Only a sign-in code has a password to fall back on; sign-up, email change and
+        # password reset don't (TDR-0234).
         raise RateLimitedError(
             "Too many wrong codes for this email. Wait an hour, or sign in with a password."
+            if purpose is None
+            else "Too many wrong codes for this email. Wait an hour, then request a new code."
         )
     otp_doc = await otp_repo.find_latest(email, purpose=purpose)
     if otp_doc is None:
@@ -574,6 +591,11 @@ async def set_password(
     # Blocking and memory-bound - off the event loop, same as signup.
     password_hash = await anyio.to_thread.run_sync(hash_password, password)
     await user_repo.set_password_hash(user_object_id, password_hash)
+    if user_doc.get("password_hash"):
+        # A reset ("Forgot password?") replaces a password that may have leaked: end the
+        # access it gave, as Change password does (TDR-0234). A first password doesn't.
+        await user_repo.update(user_object_id, {"password_changed_at": datetime.now(UTC)})
+        await _end_access_from_old_password(db, user_object_id, sid)
 
 
 async def update_user(
@@ -638,17 +660,23 @@ async def change_password(
     await user_repo.update(
         user_doc["_id"], {"password_hash": password_hash, "password_changed_at": datetime.now(UTC)}
     )
+    await _end_access_from_old_password(db, user_doc["_id"], current_sid)
+
+
+async def _end_access_from_old_password(
+    db: AsyncIOMotorDatabase[dict[str, Any]], user_object_id: ObjectId, current_sid: str | None
+) -> None:
+    """Whoever knew the old password loses what it got them: every other session, and
+    extension connections, MCP tokens and canvas sessions."""
     if current_sid:
-        await RefreshTokenRepository(db).revoke_other_families(user_doc["_id"], current_sid)
-    # A changed password also ends extension connections and MCP tokens made with the
-    # old one.
+        await RefreshTokenRepository(db).revoke_other_families(user_object_id, current_sid)
     from app.modules.extension_tokens.repository import ExtensionTokenRepository
     from app.modules.mcp.repository import McpTokenRepository
     from app.modules.share_links.repository import GuestSessionRepository
 
-    await ExtensionTokenRepository(db).revoke_all_for_user(user_doc["_id"])
-    await McpTokenRepository(db).revoke_all_for_user(user_doc["_id"])
-    await GuestSessionRepository(db).end_all_for_member(str(user_doc["_id"]))
+    await ExtensionTokenRepository(db).revoke_all_for_user(user_object_id)
+    await McpTokenRepository(db).revoke_all_for_user(user_object_id)
+    await GuestSessionRepository(db).end_all_for_member(str(user_object_id))
 
 
 def _email_change_purpose(user_id: str) -> str:

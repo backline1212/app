@@ -13,6 +13,7 @@ from app.core.config import get_settings
 from app.core.email import send_email
 from app.core.errors import (
     ConflictError,
+    ExternalServiceError,
     NotFoundError,
     PermissionDeniedError,
     PlanLimitExceededError,
@@ -417,15 +418,33 @@ async def invite_member(
     )
     await _publish_members_changed(workspace_id)
 
+    email_sent = await _send_invite_email(
+        db, workspace_id=workspace_id, inviter_user_id=inviter_user_id, email=email
+    )
+    out = _member_out(membership, user_doc)
+    out.invite_email_sent = email_sent
+    return out
+
+
+async def _send_invite_email(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    inviter_user_id: str,
+    email: str,
+) -> bool:
+    """False when the email provider refused it, so the inviter is told instead of
+    seeing "Invite sent" for an email that never left (TDR-0234)."""
     try:
         workspace = await WorkspaceRepository(db).find_by_id(workspace_id)
-        inviter = await user_repo.find_by_id(inviter_user_id)
+        inviter = await UserRepository(db).find_by_id(inviter_user_id)
         workspace_name = (workspace or {}).get("name") or "a workspace"
         inviter_name = (inviter or {}).get("name") or (inviter or {}).get("email") or "A teammate"
-        sign_in = (
-            f"{get_settings().public_dashboard_base_url.rstrip('/')}/login?"
-            f"{urlencode({'use': 'code', 'email': email})}"
-        )
+        query = {"use": "code", "email": email}
+        if workspace and workspace.get("slug"):
+            # After signing in, land in the workspace they were invited to.
+            query["workspace"] = workspace["slug"]
+        sign_in = f"{get_settings().public_dashboard_base_url.rstrip('/')}/login?{urlencode(query)}"
         await send_email(
             to=email,
             subject=f"{inviter_name} invited you to {workspace_name} on Backline",
@@ -438,10 +457,37 @@ async def invite_member(
                 "we'll email you a one-time sign-in code.</p>"
             ),
         )
+        return True
     except Exception as exc:
         logger.exception("Failed to send invitation email to %s: %s", email, exc)
+        return False
 
-    return _member_out(membership, user_doc)
+
+async def resend_invite(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    membership_id: str,
+    actor_user_id: str,
+) -> MemberOut:
+    """Sends the invitation email again to a member who hasn't signed in yet."""
+    membership = await MembershipRepository(db).find_by_id(
+        workspace_id=workspace_id, membership_id=membership_id
+    )
+    if membership is None:
+        raise NotFoundError("Member not found.")
+    user_doc = await UserRepository(db).find_by_id(membership["user_id"])
+    if user_doc is None:
+        raise NotFoundError("Member not found.")
+    out = _member_out(membership, user_doc)
+    if not out.invite_pending:
+        raise ConflictError(f"{out.name} has already signed in; there's no invitation to resend.")
+    out.invite_email_sent = await _send_invite_email(
+        db, workspace_id=workspace_id, inviter_user_id=actor_user_id, email=user_doc["email"]
+    )
+    if not out.invite_email_sent:
+        raise ExternalServiceError("The invitation email couldn't be sent. Try again in a minute.")
+    return out
 
 
 async def update_member_role(

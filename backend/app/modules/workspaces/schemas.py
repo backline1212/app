@@ -84,6 +84,9 @@ class MemberOut(BaseModel):
     # Invited by email and hasn't signed in yet.
     invite_pending: bool = False
     joined_via: Literal["created", "invite", "room_code", "join_request"] | None = None
+    # Only on invite/resend responses: whether the invitation email was accepted by the
+    # email provider (TDR-0234).
+    invite_email_sent: bool | None = None
 
 
 class InviteMemberRequest(BaseModel):

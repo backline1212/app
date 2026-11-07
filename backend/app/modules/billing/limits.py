@@ -14,7 +14,14 @@ LimitedResource = Literal["projects", "members", "ai_credits"]
 T = TypeVar("T")
 
 # Which plan an upgrade prompt points at from each tier.
-_NEXT_PLAN = {"free": "solo", "solo": "team", "team": "enterprise", "enterprise": "enterprise"}
+# Enterprise is the top plan: paying for it again only extends the period, so its limit
+# message points at support instead of a checkout (TDR-0234).
+_NEXT_PLAN: dict[str, str | None] = {
+    "free": "solo",
+    "solo": "team",
+    "team": "enterprise",
+    "enterprise": None,
+}
 
 
 def ai_credit_window(now: datetime | None = None) -> tuple[datetime, datetime]:
@@ -80,8 +87,11 @@ async def require_within_plan_limit(
     current = await count_usage(db, workspace_id, resource, session=session)
     if current < limit:
         return
+    message = _LIMIT_MESSAGES[resource].format(plan=plan["name"], limit=f"{limit:,}")
+    if _NEXT_PLAN[plan["id"]] is None:
+        message = message.split(". ")[0] + ". Contact support to raise this limit."
     raise PlanLimitExceededError(
-        _LIMIT_MESSAGES[resource].format(plan=plan["name"], limit=f"{limit:,}"),
+        message,
         details={
             "resource": resource,
             "current": current,

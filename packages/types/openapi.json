@@ -1421,6 +1421,63 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_id}/members/{member_id}/resend-invite": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Resend Invite",
+        "description": "Sends the invitation email again to someone who hasn't signed in yet (TDR-0234).",
+        "operationId": "resend_invite_api_v1_workspaces__workspace_id__members__member_id__resend_invite_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Member Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/members/{member_id}": {
       "patch": {
         "tags": [
@@ -14530,6 +14587,17 @@
               }
             ],
             "title": "Joined Via"
+          },
+          "invite_email_sent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Email Sent"
           }
         },
         "type": "object",
@@ -18873,6 +18941,11 @@
           "has_password": {
             "type": "boolean",
             "title": "Has Password",
+            "default": false
+          },
+          "uses_google": {
+            "type": "boolean",
+            "title": "Uses Google",
             "default": false
           }
         },
