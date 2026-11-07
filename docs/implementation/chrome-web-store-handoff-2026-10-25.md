@@ -17,7 +17,24 @@ instructions. The three data-use statements were confirmed by the owner.
 Trader verification is still marked pending. No new fee was requested or paid
 during submission; a prior registration payment was not independently verified.
 
-## 0.5.14 was rejected (2026-10-31); resubmit 0.5.15
+## 0.5.15 rejected (2026-11-02, Purple Potassium: `scripting` "requested but not used"); submit 0.5.16
+
+Google's automated review flagged `scripting`. It was used, but only for two things the
+extension doesn't need it for, so 0.5.16 drops it (TDR-0232):
+
+- Re-injecting the content script into a tab opened before install: the manifest
+  already loads it on every page; such a tab is now reloaded instead.
+- Injecting the packaged page-diagnostics script: the content script now adds it as a
+  `<script>` from the package (listed in `web_accessible_resources`), only during a review.
+
+0.5.16 requests **`storage`** and host access **`<all_urls>`** only. In the dashboard's
+Privacy practices tab, delete the `scripting` justification; keep `storage` and host
+permissions as below. Remote code stays "No" (main-world.js is in the package).
+
+Package: `apps/web/public/backline-extension-0.5.16.zip`, 68550 bytes, SHA-256
+`ef0dbb557a94bcac11fe920f2fa471c990d96483b56c5aa7d6968e7e4e50c020`.
+
+## 0.5.14 was rejected (2026-10-31); 0.5.15 prepared
 
 The rejection email/Status page names the violation; it wasn't available when 0.5.15 was
 prepared, so 0.5.15 fixes every likely cause found in a compliance review (TDR-0227):
@@ -36,7 +53,6 @@ prepared, so 0.5.15 fixes every likely cause found in a compliance review (TDR-0
 | Field | Value |
 | --- | --- |
 | storage | Keeps the optional Backline workspace connection in extension-local storage and review state in extension-session storage. |
-| scripting | Injects the packaged review tools (and the packaged page-diagnostics script) into the website tab the user opens for review from Backline, including tabs open before install. |
 | host permissions `<all_urls>` | Agencies review their clients' sites, which can be any HTTP/HTTPS origin; also used for the user-requested screenshot of the visible tab when posting a comment (`tabs.captureVisibleTab`). |
 | Remote code | No. All scripts are in the package; API responses are data. |
 | Data collected | Personally identifiable information (name, email), Authentication information (Backline token), Personal communications (comments and replies), Website content (page text snapshot, screenshots, console/network error entries, recordings the user makes), Web history (URLs of the pages the user reviews). |

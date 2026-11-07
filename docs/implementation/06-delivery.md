@@ -5315,3 +5315,15 @@ database migration, or production deployment is claimed.
   had only `webhook_url_encrypted` and `chat_webhook_url` returned the original URL.
   Test row removed.
 - ruff, mypy, scoping.
+
+# 2026-11-07: Extension 0.5.16 without `scripting` (TDR-0232)
+
+- Chromium with the unpacked extension (local API): Open with extension → new tab with
+  the toolbar; the diagnostics script loaded (page marker set, script tag removed after
+  load); composer offered "Attach 2 console errors, 1 warning, 1 failed request". With
+  the site already open in a tab, the review attached to that tab (no new tab).
+- The same test on the previous build showed no diagnostics option (the selector bug
+  above), confirming that bug was older than this change.
+- Release ZIP: 68550 bytes, SHA-256 `ef0dbb55…4e50c020`; permissions `storage`;
+  host `<all_urls>`; no `chrome.scripting` in the bundle; production targets.
+- widget/extension/web lint + typecheck, widget build.

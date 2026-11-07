@@ -369,6 +369,24 @@ function clearContext(): void {
   context = null;
 }
 
+// The page-diagnostics script (packaged main-world.js) runs in the page's own world so it
+// can see its console and network errors. It is added as a <script> from the extension's
+// package - a web-accessible resource - only once a review starts in this tab, which
+// needs no `scripting` permission (TDR-0232).
+let diagnosticsInjected = false;
+function injectDiagnostics(): void {
+  if (diagnosticsInjected || window.top !== window) return;
+  diagnosticsInjected = true;
+  try {
+    const script = document.createElement("script");
+    script.src = chrome.runtime.getURL("main-world.js");
+    script.onload = () => script.remove();
+    (document.head ?? document.documentElement).appendChild(script);
+  } catch {
+    // A page whose policy refuses the script (Trusted Types) just offers no diagnostics.
+  }
+}
+
 // Set on <html> while this tab is in extension review, so a Backline snippet the site
 // itself embeds stands down instead of showing a second toolbar (widget index.ts).
 const EXTENSION_REVIEW_ATTR = "data-backline-extension-review";
@@ -384,7 +402,7 @@ async function startNativeReview(): Promise<void> {
   nativeInfo = info;
   // Console/network failures for "Attach console & network errors". Best effort: a
   // page that blocks injection simply offers no diagnostics.
-  void nativeMessage("native-review-diagnostics").catch(() => undefined);
+  injectDiagnostics();
   toolbar = createNativeToolbar(info, async mode => {
     if (nativeInfo !== info) throw new Error("This review changed. Open it again from Backline.");
     if (composerHasDraft()) throw new Error("Finish or cancel your current comment first.");

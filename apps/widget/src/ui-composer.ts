@@ -279,8 +279,10 @@ export function openComposer(
   const textarea = composer.querySelector<HTMLTextAreaElement>("textarea[aria-label='Comment']")!;
   const stepsInput = composer.querySelector<HTMLTextAreaElement>(".bl-cp-steps-input");
   const recordButtons = Array.from(composer.querySelectorAll<HTMLButtonElement>(".bl-cp-record"));
-  const diagRow = composer.querySelector<HTMLLabelElement>(".bl-cp-diag")!;
   const diagInput = composer.querySelector<HTMLInputElement>(".bl-cp-diag-input")!;
+  // Through its own checkbox: the screenshot option above shares the .bl-cp-diag styling
+  // class, so selecting by class picked that row and this one never appeared (TDR-0232).
+  const diagRow = diagInput.closest<HTMLLabelElement>("label")!;
   // Off for the rest of this tab's review once a reviewer turns it off - a page showing
   // something private usually stays that way.
   const shotInput = composer.querySelector<HTMLInputElement>(".bl-cp-shot-input")!;

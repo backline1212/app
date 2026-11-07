@@ -147,9 +147,16 @@ async function launch(input: NativeReviewLaunch, returnTabId?: number): Promise<
     if (existing) {
       await chrome.tabs.update(tab.id, { active: true });
       await chrome.windows.update(tab.windowId, { focused: true });
-      // Covers a tab opened before installation/update. The script guards duplicates.
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content-script.js"] });
-      const started = await chrome.tabs.sendMessage(tab.id, { type: "native-review-start" });
+      let started: { ok?: boolean; error?: string } | undefined;
+      try {
+        started = await chrome.tabs.sendMessage(tab.id, { type: "native-review-start" });
+      } catch {
+        // A tab opened before the extension was installed or updated has no content
+        // script. Reloading it loads the manifest's content script, which starts this
+        // review from the stored session by itself (no `scripting` permission, TDR-0232).
+        await chrome.tabs.reload(tab.id);
+        return { ready: await waiter.ready };
+      }
       if (!started?.ok) throw new Error(started?.error ?? "Reload the website and try Browser review again.");
     } else {
       await chrome.tabs.update(tab.id, { url: destination.href });
@@ -311,11 +318,6 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     const after = await chrome.tabs.get(tabId);
     if (generation !== activationGeneration || !after.active || after.url !== message.url) throw new Error("The page changed during capture. Please retry.");
     return data;
-  }
-  if (message.type === "native-review-diagnostics") {
-    // Top frame only, and only for the tab bound to this review.
-    await chrome.scripting.executeScript({ target: { tabId, frameIds: [0] }, world: "MAIN", files: ["main-world.js"] });
-    return;
   }
   if (message.type === "native-review-upload") {
     const data = message.file as { data: string; name: string; type: string };
