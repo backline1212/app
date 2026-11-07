@@ -1,4 +1,4 @@
-import { registerRelatedDraft } from "./ui-composer";
+import { autoGrowTextarea, registerRelatedDraft } from "./ui-composer";
 import { placeCard } from "./ui-card";
 import { ATTACHMENT_ACCEPT, setupAttachments, type AttachmentResult } from "./ui-attachments";
 
@@ -44,6 +44,8 @@ export function setupThreadReply(
     </div>`;
   view.querySelector(".bl-cp-body")!.appendChild(form);
   const text = form.querySelector("textarea")!;
+  // Grows with the text like the new-comment box, instead of scrolling inside 78px.
+  const stopGrow = autoGrowTextarea(text, () => placeCard(view, x, y));
   const message = form.querySelector<HTMLElement>(".bl-status")!;
   const submit = form.querySelector<HTMLButtonElement>(".bl-submit")!;
   const clear = form.querySelector<HTMLButtonElement>(".bl-reply-clear")!;
@@ -177,6 +179,7 @@ export function setupThreadReply(
     canClose: (close: () => void) => askDiscard(close),
     dispose: () => {
       disposed = true;
+      stopGrow();
       unregister();
       if (slowTimer) clearTimeout(slowTimer);
       window.removeEventListener("beforeunload", beforeUnload);

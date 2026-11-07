@@ -92,7 +92,7 @@ function pastedImageFiles(clipboardData: DataTransfer | null): File[] {
 /** Grows `textarea` to fit its content, capped by the max-height in its stylesheet.
  * A height the reviewer set themselves by dragging the corner becomes a floor, so
  * typing can push the box taller but a keystroke never undoes their drag. */
-function autoGrowTextarea(textarea: HTMLTextAreaElement, onResize: () => void): () => void {
+export function autoGrowTextarea(textarea: HTMLTextAreaElement, onResize: () => void): () => void {
   let floor = 0;
   let lastSet = "";
 
