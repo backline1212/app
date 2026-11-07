@@ -19,6 +19,7 @@ are in [go-live-checklist-2026-10-25.md](go-live-checklist-2026-10-25.md).
 | 9 | Check `ENVIRONMENT=production` on **every** Railway service | Since TDR-0200 a Railway service without it refuses to start (it used to run with local defaults). |
 | 10 | Railway cost trims (optional) | Pause the idle `cloud-login` service while `SERVER_BROWSER_ENABLED=false`; narrow watch paths to `backend/app/**`, the lockfiles and Dockerfiles; the image installs three Playwright browsers (~1 GB) that only the disabled server browser uses. |
 | 11 | Optional backfill: `python -m scripts.migrate_canvas_comment_authors` (dry run, then `--apply`) | Marks old dashboard-canvas comments as the team's so they don't show under "New from clients" (TDR-0208). |
+| 13 | Encrypt existing chat webhook URLs: `python -m scripts.migrate_encrypt_chat_webhooks` (dry run), then `--apply` | New Slack/Discord/Teams integrations are stored encrypted (TDR-0231); old rows keep working until migrated. |
 | 12 | Allow production hosts in this environment's network settings | Only needed if live production checks or Railway logs should be read from here (production and `backboard.railway.com` are blocked now). |
 
 ## 2. Live acceptance still to do (after deploy)
