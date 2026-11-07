@@ -69,5 +69,7 @@ export function listInvoices(workspaceId: string): Promise<InvoiceOut[]> {
 export function planLimitUpgrade(error: unknown): PaidPlanId | null {
   if (!(error instanceof ApiError) || error.code !== "PLAN_LIMIT_EXCEEDED") return null;
   const next = error.details.upgrade_plan_id;
+  // null: already on the top plan - the message points to support, not a checkout.
+  if (next === null) return null;
   return typeof next === "string" && isPaidPlanId(next) ? next : "solo";
 }

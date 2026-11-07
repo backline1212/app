@@ -87,6 +87,9 @@ class UserOut(BaseModel):
     # Whether the account can sign in with a password - the account modal offers
     # "Change password" only when there is one to change.
     has_password: bool = False
+    # Signs in with Google: changing the email stops Google sign-in matching this
+    # account, so the account modal warns first (TDR-0234).
+    uses_google: bool = False
 
 
 # A profile photo is stored as a small data URL (the browser downscales it first), so

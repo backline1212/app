@@ -547,6 +547,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/members/{member_id}/resend-invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Invite
+         * @description Sends the invitation email again to someone who hasn't signed in yet (TDR-0234).
+         */
+        post: operations["resend_invite_api_v1_workspaces__workspace_id__members__member_id__resend_invite_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/members/{member_id}": {
         parameters: {
             query?: never;
@@ -4563,6 +4583,8 @@ export interface components {
             invite_pending: boolean;
             /** Joined Via */
             joined_via?: ("created" | "invite" | "room_code" | "join_request") | null;
+            /** Invite Email Sent */
+            invite_email_sent?: boolean | null;
         };
         /**
          * MemberProfileUpdate
@@ -6225,6 +6247,11 @@ export interface components {
              * @default false
              */
             has_password: boolean;
+            /**
+             * Uses Google
+             * @default false
+             */
+            uses_google: boolean;
         };
         /** UserPreferencesOut */
         UserPreferencesOut: {
@@ -7400,6 +7427,38 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_invite_api_v1_workspaces__workspace_id__members__member_id__resend_invite_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

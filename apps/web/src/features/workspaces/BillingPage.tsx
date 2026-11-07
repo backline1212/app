@@ -4,6 +4,7 @@ import { useOutletContext, useSearchParams } from "react-router-dom";
 
 import { Dialog } from "../../components/Dialog";
 import { useToast } from "../../components/Toast";
+import { ApiError } from "../../lib/api-client";
 import { qk } from "../../lib/query-keys";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import {
@@ -144,10 +145,23 @@ export function BillingPage() {
   });
 
   // Back from Stripe: ?checkout=success&checkout_id=... (or ?checkout=canceled).
+  // Stripe's webhook can land after the browser returns. While the payment isn't
+  // confirmed yet, check again every 15 s for up to 3 minutes instead of leaving the old
+  // plan on screen until a manual reload (TDR-0234).
+  const confirmAttempts = useRef(0);
   const { mutate: confirmReturn } = useMutation({
     mutationFn: (checkoutId: string) => verifyPayment(workspace.id, { checkout_id: checkoutId }),
     onSuccess: onPaid,
-    onError: (err) => toast(errorMessage(err, "Couldn't confirm the payment yet."), "warning"),
+    onError: (err, checkoutId) => {
+      const pending = err instanceof ApiError && err.status === 422 && confirmAttempts.current < 12;
+      if (pending) {
+        if (confirmAttempts.current === 0) toast("Payment processing. This page updates as soon as Stripe confirms it.", "warning");
+        confirmAttempts.current += 1;
+        window.setTimeout(() => confirmReturn(checkoutId), 15_000);
+        return;
+      }
+      toast(errorMessage(err, "Couldn't confirm the payment yet."), "warning");
+    },
   });
   const returnStatus = params.get("checkout");
   const returnCheckoutId = params.get("checkout_id");
@@ -257,6 +271,8 @@ export function BillingPage() {
       <InvoiceHistorySection
         invoices={invoicesQuery.data ?? []}
         isLoading={invoicesQuery.isLoading}
+        error={invoicesQuery.error}
+        onRetry={() => void invoicesQuery.refetch()}
         workspaceName={workspace.name}
       />
 

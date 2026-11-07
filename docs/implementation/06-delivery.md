@@ -5341,3 +5341,13 @@ database migration, or production deployment is claimed.
 - Browser extension page: "Generate key", "Revoke key", relative expiry, link to API keys;
   popup says "Paste your extension key" (next package). web lint/typecheck, extension
   typecheck.
+
+# 2026-11-07: Account, invitation and billing flows (TDR-0234)
+
+- Browser: signed out, `/pricing-nope` → "Page not found" (no sign-in). Signed in as Maya,
+  an invitation link for dev.sam → "This invitation is for another account" with sign-out
+  option. Account → Security → Change password, Enter in the field → dialog stayed open
+  with "The new password needs at least 12 characters."
+- API: invite → `invite_email_sent: true`, pending; resend-invite → sent; the email link
+  carries `workspace=maya-s-studio`. Test member removed.
+- ruff, mypy, scoping, types regenerated, web lint/typecheck.

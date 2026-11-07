@@ -1,10 +1,13 @@
 import { Avatar } from "@backline/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { useToast } from "../../../components/Toast";
 
 import { LockIcon } from "../../../components/icons";
 import { formatDate } from "../../../lib/date-format";
 import { ROLE_SOURCE_LABEL, roleLabel } from "../../../lib/project-roles";
+import { resendInvite } from "../api";
 import type { AccessMatrixOut, MemberOut, WorkspaceOut } from "../api";
 import { WORKSPACE_ROLE_LABEL, buildOrgTree, canManageTeam } from "./team-utils";
 
@@ -53,6 +56,12 @@ export function PersonDrawer({
   const reports = node?.children.map((child) => child.member) ?? [];
   const isSelf = member.user_id === myUserId;
   const isAdmin = canManageTeam(myRole);
+  const { toast } = useToast();
+  const resend = useMutation({
+    mutationFn: () => resendInvite(workspace.id, member.id),
+    onSuccess: () => toast(`Invitation sent to ${member.email} again.`, "success"),
+    onError: (error) => toast(error instanceof Error ? error.message : "The invitation couldn't be sent.", "error"),
+  });
   const projects = (matrix?.projects ?? [])
     .filter((project) => project.roles[member.user_id] && !project.archived)
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -96,6 +105,11 @@ export function PersonDrawer({
           {isSelf && <span className="team-chip is-you">You</span>}
           {member.invite_pending && <span className="team-chip is-pending">Invite pending</span>}
         </div>
+        {member.invite_pending && isAdmin && (
+          <button type="button" className="bl-quiet team-drawer-resend" disabled={resend.isPending} onClick={() => resend.mutate()}>
+            {resend.isPending ? "Sending…" : "Resend invite"}
+          </button>
+        )}
       </div>
 
       <div className="team-drawer-body">

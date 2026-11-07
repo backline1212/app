@@ -162,6 +162,19 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
     }
   }
 
+  // One form holds every tab, so Enter in the password, email-change or delete fields
+  // used to submit "Save changes" and close the dialog with nothing changed (TDR-0234).
+  // Enter in those boxes runs the box's own button instead; in the delete section it
+  // does nothing - deleting an account always takes a click.
+  function handleFormKeyDown(event: React.KeyboardEvent<HTMLFormElement>) {
+    if (event.key !== "Enter" || !(event.target instanceof HTMLInputElement)) return;
+    const box = event.target.closest<HTMLElement>(".bl-acct-box, [data-enter-guard]");
+    if (!box) return;
+    event.preventDefault();
+    if (box.hasAttribute("data-enter-guard")) return;
+    [...box.querySelectorAll<HTMLButtonElement>("button.bl-button")].find((button) => !button.disabled)?.click();
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
@@ -171,7 +184,15 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
       const patch: UserUpdateRequest = { name: displayName, preferences: prefs };
       if (photo !== undefined) patch.avatar_url = photo;
       updateUser(await updateProfile(patch));
-      toast(emailChanged ? "Saved. Your email changes once you confirm the code." : "Account saved.");
+      if (emailChanged) {
+        // Closing would lose the code box, and reopening resets the email field - stay
+        // open until the new address is confirmed or the field is put back.
+        toast(codeSentTo
+          ? `Saved. Enter the code we sent to ${codeSentTo} to switch your email.`
+          : "Saved. Your email hasn't changed yet - send a code to confirm the new address.");
+        return;
+      }
+      toast("Account saved.");
       onClose();
     } catch (err) {
       toast(err instanceof Error ? err.message : "Could not save your changes.", "error");
@@ -194,7 +215,7 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog title="Account" onClose={onClose}>
-      <form className="bl-acct" onSubmit={(e) => void handleSave(e)}>
+      <form className="bl-acct" onSubmit={(e) => void handleSave(e)} onKeyDown={handleFormKeyDown}>
         <p className="bl-acct-sub">Your profile, notifications and security</p>
         <div className="bl-acct-body">
           <div className="bl-acct-top">
@@ -251,6 +272,11 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
               </label>
               {emailChanged && (
                 <div className="bl-acct-box">
+                  {user?.uses_google && (
+                    <p className="bl-acct-hint">
+                      You sign in with Google. After the change, "Continue with Google" only finds this account if the new address is that Google account; otherwise sign in with an email code or a password.
+                    </p>
+                  )}
                   {codeSentTo ? (
                     <>
                       <p>
@@ -371,7 +397,7 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
                   </div>
                 ))
               )}
-              <p className="bl-acct-hint">You can be signed in on one device at a time. Signing in somewhere else signs you out here.</p>
+              <p className="bl-acct-hint">Up to 5 devices stay signed in; signing in on a sixth signs out the one used least recently.</p>
               <DeleteAccountSection />
             </div>
           )}

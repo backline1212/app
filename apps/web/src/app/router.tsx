@@ -153,9 +153,11 @@ const router = createBrowserRouter([
               },
             ],
           },
-          { path: "*", lazy: page(() => import("../features/pages/NotFoundPage"), "NotFoundPage") },
         ],
       },
+      // Outside RequireAuth: an unknown address shows "Page not found" without asking a
+      // signed-out visitor to sign in first (and landing them on it afterwards) (TDR-0234).
+      { path: "*", lazy: page(() => import("../features/pages/NotFoundPage"), "NotFoundPage") },
     ],
   },
 ]);

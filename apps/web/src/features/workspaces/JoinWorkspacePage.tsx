@@ -43,10 +43,18 @@ export function JoinWorkspacePage() {
     onError: () => setPreview(null),
   });
 
+  // "Open {workspace}" used to do nothing at all when switching failed (removed since
+  // the preview, offline); the reason now shows next to the button (TDR-0234).
+  const [openError, setOpenError] = useState("");
   const open = async (workspaceId: string, slug: string) => {
-    await queryClient.invalidateQueries({ queryKey: qk.workspaces() });
-    await switchWorkspace(workspaceId);
-    navigate(`/w/${slug}`, { replace: true });
+    setOpenError("");
+    try {
+      await queryClient.invalidateQueries({ queryKey: qk.workspaces() });
+      await switchWorkspace(workspaceId);
+      navigate(`/w/${slug}`, { replace: true });
+    } catch (error) {
+      setOpenError(error instanceof Error ? error.message : "Couldn't open the workspace. Try again.");
+    }
   };
 
   const join = useMutation({
@@ -169,6 +177,7 @@ export function JoinWorkspacePage() {
                   >
                     Open {preview.workspace_name}
                   </button>
+                  {openError && <p className="wsp-err" role="alert"><span>{openError}</span></p>}
                 </>
               ) : preview.status === "pending" || sent ? (
                 <div className="join-waiting">

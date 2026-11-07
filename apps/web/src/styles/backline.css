@@ -3420,3 +3420,4 @@ td .bl-file-approval{margin-left:6px}
 .bl-partial-note{margin:0 0 12px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--bl-subtle);font-size:12px;color:var(--ink-3)}
 .bl-ticket-filterbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 0}
 .bl-ticket-filterbar .bl-ticket-search{max-width:320px}
+.team-drawer-resend{margin-top:10px}

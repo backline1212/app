@@ -190,6 +190,24 @@ async def invite_member(
     )
 
 
+@router.post(
+    "/workspaces/{workspace_id}/members/{member_id}/resend-invite", response_model=MemberOut
+)
+async def resend_invite(
+    workspace_id: str,
+    member_id: str,
+    session: Session = Depends(require_permission("member:invite")),
+) -> MemberOut:
+    """Sends the invitation email again to someone who hasn't signed in yet (TDR-0234)."""
+    require_workspace_match(session, workspace_id)
+    await check_rate_limit(
+        get_redis(), key=f"rate-limit:resend-invite:{member_id}", limit=3, window_seconds=600
+    )
+    return await workspace_service.resend_invite(
+        get_db(), workspace_id=workspace_id, membership_id=member_id, actor_user_id=session.user_id
+    )
+
+
 @router.patch("/workspaces/{workspace_id}/members/{member_id}", status_code=204)
 async def update_member_role(
     workspace_id: str,

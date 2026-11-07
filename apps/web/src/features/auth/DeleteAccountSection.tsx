@@ -46,7 +46,7 @@ export function DeleteAccountSection() {
   });
 
   return (
-    <div className="bl-acct-danger">
+    <div className="bl-acct-danger" data-enter-guard="">
       <p className="bl-acct-lbl">Delete account</p>
       {stage === "idle" && (
         <>

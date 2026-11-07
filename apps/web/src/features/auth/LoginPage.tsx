@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "./AuthContext";
-import { takeReturnPath } from "../../lib/return-path";
+import { rememberReturnPath, takeReturnPath } from "../../lib/return-path";
 import { useDocumentTitle } from "../../lib/use-document-title";
 import { getAuthCapabilities, startGoogleSignIn, updateProfile } from "./api";
 import { qk } from "../../lib/query-keys";
@@ -49,7 +49,7 @@ export function LoginPage() {
 
 function SignInPage() {
   const { t } = useTranslation();
-  const { status, requestOtp, verifyOtp, signup, verifySignup, loginWithPassword, setPassword: savePassword, user, updateUser } = useAuth();
+  const { status, requestOtp, verifyOtp, signup, verifySignup, loginWithPassword, setPassword: savePassword, user, updateUser, logout } = useAuth();
   // Not the "Sign in to Backline" heading: the hook appends "— Backline" itself.
   useDocumentTitle("Sign in");
   const navigate = useNavigate();
@@ -73,6 +73,17 @@ function SignInPage() {
   const [step, setStep] = useState<"signin" | "signup" | "help" | "code" | "newpw">(invitedToCode ? "help" : "signin");
   const [codeFirst, setCodeFirst] = useState(invitedToCode);
   const [email, setEmail] = useState(() => (params.get("email") ?? "").slice(0, 320));
+  // An invitation names the address it was sent to and the workspace (TDR-0234): after
+  // signing in, the invitee lands in that workspace rather than their last-used one.
+  const invitedEmail = (params.get("email") ?? "").trim().toLowerCase();
+  const invitedWorkspace = params.get("workspace") ?? "";
+  useEffect(() => {
+    if (/^[a-z0-9-]{1,80}$/.test(invitedWorkspace)) rememberReturnPath(`/w/${invitedWorkspace}`);
+  }, [invitedWorkspace]);
+  // Someone else is already signed in on this browser: say so instead of sending them
+  // into their own workspace as if the invitation had been for them.
+  const signedInAsOther = status === "authenticated" && !!user && !!invitedEmail && user.email.toLowerCase() !== invitedEmail;
+  const [switchingAccount, setSwitchingAccount] = useState(false);
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [name, setName] = useState("");
@@ -183,10 +194,10 @@ function SignInPage() {
   // after signing in) goes straight to the app instead of asking to sign in again.
   // Not mid-submit or on "Set a password": a verified code is already signed in there.
   useEffect(() => {
-    if (status === "authenticated" && !isSubmitting && step !== "newpw") {
+    if (status === "authenticated" && !isSubmitting && step !== "newpw" && !signedInAsOther) {
       finishSignIn();
     }
-  }, [status, isSubmitting, step, finishSignIn]);
+  }, [status, isSubmitting, step, finishSignIn, signedInAsOther]);
 
   async function sendOtp() {
     if (!beginAuth()) return;
@@ -389,7 +400,26 @@ function SignInPage() {
           {/* One panel at a time, the way design/index.html switches #lg-in / #lg-up /
               #lg-reset / #lg-sent - each owns its own heading, so the brand, footer and
               the pitch on the right are all that stay put between them. */}
-          {step === "signin" && (
+          {signedInAsOther && user && (
+            <div id="lg-other-account">
+              <h1>This invitation is for another account</h1>
+              <p className="lg-lede">
+                You're signed in as <b>{user.email}</b>. The invitation was sent to <b>{invitedEmail}</b>.
+              </p>
+              <button type="button" className="lg-go" disabled={switchingAccount} onClick={() => {
+                setSwitchingAccount(true);
+                void logout().finally(() => setSwitchingAccount(false));
+              }}>
+                {switchingAccount ? <span className="lg-spin"></span> : null}
+                Sign out and continue as {invitedEmail}
+              </button>
+              <div className="lg-swap">
+                Not you? <button type="button" onClick={() => { takeReturnPath(); finishSignIn(); }}>Stay signed in as {user.email}</button>
+              </div>
+            </div>
+          )}
+
+          {!signedInAsOther && step === "signin" && (
             <div id="lg-in">
               <h1>{t('auth.login.title' as TranslationKeys)}</h1>
               {params.get("deleted") === "1" && <p className="lg-lede" role="status">Your account was deleted. You can create a new one with the same email any time.</p>}
@@ -594,7 +624,7 @@ function SignInPage() {
             </div>
           )}
 
-          {step === "help" && (
+          {!signedInAsOther && step === "help" && (
             <div id="lg-reset">
               <button type="button" className="lg-back" onClick={goToSignIn} disabled={isSubmitting}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
@@ -700,18 +730,21 @@ function SignInPage() {
                   {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : "Resend code"}
                 </button>
                 <span style={{ margin: '0 8px' }}>|</span>
-                <button type="button" onClick={goToSignIn} disabled={isSubmitting}>Use a different email</button>
+                {/* From sign-up, go back to sign-up with the name and password kept (TDR-0234). */}
+                <button type="button" onClick={codePurpose === "signup" ? () => { setError(null); setStep("signup"); } : goToSignIn} disabled={isSubmitting}>Use a different email</button>
               </div>
             </div>
           )}
 
           {step === "newpw" && (
             <div id="lg-newpw">
-              <h1>{needsName ? "Welcome to Backline" : "Set a password"}</h1>
+              <h1>{needsName ? "Welcome to Backline" : user?.has_password ? "Choose a new password" : "Set a password"}</h1>
               <p className="lg-lede">
                 {needsName
                   ? "You're signed in. Tell your team your name, and add a password if you'd like to sign in with one next time."
-                  : "You're signed in. Add a password so you can sign in with it next time, or skip this and keep using a sign-in code."}
+                  : user?.has_password
+                    ? "You're signed in. If you came here because you forgot your password, choose a new one now; otherwise keep your current password."
+                    : "You're signed in. Add a password so you can sign in with it next time, or skip this and keep using a sign-in code."}
               </p>
 
               <form className="lg-formel" onSubmit={handleSetPassword}>
@@ -769,11 +802,11 @@ function SignInPage() {
                 )}
                 <button type="submit" className="lg-go" disabled={isSubmitting}>
                   {isSubmitting ? <span className="lg-spin"></span> : null}
-                  {needsName ? "Save and continue" : "Save password"}
+                  {needsName ? "Save and continue" : user?.has_password ? "Replace password" : "Save password"}
                 </button>
               </form>
               <div className="lg-swap">
-                <button type="button" onClick={skipSetPassword} disabled={isSubmitting}>{needsName ? "Continue without a password" : "Skip for now"}</button>
+                <button type="button" onClick={skipSetPassword} disabled={isSubmitting}>{needsName ? "Continue without a password" : user?.has_password ? "Keep my current password" : "Skip for now"}</button>
               </div>
             </div>
           )}
