@@ -58,7 +58,7 @@ export function ExtensionSettingsPage() {
       requestAnimationFrame(() => revealRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
     },
     onError: (err: unknown) =>
-      setError(err instanceof Error ? err.message : "Could not create a token."),
+      setError(err instanceof Error ? err.message : "Could not create a key."),
   });
 
   const revokeMutation = useMutation({
@@ -81,7 +81,7 @@ export function ExtensionSettingsPage() {
       await navigator.clipboard.writeText(revealedToken.token);
       setCopied(true);
     } catch {
-      setError("Select the token and copy it manually.");
+      setError("Select the key and copy it manually.");
     }
   }
 
@@ -103,7 +103,7 @@ export function ExtensionSettingsPage() {
       {error && <div className="bl-error">{error}</div>}
       {listError && (
         <p role="alert" className="bl-error">
-          {listError instanceof Error ? listError.message : "Could not load extension tokens."}
+          {listError instanceof Error ? listError.message : "Could not load extension keys."}
         </p>
       )}
       {isLoading && <LoadingScreen inline />}
@@ -155,13 +155,14 @@ export function ExtensionSettingsPage() {
         <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
           <p className="bl-mono">
             Only use this if you want to start directly from the extension popup.
-            Generate a token and paste it into the popup. It expires after 30 days.
+            Generate a key and paste it into the popup. It expires after 30 days. The same
+            keys are listed, with your MCP tokens, under <Link to={`/w/${workspace.slug}/keys`}>API keys</Link>.
           </p>
           <form onSubmit={handleCreate} style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "4px" }}>
             <input
               required
               maxLength={200}
-              aria-label="Token name"
+              aria-label="Key name"
               placeholder="Work laptop - Chrome"
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -169,7 +170,7 @@ export function ExtensionSettingsPage() {
               style={{ flex: 1, minWidth: "180px" }}
             />
             <button type="submit" className="bl-button" disabled={createMutation.isPending}>
-              Generate token
+              Generate key
             </button>
           </form>
 
@@ -193,7 +194,7 @@ export function ExtensionSettingsPage() {
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                 <input
                   readOnly
-                  aria-label="New standalone extension token"
+                  aria-label="New extension key"
                   value={revealedToken.token}
                   onFocus={(event) => event.target.select()}
                   className="bl-input"
@@ -223,7 +224,7 @@ export function ExtensionSettingsPage() {
             <h2>Active review access</h2>
           </header>
           <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
-            <p>These tokens authorize review access. This list does not indicate whether a website tab is connected. Revoking access keeps the saved feedback.</p>
+            <p>These keys authorize review access. This list does not indicate whether a website tab is connected. Revoking access keeps the saved feedback.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {activeTokens.map((token) => (
                 <div
@@ -246,7 +247,7 @@ export function ExtensionSettingsPage() {
                         : "Never used"}
                     </div>
                     <div className="bl-mono" style={{ fontSize: "11px" }}>
-                      {token.project_id ? "Project review" : "Standalone extension"} · Expires {new Date(token.expires_at).toLocaleString()}
+                      {token.project_id ? "Project review" : "Standalone extension"} · Expires {formatRelativeTime(token.expires_at)}
                     </div>
                   </div>
                   <button
@@ -262,16 +263,16 @@ export function ExtensionSettingsPage() {
           </div>
         </section>
       )}
-      {expiredCount > 0 && <p className="bl-mono">{expiredCount} expired {expiredCount === 1 ? "token no longer grants" : "tokens no longer grant"} access. Open a project to start a fresh review.</p>}
+      {expiredCount > 0 && <p className="bl-mono">{expiredCount} expired {expiredCount === 1 ? "key no longer grants" : "keys no longer grant"} access. Open a project to start a fresh review.</p>}
 
       {revokeCandidate && (
         <ConfirmDialog
-          title="Revoke this token?"
+          title="Revoke this key?"
           message={<>
-            <p>The extension signed in with <strong>{revokeCandidate.name}</strong> stops working at once. You can generate a new token any time.</p>
+            <p>The extension signed in with <strong>{revokeCandidate.name}</strong> stops working at once. You can generate a new key any time.</p>
             {revokeMutation.error && <p role="alert" className="bl-error">{revokeMutation.error.message}</p>}
           </>}
-          confirmLabel={revokeMutation.isPending ? "Revoking…" : "Revoke token"}
+          confirmLabel={revokeMutation.isPending ? "Revoking…" : "Revoke key"}
           destructive
           pending={revokeMutation.isPending}
           onCancel={() => { revokeMutation.reset(); setRevokeCandidate(null); }}
