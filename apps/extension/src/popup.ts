@@ -153,7 +153,7 @@ async function handleConnectSubmit(event: SubmitEvent): Promise<void> {
     setStatus(
       err instanceof ExtensionApiError
         ? err.message
-        : "Could not connect. Check the token and try again.",
+        : "Could not connect. Check the key and try again.",
     );
   }
 }

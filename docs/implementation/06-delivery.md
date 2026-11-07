@@ -5335,3 +5335,9 @@ database migration, or production deployment is claimed.
   chip showed as attached. The composer also offered "Attach 1 console error, 1 warning,
   1 failed request" on the website SDK (TDR-0232 fix).
 - widget lint + typecheck + build.
+
+# 2026-11-07: One name for extension keys
+
+- Browser extension page: "Generate key", "Revoke key", relative expiry, link to API keys;
+  popup says "Paste your extension key" (next package). web lint/typecheck, extension
+  typecheck.
