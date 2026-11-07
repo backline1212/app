@@ -5297,3 +5297,12 @@ database migration, or production deployment is claimed.
   `http://localhost:5173/review/l_5L…`. Activity had no raw event names. Add client dialog
   opens with `bl-dialog-in`.
 - web lint/typecheck.
+
+# 2026-11-07: Review overlay polish (TDR-0230)
+
+- Client review, desktop: with an offset, positioned `<body>`, a new pin's corner was at
+  the click point (130, 317); host in `<html>`. Thread #3 opened by keyboard: reply box
+  78px → 144px after six lines; Escape returned focus to pin "3".
+- Chromium with the unpacked extension: "–" collapsed the toolbar to "Northwind site ·
+  Show tools"; "Show tools" restored it.
+- widget/extension lint + typecheck, widget build.

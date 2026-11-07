@@ -15,6 +15,9 @@ export function createNativeToolbar(info: NativeReviewInfo, onMode: (mode: Revie
     .native-bar button[aria-pressed=true] {background:#e3f8ef;border-color:#0a6b4b;}
     .native-status {flex-basis:100%;font-size:12px;max-width:530px;color:#515650;}
     .native-bar button.native-offer {background:#fff;border:1px dashed #0a6b4b;color:#0a6b4b;}
+    .native-bar.is-min > :not(.native-title):not(.native-min) {display:none;}
+    .native-bar.is-min {padding:6px 6px 6px 10px;gap:4px;}
+    .native-bar button.native-min {padding:8px 10px;min-width:36px;}
     .native-title {max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 8px;}
   `;
   shadow.appendChild(style);
@@ -33,8 +36,11 @@ export function createNativeToolbar(info: NativeReviewInfo, onMode: (mode: Revie
   let changingMode = false;
   status.className = "native-status";
   status.setAttribute("role", "status");
+  // Set once the minimise button exists; choosing Comment/Draw always shows the tools.
+  let expandTools: (() => void) | null = null;
   function setMode(mode: ReviewMode) {
     if (accessEnded || removed) return;
+    if (mode !== "browse") expandTools?.();
     buttons.forEach((button, key) => button.setAttribute("aria-pressed", String(key === mode)));
     status.textContent = mode === "browse" ? "Browse and sign in normally. Choose Comment when you're ready."
       : mode === "point" ? "Click an element to leave a comment." : "Drag over an area to leave a comment.";
@@ -64,8 +70,25 @@ export function createNativeToolbar(info: NativeReviewInfo, onMode: (mode: Revie
   end.textContent = "Close website tools";
   end.onclick = () => { void onEnd().then(remove, error => { status.textContent = error.message; }); };
   bar.appendChild(end);
+  // Collapses to the project name and this button, so the bar stops covering the
+  // site's own cookie banners, sticky buttons and chat bubbles while browsing.
+  const minimize = document.createElement("button");
+  minimize.className = "native-min";
+  const setMinimized = (min: boolean) => {
+    bar.classList.toggle("is-min", min);
+    minimize.textContent = min ? "Show tools" : "–";
+    minimize.setAttribute("aria-label", min ? "Show Backline tools" : "Hide Backline tools");
+    minimize.setAttribute("aria-expanded", String(!min));
+    try { sessionStorage.setItem("backline:toolbar-min", min ? "1" : "0"); } catch { /* Storage may be blocked. */ }
+  };
+  minimize.onclick = () => setMinimized(!bar.classList.contains("is-min"));
+  expandTools = () => { if (bar.classList.contains("is-min")) setMinimized(false); };
+  bar.appendChild(minimize);
   bar.appendChild(status);
   shadow.appendChild(bar);
+  let startMinimized = false;
+  try { startMinimized = sessionStorage.getItem("backline:toolbar-min") === "1"; } catch { /* Storage may be blocked. */ }
+  setMinimized(startMinimized);
   setMode("browse");
   const reserveToolbarSpace = () => {
     const rect = bar.getBoundingClientRect();

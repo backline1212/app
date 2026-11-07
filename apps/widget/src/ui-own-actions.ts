@@ -1,4 +1,4 @@
-import { registerRelatedDraft } from "./ui-composer";
+import { autoGrowTextarea, registerRelatedDraft } from "./ui-composer";
 import { placeCard } from "./ui-card";
 
 /** What the viewer may do to a comment they wrote themselves. The server checks
@@ -60,6 +60,8 @@ export function setupOwnActions(
   const resolveButton = box.querySelector<HTMLButtonElement>(".bl-own-resolve")!;
   const form = box.querySelector<HTMLFormElement>(".bl-cv-edit")!;
   const text = form.querySelector("textarea")!;
+  // Grows with the text like the new-comment box, instead of scrolling inside 78px.
+  const stopGrow = autoGrowTextarea(text, () => placeCard(view, x, y));
   const save = form.querySelector<HTMLButtonElement>(".bl-submit")!;
   const cancel = form.querySelector<HTMLButtonElement>(".bl-edit-cancel")!;
   const confirm = box.querySelector<HTMLElement>(".bl-cv-confirm")!;
@@ -178,6 +180,7 @@ export function setupOwnActions(
     },
     dispose: () => {
       disposed = true;
+      stopGrow();
       unregister();
       box.remove();
     },

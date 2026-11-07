@@ -380,6 +380,20 @@ const HOST_STYLES = `
   .bl-card .bl-attachment-link:hover { border-color: var(--bl-ink); color: var(--bl-ink); }
   .bl-card .bl-attachment-link.bl-cv-thumb { width: 64px; height: 48px; padding: 0; overflow: hidden; }
   .bl-cv-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* Phones and tablets: every control gets at least a 40px hit area, and text boxes
+     use 16px type so iOS doesn't zoom the page when one gets focus. The visible sizes
+     stay the same; the extra area is invisible padding around them. */
+  @media (pointer: coarse) {
+    .bl-pin::before { content: ""; position: absolute; inset: -9px; }
+    .bl-card button.bl-cancel, button.bl-attachment-remove {
+      min-width: 40px; min-height: 40px; display: inline-grid; place-items: center;
+    }
+    .bl-card .bl-cp-tag, .bl-card .bl-cv-status { min-height: 40px; }
+    button.bl-modebar-btn { height: 42px; }
+    .bl-card button.bl-submit, .bl-card button.bl-cp-cancel, .bl-card .bl-attach-button { min-height: 42px; }
+    .bl-card textarea, .bl-card input[type="text"], .bl-card input[type="email"] { font-size: 16px; }
+  }
 `;
 
 // A constructed stylesheet isn't inline markup, so a site whose CSP forbids inline
@@ -402,7 +416,11 @@ function adoptHostStyles(shadow: ShadowRoot): void {
 export function createShadowRoot(): ShadowRoot {
   const host = document.createElement("div");
   host.setAttribute("data-backline-root", "true");
-  document.body.appendChild(host);
+  // Pins and cards are placed in page coordinates. Pinned to the document's origin
+  // (and outside <body>), the host isn't shifted by a site whose <body> is positioned,
+  // offset or transformed - which used to move every pin off its element.
+  host.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;overflow:visible;z-index:2147483647";
+  (document.documentElement ?? document.body).appendChild(host);
   const shadow = host.attachShadow({ mode: "open" });
   adoptHostStyles(shadow);
 

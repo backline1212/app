@@ -114,6 +114,9 @@ export function openCommentView(
   ownActions: OwnCommentActions | null = null,
   uploadReplyFile: ((file: File) => Promise<AttachmentResult | null>) | null = null,
 ): CommentViewControls {
+  // The pin that opened this card (focused inside the shadow root): keyboard users get
+  // focus back on it when the card closes instead of landing on <body>.
+  const opener = shadow.activeElement instanceof HTMLElement ? shadow.activeElement : null;
   const view = document.createElement("div");
   view.className = "bl-card bl-thread";
   view.setAttribute("role", "dialog");
@@ -291,8 +294,13 @@ export function openCommentView(
     stopPlacement();
     document.removeEventListener("click", outsideClickHandler, true);
     document.removeEventListener("keydown", escapeHandler, true);
+    // Only when focus isn't already somewhere else on the page (a click outside the card
+    // that landed on a field keeps it there).
+    const pageFocus = document.activeElement;
+    const focusUnclaimed = view.contains(shadow.activeElement) || !pageFocus || pageFocus === document.body || pageFocus === shadow.host;
     view.remove();
     onClose();
+    if (focusUnclaimed && opener?.isConnected) opener.focus({ preventScroll: true });
     return true;
   }
 
