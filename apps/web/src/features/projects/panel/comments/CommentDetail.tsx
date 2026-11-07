@@ -466,7 +466,6 @@ export function CommentDetail({
   const { data: links } = useQuery({
     queryKey: linksKey,
     queryFn: () => integrationsApi.listCommentLinks(comment.id),
-    enabled: trackers.length > 0,
   });
   const send = useMutation({
     mutationFn: (integrationId: string) => integrationsApi.sendToTracker(comment.id, integrationId),
@@ -981,7 +980,8 @@ export function CommentDetail({
               <DetailMenu triggerRef={sendRef} open={openMenu === "send"} label="Send this comment to" onClose={closeMenu}>
                 <div className="bl-cd-send-menu">
                   {trackers.map((tracker) => {
-                    const filed = (links ?? []).find((link) => link.integration_id === tracker.id);
+                    // Also an issue filed through an earlier connection of this tracker (TDR-0235).
+                    const filed = (links ?? []).find((link) => link.integration_id === tracker.id || link.type === tracker.type);
                     return (
                       <button
                         key={tracker.id}

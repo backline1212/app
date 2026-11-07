@@ -138,7 +138,9 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
   });
   const trackers = (integrationsQuery.data ?? []).filter((item) => item.kind === "tracker" && !item.needs_destination);
   const linksKey = qk.commentIntegrationLinks(comment.id);
-  const linksQuery = useQuery({ queryKey: linksKey, queryFn: () => integrationsApi.listCommentLinks(comment.id), enabled: trackers.length > 0 });
+  // Filed issues show whatever is connected now: a disconnected or reconnected tracker
+  // used to hide them, and offer "Send to …" again (TDR-0235).
+  const linksQuery = useQuery({ queryKey: linksKey, queryFn: () => integrationsApi.listCommentLinks(comment.id) });
   const sendToTracker = useMutation({
     mutationFn: (integrationId: string) => integrationsApi.sendToTracker(comment.id, integrationId),
     onSuccess: (link) => {
@@ -265,11 +267,13 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
             <Link className="bl-chip" to={`/w/${workspaceSlug}/p/${projectId}?comment=${comment.id}`}>Open in review ↗</Link>
           )}
         </div>
-        {trackers.length > 0 && (
+        {(trackers.length > 0 || (linksQuery.data?.length ?? 0) > 0) && (
           <div className="bl-chip-row" aria-label="Trackers">
+            {(linksQuery.data ?? []).map((filed) => (
+              <a key={filed.id} className="bl-chip" href={filed.url} target="_blank" rel="noreferrer">{providerName(filed.type)} {filed.external_id} ↗</a>
+            ))}
             {trackers.map((tracker) => {
-              const filed = linksQuery.data?.find((link) => link.integration_id === tracker.id);
-              if (filed) return <a key={tracker.id} className="bl-chip" href={filed.url} target="_blank" rel="noreferrer">{providerName(tracker.type)} {filed.external_id} ↗</a>;
+              if (linksQuery.data?.some((link) => link.integration_id === tracker.id || link.type === tracker.type)) return null;
               if (!canEdit) return null;
               return (
                 <button key={tracker.id} type="button" className="bl-chip" disabled={sendToTracker.isPending || linksQuery.isLoading} onClick={() => sendToTracker.mutate(tracker.id)}>

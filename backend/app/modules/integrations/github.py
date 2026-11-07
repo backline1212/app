@@ -35,12 +35,20 @@ class GitHubIntegration:
 
     async def list_destinations(self, ctx: IntegrationContext) -> list[Destination]:
         try:
+            # Every page (capped at 1,000 repositories), not just the 100 most recently
+            # updated - an older repo could never be picked (TDR-0235).
+            repos: list[dict[str, Any]] = []
             async with httpx.AsyncClient(timeout=15.0, headers=_headers(ctx.config)) as client:
-                response = await client.get(
-                    f"{GITHUB_API_BASE}/user/repos",
-                    params={"per_page": 100, "sort": "updated"},
-                )
-                response.raise_for_status()
+                for page in range(1, 11):
+                    response = await client.get(
+                        f"{GITHUB_API_BASE}/user/repos",
+                        params={"per_page": 100, "sort": "updated", "page": page},
+                    )
+                    response.raise_for_status()
+                    batch = response.json()
+                    repos.extend(batch)
+                    if len(batch) < 100:
+                        break
         except httpx.HTTPError as exc:
             raise ExternalServiceError(
                 f"Could not load GitHub repositories: {http_error_detail(exc)}"
@@ -51,7 +59,7 @@ class GitHubIntegration:
                 name=repo["name"],
                 group=repo["owner"]["login"],
             )
-            for repo in response.json()
+            for repo in repos
             if repo.get("has_issues") and not repo.get("archived")
         ]
 

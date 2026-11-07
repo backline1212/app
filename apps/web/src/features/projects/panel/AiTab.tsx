@@ -17,6 +17,8 @@ const CHECKS = [
 interface AiTabProps {
   workspaceId: string;
   projectId: string;
+  /** BugHunt sets ticket priorities, so it needs editor access (TDR-0235). */
+  canEdit?: boolean;
   /** Switches the drawer to the Comments tab with this comment selected - used when a
    * finding or duplicate pair is clicked so the reviewer can act on it directly. */
   onViewComment?: (commentId: string) => void;
@@ -25,11 +27,13 @@ interface AiTabProps {
 // Backed by backend/app/modules/ai/service.py's analyze_project (docs/tdr/0043):
 // real Groq calls through the same key pool the thread Summarize/Suggest Replies
 // actions already use, with the workspace's existing credit limit and usage records.
-export function AiTab({ workspaceId, projectId, onViewComment }: AiTabProps) {
+export function AiTab({ workspaceId, projectId, canEdit = true, onViewComment }: AiTabProps) {
   const queryClient = useQueryClient();
   // Same query the AI page uses: whether the server has an AI provider, and credits left.
   const usage = useQuery({ queryKey: qk.aiUsage(workspaceId), queryFn: () => getAiUsage(workspaceId) });
-  const unavailable = usage.data && !usage.data.ai_enabled
+  const unavailable = !canEdit
+    ? "BugHunt sets ticket priorities, so it's for editors and managers on this project."
+    : usage.data && !usage.data.ai_enabled
     ? "AI isn't connected on this server yet, so analysis is unavailable. An administrator needs to enable the provider."
     : usage.data && usage.data.limit !== null && usage.data.used >= usage.data.limit
       ? "This workspace has used its AI credits for the month. They reset on the 1st, or compare plans for more."

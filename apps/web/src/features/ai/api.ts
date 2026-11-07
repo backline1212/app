@@ -33,7 +33,8 @@ export function aiErrorMessage(error: unknown, fallback: string): string {
   }
   // The month's AI credits are used up: the server's message names the plan's
   // allowance and when it resets, which a generic failure line would hide.
-  if (error instanceof ApiError && ["PLAN_LIMIT_EXCEEDED", "AI_UNAVAILABLE"].includes(error.code)) {
+  // Access messages say which role is needed - keep them (TDR-0235).
+  if (error instanceof ApiError && ["PLAN_LIMIT_EXCEEDED", "AI_UNAVAILABLE", "PERMISSION_DENIED"].includes(error.code)) {
     return error.message;
   }
   // The per-member burst limit (TDR-0199): say what to do rather than "failed".

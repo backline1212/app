@@ -91,22 +91,31 @@ class AsanaIntegration:
                 workspaces = response.json()["data"]
 
                 async def projects_for(workspace: dict[str, Any]) -> list[Destination]:
-                    reply = await client.get(
-                        f"{ASANA_API_BASE}/projects",
-                        params={
+                    # Every page (capped), so projects past the first 100 can be picked.
+                    found: list[Destination] = []
+                    offset: str | None = None
+                    for _ in range(10):
+                        params: dict[str, Any] = {
                             "workspace": workspace["gid"],
                             "archived": "false",
                             "opt_fields": "name",
                             "limit": 100,
-                        },
-                    )
-                    reply.raise_for_status()
-                    return [
-                        Destination(
-                            id=project["gid"], name=project["name"], group=workspace["name"]
+                        }
+                        if offset:
+                            params["offset"] = offset
+                        reply = await client.get(f"{ASANA_API_BASE}/projects", params=params)
+                        reply.raise_for_status()
+                        body = reply.json()
+                        found.extend(
+                            Destination(
+                                id=project["gid"], name=project["name"], group=workspace["name"]
+                            )
+                            for project in body["data"]
                         )
-                        for project in reply.json()["data"]
-                    ]
+                        offset = (body.get("next_page") or {}).get("offset")
+                        if not offset:
+                            break
+                    return found
 
                 groups = await asyncio.gather(*(projects_for(w) for w in workspaces))
         except httpx.HTTPError as exc:
@@ -140,11 +149,14 @@ class AsanaIntegration:
                 if comment.screenshot_url:
                     try:
                         screenshot_bytes = await fetch_screenshot(comment.screenshot_url)
-                        await client.post(
+                        attached = await client.post(
                             f"{ASANA_API_BASE}/tasks/{task['gid']}/attachments",
                             headers={"Authorization": f"Bearer {access_token}"},
                             files={"file": ("screenshot.png", screenshot_bytes, "image/png")},
                         )
+                        # A refused upload (403/413) used to file the ticket without its
+                        # screenshot and no warning (TDR-0235).
+                        attached.raise_for_status()
                     except httpx.HTTPError as exc:
                         # Best-effort cleanup: the task already exists server-side, so
                         # without this a failed attachment upload leaves an orphaned

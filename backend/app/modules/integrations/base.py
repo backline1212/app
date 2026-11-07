@@ -20,9 +20,26 @@ def http_error_detail(exc: httpx.HTTPError) -> str:
     credential is failing."""
     response = getattr(exc, "response", None)
     if response is None:
-        return str(exc)
-    body = response.text.strip()
-    return f"{exc} - {body[:300]}" if body else str(exc)
+        # Connection problems: the kind of failure only - httpx's text can quote the URL.
+        return (
+            "the service could not be reached"
+            if not isinstance(exc, httpx.TimeoutException)
+            else "the service took too long to answer"
+        )
+    # Status and the provider's reason only. str(exc) quotes the full request URL, which
+    # for some providers carried credentials in the query string (TDR-0235).
+    status = f"{response.status_code} {response.reason_phrase}".strip()
+    body = _scrub_credentials(response.text.strip()[:300])
+    return f"{status} - {body}" if body else status
+
+
+_CREDENTIAL_PATTERN = re.compile(
+    r"((?:key|token|secret|password|api[_-]?key|access_token)\s*[=:]\s*)[^\s&\"',]+", re.I
+)
+
+
+def _scrub_credentials(text: str) -> str:
+    return _CREDENTIAL_PATTERN.sub(r"\1[redacted]", text)
 
 
 class IntegrationDeliveryError(Exception):

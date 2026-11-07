@@ -14,6 +14,7 @@ import {
 } from "./icons";
 import { IntegrationsTab } from "./IntegrationsTab";
 import { McpTab } from "./McpTab";
+import { projectCan } from "../../../lib/project-roles";
 
 type TabId = "details" | "comments" | "mcp" | "integrations" | "ai";
 
@@ -176,6 +177,7 @@ export function ProjectSidePanel({
               <AiTab
                 workspaceId={workspaceId}
                 projectId={project.id}
+                canEdit={projectCan(project, "edit")}
                 onViewComment={(commentId) => {
                   onRevealComment?.(commentId);
                   setAiOpenRequest({ commentId, nonce: Date.now() });

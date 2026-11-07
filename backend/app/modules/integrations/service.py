@@ -656,6 +656,14 @@ async def send_to_tracker(
         )
 
     links = IntegrationLinkRepository(db)
+    # Already filed through an earlier connection of the same tracker (disconnected and
+    # reconnected with fresh credentials): return that issue instead of filing a
+    # duplicate (TDR-0235).
+    earlier = await links.find_done_for_type(
+        workspace_id=workspace_id, comment_id=comment_id, type=doc["type"]
+    )
+    if earlier is not None:
+        return _link_out(earlier)
     link, claimed = await links.claim(
         workspace_id=workspace_id,
         comment_id=comment_id,

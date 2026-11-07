@@ -112,6 +112,15 @@ class IntegrationLinkRepository:
             }
         )
 
+    async def find_done_for_type(
+        self, *, workspace_id: str, comment_id: str, type: str
+    ) -> dict[str, Any] | None:
+        """A finished link from any connection of this tracker type - reconnecting
+        creates a new integration id, and the ticket must not be filed again."""
+        return await self.db.integration_links.find_one(
+            {"workspace_id": workspace_id, "comment_id": comment_id, "type": type, "status": "done"}
+        )
+
     async def claim(
         self,
         *,

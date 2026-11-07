@@ -5351,3 +5351,13 @@ database migration, or production deployment is claimed.
 - API: invite → `invite_email_sent: true`, pending; resend-invite → sent; the email link
   carries `workspace=maya-s-studio`. Test member removed.
 - ruff, mypy, scoping, types regenerated, web lint/typecheck.
+
+# 2026-11-07: Integrations, AI and deploy-sync fixes (TDR-0235)
+
+- `http_error_detail` on a 401 for `…/cards?key=KEY123&token=TOK456` with body
+  "invalid key: token=TOK456" → "401 Unauthorized - invalid key: [redacted]"; connection
+  error → "the service could not be reached".
+- Key pool on local Redis: one key gave slots 0-3, the fifth request got none; a cooled
+  key gave none.
+- GitHub destinations with a fake client: pages 1 and 2 fetched, 105 repositories.
+- ruff, mypy, scoping, web lint/typecheck.
