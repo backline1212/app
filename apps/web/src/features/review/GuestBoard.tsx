@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { ticketRef } from "../../lib/ticket-ref";
 
 import { EmptyArt } from "../../components/illustrations";
 import { ApiError } from "../../lib/api-client";
@@ -106,7 +107,7 @@ export function GuestBoard({
                   </h2>
                   {items.map((item) => (
                     <article key={item.id}>
-                      <small>#{item.id}</small>
+                      <small>{ticketRef(item)}</small>
                       <p className="bl-ticket-title">{item.body}</p>
 
                       <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>

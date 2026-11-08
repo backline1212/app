@@ -70,6 +70,11 @@ export function ReviewEntryPage() {
   useDocumentTitle([resolved?.project_name, resolved?.branding?.display_name ?? "Review"]);
   useBrandAccent(resolved?.branding?.accent_color);
   // The team chose how clients open this site (TDR-0207); only "ask" shows the question.
+  // Read once: the thread a reply/resolved email points at.
+  const [focus] = useState(() => {
+    const query = new URLSearchParams(window.location.search);
+    return { comment: query.get("comment") ?? undefined, page: query.get("page") ?? undefined };
+  });
   const reviewMode = resolved?.client_review_mode ?? "ask";
   // Phones, tablets and non-Chromium browsers can't run the extension, so asking them
   // about website sign-in only leads to an install guide they can't follow.
@@ -127,7 +132,10 @@ export function ReviewEntryPage() {
         return;
       }
       const proxyBase = resolved.preview_origin ?? `${API_BASE_URL}/proxy/${shareToken}`;
-      const initial = new URL(resolved.start_url ?? resolved.target_origin);
+      // From a reply/resolved email (TDR-0240): open the page the client commented on,
+      // with their thread open, instead of the start page.
+      const initial = new URL(focusedPageUrl(resolved.start_url ?? resolved.target_origin, focus.page));
+      if (focus.comment) initial.searchParams.set("backline_comment", focus.comment);
       const destination = resolved.mode === "proxy"
         ? new URL(`${proxyBase}${initial.pathname}${initial.search}${initial.hash}`)
         : initial;
@@ -136,7 +144,7 @@ export function ReviewEntryPage() {
       // added to this address only when the reviewer opens it (openWebsiteReview).
       setPendingHandoff({ token: session.guestSessionToken, destination: destination.href });
     },
-    [shareToken, resolved],
+    [shareToken, resolved, focus],
   );
 
   // Guest session recovery: a guest who already joined this share link earlier in
@@ -326,13 +334,13 @@ export function ReviewEntryPage() {
             {!online && <p role="status">You're offline. Reconnect to start or rejoin a review.</p>}
           </div>
           <div className="bl-gate-foot" style={{ flexDirection: "column" }}>
-            {effectiveNeedsLogin === "yes" && <NativeReviewButton projectId={resolved.project_id} url={resolved.start_url ?? resolved.target_origin}
-              guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} />}
+            {effectiveNeedsLogin === "yes" && <NativeReviewButton projectId={resolved.project_id} url={focusedPageUrl(resolved.start_url ?? resolved.target_origin, focus.page)}
+              guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} focusCommentId={focus.comment} onGuestSessionExpired={() => void handleLeave()} />}
             {effectiveNeedsLogin === "yes" && <button type="button" className="bl-quiet" onClick={() => setSiteNeedsLogin("no")}>Can't install extensions? Open the preview instead</button>}
             {effectiveNeedsLogin === "no" && <>
               <button type="button" className="bl-button" disabled={openingSite || !online} onClick={() => void openWebsiteReview()}>{openingSite ? "Opening…" : "Open website review ↗"}</button>
               {openError && <p role="alert" className="bl-error">{openError}</p>}
-              <details><summary>Page doesn't load or asks for sign-in?</summary><p>Open the real website with the extension to keep its normal login.</p><NativeReviewButton projectId={resolved.project_id} url={resolved.start_url ?? resolved.target_origin} guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} /></details>
+              <details><summary>Page doesn't load or asks for sign-in?</summary><p>Open the real website with the extension to keep its normal login.</p><NativeReviewButton projectId={resolved.project_id} url={focusedPageUrl(resolved.start_url ?? resolved.target_origin, focus.page)} guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} focusCommentId={focus.comment} onGuestSessionExpired={() => void handleLeave()} /></details>
             </>}
             {resolved.show_board_to_client && <button className="bl-quiet" style={{ width: "100%" }} onClick={() => setShowBoard(true)}>
               View the board
@@ -495,4 +503,12 @@ function canRunExtension(): boolean {
   const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
   const chromium = /Chrome\/|Chromium\/|Edg\//.test(ua) && !/OPR\/|SamsungBrowser/.test(ua);
   return chromium && !mobile && !coarse;
+}
+
+// The page an email pointed at, on the review's own site; anything else keeps the start page.
+function focusedPageUrl(start: string, page: string | undefined): string {
+  if (!page?.startsWith("/") || page.startsWith("//")) return start;
+  const base = new URL(start);
+  const target = new URL(page, base.origin);
+  return target.origin === base.origin ? target.href : start;
 }
