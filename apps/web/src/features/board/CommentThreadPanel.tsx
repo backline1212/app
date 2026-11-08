@@ -8,7 +8,7 @@ import { Link, useParams } from "react-router-dom";
 
 import type { Schemas } from "@backline/types";
 import { Dialog } from "../../components/Dialog";
-import { PaperclipIcon } from "../../components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, PaperclipIcon } from "../../components/icons";
 import { ApiError } from "../../lib/api-client";
 import { patchProjectComment } from "../../lib/comment-cache";
 import { renderWithMentions } from "../../lib/mentions";
@@ -82,13 +82,21 @@ interface CommentThreadPanelProps {
   /** Shown as a chip where the project isn't already obvious (the Tickets page). */
   projectName?: string;
   onClose: () => void;
+  /** Step through the list the ticket was opened from (the Tickets page). */
+  nav?: TicketNav;
+}
+
+export interface TicketNav {
+  position: string;
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
 // The one ticket view (16-Dashboard.md's "Thread view"), opened from the project board,
 // the workspace Tickets page, search, activity and notifications (TDR-0153): the ticket
 // text (editable by editors), status/priority/tags/assignee/due-date/waiting-on fields
 // that save as they change, the conversation and a layer-aware reply composer.
-export function CommentThreadPanel({ comment, replies, projectId, projectName, onClose }: CommentThreadPanelProps) {
+export function CommentThreadPanel({ comment, replies, projectId, projectName, onClose, nav }: CommentThreadPanelProps) {
   // TDR-0056: commenters reply, editors and managers also triage.
   const { canComment, canEdit, role } = useProjectRole(projectId);
   const { workspaceSlug } = useParams();
@@ -108,6 +116,7 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
   const [editing, setEditing] = useState(false);
   const [draftBody, setDraftBody] = useState(comment.body);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const queryClient = useQueryClient();
 
   // We need the workspace ID to list members. We can get it from the workspace object if available.
@@ -192,6 +201,24 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
   });
   const conflict = updateMutation.error instanceof ApiError && updateMutation.error.status === 409;
 
+  // One click instead of open the Status menu → pick → close (TDR-0239). "Resolve & next"
+  // moves on only once the save lands, so a failed save stays on screen.
+  function toggleResolved(then?: () => void) {
+    if (!canEdit || updateMutation.isPending) return;
+    const patch: Schemas["CommentUpdate"] = closed ? { status: "todo" } : { status: "resolved", waiting_on_ids: [], waiting_on_client: false };
+    updateMutation.mutate(patch, then ? { onSuccess: () => guard.requestLeave(then) } : undefined);
+  }
+
+  async function copyTicketLink() {
+    if (!workspaceSlug) return;
+    const url = `${window.location.origin}/w/${workspaceSlug}/tickets?comment=${comment.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2000);
+    } catch { window.prompt("Copy this link", url); }
+  }
+
   function saveBody() {
     const next = draftBody.trim();
     if (!canEdit || updateMutation.isPending || !next || next.length > 10_000) return;
@@ -267,6 +294,16 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
           {orphaned && <RecoveryBadge status={comment.recovery_status} />}
           {!comment.is_standalone && workspaceSlug && (
             <Link className="bl-chip" to={`/w/${workspaceSlug}/p/${projectId}?comment=${comment.id}`}>Open in review ↗</Link>
+          )}
+          {workspaceSlug && (
+            <button type="button" className="bl-chip" onClick={() => void copyTicketLink()} aria-live="polite">{linkCopied ? "Link copied" : "Copy link"}</button>
+          )}
+          {nav && (
+            <span className="bl-ticket-nav">
+              <button type="button" className="bl-icon-button" aria-label="Previous ticket" title="Previous ticket" disabled={!nav.onPrev} onClick={() => nav.onPrev && guard.requestLeave(nav.onPrev)}><ChevronLeftIcon /></button>
+              <span className="bl-mono">{nav.position}</span>
+              <button type="button" className="bl-icon-button" aria-label="Next ticket" title="Next ticket" disabled={!nav.onNext} onClick={() => nav.onNext && guard.requestLeave(nav.onNext)}><ChevronRightIcon /></button>
+            </span>
           )}
         </div>
         {(trackers.length > 0 || (linksQuery.data?.length ?? 0) > 0) && (
@@ -481,6 +518,12 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
               rows={3}
               required
               className="bl-input"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
             />
           </label>
 
@@ -541,7 +584,13 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
               )}
               <input type="file" multiple onChange={handleFileChange} className="hidden" disabled={isUploading || replyMutation.locked || replyMutation.isPending} />
             </label>
-            <button className="bl-button" disabled={replyMutation.isPending || isUploading || isSuggesting || !body.trim()}>
+            {canEdit && nav?.onNext && !closed && (
+              <button type="button" className="bl-quiet" disabled={updateMutation.isPending} onClick={() => toggleResolved(nav.onNext)}>Resolve &amp; next</button>
+            )}
+            {canEdit && (
+              <button type="button" className="bl-quiet" disabled={updateMutation.isPending} onClick={() => toggleResolved()}>{closed ? "Reopen" : "Resolve"}</button>
+            )}
+            <button className="bl-button" disabled={replyMutation.isPending || isUploading || isSuggesting || !body.trim()} title="Post reply (⌘/Ctrl+Enter)">
               {replyMutation.isPending ? "Posting…" : replyMutation.locked ? "Retry reply save" : "Post reply"}
             </button>
           </div>

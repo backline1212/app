@@ -153,6 +153,23 @@ export function TicketsPage() {
     else next.delete("offset");
     setParams(next, { replace: true });
   }, [query.isPlaceholderData, pageIsEmpty, offset, total, params, setParams]);
+
+  // Previous/next through the list as it's filtered and sorted now; replaces the history
+  // entry so Back still leaves the dialog rather than stepping through every ticket seen.
+  const selectedIndex = selected ? tickets.findIndex((t) => t.id === selected) : -1;
+  function openAt(index: number) {
+    const target = tickets[index];
+    if (!target) return;
+    const next = new URLSearchParams(params);
+    next.delete("ticket");
+    next.set("comment", target.id);
+    setParams(next, { replace: true });
+  }
+  const nav = selectedIndex >= 0 ? {
+    position: `${offset + selectedIndex + 1} of ${total ?? tickets.length}`,
+    onPrev: selectedIndex > 0 ? () => openAt(selectedIndex - 1) : undefined,
+    onNext: selectedIndex < tickets.length - 1 ? () => openAt(selectedIndex + 1) : undefined,
+  } : undefined;
   const sort = params.get("sort") ?? "newest";
   const group = params.get("group") ?? "none";
 
@@ -348,7 +365,7 @@ export function TicketsPage() {
 
       {showCreate && <NewTicket key={workspace.id} workspace={workspace} members={members.data ?? []} onClose={() => setShowCreate(false)} />}
       {deleting && update.canEdit(deleting) && <DeleteTicketDialog ticket={deleting} workspaceId={workspace.id} onCancel={() => setDeleting(null)} onDeleted={() => setDeleting(null)} />}
-      {selected && <TicketDetail id={selected} workspace={workspace} onClose={closeDetail} />}
+      {selected && <TicketDetail id={selected} workspace={workspace} onClose={closeDetail} nav={nav} />}
     </main>
   );
 }
