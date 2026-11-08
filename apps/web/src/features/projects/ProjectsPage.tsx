@@ -263,6 +263,7 @@ export function ProjectsPage() {
           stats={stats}
           memberCount={members.data?.length}
           onNewProject={() => setCreateType("website")}
+          onShare={setShare}
         />
       )}
 
@@ -281,7 +282,10 @@ export function ProjectsPage() {
           ) : (
             <div className="bl-attention-empty">
               <p>Client feedback that needs an owner, and threads waiting on your reply, show up here.</p>
-              <button type="button" className="bl-quiet" onClick={() => setShowNewTicket(true)}><PlusIcon /> New ticket</button>
+              {/* With no live project there's nowhere to file a ticket yet, so offer the step that comes first. */}
+              {(projects.data ?? []).some((p) => !p.archived_at && !p.is_sample)
+                ? <button type="button" className="bl-quiet" onClick={() => setShowNewTicket(true)}><PlusIcon /> New ticket</button>
+                : canCreateProject && <button type="button" className="bl-quiet" onClick={() => setCreateType("website")}><PlusIcon /> Add your first project</button>}
             </div>
           )}
         </section>

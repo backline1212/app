@@ -260,7 +260,9 @@ export function CommentThreadPanel({ comment, replies, projectId, projectName, o
       {guard.dialog}
       <div className="bl-form">
         <div className="bl-chip-row">
-          {projectName && <span className="bl-chip">{projectName}</span>}
+          {projectName && (workspaceSlug
+            ? <Link className="bl-chip" to={`/w/${workspaceSlug}/p/${projectId}`} title="Open project">{projectName}</Link>
+            : <span className="bl-chip">{projectName}</span>)}
           <LayerBadge layer={comment.layer} />
           {orphaned && <RecoveryBadge status={comment.recovery_status} />}
           {!comment.is_standalone && workspaceSlug && (

@@ -15,12 +15,14 @@ export function GetStartedCard({
   stats,
   memberCount,
   onNewProject,
+  onShare,
 }: {
   workspace: { id: string; slug: string };
   projects: api.ProjectOut[] | undefined;
   stats: Map<string, { total: number }>;
   memberCount: number | undefined;
   onNewProject: () => void;
+  onShare: (project: api.ProjectOut) => void;
 }) {
   const dismissKey = `backline:get-started-dismissed:${workspace.id}`;
   const [dismissed, setDismissed] = useState(() => {
@@ -43,7 +45,7 @@ export function GetStartedCard({
       title: "Get your first feedback",
       detail: "Send the review link; the client comments without an account.",
       action: firstReal
-        ? <Link className="bl-quiet" to={`/w/${workspace.slug}/p/${firstReal.id}/share-links`}>Review links</Link>
+        ? <button type="button" className="bl-quiet" onClick={() => onShare(firstReal)}>Copy review link</button>
         : null,
     },
     {

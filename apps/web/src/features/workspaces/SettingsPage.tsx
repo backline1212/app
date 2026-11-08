@@ -44,8 +44,10 @@ export function SettingsPage() {
     mutationFn: () => workspacesApi.deleteWorkspace(workspace.id, deleteName),
     onSuccess: async () => {
       setDeleting(false);
+      // Leave the workspace's pages before the list refreshes, or they'd briefly treat
+      // the now-missing workspace as "no access".
+      navigate("/", { replace: true, state: { notice: `${workspace.name} was deleted.` } });
       await queryClient.invalidateQueries({ queryKey: qk.workspaces() });
-      navigate("/", { replace: true });
     },
   });
 
@@ -53,8 +55,10 @@ export function SettingsPage() {
     mutationFn: () => workspacesApi.leaveWorkspace(workspace.id),
     onSuccess: async () => {
       setLeaving(false);
+      // Leave the workspace's pages before the list refreshes, or they'd briefly treat
+      // the now-missing workspace as "no access".
+      navigate("/", { replace: true, state: { notice: `You left ${workspace.name}.` } });
       await queryClient.invalidateQueries({ queryKey: qk.workspaces() });
-      navigate("/", { replace: true });
     },
   });
 
