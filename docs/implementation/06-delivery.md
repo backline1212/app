@@ -5367,3 +5367,11 @@ database migration, or production deployment is claimed.
 - Browser: new account Riya → workspace home shows "Get started · 0 of 4 done" with the
   four steps; "Invite" opened Team with the invite dialog open.
 - mypy, types regenerated, web lint/typecheck.
+
+# 2026-11-08: Navigation dead ends (TDR-0237)
+
+- Browser: `/w/not-a-workspace` → picker with the no-access note; search "Sam" →
+  `/members?person=…` with the drawer open; Clients "N active" → `/w/…?client=…`;
+  Tickets scrolled 250px → Clients (0) → Back (250); iPhone 13 review link → no sign-in
+  question, "Open website review" shown.
+- web lint/typecheck.

@@ -7,6 +7,12 @@ import * as workspacesApi from "../../features/workspaces/api";
 import type { WorkspaceOut } from "../../features/workspaces/api";
 import { qk } from "../../lib/query-keys";
 
+// The workspace used last on this browser; sign-in drops you straight back into it.
+export const LAST_WORKSPACE_KEY = "backline:last-workspace";
+
+// Where to send someone whose workspace link they can't open.
+export const NO_WORKSPACE_ACCESS = { notice: "You don't have access to that workspace. It may have been deleted, or you were removed from it." };
+
 type WorkspaceContextResult =
   | { status: "loading" }
   | { status: "not-found" }
@@ -45,6 +51,13 @@ export function useWorkspaceContext(): WorkspaceContextResult {
       setSwitchError(err instanceof Error ? err.message : "Could not open this workspace.");
     });
   }, [targetWorkspace, needsSwitch, switchWorkspace]);
+
+  // Remember the workspace however you got here (sidebar switcher, a link, the picker).
+  const readyId = targetWorkspace && !needsSwitch ? targetWorkspace.id : null;
+  useEffect(() => {
+    if (!readyId) return;
+    try { localStorage.setItem(LAST_WORKSPACE_KEY, readyId); } catch { /* storage may be blocked */ }
+  }, [readyId]);
 
   if (isLoading) return { status: "loading" };
   if (error) return { status: "error", message: error.message };

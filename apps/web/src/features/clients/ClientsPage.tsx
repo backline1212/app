@@ -122,14 +122,14 @@ export function ClientsPage() {
                       </button>
                     </td>
                     <td className="bl-mono">
-                      <div>{stats?.active_projects_count ?? clientProjects.length} active</div>
+                      <div>{clientProjects.length ? <Link to={`/w/${workspace.slug}?client=${client.id}`}>{stats?.active_projects_count ?? clientProjects.length} active</Link> : "0 active"}</div>
                       <small>{stats?.open_tickets_count ?? 0} open · {stats?.reviewers_count ?? 0} reviewer{(stats?.reviewers_count ?? 0) === 1 ? "" : "s"}</small>
                     </td>
                     <td>
                       <div className="bl-chip-row">
                         {clientProjects.length === 0 && <button type="button" className="bl-chip" onClick={() => setAttachFor(client)}>+ Add projects</button>}
                         {clientProjects.slice(0, 3).map((p) => <Link className="bl-chip" key={p.id} to={`/w/${workspace.slug}/p/${p.id}`}>{p.name}</Link>)}
-                        {clientProjects.length > 3 && <span className="bl-chip">+{clientProjects.length - 3} more</span>}
+                        {clientProjects.length > 3 && <Link className="bl-chip" to={`/w/${workspace.slug}?client=${client.id}`}>+{clientProjects.length - 3} more</Link>}
                       </div>
                     </td>
                     <td>{stats?.last_activity_at ? timeAgo(stats.last_activity_at) : "No activity yet"}</td>

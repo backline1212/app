@@ -140,8 +140,10 @@ export function MembersPage() {
     mutationFn: () => workspacesApi.leaveWorkspace(workspace.id),
     onSuccess: async () => {
       setLeaving(false);
+      // Leave the workspace's pages before the list refreshes, or they'd briefly treat
+      // the now-missing workspace as "no access".
+      navigate("/", { replace: true, state: { notice: `You left ${workspace.name}.` } });
       await queryClient.invalidateQueries({ queryKey: qk.workspaces() });
-      navigate("/", { replace: true });
     },
   });
 

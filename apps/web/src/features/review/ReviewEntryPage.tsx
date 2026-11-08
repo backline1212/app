@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { type FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { API_BASE_URL, ApiError } from "../../lib/api-client";
@@ -71,7 +71,11 @@ export function ReviewEntryPage() {
   useBrandAccent(resolved?.branding?.accent_color);
   // The team chose how clients open this site (TDR-0207); only "ask" shows the question.
   const reviewMode = resolved?.client_review_mode ?? "ask";
-  const effectiveNeedsLogin = siteNeedsLogin ?? (reviewMode === "preview" ? "no" : reviewMode === "extension" ? "yes" : null);
+  // Phones, tablets and non-Chromium browsers can't run the extension, so asking them
+  // about website sign-in only leads to an install guide they can't follow.
+  const extensionCapable = useMemo(canRunExtension, []);
+  const askQuestion = reviewMode === "ask" && extensionCapable;
+  const effectiveNeedsLogin = siteNeedsLogin ?? (reviewMode === "preview" || (reviewMode === "ask" && !extensionCapable) ? "no" : reviewMode === "extension" ? "yes" : null);
   const activeToken = sessionMatchesLink ? assetGuest ?? pendingHandoff?.token ?? "" : "";
   const sessionStatus = useQuery({
     queryKey: qk.guestSession(activeToken),
@@ -306,11 +310,11 @@ export function ReviewEntryPage() {
           <div className="bl-gate-head">
             <BrandHeader branding={resolved.branding} />
             <h3 id="ggTitle">Review {resolved.project_name}</h3>
-            <p id="ggSub">Joined as {displayName}.{reviewMode === "ask" ? " Choose how to open the website." : ""}</p>
+            <p id="ggSub">Joined as {displayName}.{askQuestion ? " Choose how to open the website." : ""}</p>
           </div>
           <div className="bl-gate-body">
             <ol className="bl-review-steps" aria-label="Review steps"><li>Joined review</li><li aria-current="step">Open website</li><li>Leave feedback</li></ol>
-            {reviewMode === "ask" && <fieldset className="bl-review-question"><legend>Does this website ask you to sign in?</legend>
+            {askQuestion && <fieldset className="bl-review-question"><legend>Does this website ask you to sign in?</legend>
               <label><input type="radio" name="site-login" checked={effectiveNeedsLogin === "yes"} onChange={() => setSiteNeedsLogin("yes")} />Yes, or I'm not sure</label>
               <label><input type="radio" name="site-login" checked={effectiveNeedsLogin === "no"} onChange={() => setSiteNeedsLogin("no")} />No, it's a public page</label>
             </fieldset>}
@@ -324,7 +328,7 @@ export function ReviewEntryPage() {
           <div className="bl-gate-foot" style={{ flexDirection: "column" }}>
             {effectiveNeedsLogin === "yes" && <NativeReviewButton projectId={resolved.project_id} url={resolved.start_url ?? resolved.target_origin}
               guest={{ kind: "guest", token: pendingHandoff.token, shareToken, displayName }} onGuestSessionExpired={() => void handleLeave()} />}
-            {effectiveNeedsLogin === "yes" && reviewMode === "extension" && <button type="button" className="bl-quiet" onClick={() => setSiteNeedsLogin("no")}>Can't install extensions? Open the preview instead</button>}
+            {effectiveNeedsLogin === "yes" && <button type="button" className="bl-quiet" onClick={() => setSiteNeedsLogin("no")}>Can't install extensions? Open the preview instead</button>}
             {effectiveNeedsLogin === "no" && <>
               <button type="button" className="bl-button" disabled={openingSite || !online} onClick={() => void openWebsiteReview()}>{openingSite ? "Opening…" : "Open website review ↗"}</button>
               {openError && <p role="alert" className="bl-error">{openError}</p>}
@@ -481,4 +485,14 @@ function BrandHeader({ branding }: { branding: PublicBranding | null | undefined
     {branding.display_name && <strong>{branding.display_name}</strong>}
     {branding.support_email && <a href={`mailto:${branding.support_email}`}>{branding.support_email}</a>}
   </div>;
+}
+
+// The extension needs desktop Chrome or Edge (or another Chromium browser).
+function canRunExtension(): boolean {
+  if (typeof window === "undefined") return true;
+  const coarse = window.matchMedia?.("(pointer: coarse)").matches && !window.matchMedia?.("(any-pointer: fine)").matches;
+  const ua = navigator.userAgent;
+  const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+  const chromium = /Chrome\/|Chromium\/|Edg\//.test(ua) && !/OPR\/|SamsungBrowser/.test(ua);
+  return chromium && !mobile && !coarse;
 }

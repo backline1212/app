@@ -5,7 +5,7 @@ import { useWSEvent } from "../WSProvider";
 
 import { invalidateTicketsAndDashboard, qk } from "../../lib/query-keys";
 import { LoadingScreen } from "../../components/LoadingScreen";
-import { useWorkspaceContext } from "./useWorkspaceContext";
+import { NO_WORKSPACE_ACCESS, useWorkspaceContext } from "./useWorkspaceContext";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { AccountModal } from "../../features/auth/AccountModal";
 import { useAuth } from "../../features/auth/AuthContext";
@@ -103,7 +103,7 @@ export function WorkspaceLayout() {
     return <LoadingScreen />;
   }
   if (result.status === "not-found") {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/" replace state={NO_WORKSPACE_ACCESS} />;
   }
   if (result.status === "error") {
     return <main className="bl-review-gate"><h1>Could not open workspace</h1><p role="alert">{result.message}</p><button onClick={() => window.location.reload()}>Retry</button><Link to="/">Choose another workspace</Link></main>;

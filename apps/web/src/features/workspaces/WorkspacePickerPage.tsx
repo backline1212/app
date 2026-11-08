@@ -9,7 +9,7 @@ import { useDocumentTitle } from "../../lib/use-document-title";
 import * as workspacesApi from "./api";
 import type { TranslationKeys } from "../../lib/i18n";
 
-const LAST_WORKSPACE_KEY = "backline:last-workspace";
+import { LAST_WORKSPACE_KEY } from "../../app/layout/useWorkspaceContext";
 
 export function WorkspacePickerPage() {
   const { t } = useTranslation();
@@ -43,6 +43,9 @@ export function WorkspacePickerPage() {
   // switch workspaces) always shows the list.
   const location = useLocation();
   const autoEnter = Boolean((location.state as { autoEnter?: boolean } | null)?.autoEnter);
+  // A workspace link you can't open (removed, or never a member) lands here with a note
+  // instead of silently dropping you on the list.
+  const notice = (location.state as { notice?: string } | null)?.notice;
   const autoEntered = useRef(false);
   useEffect(() => {
     if (!autoEnter || autoEntered.current || !workspaces?.length) return;
@@ -124,6 +127,7 @@ export function WorkspacePickerPage() {
             </button>
           </div>
           {user && <p className="wsp-email">{user.email}</p>}
+          {notice && <p className="wsp-note" role="status">{notice}</p>}
 
           {/* Loading state */}
           {isLoading && <p className="wsp-loading">Loading workspaces…</p>}

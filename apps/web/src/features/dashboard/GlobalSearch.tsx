@@ -104,7 +104,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
   function getResultRoute(result: SearchItem): string {
     const base = `/w/${workspaceSlug}`;
     if (result.kind === "project") return `${base}/p/${result.project_id}`;
-    if (result.kind === "member") return `${base}/members`;
+    if (result.kind === "member") return `${base}/members?person=${encodeURIComponent(result.id)}`;
     if (result.kind === "client") return `${base}/clients?search=${encodeURIComponent(result.title)}`;
     // comment and ticket both navigate to the tickets view with the comment selected
     if (result.project_id) {
@@ -143,7 +143,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
           maxLength={200}
           aria-controls="bl-search-results"
           aria-activedescendant={flatItems[activeIndex] ? `bl-sr-${flatItems[activeIndex].id}` : undefined}
-          placeholder="Search tickets, projects, clients and people"
+          placeholder="Search tickets (#14), projects, clients, people"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleInputKeyDown}

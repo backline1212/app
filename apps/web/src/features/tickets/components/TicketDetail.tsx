@@ -25,6 +25,7 @@ export function TicketDetail({ id, workspace, onClose }: { id: string; workspace
       {loading && <p role="status">Loading ticket…</p>}
       {error && <p className="bl-error" role="alert">{error.message}</p>}
       {!loading && !error && <p>This ticket was deleted, or its project is archived.</p>}
+      {!loading && <div className="bl-dialog-actions"><button type="button" onClick={onClose}>Back to tickets</button></div>}
     </div>
   </Dialog>;
 }

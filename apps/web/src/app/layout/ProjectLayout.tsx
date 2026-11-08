@@ -2,7 +2,7 @@ import { Link, Navigate, Outlet } from "react-router-dom";
 
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { AccessSync } from "../AccessSync";
-import { useWorkspaceContext } from "./useWorkspaceContext";
+import { NO_WORKSPACE_ACCESS, useWorkspaceContext } from "./useWorkspaceContext";
 
 // Project routes intentionally leave the workspace sidebar behind. The website canvas
 // needs the full viewport, while board and share-link children retain their own route
@@ -14,7 +14,7 @@ export function ProjectLayout() {
     return <LoadingScreen />;
   }
   if (result.status === "not-found") {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/" replace state={NO_WORKSPACE_ACCESS} />;
   }
   if (result.status === "error") {
     return (
