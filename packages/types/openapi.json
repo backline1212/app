@@ -13273,6 +13273,17 @@
             "type": "string",
             "title": "Id"
           },
+          "ticket_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number"
+          },
           "body": {
             "type": "string",
             "title": "Body"

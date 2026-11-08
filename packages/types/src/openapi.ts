@@ -4093,6 +4093,8 @@ export interface components {
         GuestBoardItemOut: {
             /** Id */
             id: string;
+            /** Ticket Number */
+            ticket_number?: number | null;
             /** Body */
             body: string;
             /**

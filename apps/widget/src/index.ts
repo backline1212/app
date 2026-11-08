@@ -61,6 +61,9 @@ async function init(config: BacklineConfig): Promise<void> {
   // Start collecting console/network failures straight away so they are available to
   // "Attach console & network errors" in the composer. Kept in memory only.
   installDiagnosticsCapture({ ignoreUrlPrefix: config.apiBaseUrl });
+  // A reply/resolved email's link opens the reviewer's own thread (TDR-0240). Taken off
+  // the address before the page is registered, so it never becomes part of the page URL.
+  const focusCommentId = takeFocusCommentFromUrl();
   // Set once ensureGuestSession resolves below - the api client is constructed first
   // since ensureGuestSession itself needs it to call /guest-sessions, before any guest
   // token exists yet. getAuthHeader reads this variable by closure reference on every
@@ -302,10 +305,7 @@ async function init(config: BacklineConfig): Promise<void> {
   // intersectsViewport hid it as off-screen, or the target simply hadn't loaded yet at
   // init time) can still genuinely exist on the page - "no pin visible right now" was
   // never "the comment is gone."
-  window.addEventListener("message", (event) => {
-    if (event.data?.type !== "backline:scroll-to-comment") return;
-    const topId = event.data.commentId as string | undefined;
-    if (!topId) return;
+  const focusThread = (topId: string) => {
     const messages = threadMessages.get(topId);
     if (!messages || messages.length === 0) {
       // Another page's comment, or a team-only one (never sent to this guest widget):
@@ -338,7 +338,13 @@ async function init(config: BacklineConfig): Promise<void> {
         openThreadForComment(topId, x, y);
       }, 400);
     });
+  };
+  window.addEventListener("message", (event) => {
+    if (event.data?.type !== "backline:scroll-to-comment") return;
+    const topId = event.data.commentId as string | undefined;
+    if (topId) focusThread(topId);
   }, { signal: listenerLifetime.signal });
+  if (focusCommentId) focusThread(focusCommentId);
 
   // Tells the dashboard (if it's embedding this in the canvas iframe) which page is
   // currently loaded, so its Comments panel can offer "show comments on current page
@@ -746,4 +752,14 @@ if (installTag && installToken) {
   const start = (): void => void safeInit({ shareToken: installToken, apiBaseUrl });
   if (document.body) start();
   else document.addEventListener("DOMContentLoaded", start, { once: true });
+}
+
+function takeFocusCommentFromUrl(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("backline_comment");
+  if (id === null) return null;
+  params.delete("backline_comment");
+  const query = params.toString();
+  window.history.replaceState(window.history.state, "", window.location.pathname + (query ? `?${query}` : "") + window.location.hash);
+  return /^[a-f0-9]{24}$/.test(id) ? id : null;
 }

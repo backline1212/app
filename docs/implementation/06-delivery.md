@@ -5386,3 +5386,9 @@ database migration, or production deployment is claimed.
   the URL updated; Copy link put `/w/maya-s-studio/tickets?comment=…` on the clipboard;
   Resolve and "Resolve & next" shown; Back closed the dialog to the list.
 - web lint/typecheck.
+# 2026-11-08: Client thread links (TDR-0240)
+
+- Browser: `/review/l_5LrQUCJ76TKX11?comment=6adfd1eb…&page=%2F` → joined as Kim →
+  "Open website review" opened the preview with thread #4 (and Maya's reply) open and
+  `backline_comment` removed from the address.
+- ruff, mypy, types regenerated, widget build/lint/typecheck, web lint/typecheck.

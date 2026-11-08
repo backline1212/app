@@ -280,6 +280,8 @@ class GuestBoardItemOut(BaseModel):
     clients see comments and statuses but not due dates, assignees or the board")."""
 
     id: str
+    # The same "#14" the team uses when they talk to the client (TDR-0240).
+    ticket_number: int | None = None
     body: str
     status: Status
     layer: Literal["client"] = "client"

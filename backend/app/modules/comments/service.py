@@ -5,6 +5,7 @@ import uuid
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, Literal
+from urllib.parse import urlencode, urlsplit
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
@@ -1720,7 +1721,15 @@ async def _client_email_context(
         base = (f"https://{domain}" if domain else get_settings().public_dashboard_base_url).rstrip(
             "/"
         )
-        review_url = f"{base}/review/{link['token']}"
+        # Straight back to their own thread (TDR-0240): the review page opens the comment's
+        # page with the thread open; file reviews select it. Before, the link landed on the
+        # start page and the client had to find their pin again.
+        query = {"comment": str(comment_doc["_id"])}
+        page_url = (page or {}).get("url_normalized")
+        if page_url and (project or {}).get("project_type", "website") == "website":
+            parts = urlsplit(page_url)
+            query["page"] = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
+        review_url = f"{base}/review/{link['token']}?{urlencode(query)}"
     branding = await public_branding(db, workspace_id)
     workspace = await WorkspaceRepository(db).find_by_id(workspace_id)
     return {
@@ -1917,6 +1926,7 @@ async def list_guest_board(
         items.append(
             GuestBoardItemOut(
                 id=str(doc["_id"]),
+                ticket_number=doc.get("ticket_number"),
                 body=doc["body"],
                 status=doc["status"],
                 created_at=doc["created_at"],
