@@ -5379,3 +5379,10 @@ database migration, or production deployment is claimed.
 
 - ruff, mypy (241 files), web lint/typecheck.
 - Not verified here: production timings; the worker's Docker build target.
+
+# 2026-11-08: Ticket triage flow (TDR-0239)
+
+- Browser (Maya, All tickets): opened the first ticket ("1 of 7"), Next → "2 of 7" with
+  the URL updated; Copy link put `/w/maya-s-studio/tickets?comment=…` on the clipboard;
+  Resolve and "Resolve & next" shown; Back closed the dialog to the list.
+- web lint/typecheck.

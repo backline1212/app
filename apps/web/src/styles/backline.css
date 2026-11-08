@@ -3442,3 +3442,8 @@ td .bl-file-approval{margin-left:6px}
 .bl-get-started-copy small{font-size:11.5px;color:var(--ink-3);line-height:1.4}
 .bl-get-started li .bl-quiet,.bl-get-started-done{grid-column:2;justify-self:start}
 .bl-get-started-done{font:11px var(--bl-mono);color:var(--ink-3)}
+/* Ticket dialog: step through the list it was opened from (TDR-0239). */
+.bl-ticket-nav{display:inline-flex;align-items:center;gap:6px;margin-left:auto}
+.bl-ticket-nav .bl-icon-button{width:28px;height:28px}
+.bl-ticket-nav .bl-icon-button:disabled{opacity:.4;cursor:default}
+.bl-ticket-nav .bl-mono{font-size:11px;color:var(--ink-3)}
