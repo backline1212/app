@@ -3421,3 +3421,23 @@ td .bl-file-approval{margin-left:6px}
 .bl-ticket-filterbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 0}
 .bl-ticket-filterbar .bl-ticket-search{max-width:320px}
 .team-drawer-resend{margin-top:10px}
+
+/* Home: Get started for new workspaces (TDR-0236). */
+.bl-get-started{margin:0 0 18px;padding:16px 18px;border:1px solid var(--line);border-radius:6px;background:var(--bl-surface);box-shadow:var(--bl-shadow-sm)}
+.bl-get-started>header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.bl-get-started h2{margin:0;font-size:15px}
+.bl-get-started>header p{margin:2px 0 0;font:11px var(--bl-mono);color:var(--ink-3)}
+.bl-get-started-bar{height:4px;margin:12px 0 6px;border-radius:999px;background:var(--line-soft);overflow:hidden}
+.bl-get-started-bar i{display:block;height:100%;background:var(--mint-deep,#16825D);border-radius:inherit;transition:width .3s ease}
+.bl-get-started ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.bl-get-started li{display:grid;grid-template-columns:20px 1fr;align-items:start;column-gap:10px;row-gap:8px;padding:12px;border:1px solid var(--line-soft);border-radius:6px}
+.bl-get-started li.is-done{background:var(--bl-subtle)}
+.bl-get-started li.is-done strong{color:var(--ink-3);text-decoration:line-through}
+.bl-get-started-mark{flex:none;display:grid;place-items:center;width:20px;height:20px;border:1.5px solid var(--line);border-radius:50%;color:#fff}
+.bl-get-started li.is-done .bl-get-started-mark{background:var(--mint-deep,#16825D);border-color:transparent}
+.bl-get-started-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.bl-get-started-copy strong{font-size:13px}
+.bl-get-started-copy em{font-style:normal;font-weight:400;font-size:11px;color:var(--ink-3);margin-left:4px}
+.bl-get-started-copy small{font-size:11.5px;color:var(--ink-3);line-height:1.4}
+.bl-get-started li .bl-quiet,.bl-get-started-done{grid-column:2;justify-self:start}
+.bl-get-started-done{font:11px var(--bl-mono);color:var(--ink-3)}

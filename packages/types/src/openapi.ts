@@ -5168,6 +5168,11 @@ export interface components {
              * @default 0
              */
             metadata_version: number;
+            /**
+             * Is Sample
+             * @default false
+             */
+            is_sample: boolean;
             /** Id */
             id: string;
             /** Workspace Id */
