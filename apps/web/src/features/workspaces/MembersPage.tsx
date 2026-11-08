@@ -41,7 +41,8 @@ export function MembersPage() {
   const view: View = requested && VIEWS.includes(requested) && (requested !== "requests" || isAdmin) ? requested : "people";
   const selectedUserId = params.get("person");
 
-  const [invite, setInvite] = useState<"email" | "code" | null>(null);
+  // ?invite=email opens the invite dialog (linked from the home page's Get started).
+  const [invite, setInvite] = useState<"email" | "code" | null>(() => (params.get("invite") === "email" ? "email" : params.get("invite") === "code" ? "code" : null));
   const [editing, setEditing] = useState<MemberOut | null>(null);
   const [removing, setRemoving] = useState<MemberOut | null>(null);
   const [transferring, setTransferring] = useState<MemberOut | null>(null);

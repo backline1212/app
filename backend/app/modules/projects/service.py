@@ -83,6 +83,7 @@ def _project_out(doc: dict[str, Any], viewer: Session | None = None) -> ProjectO
     settings_merged = {**settings_defaults, **settings_json}
 
     return ProjectOut(
+        is_sample=bool(doc.get("is_sample")),
         metadata_version=int(doc.get("metadata_version", 0)),
         id=str(doc["_id"]),
         workspace_id=doc["workspace_id"],

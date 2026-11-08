@@ -5361,3 +5361,9 @@ database migration, or production deployment is claimed.
   key gave none.
 - GitHub destinations with a fake client: pages 1 and 2 fetched, 105 repositories.
 - ruff, mypy, scoping, web lint/typecheck.
+
+# 2026-11-08: Get started card (TDR-0236)
+
+- Browser: new account Riya → workspace home shows "Get started · 0 of 4 done" with the
+  four steps; "Invite" opened Team with the invite dialog open.
+- mypy, types regenerated, web lint/typecheck.

@@ -23,6 +23,7 @@ import { CheckCircleIcon } from "./panel/icons";
 import { projectCan, roleLabel } from "../../lib/project-roles";
 import { redactReviewUrl } from "../../lib/review-page-path";
 import { EmptyArt } from "../../components/illustrations";
+import { GetStartedCard } from "./GetStartedCard";
 
 const TYPE_LABELS: Record<string, string> = { website: "Website", webapp: "Web App", mobile: "Mobile App", image: "Images", pdf: "PDF" };
 type ProjectKind = "website" | "webapp" | "mobile" | "image" | "pdf";
@@ -110,6 +111,8 @@ export function ProjectsPage() {
   const archived = params.get("archived") === "true", search = params.get("search") ?? "", type = params.get("type") ?? "all", view = params.get("display") ?? "cards", sort = params.get("sort") ?? "activity";
   useDocumentTitle([workspace.name, archived ? "Archived Projects" : "Projects"]);
   const [createType, setCreateType] = useState<ProjectKind | null>(null);
+  // Get started is for whoever sets the workspace up: owners and admins.
+  const canCreateProject = workspace.role === "owner" || workspace.role === "admin";
   const [share, setShare] = useState<api.ProjectOut | null>(null);
   const [duplicating, setDuplicating] = useState<api.ProjectOut | null>(null);
   const [edit, setEdit] = useState<api.ProjectOut | null>(null);
@@ -252,6 +255,16 @@ export function ProjectsPage() {
           <time className="bl-mono bl-head-clock">{now.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}<br />{now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
         </div>
       </header>
+
+      {!archived && !search && type === "all" && canCreateProject && (
+        <GetStartedCard
+          workspace={workspace}
+          projects={projects.data}
+          stats={stats}
+          memberCount={members.data?.length}
+          onNewProject={() => setCreateType("website")}
+        />
+      )}
 
       {/* Same footprint whether it's holding real threads or the empty state, so
           clearing your last reply-owed comment doesn't shift the tabs/grid below it. */}

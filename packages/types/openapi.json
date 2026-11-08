@@ -16062,6 +16062,11 @@
             "title": "Metadata Version",
             "default": 0
           },
+          "is_sample": {
+            "type": "boolean",
+            "title": "Is Sample",
+            "default": false
+          },
           "id": {
             "type": "string",
             "title": "Id"

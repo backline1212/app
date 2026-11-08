@@ -268,6 +268,9 @@ class FileApprovalSummary(BaseModel):
 
 class ProjectOut(BaseModel):
     metadata_version: int = 0
+    # The example project seeded with a new workspace (TDR-0236): the home page's
+    # "Get started" steps look past it.
+    is_sample: bool = False
     id: str
     workspace_id: str
     name: str
