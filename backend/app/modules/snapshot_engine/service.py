@@ -1,3 +1,4 @@
+import asyncio
 import gzip
 import json
 import logging
@@ -109,7 +110,6 @@ async def submit_snapshot(
         "nodes_index": nodes_index,
         "full_page_hash": full_page_hash,
     }
-    compressed = gzip.compress(json.dumps(snapshot_payload).encode("utf-8"))
     snapshot_key = f"snapshots/{page['project_id']}/{revision_id}/snapshot.json.gz"
     # Storage succeeds before any current pointer changes. Identical completed
     # snapshots need no new object, but are still repaired/deduplicated transactionally.
@@ -122,7 +122,10 @@ async def submit_snapshot(
             workspace_id=page["workspace_id"],
             project_id=page["project_id"],
             key=snapshot_key,
-            data=compressed,
+            # Only now, when the page really changed: a multi-MB tree at gzip level 9 held the
+            # event loop for ~250ms on every reviewer page load. Level 6 in a thread is ~4x
+            # faster for nearly the same size.
+            data=await asyncio.to_thread(_compress_snapshot, snapshot_payload),
             content_type="application/gzip",
         )
     actor_type, actor_id = actor_identity(actor)
@@ -188,3 +191,7 @@ async def submit_snapshot(
     except Exception as exc:
         logger.warning("Snapshot delivery deferred to sweep (%s)", type(exc).__name__)
     return _revision_out(saved, created_new=created)
+
+
+def _compress_snapshot(payload: dict[str, Any]) -> bytes:
+    return gzip.compress(json.dumps(payload).encode("utf-8"), compresslevel=6)

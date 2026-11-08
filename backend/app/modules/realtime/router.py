@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -17,6 +18,8 @@ from app.modules.share_links.repository import (
     GuestSessionRepository,
     ShareLinkRepository,
 )
+
+_IDLE_RECHECK_SECONDS = 60
 
 router = APIRouter(tags=["realtime"])
 
@@ -147,11 +150,18 @@ async def websocket_endpoint(
         )
 
     try:
+        # Re-check access about once a minute rather than on every 15s tick and every client
+        # message: idle sockets were most of the keep-alive database load, and broadcasts
+        # already re-check (5s cache) before delivering anything.
+        next_check = time.monotonic() + _IDLE_RECHECK_SECONDS
         while True:
             try:
                 await asyncio.wait_for(websocket.receive_text(), timeout=15)
             except TimeoutError:
                 pass
+            if time.monotonic() < next_check:
+                continue
+            next_check = time.monotonic() + _IDLE_RECHECK_SECONDS
             if not await access_is_current():
                 if websocket.application_state == WebSocketState.CONNECTED:
                     await websocket.close(code=4403)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useWSEvent } from "../WSProvider";
@@ -54,11 +54,30 @@ export function WorkspaceLayout() {
   // their own local cache merges - this invalidation is for a different, workspace-wide
   // surface (Tickets/Dashboard/Activity), not a duplicate of that per-page merge logic.
   const workspaceId = "workspace" in result ? result.workspace.id : undefined;
-  const refreshTicketSurfaces = useCallback(() => {
-    if (!workspaceId) return;
+  // Coalesced: a client dropping 20 pins used to make every open tab re-run the three
+  // workspace-wide queries 20 times. One refresh shortly after the burst, and a hidden
+  // tab waits until it's looked at again.
+  const refreshTimer = useRef<number | undefined>(undefined);
+  const refreshPending = useRef(false);
+  const runRefresh = useCallback(() => {
+    if (!workspaceId || !refreshPending.current) return;
+    if (document.hidden) return;
+    refreshPending.current = false;
     void invalidateTicketsAndDashboard(cache, workspaceId);
     void cache.invalidateQueries({ queryKey: qk.activity(workspaceId) });
   }, [cache, workspaceId]);
+  const refreshTicketSurfaces = useCallback(() => {
+    refreshPending.current = true;
+    window.clearTimeout(refreshTimer.current);
+    refreshTimer.current = window.setTimeout(runRefresh, 1500);
+  }, [runRefresh]);
+  useEffect(() => {
+    document.addEventListener("visibilitychange", runRefresh);
+    return () => {
+      document.removeEventListener("visibilitychange", runRefresh);
+      window.clearTimeout(refreshTimer.current);
+    };
+  }, [runRefresh]);
   useWSEvent("comment.created", refreshTicketSurfaces);
   useWSEvent("comment.updated", refreshTicketSurfaces);
   useWSEvent("comment.deleted", refreshTicketSurfaces);

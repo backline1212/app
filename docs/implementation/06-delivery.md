@@ -5375,3 +5375,7 @@ database migration, or production deployment is claimed.
   Tickets scrolled 250px → Clients (0) → Back (250); iPhone 13 review link → no sign-in
   question, "Open website review" shown.
 - web lint/typecheck.
+# 2026-11-08: Hot-path load (TDR-0238)
+
+- ruff, mypy (241 files), web lint/typecheck.
+- Not verified here: production timings; the worker's Docker build target.
