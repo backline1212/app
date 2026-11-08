@@ -28,6 +28,8 @@ def _make_client(region: str | None = None) -> S3Client:
             connect_timeout=5,
             read_timeout=30,
             retries={"total_max_attempts": 2},
+            # The shared client serves every upload/download thread at once.
+            max_pool_connections=32,
         ),
     )
 
@@ -95,9 +97,10 @@ _signing_lock = threading.Lock()
 
 
 def _presign_client() -> S3Client:
-    """One reused client for URL signing - generate_presigned_url is local computation
-    and thread-safe, while building a boto3 client is the expensive part (list_assets
-    used to build up to 50 of them per request)."""
+    """One reused client for URL signing and object reads/writes - boto3 clients are
+    thread-safe, and building one (plus a fresh TLS connection to storage) is the
+    expensive part: list_assets used to build up to 50 per request, and every snapshot
+    store or file view paid a new handshake."""
     global _signing_client
     if _signing_client is None:
         with _signing_lock:
@@ -162,7 +165,7 @@ async def upload_bytes(key: str, data: bytes, content_type: str) -> None:
     settings = get_settings()
 
     def _upload() -> None:
-        client = _make_client()
+        client = _presign_client()
         client.put_object(
             Bucket=settings.r2_bucket_name, Key=key, Body=data, ContentType=content_type
         )
@@ -176,7 +179,7 @@ async def head_upload(key: str) -> tuple[str, int] | None:
 
     def _head() -> tuple[str, int] | None:
         try:
-            result = _make_client().head_object(Bucket=settings.r2_bucket_name, Key=key)
+            result = _presign_client().head_object(Bucket=settings.r2_bucket_name, Key=key)
         except ClientError as exc:
             if exc.response.get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound"):
                 return None
@@ -193,7 +196,7 @@ async def download_bytes(key: str) -> bytes:
     settings = get_settings()
 
     def _download() -> bytes:
-        client = _make_client()
+        client = _presign_client()
         response = client.get_object(Bucket=settings.r2_bucket_name, Key=key)
         body: bytes = response["Body"].read()
         return body
@@ -208,7 +211,7 @@ async def download_bytes_limited(key: str, max_bytes: int) -> bytes:
     settings = get_settings()
 
     def _download() -> bytes:
-        response = _make_client().get_object(Bucket=settings.r2_bucket_name, Key=key)
+        response = _presign_client().get_object(Bucket=settings.r2_bucket_name, Key=key)
         body = response["Body"]
         try:
             size = int(response["ContentLength"])
@@ -238,7 +241,7 @@ async def list_object_keys(prefixes: list[str]) -> list[str]:
     settings = get_settings()
 
     def _list() -> list[str]:
-        client = _make_client()
+        client = _presign_client()
         keys: set[str] = set()
         paginator = client.get_paginator("list_objects_v2")
         for prefix in prefixes:
@@ -255,6 +258,6 @@ async def delete_object(key: str) -> None:
     _signed_cache.pop(key, None)
 
     def _delete() -> None:
-        _make_client().delete_object(Bucket=settings.r2_bucket_name, Key=key)
+        _presign_client().delete_object(Bucket=settings.r2_bucket_name, Key=key)
 
     await asyncio.to_thread(_delete)

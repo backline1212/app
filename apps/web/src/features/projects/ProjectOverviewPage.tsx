@@ -1,4 +1,5 @@
 import type { Schemas } from "@backline/types";
+import { useConnectionStore } from "../../stores/connectionStore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type CSSProperties, type KeyboardEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
@@ -274,6 +275,9 @@ export function ProjectOverviewPage() {
     queryKey: qk.projectComments(projectId ?? ""),
     queryFn: () => boardApi.listProjectComments(projectId!),
     enabled: !!projectId,
+    // The live connection already merges every comment change into this list, so only
+    // re-download it (it can be several MB) on tab focus when that connection is down.
+    refetchOnWindowFocus: () => useConnectionStore.getState().status !== "connected",
   });
   useDocumentTitle([projectQuery.data?.name, "Review"]);
   const hasProxyCandidate = canvasSession !== null;

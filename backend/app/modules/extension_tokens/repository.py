@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from bson import ObjectId
@@ -93,8 +93,18 @@ class ExtensionTokenRepository:
         # workspace-scope-exempt: token_id comes from find_by_hash's own result
         # (core/session.py's _resolve_extension_session), already the verified token's
         # own _id - nothing to additionally scope by workspace_id here.
+        # At most once a minute: every extension request authenticates with the token, and
+        # an unconditional write per request was pure write load for a "last used" label.
+        now = datetime.now(UTC)
         await self.db.extension_tokens.update_one(
-            {"_id": token_id}, {"$set": {"last_used_at": datetime.now(UTC)}}
+            {
+                "_id": token_id,
+                "$or": [
+                    {"last_used_at": None},
+                    {"last_used_at": {"$lt": now - timedelta(minutes=1)}},
+                ],
+            },
+            {"$set": {"last_used_at": now}},
         )
 
     async def revoke(self, token_id: ObjectId) -> None:

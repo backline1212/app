@@ -10,5 +10,6 @@ export function ShotImage({ className, ...props }: ImgHTMLAttributes<HTMLImageEl
   if (failed) {
     return <span className={`bl-shot-missing ${className ?? ""}`} role="img" aria-label="Screenshot unavailable">Screenshot unavailable</span>;
   }
-  return <img {...props} className={className} onError={() => setFailed(true)} />;
+  // Lazy by default: a board of 200 cards used to download every full-size screenshot on open.
+  return <img loading="lazy" decoding="async" {...props} className={className} onError={() => setFailed(true)} />;
 }
