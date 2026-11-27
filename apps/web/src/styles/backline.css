@@ -3569,7 +3569,7 @@ button.bl-cl-main:hover .bl-cl-name{text-decoration:underline}
 .bl-wait-text{display:-webkit-box;margin:0 0 8px;overflow:hidden;color:var(--ink-2);font-size:13px;line-height:1.45;overflow-wrap:anywhere;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .bl-wait-where{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:0;color:var(--ink-4);font:10.5px var(--mono)}
 .bl-wait-where>i{width:8px;height:8px;flex:none;border-radius:1px;margin-right:2px}
-.bl-wait-where>a,.bl-wait-where>span:not([aria-hidden]){max-width:100%;overflow:hidden;padding:2px 4px;border-radius:20px;color:var(--ink-3);text-overflow:ellipsis;white-space:nowrap}
+.bl-wait-where>a,.bl-wait-where>span:not([aria-hidden]){display:inline-flex;min-width:0;max-width:100%;align-items:center;padding:2px 4px;border-radius:20px;color:var(--ink-3);overflow-wrap:anywhere}
 .bl-wait-where>a:hover,.bl-wait-where>a:focus-visible{background:var(--mint-tint);color:var(--mint-deep);text-decoration:underline}
 @media(max-width:900px){
   .bl-wait-list{grid-template-columns:1fr}
@@ -3579,4 +3579,7 @@ button.bl-cl-main:hover .bl-cl-name{text-decoration:underline}
 
 /* Account > Security. */
 .bl-acct-others{align-self:flex-start;margin-top:12px}
+@media(max-width:900px){
+  .bl-filter-bar .bl-tool-right .bl-dropdown:last-child{flex:none}
+}
 

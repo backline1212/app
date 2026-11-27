@@ -15,11 +15,10 @@ import { useDraftNavigationGuard } from "../../../lib/draft-navigation";
 
 type Shot = Schemas["AttachmentIn"] & { preview: string };
 
-// A pasted screenshot arrives as "image.png"; name each one so they can be told apart.
-function namedPaste(file: File, index: number) {
+// A pasted screenshot arrives as "image.png"; number each one so they can be told apart.
+function namedPaste(file: File, number: number) {
   if (!/^image\.\w+$/i.test(file.name)) return file;
-  const stamp = new Date().toISOString().slice(0, 19).replace("T", " ").replace(/:/g, "-");
-  return new File([file], `Pasted ${stamp}${index ? ` (${index + 1})` : ""}.${file.type.split("/")[1] ?? "png"}`, { type: file.type });
+  return new File([file], `Pasted screenshot ${number}.${file.type.split("/")[1] ?? "png"}`, { type: file.type });
 }
 
 function pageLabel(page: { title: string | null; url_normalized: string }) {
@@ -122,7 +121,7 @@ export function NewTicket({ workspace, members, onClose, initialProjectId = "", 
     if (typing && event.clipboardData?.getData("text/plain")) return;
     event.preventDefault();
     if (uploadBusy.current) { setUploadError("Wait for the current upload to finish, then paste again."); return; }
-    void addShots(images.map(namedPaste));
+    void addShots(images.map((file, index) => namedPaste(file, shotsRef.current.length + index + 1)));
   };
   useEffect(() => {
     const onPaste = (event: ClipboardEvent) => pasteRef.current(event);
