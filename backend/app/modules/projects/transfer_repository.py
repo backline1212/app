@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -109,6 +110,27 @@ class ProjectTransferRepository:
             session=session,
         )
         return {str(doc["key"]): int(doc["byte_size"]) async for doc in cursor}
+
+    async def hand_over_usage(
+        self,
+        source_id: str,
+        target_id: str,
+        project_id: str,
+        prefix: str,
+        *,
+        session: AsyncIOMotorClientSession,
+    ) -> None:
+        """Files whose path does not name the workspace stay where they are; only the
+        workspace their size counts against changes."""
+        await self.db.storage_objects.update_many(
+            {
+                "workspace_id": source_id,
+                "project_id": project_id,
+                "key": {"$regex": f"^{re.escape(prefix)}"},
+            },
+            {"$set": {"workspace_id": target_id}},
+            session=session,
+        )
 
     async def forget_cleanups(
         self,

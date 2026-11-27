@@ -19,6 +19,8 @@ only choices were archive, delete, or recreate it by hand and lose its history.
   retried by `resume_project_transfer_cleanup_job`.
 - The destination's active-project limit (for an active project) and storage allowance
   apply. An archived project arrives archived.
+- Page snapshots are stored by project, not workspace: the objects stay where they are
+  and their storage usage changes owner.
 - Moves: project, pages, comments and replies, revisions, diffs, recovery logs, assets,
   uploads, browser renders, deployments, share links and client guest sessions.
 - Changes: tickets take new numbers from the destination's sequence; assignees and

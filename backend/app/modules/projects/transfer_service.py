@@ -214,15 +214,25 @@ async def transfer_project(
                 await require_within_plan_limit(db, target_id, "projects", session=session)
             ledger = await repo.stored_bytes(workspace_id, project_id, session=session)
             arriving = [(project_id, new, ledger[old]) for old, new in moves if old in ledger]
+            # Page snapshots are keyed by project alone: they stay put and change owner.
+            snapshots = f"snapshots/{project_id}/"
+            staying = {key: size for key, size in ledger.items() if key.startswith(snapshots)}
             await _require_storage_room(
-                db, target_id, sum(size for _, _, size in arriving), session=session
+                db,
+                target_id,
+                sum(size for _, _, size in arriving) + sum(staying.values()),
+                session=session,
             )
             quota = StorageQuotaRepository(db)
             await quota.import_existing_many(target_id, arriving, session=session)
+            await repo.hand_over_usage(
+                workspace_id, target_id, project_id, snapshots, session=session
+            )
             # Reservations whose upload never arrived have nothing to move or delete.
+            listed = set(old_keys)
             await quota.release_missing_objects(
                 workspace_id,
-                [key for key in ledger if key not in set(old_keys)],
+                [key for key in ledger if key not in listed and key not in staying],
                 session=session,
             )
             renumbered = await repo.move_graph(
