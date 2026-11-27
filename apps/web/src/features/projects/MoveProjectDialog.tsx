@@ -36,7 +36,7 @@ export function MoveProjectDialog({ project, onClose }: { project: api.ProjectOu
   const close = () => { if (!move.isPending) onClose(); };
 
   return <Dialog title={`Move “${project.name}” to another workspace`} onClose={close}>
-    <form className="bl-compact-form" onSubmit={(event) => { event.preventDefault(); if (targetId && nameMatches && !move.isPending) move.mutate(); }}>
+    <form className="bl-compact-form bl-move-form" onSubmit={(event) => { event.preventDefault(); if (targetId && nameMatches && !move.isPending) move.mutate(); }}>
       {workspaces.isLoading && <p role="status">Loading your workspaces…</p>}
       {workspaces.error && <p role="alert" className="bl-error">{workspaces.error.message}</p>}
       {workspaces.data && destinations.length === 0
@@ -59,7 +59,7 @@ export function MoveProjectDialog({ project, onClose }: { project: api.ProjectOu
               <li>Notifications about it are cleared. Past activity stays in this workspace.</li>
             </ul>
           </div>
-          <label>Type <strong>{project.name}</strong> to confirm
+          <label><span>Type <strong>{project.name}</strong> to confirm</span>
             <input className="bl-input" autoComplete="off" disabled={move.isPending} value={typedName} onChange={(event) => setTypedName(event.target.value)} />
           </label>
         </>}
