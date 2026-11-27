@@ -12,6 +12,8 @@ import { EmptyArt } from "../../components/illustrations";
 import { invalidateProjectMutation, qk } from "../../lib/query-keys";
 import { ApiError } from "../../lib/api-client";
 import { useDocumentTitle } from "../../lib/use-document-title";
+import { pastelColor } from "../../lib/pastel-color";
+import { shortAgo } from "../../lib/time";
 import { useOnClickOutside } from "../../lib/use-click-outside";
 import { useFloatingPosition } from "../../lib/use-floating-position";
 import { listProjects, updateProject, type ProjectOut } from "../projects/api";
@@ -91,7 +93,7 @@ export function ClientsPage() {
               const lastActivity = client.stats?.last_activity_at;
               return (
                 <li key={client.id} id={`client-${client.id}`} className={`bl-cl-row${client.id === targetId ? " is-target" : ""}`}>
-                  <span className="bl-cl-avatar" style={{ background: avatarColor(client.id) }} aria-hidden="true">{nameInitials(client.contact_name || client.name)}</span>
+                  <span className="bl-cl-avatar" style={{ background: pastelColor(client.id) }} aria-hidden="true">{nameInitials(client.contact_name || client.name)}</span>
                   <button type="button" className="bl-cl-main" onClick={() => setEdit(client)}>
                     <span className="bl-cl-name">{client.name}</span>
                     <span className="bl-cl-contact">{client.contact_name || "No contact"}{client.email ? ` · ${client.email}` : ""}</span>
@@ -136,27 +138,8 @@ export function ClientsPage() {
   </main>;
 }
 
-// The design's pastel person marks and its square colour per project type.
-const AVATAR_COLORS = ["#C9CFC9", "#F3D9C6", "#F1DCE0", "#C9E4F5", "#D8E9D2", "#DCD4EF", "#FBF1D6"];
+// The design's square colour per project type.
 const PROJECT_TYPE_COLORS: Record<string, string> = { website: "#5B7FA6", image: "#E8B833", pdf: "#C2542E" };
-
-function avatarColor(seed: string) {
-  let hash = 0;
-  for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
-
-/** "18m ago": the row's activity column is too narrow for timeAgo's long form. */
-function shortAgo(iso: string) {
-  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return days < 365 ? `${Math.floor(days / 30)}mo ago` : `${Math.floor(days / 365)}y ago`;
-}
 
 function ClientMenu({ name, onEdit, onNewProject, onAttach }: { name: string; onEdit: () => void; onNewProject: () => void; onAttach: () => void }) {
   const [open, setOpen] = useState(false);

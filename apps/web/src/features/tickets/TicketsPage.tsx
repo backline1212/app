@@ -211,7 +211,7 @@ export function TicketsPage() {
         </button>
       </header>
 
-      <div className="bl-tickets-bar">
+      <div className="bl-filter-bar">
         <div className="bl-segment bl-ticket-filters" role="group" aria-label="Filter tickets">
           {tabs.map((tab) => (
             <button key={tab.key} type="button" aria-pressed={view === tab.key} onClick={() => openTab(tab.key)}>

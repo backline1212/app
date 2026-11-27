@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog } from "../../components/Dialog";
 import { useToast } from "../../components/Toast";
+import { timeAgo } from "../../lib/time";
 import { useAuth } from "./AuthContext";
 import { DeleteAccountSection } from "./DeleteAccountSection";
-import { changePassword, confirmEmailChange, listSessions, requestEmailChange, updateProfile, type SessionOut, type UserUpdateRequest } from "./api";
+import { changePassword, confirmEmailChange, listSessions, requestEmailChange, revokeSession, updateProfile, type SessionOut, type UserUpdateRequest } from "./api";
 
 type Tab = "profile" | "notifications" | "security";
 
@@ -41,6 +42,10 @@ function resizePhoto(file: File, size = 256): Promise<string> {
     };
     img.src = url;
   });
+}
+
+function deviceName(session: SessionOut) {
+  return `${session.os || "Unknown device"} · ${session.browser || "Unknown browser"}`;
 }
 
 function initials(name: string) {
@@ -93,6 +98,28 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
     if (tab !== "security" || sessions) return;
     listSessions().then(setSessions).catch(() => setSessionError(true));
   }, [tab, sessions]);
+
+  // This device first, then the most recently used.
+  const devices = [...(sessions ?? [])].sort((a, b) => Number(b.current) - Number(a.current) || b.last_active_at.localeCompare(a.last_active_at));
+  const others = devices.filter((s) => !s.current);
+  // "Every other device" needs to know which one this is.
+  const canSignOutOthers = devices.some((s) => s.current) && others.length > 1;
+  // The session id being signed out, or "others".
+  const [revoking, setRevoking] = useState<string | null>(null);
+
+  async function signOutDevices(key: string, targets: SessionOut[], done: string) {
+    if (revoking) return;
+    setRevoking(key);
+    const results = await Promise.allSettled(targets.map((s) => revokeSession(s.id)));
+    if (results.some((r) => r.status === "rejected")) toast("Could not sign out. Check the list and try again.", "error");
+    else toast(done);
+    try {
+      setSessions(await listSessions());
+    } catch {
+      setSessionError(true);
+    }
+    setRevoking(null);
+  }
 
   const shownPhoto = photo === undefined ? user?.avatar_url : photo;
   const displayName = `${first} ${last}`.trim() || user?.name || "";
@@ -378,24 +405,31 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
               ) : !sessions ? (
                 <p className="bl-acct-hint">Loading…</p>
               ) : (
-                sessions.map((s) => (
-                  <div className="bl-acct-row" key={s.id}>
-                    <span>
-                      <b>
-                        {s.os || "Unknown device"} · {s.browser || "Unknown browser"}
-                      </b>
-                      <small>
-                        {s.ip_address || "Unknown IP"} · signed in {new Date(s.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
-                      </small>
-                    </span>
-                    {s.current && (
-                      <span className="bl-pill-select bl-st-resolved bl-acct-here">
-                        <i aria-hidden="true" />
-                        This device
+                <>
+                  {devices.map((s) => (
+                    <div className="bl-acct-row" key={s.id}>
+                      <span title={`${s.ip_address || "Unknown IP"} · signed in ${new Date(s.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`}>
+                        <b>{deviceName(s)}</b>
+                        <small>{s.current ? "Active now, current session." : `Last active ${timeAgo(s.last_active_at)}.`}</small>
                       </span>
-                    )}
-                  </div>
-                ))
+                      {s.current ? (
+                        <span className="bl-pill-select bl-st-resolved bl-acct-here">
+                          <i aria-hidden="true" />
+                          This device
+                        </span>
+                      ) : (
+                        <button type="button" className="bl-quiet bl-acct-small" aria-label={`Sign out ${deviceName(s)}`} disabled={revoking !== null} onClick={() => void signOutDevices(s.id, [s], `Signed out of ${deviceName(s)}.`)}>
+                          {revoking === s.id ? "Signing out…" : "Sign out"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {canSignOutOthers && (
+                    <button type="button" className="bl-quiet bl-acct-small bl-acct-others" disabled={revoking !== null} onClick={() => void signOutDevices("others", others, "Signed out of every other device.")}>
+                      {revoking === "others" ? "Signing out…" : "Sign out every other device"}
+                    </button>
+                  )}
+                </>
               )}
               <p className="bl-acct-hint">Up to 5 devices stay signed in; signing in on a sixth signs out the one used least recently.</p>
               <DeleteAccountSection />

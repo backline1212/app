@@ -150,7 +150,13 @@ class DashboardRepository:
             {
                 "$set": {
                     "_due": {"$ifNull": ["$due_at", datetime(9999, 1, 1, tzinfo=UTC)]},
-                    "_priority": {"$indexOfArray": [["high", "medium", "low"], "$priority"]},
+                    # A comment stored without a priority counts as medium.
+                    "_priority": {
+                        "$indexOfArray": [
+                            ["high", "medium", "low"],
+                            {"$ifNull": ["$priority", "medium"]},
+                        ]
+                    },
                     # Finished work sinks below open work whatever the chosen order.
                     "_closed": {"$in": ["$status", ["resolved", "wont_fix"]]},
                     # "\uffff" sorts after every real value, so untagged tickets go last.
@@ -169,6 +175,7 @@ class DashboardRepository:
             "oldest": {"created_at": 1, "_id": 1},
             "due": {"_due": 1, "_id": 1},
             "priority": {"_priority": 1, "_id": 1},
+            "urgent": {"_priority": 1, "created_at": -1, "_id": -1},
             "status": {"_status": 1, "_id": 1},
             "project": {"_project.name": 1, "_id": 1},
             "assignee": {"_assignee_name": 1, "_id": 1},
