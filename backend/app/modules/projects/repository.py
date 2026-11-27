@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -27,6 +27,21 @@ EXCLUDE_UNTOUCHED_SAMPLE: dict[str, Any] = {
 
 def is_untouched_sample(project: dict[str, Any]) -> bool:
     return bool(project.get("is_sample")) and project_start_url(project) == SAMPLE_PROJECT_ORIGIN
+
+
+# A move to another workspace holds the project this long at most; a lock older than this
+# was left by a crashed request and no longer blocks anything (TDR-0243).
+TRANSFER_LOCK_TTL = timedelta(minutes=15)
+
+
+def transfer_in_progress(project: dict[str, Any]) -> bool:
+    transfer = project.get("transfer")
+    if not transfer:
+        return False
+    started: datetime = transfer["started_at"]
+    if started.tzinfo is None:
+        started = started.replace(tzinfo=UTC)
+    return started > datetime.now(UTC) - TRANSFER_LOCK_TTL
 
 
 class ProjectRepository:

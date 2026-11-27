@@ -252,6 +252,20 @@ async def list_object_keys(prefixes: list[str]) -> list[str]:
     return await asyncio.to_thread(_list)
 
 
+async def copy_object(source_key: str, key: str) -> None:
+    """Server-side copy within the bucket; content type and metadata come along."""
+    settings = get_settings()
+
+    def _copy() -> None:
+        _presign_client().copy_object(
+            Bucket=settings.r2_bucket_name,
+            Key=key,
+            CopySource={"Bucket": settings.r2_bucket_name, "Key": source_key},
+        )
+
+    await asyncio.to_thread(_copy)
+
+
 async def delete_object(key: str) -> None:
     """Idempotently remove one object; S3 DELETE succeeds when the key is absent."""
     settings = get_settings()

@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
@@ -69,6 +69,7 @@ class ObjectGcRepository:
         project_id: str,
         correlation_id: str,
         keys: list[str],
+        session: AsyncIOMotorClientSession | None = None,
     ) -> None:
         now = datetime.now(UTC)
         bucket = get_settings().r2_bucket_name
@@ -91,6 +92,7 @@ class ObjectGcRepository:
                     }
                 },
                 upsert=True,
+                session=session,
             )
 
     async def claim_next(

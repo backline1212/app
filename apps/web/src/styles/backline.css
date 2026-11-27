@@ -3583,3 +3583,8 @@ button.bl-cl-main:hover .bl-cl-name{text-decoration:underline}
   .bl-filter-bar .bl-tool-right .bl-dropdown:last-child{flex:none}
 }
 
+/* Move project dialog. */
+.bl-move-notes{padding:10px 12px;border:1px solid var(--line-soft);border-radius:4px;background:var(--paper);color:var(--ink-2);font-size:12px;line-height:1.55}
+.bl-move-notes p{margin:0 0 4px}
+.bl-move-notes ul{margin:0;padding-left:18px;list-style:disc}
+

@@ -39,6 +39,8 @@ const EVENT_PHRASES: Record<string, string> = {
   "project.settings_updated": "changed the settings of",
   "project.archived": "archived the project",
   "project.restored": "restored the project",
+  "project.transferred_in": "moved a project into this workspace",
+  "project.transferred_out": "moved a project to another workspace",
   "project.duplicated": "duplicated the project",
   "client.created": "added the client",
   "client.updated": "updated the client",

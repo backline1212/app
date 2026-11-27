@@ -966,6 +966,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer Project
+         * @description Moves a project, archived or not, to another workspace (TDR-0243).
+         */
+        post: operations["transfer_project_api_v1_projects__project_id__transfer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/export": {
         parameters: {
             query?: never;
@@ -5364,6 +5384,32 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** ProjectTransfer */
+        ProjectTransfer: {
+            /** Target Workspace Id */
+            target_workspace_id: string;
+            /** Project Name */
+            project_name: string;
+        };
+        /** ProjectTransferOut */
+        ProjectTransferOut: {
+            /** Project Id */
+            project_id: string;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Workspace Slug */
+            workspace_slug: string;
+            /** Workspace Name */
+            workspace_name: string;
+            /** Archived */
+            archived: boolean;
+            /** Tickets Renumbered */
+            tickets_renumbered: number;
+            /** Files Moved */
+            files_moved: number;
+            /** Cleanup Pending */
+            cleanup_pending: boolean;
+        };
         /** ProjectUpdate */
         ProjectUpdate: {
             /** Expected Metadata Version */
@@ -8357,6 +8403,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectHardDeleteResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfer_project_api_v1_projects__project_id__transfer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectTransfer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectTransferOut"];
                 };
             };
             /** @description Validation Error */

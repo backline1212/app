@@ -32,7 +32,11 @@ from app.modules.clients.schemas import ClientCreate
 from app.modules.pages.repository import PageRepository
 from app.modules.projects import events as project_events
 from app.modules.projects import preview_service
-from app.modules.projects.repository import ProjectRepository, is_untouched_sample
+from app.modules.projects.repository import (
+    ProjectRepository,
+    is_untouched_sample,
+    transfer_in_progress,
+)
 from app.modules.projects.schemas import (
     FileApprovalSummary,
     PreviewImageOut,
@@ -417,6 +421,8 @@ async def get_project(
         check_project_action(doc, viewer, "project:view")
     if doc.get("hard_delete_status") == "deleting":
         raise ConflictError("Permanent deletion is in progress for this project.")
+    if transfer_in_progress(doc):
+        raise ConflictError("This project is being moved to another workspace. Try again shortly.")
     if with_preview:
         return (await preview_service.with_previews(db, [doc], [_project_out(doc, viewer)]))[0]
     return _project_out(doc, viewer)

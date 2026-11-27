@@ -342,6 +342,24 @@ class ProjectHardDeleteConfirm(BaseModel):
     acknowledge_permanent_deletion: Literal[True]
 
 
+class ProjectTransfer(BaseModel):
+    target_workspace_id: str = Field(min_length=1, max_length=64)
+    # Typed by the person moving it, like permanent deletion.
+    project_name: Trimmed = Field(min_length=1, max_length=200)
+
+
+class ProjectTransferOut(BaseModel):
+    project_id: str
+    workspace_id: str
+    workspace_slug: str
+    workspace_name: str
+    archived: bool
+    tickets_renumbered: int
+    files_moved: int
+    # Old copies of the files are still waiting to be deleted; a background job retries.
+    cleanup_pending: bool
+
+
 class ProjectHardDeleteResult(BaseModel):
     correlation_id: str
     status: Literal["deleted"]

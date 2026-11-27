@@ -192,3 +192,7 @@ export function setProjectMemberRole(projectId: string, userId: string, role: Sc
 export function removeProjectMember(projectId: string, userId: string) {
   return apiFetch<void>(`/api/v1/projects/${projectId}/access/members/${userId}`, { method: "DELETE" });
 }
+
+export function transferProject(projectId: string, body: Schemas["ProjectTransfer"]) {
+  return apiFetch<Schemas["ProjectTransferOut"]>(`/api/v1/projects/${projectId}/transfer`, { method: "POST", body: JSON.stringify(body) });
+}

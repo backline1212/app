@@ -2916,6 +2916,64 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/transfer": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Transfer Project",
+        "description": "Moves a project, archived or not, to another workspace (TDR-0243).",
+        "operationId": "transfer_project_api_v1_projects__project_id__transfer_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectTransfer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectTransferOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/export": {
       "get": {
         "tags": [
@@ -16659,6 +16717,76 @@
           "last_activity_at"
         ],
         "title": "ProjectStatsOut"
+      },
+      "ProjectTransfer": {
+        "properties": {
+          "target_workspace_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Target Workspace Id"
+          },
+          "project_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Project Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_workspace_id",
+          "project_name"
+        ],
+        "title": "ProjectTransfer"
+      },
+      "ProjectTransferOut": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "workspace_slug": {
+            "type": "string",
+            "title": "Workspace Slug"
+          },
+          "workspace_name": {
+            "type": "string",
+            "title": "Workspace Name"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "tickets_renumbered": {
+            "type": "integer",
+            "title": "Tickets Renumbered"
+          },
+          "files_moved": {
+            "type": "integer",
+            "title": "Files Moved"
+          },
+          "cleanup_pending": {
+            "type": "boolean",
+            "title": "Cleanup Pending"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "workspace_slug",
+          "workspace_name",
+          "archived",
+          "tickets_renumbered",
+          "files_moved",
+          "cleanup_pending"
+        ],
+        "title": "ProjectTransferOut"
       },
       "ProjectUpdate": {
         "properties": {

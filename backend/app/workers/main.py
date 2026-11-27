@@ -41,7 +41,10 @@ from app.workers.snapshot_delivery import (
     deliver_snapshot_revision_job,
     sweep_snapshot_deliveries_job,
 )
-from app.workers.storage_gc import resume_project_hard_delete_job
+from app.workers.storage_gc import (
+    resume_project_hard_delete_job,
+    resume_project_transfer_cleanup_job,
+)
 from app.workers.storage_quota import (
     reconcile_storage_reservation_job,
     sweep_storage_reservations_job,
@@ -76,6 +79,7 @@ class WorkerSettings:
         send_member_notification_email_job,
         sweep_notification_emails_job,
         resume_project_hard_delete_job,
+        resume_project_transfer_cleanup_job,
         # Browser jobs wait for a free slot (browser_slots.py) by being deferred, so
         # they get many more tries than the default 5.
         func(render_browser_snapshot_job, max_tries=40),

@@ -107,6 +107,21 @@ class StorageQuotaRepository:
             },
         )
 
+    async def release_missing_objects(
+        self, workspace_id: str, keys: list[str], *, session: AsyncIOMotorClientSession
+    ) -> None:
+        """Frees reservations for files that never reached storage."""
+        if not keys:
+            return
+        await self.db.storage_objects.update_many(
+            {"workspace_id": workspace_id, "_id": {"$in": [object_id(key) for key in keys]}},
+            {
+                "$set": {"state": "deleted", "updated_at": datetime.now(UTC)},
+                "$unset": {"verify_after": ""},
+            },
+            session=session,
+        )
+
     async def due(self, limit: int = 50) -> list[dict[str, Any]]:
         # workspace-scope-exempt: internal reservation scheduler; jobs recheck their
         # workspace-scoped row before HEAD. No tenant content is returned to callers.

@@ -27,6 +27,8 @@ PERMISSIONS: dict[str, frozenset[Role]] = {
     "member:role_change": frozenset({Role.OWNER, Role.ADMIN}),
     "project:manage": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
     "project:hard_delete": frozenset({Role.OWNER, Role.ADMIN}),
+    # TDR-0243: also requires owner or admin in the destination workspace.
+    "project:transfer": frozenset({Role.OWNER, Role.ADMIN}),
     "share_link:manage": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
     "share_link:view": frozenset({Role.OWNER, Role.ADMIN, Role.MEMBER}),
     "integration:manage": frozenset({Role.OWNER, Role.ADMIN}),
