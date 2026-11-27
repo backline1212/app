@@ -3,7 +3,6 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useMemo, useRef, useState } from "react";
 import { projectCan } from "../../lib/project-roles";
 import { getAccessContextRevision } from "../../lib/auth-token";
-import { downloadCsv } from "../../lib/csv";
 import { invalidateTicketsAndDashboard, qk } from "../../lib/query-keys";
 import { updateComment } from "../board/api";
 import { listProjects } from "../projects/api";
@@ -24,23 +23,26 @@ const ALLOWED: Record<string, readonly string[]> = {
   tag: TAGS,
 };
 
-export function useTickets(workspaceId: string, params: URLSearchParams, setParams: (p: URLSearchParams) => void) {
+export function useTickets(workspaceId: string, userId: string | undefined, params: URLSearchParams, setParams: (p: URLSearchParams) => void) {
   const cache = useQueryClient();
   const { toast } = useToast();
-  const [exportError, setExportError] = useState("");
-  const [exporting, setExporting] = useState(false);
   const editing = useRef(false);
   const [updateWarning, setUpdateWarning] = useState("");
 
   const requestedDisplay = params.get("display") ?? "list";
   const display = ["list", "board", "table", "calendar"].includes(requestedDisplay) ? requestedDisplay : "list";
   const group = params.get("group") ?? "none";
-  const sort = params.get("sort") ?? "newest";
-  const assignees = params.getAll("assignee");
+  // The design lists by due date unless another order is picked.
+  const requestedSort = params.get("sort") ?? "due";
+  const sort = ALLOWED.sort.includes(requestedSort) ? requestedSort : "due";
+  // "Assigned to me" is its own page: its other tabs (?mine=1) stay narrowed to the
+  // signed-in person, and it offers no "Show work for" picker.
+  const mine = params.get("view") === "mine" || params.get("mine") === "1";
+  const assignees = mine ? [] : params.getAll("assignee");
   const offset = Math.max(0, Number(params.get("offset")) || 0);
 
   const request = new URLSearchParams();
-  for (const key of ["search", "status", "project_id", "priority", "tag", "view", "sort"]) {
+  for (const key of ["search", "status", "project_id", "priority", "tag", "view"]) {
     const value = params.get(key);
     if (value && (!ALLOWED[key] || ALLOWED[key].includes(value))) request.set(key, value);
   }
@@ -48,6 +50,8 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
   if (params.get("open") === "1" && !params.get("status")) request.set("open_only", "true");
   // "Show work for" can pick several people; the API matches any of them.
   for (const person of assignees) request.append("assignees", person);
+  if (mine && userId && params.get("view") !== "mine") request.append("assignees", userId);
+  request.set("sort", sort);
   request.set("offset", String(offset));
   request.set("limit", "50");
 
@@ -71,6 +75,31 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     queryKey: qk.dashboard(workspaceId), 
     queryFn: () => api.getDashboard(workspaceId) 
   });
+
+  // How many tickets a tab would hold: the total of a one-row page.
+  function countRequest(view: "reply" | "overdue", base: URLSearchParams) {
+    const next = new URLSearchParams(base);
+    next.set("view", view);
+    next.set("offset", "0");
+    next.set("limit", "1");
+    return next;
+  }
+  function useCount(countParams: URLSearchParams, enabled: boolean) {
+    const key = countParams.toString();
+    return useQuery({
+      queryKey: qk.ticketsList(workspaceId, key),
+      queryFn: () => api.listTickets(workspaceId, countParams),
+      select: (page) => page.total,
+      enabled,
+    }).data;
+  }
+  const myScope = new URLSearchParams(userId ? { assignees: userId } : {});
+  const myReplyCount = useCount(countRequest("reply", myScope), mine && Boolean(userId));
+  const myOverdueCount = useCount(countRequest("overdue", myScope), mine && Boolean(userId));
+  // The header's overdue figure follows the filters in force, whichever tab is open.
+  const filtered = new URLSearchParams(request);
+  if (mine && userId) filtered.set("assignees", userId);
+  const overdueCount = useCount(countRequest("overdue", filtered), !mine || Boolean(userId));
 
   const canEditTicket = (ticket: Pick<api.Ticket, "project_id">) => {
     const project = projects.data?.find(item => item.id === ticket.project_id);
@@ -172,41 +201,6 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     return [...result];
   }, [tickets, group, members.data]);
 
-  async function exportAll() {
-    setExporting(true);
-    setExportError("");
-    try {
-      const rows: api.Ticket[] = [];
-      for (let start = 0; ; start += 100) {
-        const p = new URLSearchParams(request);
-        p.set("offset", String(start));
-        p.set("limit", "100");
-        const page = await api.listTickets(workspaceId, p);
-        rows.push(...page.items);
-        if (start + page.items.length >= page.total || !page.items.length) break;
-      }
-      downloadCsv(
-        [
-          ["Project", "Ticket", "Status", "Priority", "Due", "Tags", "Assignees"],
-          ...rows.map((t) => [
-            t.project_name,
-            t.body,
-            STATUS_LABELS[t.status],
-            t.priority,
-            t.due_at?.slice(0, 10),
-            t.tags?.join(", "),
-            t.assignee_ids?.map((id) => members.data?.find((m) => m.user_id === id)?.name ?? id).join(", "),
-          ]),
-        ],
-        "backline-tickets.csv",
-      );
-    } catch (error) {
-      setExportError(error instanceof Error ? error.message : "Could not export tickets.");
-    } finally {
-      setExporting(false);
-    }
-  }
-
   return {
     query,
     projects,
@@ -215,9 +209,10 @@ export function useTickets(workspaceId: string, params: URLSearchParams, setPara
     update: { ...update, mutate, canEdit: canEditTicket },
     updateWarning,
     canCreate: !projects.isError && Boolean(projects.data?.some(project => !project.archived_at && projectCan(project, "edit"))),
-    exportAll,
-    exporting,
-    exportError,
+    mine,
+    myReplyCount,
+    myOverdueCount,
+    overdueCount,
     tickets,
     groups,
     set,

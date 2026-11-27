@@ -1,54 +1,41 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import type { Schemas } from "@backline/types";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { Dialog } from "../../components/Dialog";
 import { nameInitials } from "../../lib/initials";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { useToast } from "../../components/Toast";
-import { PlusIcon, SearchIcon } from "../../components/icons";
+import { PlusIcon } from "../../components/icons";
 import { EmptyArt } from "../../components/illustrations";
 import { invalidateProjectMutation, qk } from "../../lib/query-keys";
 import { ApiError } from "../../lib/api-client";
-import { timeAgo } from "../../lib/time";
 import { useDocumentTitle } from "../../lib/use-document-title";
+import { useOnClickOutside } from "../../lib/use-click-outside";
+import { useFloatingPosition } from "../../lib/use-floating-position";
 import { listProjects, updateProject, type ProjectOut } from "../projects/api";
 import { ProjectForm } from "../projects/ProjectForm";
 import type { WorkspaceOut } from "../workspaces/api";
+import { ShareProjectModal } from "../workspaces/ShareProjectModal";
 import * as api from "./api";
 
 export function ClientsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
   useDocumentTitle([workspace.name, 'Clients']);
-  const cache = useQueryClient();
   const { toast } = useToast();
-  const [params, setParams] = useSearchParams();
-  const search = params.get("search") ?? "";
-  const showArchived = params.get("archived") === "1";
-  // Changes one filter and keeps the other; typing replaces the history entry rather
-  // than adding one per keystroke.
-  function setFilter(key: "search" | "archived", value: string, replace = false) {
-    const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    setParams(next, { replace });
-  }
+  // Global search links here with the client it found, so that row can be pointed out.
+  const [params] = useSearchParams();
+  const targetId = params.get("client");
   const [edit, setEdit] = useState<api.Client | "new" | null>(null);
-  const [archive, setArchive] = useState<api.Client | null>(null);
-  const [restore, setRestore] = useState<api.Client | null>(null);
   const [newProjectFor, setNewProjectFor] = useState<api.Client | null>(null);
   const [attachFor, setAttachFor] = useState<api.Client | null>(null);
+  const [share, setShare] = useState<ProjectOut | null>(null);
   const clients = useQuery({
-    queryKey: qk.clientsList(workspace.id, showArchived),
-    queryFn: () => api.listClients(workspace.id, showArchived),
+    queryKey: qk.clientsList(workspace.id, false),
+    queryFn: () => api.listClients(workspace.id, false),
   });
   const projects = useQuery({ queryKey: qk.projects(workspace.id), queryFn: () => listProjects(workspace.id, true) });
-  const invalidateClients = () => cache.invalidateQueries({ queryKey: qk.clients(workspace.id) });
-  const remove = useMutation({ mutationFn: (id: string) => api.archiveClient(workspace.id, id), onSuccess: async () => { await invalidateClients(); setArchive(null); toast("Client archived. Restore it any time from Show archived."); } });
-  const restoreClient = useMutation({
-    mutationFn: (id: string) => api.restoreClient(workspace.id, id),
-    onSuccess: async () => { await invalidateClients(); setRestore(null); toast("Client restored."); },
-  });
   const exportClients = useMutation({
     mutationFn: () => api.exportClients(workspace.id),
     onSuccess: (blob) => {
@@ -64,9 +51,11 @@ export function ClientsPage() {
     },
     onError: () => toast("Could not export clients.", "error"),
   });
-  const matchesSearch = (c: api.Client) => `${c.name} ${c.contact_name} ${c.email ?? ""}`.toLowerCase().includes(search.toLowerCase());
-  const visible = (clients.data ?? []).filter((c) => !c.archived_at && matchesSearch(c));
-  const archivedVisible = (clients.data ?? []).filter((c) => c.archived_at && matchesSearch(c));
+  const visible = (clients.data ?? []).filter((c) => !c.archived_at);
+  const found = visible.some((c) => c.id === targetId);
+  useEffect(() => {
+    if (found) document.getElementById(`client-${targetId}`)?.scrollIntoView({ block: "center" });
+  }, [found, targetId]);
 
   return <main className="bl-wrap">
     <header className="bl-head">
@@ -80,123 +69,61 @@ export function ClientsPage() {
       </div>
     </header>
 
-    <div className="bl-toolbar wrap">
-      <span className="bl-mono">{visible.length} CLIENT{visible.length === 1 ? "" : "S"}</span>
-      <label className="bl-search">
-        <span className="bl-search-icon" aria-hidden="true"><SearchIcon /></span>
-        <input
-          aria-label="Search clients"
-          placeholder="Search clients, contacts or email…"
-          value={search}
-          onChange={(e) => setFilter("search", e.target.value, true)}
-          onKeyDown={(e) => { if (e.key === "Escape" && search) { e.stopPropagation(); setFilter("search", "", true); } }}
-        />
-      </label>
-      <button type="button" className="bl-quiet" aria-pressed={showArchived} onClick={() => setFilter("archived", showArchived ? "" : "1")}>
-        {showArchived ? "Hide archived" : "Show archived"}
-      </button>
-    </div>
-
     {clients.isLoading && <LoadingScreen inline />}
     {clients.error && <p role="alert" className="bl-error">{clients.error.message}</p>}
     {projects.error && <p role="alert" className="bl-error">Project associations could not load: {projects.error.message}</p>}
 
     {!clients.isLoading && !clients.error && (
       visible.length > 0 ? (
-        <div className="bl-table-wrap">
-          <table className="bl-table">
-            <thead><tr><th>Client &amp; contact</th><th>Summary</th><th>Projects</th><th>Last activity</th><th>Added</th><th aria-label="Actions" /></tr></thead>
-            <tbody>
-              {visible.map((client) => {
-                const clientProjects = (projects.data ?? []).filter((p) => p.client_id === client.id && !p.archived_at);
-                const stats = client.stats;
-                return (
-                  <tr key={client.id}>
-                    <td>
-                      <button type="button" className="bl-text-button" onClick={() => setEdit(client)}>
-                        <span className="bl-avatar">{nameInitials(client.name)}</span>
-                        <span>
-                          <strong>{client.name}</strong>
-                          <small>{client.contact_name || "No contact"}{client.email ? ` · ${client.email}` : ""}</small>
-                        </span>
-                      </button>
-                    </td>
-                    <td className="bl-mono">
-                      <div>{clientProjects.length ? <Link to={`/w/${workspace.slug}?client=${client.id}`}>{stats?.active_projects_count ?? clientProjects.length} active</Link> : "0 active"}</div>
-                      <small>{stats?.open_tickets_count ?? 0} open · {stats?.reviewers_count ?? 0} reviewer{(stats?.reviewers_count ?? 0) === 1 ? "" : "s"}</small>
-                    </td>
-                    <td>
-                      <div className="bl-chip-row">
-                        {clientProjects.length === 0 && <button type="button" className="bl-chip" onClick={() => setAttachFor(client)}>+ Add projects</button>}
-                        {clientProjects.slice(0, 3).map((p) => <Link className="bl-chip" key={p.id} to={`/w/${workspace.slug}/p/${p.id}`}>{p.name}</Link>)}
-                        {clientProjects.length > 3 && <Link className="bl-chip" to={`/w/${workspace.slug}?client=${client.id}`}>+{clientProjects.length - 3} more</Link>}
-                      </div>
-                    </td>
-                    <td>{stats?.last_activity_at ? timeAgo(stats.last_activity_at) : "No activity yet"}</td>
-                    <td>{new Date(client.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</td>
-                    <td>
-                      <select
-                        className="bl-select"
-                        aria-label={`Actions for ${client.name}`}
-                        value=""
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === 'edit') setEdit(client);
-                          else if (v === 'archive') setArchive(client);
-                          else if (v === 'new') setNewProjectFor(client);
-                          else if (v === 'attach') setAttachFor(client);
-                        }}
-                      >
-                        <option value="" disabled>Options…</option>
-                        <option value="edit">Rename / edit</option>
-                        <option value="new">New project</option>
-                        <option value="attach">Add existing projects</option>
-                        <option value="archive">Archive</option>
-                      </select>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Visual column captions; each row spells its own numbers out, so these stay hidden from screen readers. */}
+          <div className="bl-cl-head" aria-hidden="true">
+            <span className="bl-cl-avatar-space" /><span className="bl-cl-main">Client</span><span className="bl-cl-projects">Projects</span>
+            <span className="bl-cl-num">Open</span><span className="bl-cl-num">Resolved</span><span className="bl-cl-num">Reviewers</span>
+            <span className="bl-cl-time">Activity</span><span className="bl-cl-actions" />
+          </div>
+          <ul className="bl-cl-rows" aria-label="Clients">
+            {visible.map((client) => {
+              const clientProjects = (projects.data ?? []).filter((p) => p.client_id === client.id && !p.archived_at);
+              const open = client.stats?.open_tickets_count ?? 0;
+              const resolved = client.stats?.resolved_tickets_count ?? 0;
+              const reviewers = client.stats?.reviewers_count ?? 0;
+              const lastActivity = client.stats?.last_activity_at;
+              return (
+                <li key={client.id} id={`client-${client.id}`} className={`bl-cl-row${client.id === targetId ? " is-target" : ""}`}>
+                  <span className="bl-cl-avatar" style={{ background: avatarColor(client.id) }} aria-hidden="true">{nameInitials(client.contact_name || client.name)}</span>
+                  <button type="button" className="bl-cl-main" onClick={() => setEdit(client)}>
+                    <span className="bl-cl-name">{client.name}</span>
+                    <span className="bl-cl-contact">{client.contact_name || "No contact"}{client.email ? ` · ${client.email}` : ""}</span>
+                  </button>
+                  <span className="bl-cl-projects">
+                    {clientProjects.length === 0 && <button type="button" className="bl-cl-chip is-empty" onClick={() => setAttachFor(client)}>+ Add projects</button>}
+                    {clientProjects.slice(0, 2).map((p) => <Link className="bl-cl-chip" key={p.id} to={`/w/${workspace.slug}/p/${p.id}`} title={p.name}>
+                      <i style={{ background: PROJECT_TYPE_COLORS[p.project_type ?? "website"] }} aria-hidden="true" />
+                      <span>{p.name}</span>
+                    </Link>)}
+                    {clientProjects.length > 2 && <Link className="bl-cl-chip is-more" to={`/w/${workspace.slug}?client=${client.id}`}>+{clientProjects.length - 2} more</Link>}
+                  </span>
+                  <span className={`bl-cl-num${open ? "" : " is-muted"}`}><b>{open}</b> open</span>
+                  <span className="bl-cl-num is-muted"><b>{resolved}</b> resolved</span>
+                  <span className="bl-cl-num is-muted">{reviewers} reviewer{reviewers === 1 ? "" : "s"}</span>
+                  <span className="bl-cl-time" title={lastActivity ? new Date(lastActivity).toLocaleString() : "No activity yet"}>{lastActivity ? shortAgo(lastActivity) : "—"}</span>
+                  <span className="bl-cl-actions">
+                    <button type="button" className="bl-ghost-btn" disabled={clientProjects.length === 0} title={clientProjects.length ? `Share ${clientProjects[0].name}` : "Add a project to share it"} aria-label={`Share a project with ${client.name}`} onClick={() => setShare(clientProjects[0])}>Share</button>
+                    <ClientMenu name={client.name} onEdit={() => setEdit(client)} onNewProject={() => setNewProjectFor(client)} onAttach={() => setAttachFor(client)} />
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       ) : (
         <div className="bl-empty">
-          <EmptyArt kind={search ? "search" : "clients"} />
-          <h2>{search ? "No clients match" : "Your next client starts here"}</h2>
-          <p>{search ? "Try another name or email." : "Add a client, then connect their review projects."}</p>
+          <EmptyArt kind="clients" />
+          <h2>Your next client starts here</h2>
+          <p>Add a client, then connect their review projects.</p>
         </div>
       )
-    )}
-
-    {showArchived && !clients.isLoading && !clients.error && archivedVisible.length > 0 && (
-      <section>
-        <h2 className="bl-group-title">Archived</h2>
-        <div className="bl-table-wrap">
-          <table className="bl-table">
-            <thead><tr><th>Client &amp; contact</th><th>Archived</th><th aria-label="Actions" /></tr></thead>
-            <tbody>
-              {archivedVisible.map((client) => (
-                <tr key={client.id}>
-                  <td>
-                    <span className="bl-text-button">
-                      <span className="bl-avatar">{nameInitials(client.name)}</span>
-                      <span>
-                        <strong>{client.name}</strong>
-                        <small>{client.contact_name || "No contact"}{client.email ? ` · ${client.email}` : ""}</small>
-                      </span>
-                    </span>
-                  </td>
-                  <td>{client.archived_at ? timeAgo(client.archived_at) : ""}</td>
-                  <td>
-                    <button type="button" className="bl-quiet" onClick={() => setRestore(client)}>Restore</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
     )}
 
     {newProjectFor && <ProjectForm workspace={workspace} initialClientId={newProjectFor.id} onClose={() => setNewProjectFor(null)} />}
@@ -205,36 +132,72 @@ export function ClientsPage() {
 
     {edit && <ClientForm key={edit === "new" ? "new" : edit.id} workspaceId={workspace.id} client={edit === "new" ? undefined : edit} onClose={() => setEdit(null)} />}
 
-    {archive &&
-      <Dialog title={`Archive ${archive.name}?`} onClose={() => setArchive(null)}>
-        <div className="bl-dialog-intro">
-          <p>The contact leaves the active client list. Existing projects and review links remain available, and the client can be restored later.</p>
-        </div>
-        {remove.error && <p role="alert" className="bl-error">{remove.error.message}</p>}
-        <footer className="bl-dialog-actions bl-dialog-actions-bordered">
-          <button type="button" className="bl-quiet" onClick={() => setArchive(null)}>Cancel</button>
-          <button type="button" className="bl-button danger" disabled={remove.isPending} onClick={() => remove.mutate(archive.id)}>
-            {remove.isPending ? "Archiving…" : "Archive client"}
-          </button>
-        </footer>
-      </Dialog>
-    }
-
-    {restore &&
-      <Dialog title={`Restore ${restore.name}?`} onClose={() => setRestore(null)}>
-        <div className="bl-dialog-intro">
-          <p>The client returns to the active client list, alongside their existing projects and review links.</p>
-        </div>
-        {restoreClient.error && <p role="alert" className="bl-error">{restoreClient.error.message}</p>}
-        <footer className="bl-dialog-actions bl-dialog-actions-bordered">
-          <button type="button" className="bl-quiet" onClick={() => setRestore(null)}>Cancel</button>
-          <button type="button" className="bl-button mint" disabled={restoreClient.isPending} onClick={() => restoreClient.mutate(restore.id)}>
-            {restoreClient.isPending ? "Restoring…" : "Restore client"}
-          </button>
-        </footer>
-      </Dialog>
-    }
+    {share && <ShareProjectModal project={share} workspaceId={workspace.id} workspaceSlug={workspace.slug} workspaceName={workspace.name} onClose={() => setShare(null)} />}
   </main>;
+}
+
+// The design's pastel person marks and its square colour per project type.
+const AVATAR_COLORS = ["#C9CFC9", "#F3D9C6", "#F1DCE0", "#C9E4F5", "#D8E9D2", "#DCD4EF", "#FBF1D6"];
+const PROJECT_TYPE_COLORS: Record<string, string> = { website: "#5B7FA6", image: "#E8B833", pdf: "#C2542E" };
+
+function avatarColor(seed: string) {
+  let hash = 0;
+  for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+
+/** "18m ago": the row's activity column is too narrow for timeAgo's long form. */
+function shortAgo(iso: string) {
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return days < 365 ? `${Math.floor(days / 30)}mo ago` : `${Math.floor(days / 365)}y ago`;
+}
+
+function ClientMenu({ name, onEdit, onNewProject, onAttach }: { name: string; onEdit: () => void; onNewProject: () => void; onAttach: () => void }) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const position = useFloatingPosition(triggerRef, menuRef, open);
+  useOnClickOutside([triggerRef as RefObject<HTMLElement>, menuRef], () => setOpen(false));
+  // Focus moves into the menu once it has a position (it is hidden until then).
+  const placed = open && position !== null;
+  useEffect(() => {
+    if (placed) menuRef.current?.querySelector("button")?.focus();
+  }, [placed]);
+  function close() {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+  // The trigger takes focus back first, so a dialog opened from here can return to it.
+  const choose = (action: () => void) => () => { close(); action(); };
+
+  return <>
+    <button ref={triggerRef} type="button" className="bl-cl-more" aria-label={`Actions for ${name}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+    </button>
+    {open && createPortal(
+      <div ref={menuRef} className="bl-pop" role="menu" aria-label={`Actions for ${name}`}
+        style={{ position: "fixed", top: position?.top ?? -9999, left: position?.left ?? -9999, visibility: position ? "visible" : "hidden" }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" || event.key === "Tab") { event.preventDefault(); close(); return; }
+          if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+          event.preventDefault();
+          const items = Array.from(event.currentTarget.querySelectorAll("button"));
+          const current = items.indexOf(document.activeElement as HTMLButtonElement);
+          items[(current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+        }}>
+        <button type="button" role="menuitem" onClick={choose(onEdit)}>Rename / edit</button>
+        <button type="button" role="menuitem" onClick={choose(onNewProject)}>New project</button>
+        <button type="button" role="menuitem" onClick={choose(onAttach)}>Add existing projects</button>
+      </div>,
+      document.body,
+    )}
+  </>;
 }
 
 /** Moves existing projects under a client - the other half of "New project" for

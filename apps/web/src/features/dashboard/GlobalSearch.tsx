@@ -105,7 +105,7 @@ export function GlobalSearch({ workspaceId, workspaceSlug }: { workspaceId: stri
     const base = `/w/${workspaceSlug}`;
     if (result.kind === "project") return `${base}/p/${result.project_id}`;
     if (result.kind === "member") return `${base}/members?person=${encodeURIComponent(result.id)}`;
-    if (result.kind === "client") return `${base}/clients?search=${encodeURIComponent(result.title)}`;
+    if (result.kind === "client") return `${base}/clients?client=${encodeURIComponent(result.id)}`;
     // comment and ticket both navigate to the tickets view with the comment selected
     if (result.project_id) {
       return `${base}/p/${result.project_id}/board?comment=${encodeURIComponent(result.id)}`;

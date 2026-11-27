@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "../../lib/use-document-title";
-import { STATUS_COLORS, STATUS_LABELS, WORKFLOW_STATUSES } from "../../lib/workflow";
-import { PlusIcon, SearchIcon } from "../../components/icons";
+import { STATUS_COLORS, STATUS_LABELS } from "../../lib/workflow";
+import { PlusIcon } from "../../components/icons";
 import { EmptyArt } from "../../components/illustrations";
+import { useAuth } from "../auth/AuthContext";
 import type { WorkspaceOut } from "../workspaces/api";
 import type * as api from "./api";
 import { TicketBoard } from "./components/TicketBoard";
@@ -24,19 +25,18 @@ const VIEW_LAYOUTS = [
   { id: "calendar", label: "Calendar", icon: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></> },
 ];
 
-const VIEW_TABS: { key: string; label: string }[] = [
-  { key: "all", label: "Everyone" },
-  { key: "mine", label: "Assigned to me" },
-  { key: "new", label: "New from clients" },
-  { key: "reply", label: "Needs your reply" },
-  { key: "client", label: "Waiting on client" },
-  { key: "overdue", label: "Overdue" },
-];
+type Tab = { key: string; label: string };
+const REPLY_TAB: Tab = { key: "reply", label: "Needs your reply" };
+const OVERDUE_TAB: Tab = { key: "overdue", label: "Overdue" };
+const MY_TABS: Tab[] = [{ key: "mine", label: "All mine" }, REPLY_TAB, OVERDUE_TAB];
+const TEAM_TABS: Tab[] = [{ key: "all", label: "Everyone" }, REPLY_TAB, { key: "client", label: "Waiting on client" }, OVERDUE_TAB];
+// No tab of its own in the design; it appears while the Projects page's link has it open.
+const NEW_TAB: Tab = { key: "new", label: "New from clients" };
 
 export function TicketsPage() {
   const { workspace } = useOutletContext<{ workspace: WorkspaceOut }>();
   const [deleting, setDeleting] = useState<api.Ticket | null>(null);
-  useDocumentTitle([workspace.name, "Tickets"]);
+  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const [showCreate, setShowCreate] = useState(false);
 
@@ -48,30 +48,20 @@ export function TicketsPage() {
     update,
     updateWarning,
     canCreate,
-    exportAll,
-    exporting,
-    exportError,
+    mine,
+    myReplyCount,
+    myOverdueCount,
+    overdueCount,
     tickets,
     groups,
     set,
     display,
     assignees,
     offset,
-  } = useTickets(workspace.id, params, setParams);
-  // Search, status and priority are API filters the page never offered (TDR-0229);
-  // the typed text is applied after a short pause so each keystroke isn't a request.
-  const [searchText, setSearchText] = useState(params.get("search") ?? "");
-  useEffect(() => {
-    const value = searchText.trim();
-    if (value === (params.get("search") ?? "")) return;
-    const timer = window.setTimeout(() => set("search", value), 300);
-    return () => window.clearTimeout(timer);
-  }, [searchText]); // eslint-disable-line react-hooks/exhaustive-deps
-  // "Clear filters", a chip or a link changes the URL: show what is actually applied.
-  const appliedSearch = params.get("search") ?? "";
-  useEffect(() => {
-    setSearchText((text) => (text.trim() === appliedSearch ? text : appliedSearch));
-  }, [appliedSearch]);
+    sort,
+    group,
+  } = useTickets(workspace.id, user?.id, params, setParams);
+  useDocumentTitle([workspace.name, mine ? "Assigned to me" : "All tickets"]);
   // Bulk triage selection: screen state for this list, not a filter, so not in the URL.
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
@@ -94,16 +84,19 @@ export function TicketsPage() {
     });
   }
 
-  const tabCounts: Record<string, number | undefined> = {
-    all: dashboard.data?.tickets,
-    mine: dashboard.data?.assigned_to_me,
-    new: dashboard.data?.new_from_clients,
-    reply: dashboard.data?.needs_reply,
-    client: dashboard.data?.waiting_on_client,
-    overdue: dashboard.data?.overdue,
-  };
+  const tabCounts: Record<string, number | undefined> = mine
+    ? { mine: dashboard.data?.assigned_to_me, reply: myReplyCount, overdue: myOverdueCount }
+    : {
+      all: dashboard.data?.tickets,
+      new: dashboard.data?.new_from_clients,
+      reply: dashboard.data?.needs_reply,
+      client: dashboard.data?.waiting_on_client,
+      overdue: dashboard.data?.overdue,
+    };
 
   const activeFilters: { label: string; dot?: string; onClear: () => void }[] = [
+    // The page has no search box; a link that carries a search still says so.
+    ...(params.get("search") ? [{ label: `Search: ${params.get("search")}`, onClear: () => set("search", "") }] : []),
     // An unknown status (a typo'd or outdated link) still gets a named, clearable chip
     // instead of a blank one with no React key.
     ...(params.get("status") ? [{ label: STATUS_LABELS[params.get("status") as keyof typeof STATUS_LABELS] ?? params.get("status")!, dot: STATUS_COLORS[params.get("status") as keyof typeof STATUS_COLORS], onClear: () => set("status", "") }] : []),
@@ -119,10 +112,22 @@ export function TicketsPage() {
     })),
   ];
 
-  const view = VIEW_TABS.some((tab) => tab.key === params.get("view")) ? params.get("view")! : "all";
+  const baseTabs = mine ? MY_TABS : TEAM_TABS;
+  const requestedView = params.get("view");
+  const tabs = !mine && requestedView === NEW_TAB.key ? [...baseTabs, NEW_TAB] : baseTabs;
+  const homeView = baseTabs[0].key;
+  const view = tabs.some((tab) => tab.key === requestedView) ? requestedView! : homeView;
+  function openTab(key: string) {
+    const next = new URLSearchParams(params);
+    next.delete("offset");
+    next.set("view", key);
+    if (mine && key !== "mine") next.set("mine", "1");
+    else next.delete("mine");
+    setParams(next);
+  }
   // Why the list is empty decides what to say and offer: filters to clear, a tab with
   // nothing in it (Overdue, Needs your reply…), or a workspace with no tickets at all.
-  const narrowed = activeFilters.length > 0 || Boolean(params.get("search"));
+  const narrowed = activeFilters.length > 0;
   const emptyTab: Record<string, string> = {
     mine: "Nothing is assigned to you right now.",
     new: "No new client feedback. Everything clients sent has an owner or is under way.",
@@ -170,66 +175,51 @@ export function TicketsPage() {
     onPrev: selectedIndex > 0 ? () => openAt(selectedIndex - 1) : undefined,
     onNext: selectedIndex < tickets.length - 1 ? () => openAt(selectedIndex + 1) : undefined,
   } : undefined;
-  const sort = params.get("sort") ?? "newest";
-  const group = params.get("group") ?? "none";
-
   return (
-    <main className="bl-wrap">
+    <main className={`bl-wrap bl-tickets-page${selectedTickets.length > 0 ? " is-selecting" : ""}`}>
+      <Link className="bl-tickets-back" to={`/w/${workspace.slug}`}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
+        Back to projects
+      </Link>
       <header className="bl-head">
         <div>
-          <h1>{view === "mine" ? "Assigned to me" : view === "all" ? "All tickets" : VIEW_TABS.find((tab) => tab.key === view)?.label ?? "All tickets"}</h1>
-          <p>Every comment, plus the work your team raises directly.</p>
+          <h1>{mine ? "Assigned to me" : "All tickets"}</h1>
+          <p>
+            {mine
+              ? "Only tickets assigned to you. Open All tickets to see what everyone else is carrying."
+              : "Every comment across every project, plus anything the team raises directly. Filter by person to see one teammate’s work."}
+          </p>
+          <div className="bl-tickets-summary">
+            {query.data?.total ?? "—"} OF {dashboard.data?.tickets ?? "—"} TICKETS
+            {overdueCount !== undefined && <> · {overdueCount > 0 ? <span>{overdueCount} OVERDUE</span> : "NONE OVERDUE"}</>}
+          </div>
+          {/* design/index.html .tfil-chip: what is narrowing the list, each one removable. */}
+          {activeFilters.length > 0 && (
+            <div className="bl-tfil-chips">
+              {activeFilters.map((f) => (
+                <span key={f.label} className="bl-tfil-chip">
+                  {f.dot && <i style={{ background: f.dot }} aria-hidden="true" />}
+                  {f.label}
+                  <button type="button" onClick={f.onClear} aria-label={`Stop filtering by ${f.label}`}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="bl-chip-row">
-          <button className="bl-quiet" disabled={exporting} onClick={() => void exportAll()}>
-            {exporting ? "Exporting…" : "Export CSV"}
-          </button>
-          <button className="bl-button" disabled={!canCreate} title={canCreate ? "Create a team ticket" : "Needs editor access on an active project"} onClick={() => setShowCreate(true)}>
-            <PlusIcon width={13} height={13} /> New ticket
-          </button>
-        </div>
+        <button className="bl-button bl-tickets-new" disabled={!canCreate} title={canCreate ? "Create a team ticket" : "Needs editor access on an active project"} onClick={() => setShowCreate(true)}>
+          <PlusIcon width={14} height={14} /> New ticket
+        </button>
       </header>
 
-      {/* design/index.html .tfil-chip: what is narrowing the list, each one removable. */}
-      {activeFilters.length > 0 && (
-        <div className="bl-tfil-chips">
-          {activeFilters.map((f) => (
-            <span key={f.label} className="bl-tfil-chip">
-              {f.dot && <i style={{ background: f.dot }} aria-hidden="true" />}
-              {f.label}
-              <button type="button" onClick={f.onClear} aria-label={`Stop filtering by ${f.label}`}>×</button>
-            </span>
+      <div className="bl-tickets-bar">
+        <div className="bl-segment bl-ticket-filters" role="group" aria-label="Filter tickets">
+          {tabs.map((tab) => (
+            <button key={tab.key} type="button" aria-pressed={view === tab.key} onClick={() => openTab(tab.key)}>
+              {tab.label}
+              {tabCounts[tab.key] !== undefined && <span className="bl-count">{tabCounts[tab.key]}</span>}
+            </button>
           ))}
         </div>
-      )}
-
-      <div className="bl-segment bl-ticket-filters" role="group" aria-label="Filter tickets">
-        {VIEW_TABS.map((tab) => (
-          <button key={tab.key} type="button" aria-pressed={view === tab.key} onClick={() => set("view", tab.key)}>
-            {tab.label}
-            {tabCounts[tab.key] !== undefined && <span className="bl-count">{tabCounts[tab.key]}</span>}
-          </button>
-        ))}
-      </div>
-
-
-      <div className="bl-ticket-filterbar">
-        <label className="bl-search-field bl-ticket-search">
-          <SearchIcon width={14} height={14} />
-          <input type="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search tickets…" aria-label="Search tickets" />
-        </label>
-        <select className="bl-select bl-ticket-filter" aria-label="Filter by status" value={params.get("status") ?? ""} onChange={(event) => set("status", event.target.value)}>
-          <option value="">Any status</option>
-          {WORKFLOW_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
-        </select>
-        <select className="bl-select bl-ticket-filter" aria-label="Filter by priority" value={params.get("priority") ?? ""} onChange={(event) => set("priority", event.target.value)}>
-          <option value="">Any priority</option>
-          {Object.entries(PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-      </div>
-
-      <div className="bl-toolbar">
-        <span className="bl-mono">{query.data?.total ?? "—"} {query.data?.total === 1 ? "TICKET" : "TICKETS"}</span>
         <div className="bl-tool-right">
           <TicketToolbar
             sort={sort}
@@ -237,13 +227,14 @@ export function TicketsPage() {
             group={group}
             onGroup={(v) => set("group", v)}
             showGroup={display === "list" || display === "table"}
+            showWho={!mine}
             members={members.data ?? []}
             assignees={assignees}
             onAssignees={(v) => set("assignee", v)}
             counts={query.data?.assignee_counts ?? {}}
             totalAny={query.data?.total_any_assignee ?? 0}
           />
-          <div className="bl-segment" role="group" aria-label="Ticket layout">
+          <div className="bl-segment bl-ticket-layouts" role="group" aria-label="Ticket layout">
             {VIEW_LAYOUTS.map(({ id, label, icon }) => (
               <button key={id} type="button" aria-pressed={display === id} onClick={() => set("display", id)}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{icon}</svg>
@@ -258,7 +249,7 @@ export function TicketsPage() {
       {projects.error && <button type="button" className="bl-quiet" disabled={projects.isFetching} onClick={() => void projects.refetch()}>Retry project access</button>}
       {projects.data && !projects.error && !canCreate && <p role="status">You can read these tickets. Editor access on an active project is needed to create or triage them.</p>}
       {updateWarning && <p role="status">{updateWarning}</p>}
-      {[query.error?.message, projects.error?.message, update.error?.message, exportError].filter(Boolean).map((error) => (
+      {[query.error?.message, projects.error?.message, update.error?.message].filter(Boolean).map((error) => (
         <p key={error} className="bl-error" role="alert">
           {error}
         </p>
@@ -335,6 +326,7 @@ export function TicketsPage() {
                   // Filters first; once none are left, the tab itself is what's narrowing.
                   const next = new URLSearchParams();
                   next.set("view", narrowed ? view : "all");
+                  if (narrowed && mine && view !== "mine") next.set("mine", "1");
                   next.set("display", display);
                   setParams(next);
                 }}

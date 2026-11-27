@@ -12,7 +12,7 @@ import {
   ZoomOutIcon,
 } from "../panel/icons";
 import { CollaboratorsModal } from "../panel/CollaboratorsModal";
-import { ViewportMenu, type ViewportOption } from "./ViewportMenu";
+import { ViewportMenu, ViewportWidthInput, type ViewportOption } from "./ViewportMenu";
 import { BrowserMenu } from "./BrowserMenu";
 import type { BrowserOption } from "./browsers";
 import { VersionMenu } from "./VersionMenu";
@@ -38,6 +38,8 @@ interface ProjectFooterProps {
   onViewportChange: (viewport: ViewportOption | null) => void;
   /** Width the responsive frame was dragged to, or null while it fills the canvas. */
   fitWidth?: number | null;
+  /** A width typed into the footer's width box. */
+  onWidthChange: (width: number) => void;
   browser: BrowserOption;
   onBrowserChange: (browser: BrowserOption) => void;
   orientation: "portrait" | "landscape";
@@ -62,6 +64,7 @@ export function ProjectFooter({
   viewport,
   onViewportChange,
   fitWidth = null,
+  onWidthChange,
   browser,
   onBrowserChange,
   orientation,
@@ -114,6 +117,7 @@ export function ProjectFooter({
             <LandscapeIcon width={13} height={13} />
           </button>
         </div>
+        <ViewportWidthInput width={width ?? fitWidth} onChange={onWidthChange} />
         <div className="bl-review-zoom" aria-label="Canvas zoom">
           <button
             type="button"
