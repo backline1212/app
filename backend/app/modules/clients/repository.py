@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -168,6 +169,24 @@ class ClientRepository:
     ) -> dict[str, Any] | None:
         return await self.db.clients.find_one(
             {"workspace_id": workspace_id, "_id": to_object_id(client_id), "archived_at": None},
+            session=session,
+        )
+
+    async def find_by_name(
+        self,
+        workspace_id: str,
+        name: str,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> dict[str, Any] | None:
+        """The oldest active client of this name, ignoring case."""
+        return await self.db.clients.find_one(
+            {
+                "workspace_id": workspace_id,
+                "archived_at": None,
+                "name": {"$regex": f"^{re.escape(name.strip())}$", "$options": "i"},
+            },
+            sort=[("_id", 1)],
             session=session,
         )
 

@@ -193,6 +193,10 @@ export function removeProjectMember(projectId: string, userId: string) {
   return apiFetch<void>(`/api/v1/projects/${projectId}/access/members/${userId}`, { method: "DELETE" });
 }
 
+export function previewTransfer(projectId: string, targetWorkspaceId: string) {
+  return apiFetch<Schemas["ProjectTransferPreview"]>(`/api/v1/projects/${projectId}/transfer-preview?target_workspace_id=${encodeURIComponent(targetWorkspaceId)}`);
+}
+
 export function transferProject(projectId: string, body: Schemas["ProjectTransfer"]) {
   return apiFetch<Schemas["ProjectTransferOut"]>(`/api/v1/projects/${projectId}/transfer`, { method: "POST", body: JSON.stringify(body) });
 }

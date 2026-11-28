@@ -2916,6 +2916,65 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/transfer-preview": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Preview Project Transfer",
+        "description": "What moving this project to that workspace would carry (TDR-0245).",
+        "operationId": "preview_project_transfer_api_v1_projects__project_id__transfer_preview_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "target_workspace_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "title": "Target Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectTransferPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/transfer": {
       "post": {
         "tags": [
@@ -9797,6 +9856,11 @@
               }
             ],
             "title": "Actor Name"
+          },
+          "project_moved": {
+            "type": "boolean",
+            "title": "Project Moved",
+            "default": false
           },
           "created_at": {
             "type": "string",
@@ -16731,6 +16795,45 @@
             "maxLength": 200,
             "minLength": 1,
             "title": "Project Name"
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "contact",
+              "name",
+              "none"
+            ],
+            "title": "Client",
+            "default": "none"
+          },
+          "client_match": {
+            "type": "string",
+            "enum": [
+              "existing",
+              "new"
+            ],
+            "title": "Client Match",
+            "default": "existing"
+          },
+          "add_member_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 64,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Add Member Ids"
+          },
+          "keep_issue_links": {
+            "type": "boolean",
+            "title": "Keep Issue Links",
+            "default": false
+          },
+          "copy_activity": {
+            "type": "boolean",
+            "title": "Copy Activity",
+            "default": false
           }
         },
         "type": "object",
@@ -16739,6 +16842,36 @@
           "project_name"
         ],
         "title": "ProjectTransfer"
+      },
+      "ProjectTransferClient": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "contact_name": {
+            "type": "string",
+            "title": "Contact Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "contact_name",
+          "email"
+        ],
+        "title": "ProjectTransferClient"
       },
       "ProjectTransferOut": {
         "properties": {
@@ -16773,6 +16906,49 @@
           "cleanup_pending": {
             "type": "boolean",
             "title": "Cleanup Pending"
+          },
+          "client_outcome": {
+            "type": "string",
+            "enum": [
+              "linked",
+              "created",
+              "none"
+            ],
+            "title": "Client Outcome"
+          },
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Name"
+          },
+          "members_added": {
+            "type": "integer",
+            "title": "Members Added"
+          },
+          "invite_emails_failed": {
+            "type": "integer",
+            "title": "Invite Emails Failed"
+          },
+          "unassigned": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectTransferUnassigned"
+            },
+            "type": "array",
+            "title": "Unassigned"
+          },
+          "issue_links_kept": {
+            "type": "integer",
+            "title": "Issue Links Kept"
+          },
+          "activity_copied": {
+            "type": "integer",
+            "title": "Activity Copied"
           }
         },
         "type": "object",
@@ -16784,9 +16960,131 @@
           "archived",
           "tickets_renumbered",
           "files_moved",
-          "cleanup_pending"
+          "cleanup_pending",
+          "client_outcome",
+          "client_name",
+          "members_added",
+          "invite_emails_failed",
+          "unassigned",
+          "issue_links_kept",
+          "activity_copied"
         ],
         "title": "ProjectTransferOut"
+      },
+      "ProjectTransferPerson": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "ticket_count": {
+            "type": "integer",
+            "title": "Ticket Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "email",
+          "ticket_count"
+        ],
+        "title": "ProjectTransferPerson"
+      },
+      "ProjectTransferPreview": {
+        "properties": {
+          "client": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectTransferClient"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "existing_client": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectTransferClient"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectTransferPerson"
+            },
+            "type": "array",
+            "title": "People"
+          },
+          "member_count": {
+            "type": "integer",
+            "title": "Member Count"
+          },
+          "member_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Limit"
+          },
+          "issue_link_count": {
+            "type": "integer",
+            "title": "Issue Link Count"
+          },
+          "activity_count": {
+            "type": "integer",
+            "title": "Activity Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client",
+          "existing_client",
+          "people",
+          "member_count",
+          "member_limit",
+          "issue_link_count",
+          "activity_count"
+        ],
+        "title": "ProjectTransferPreview",
+        "description": "What a move to one destination would carry, shown before it is confirmed."
+      },
+      "ProjectTransferUnassigned": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "ticket_numbers": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Ticket Numbers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "ticket_numbers"
+        ],
+        "title": "ProjectTransferUnassigned"
       },
       "ProjectUpdate": {
         "properties": {

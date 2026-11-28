@@ -355,6 +355,24 @@ async def activity(
     ]
     users = await UserRepository(db).find_many_by_ids(subject_ids) if subject_ids else {}
 
+    moved = await repo.moved_away(workspace_id, list(set(event_projects.values())))
+
+    def actor_name(doc: dict[str, Any]) -> str | None:
+        if doc["actor_type"] == "guest":
+            live = guest_names.get(str(doc.get("actor_id")))
+            if live:
+                return live
+        stored = doc["payload_json"].get("actor_name")
+        return str(stored) if stored else None
+
+    def comment_label(doc: dict[str, Any]) -> dict[str, Any]:
+        label = _comment_label(comments.get(ticket_id(doc) or ""))
+        # A moved project's tickets are gone from here; the move noted their old numbers.
+        old = doc["payload_json"].get("ticket_number")
+        if label.get("ticket_number") is None and isinstance(old, int):
+            label = {**label, "ticket_number": old}
+        return label
+
     def event_name(doc: dict[str, Any]) -> str | None:
         payload = doc["payload_json"]
         if doc["type"] in _MEMBER_SUBJECT_EVENTS:
@@ -377,16 +395,15 @@ async def activity(
                 type=doc["type"],
                 actor_type=doc["actor_type"],
                 actor_id=doc.get("actor_id"),
-                actor_name=guest_names.get(str(doc.get("actor_id")))
-                if doc["actor_type"] == "guest"
-                else None,
+                actor_name=actor_name(doc),
+                project_moved=event_projects.get(str(doc["_id"])) in moved,
                 created_at=doc["created_at"],
                 project_id=event_projects.get(str(doc["_id"])),
                 comment_id=doc["payload_json"].get("comment_id"),
                 name=event_name(doc),
                 is_reply=doc["type"].startswith("comment.")
                 and bool(doc["payload_json"].get("parent_id")),
-                **_comment_label(comments.get(ticket_id(doc) or "")),
+                **comment_label(doc),
             )
             for doc in docs
         ],

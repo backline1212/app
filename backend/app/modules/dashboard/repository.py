@@ -422,6 +422,30 @@ class DashboardRepository:
         )
         return [doc async for doc in cursor], await self.db.events.count_documents(query)
 
+    async def moved_away(self, workspace_id: str, project_ids: list[str]) -> set[str]:
+        """Those of `project_ids` that left this workspace for another one."""
+        object_ids = [oid for oid in map(to_object_id, project_ids) if oid is not None]
+        if not object_ids:
+            return set()
+        here = {
+            str(doc["_id"])
+            async for doc in self.db.projects.find(
+                {"workspace_id": workspace_id, "_id": {"$in": object_ids}}, {"_id": 1}
+            )
+        }
+        left = {
+            str(doc["payload_json"]["project_id"])
+            async for doc in self.db.events.find(
+                {
+                    "workspace_id": workspace_id,
+                    "type": "project.transferred_out",
+                    "payload_json.project_id": {"$in": project_ids},
+                },
+                {"payload_json.project_id": 1},
+            )
+        }
+        return left - here
+
     async def guest_names(self, workspace_id: str, guest_ids: list[str]) -> dict[str, str]:
         """Display names reviewers gave when they opened a review link."""
         object_ids = [oid for oid in (to_object_id(gid) for gid in guest_ids) if oid is not None]

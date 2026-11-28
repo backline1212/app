@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -11,6 +12,7 @@ from app.core.config import get_settings
 from app.core.mongo_utils import to_object_id
 from app.core.project_access import access_settings
 from app.modules.projects.repository import TRANSFER_LOCK_TTL
+from app.modules.projects.transfer_activity import TransferActivityRepository
 
 # Collections whose rows only need to change owner; nothing inside them names the workspace.
 _PLAIN_COLLECTIONS = ("pages", "revisions", "revision_diffs", "recovery_logs", "share_links")
@@ -36,6 +38,36 @@ def _changed(before: dict[str, Any], prefixes: list[tuple[str, str]]) -> dict[st
         for name, value in before.items()
         if name != "_id" and (moved := rekey(value, prefixes)) != value
     }
+
+
+@dataclass(frozen=True)
+class ProjectContents:
+    """The ids and tickets that make up one project."""
+
+    page_ids: list[str]
+    comments: list[dict[str, Any]]
+    share_link_ids: list[str]
+
+    @property
+    def comment_ids(self) -> list[str]:
+        return [str(doc["_id"]) for doc in self.comments]
+
+
+@dataclass
+class MoveResult:
+    renumbered: int = 0
+    # Person taken off tickets -> those tickets' numbers in the destination.
+    unassigned: dict[str, set[int]] = field(default_factory=dict)
+    issue_links_kept: int = 0
+    activity_copied: int = 0
+
+
+def people_named_on(comment: dict[str, Any]) -> set[str]:
+    """Everyone assigned to a ticket, or being waited on for it."""
+    named = {*(comment.get("assignee_ids") or []), *(comment.get("waiting_on_ids") or [])}
+    if comment.get("assignee_id"):
+        named.add(comment["assignee_id"])
+    return {str(user) for user in named}
 
 
 class ProjectTransferRepository:
@@ -160,6 +192,35 @@ class ProjectTransferRepository:
         )
         return {str(doc["user_id"]) async for doc in cursor}
 
+    async def contents(
+        self,
+        workspace_id: str,
+        project_id: str,
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> ProjectContents:
+        db = self.db
+        owned = {"workspace_id": workspace_id, "project_id": project_id}
+        page_ids = [
+            str(doc["_id"]) async for doc in db.pages.find(owned, {"_id": 1}, session=session)
+        ]
+        comments = await db.comments.find(
+            {
+                "workspace_id": workspace_id,
+                "$or": [{"project_id": project_id}, {"page_id": {"$in": page_ids}}],
+            },
+            session=session,
+        ).to_list(length=None)
+        share_link_ids = [
+            str(doc["_id"]) async for doc in db.share_links.find(owned, {"_id": 1}, session=session)
+        ]
+        return ProjectContents(page_ids, comments, share_link_ids)
+
+    async def issue_link_count(self, workspace_id: str, comment_ids: list[str]) -> int:
+        return await self.db.integration_links.count_documents(
+            {"workspace_id": workspace_id, "comment_id": {"$in": comment_ids}, "status": "done"}
+        )
+
     async def move_graph(
         self,
         *,
@@ -169,28 +230,43 @@ class ProjectTransferRepository:
         prefixes: list[tuple[str, str]],
         archived_at: datetime | None,
         actor_user_id: str,
+        client_id: str | None,
+        extra_access: list[dict[str, Any]],
+        keep_issue_links: bool,
+        copy_activity: bool,
         session: AsyncIOMotorClientSession,
-    ) -> int:
+    ) -> MoveResult:
         """Re-homes the project and everything that hangs off it, inside the caller's
-        transaction. Returns how many tickets were given new numbers."""
+        transaction. Anyone to be added to the destination must already be a member."""
         db = self.db
         project_id = str(project["_id"])
         now = datetime.now(UTC)
         members = await self.member_ids(target_id, session=session)
         owned = {"workspace_id": source_id, "project_id": project_id}
 
-        page_ids = [
-            str(doc["_id"]) async for doc in db.pages.find(owned, {"_id": 1}, session=session)
-        ]
-        comment_query = {
-            "workspace_id": source_id,
-            "$or": [{"project_id": project_id}, {"page_id": {"$in": page_ids}}],
-        }
-        comments = await db.comments.find(comment_query, session=session).to_list(length=None)
-        comment_ids = [str(doc["_id"]) for doc in comments]
-        share_link_ids = [
-            str(doc["_id"]) async for doc in db.share_links.find(owned, {"_id": 1}, session=session)
-        ]
+        contents = await self.contents(source_id, project_id, session=session)
+        page_ids = contents.page_ids
+        comments = contents.comments
+        comment_ids = contents.comment_ids
+        share_link_ids = contents.share_link_ids
+        result = MoveResult()
+        # First, while guest sessions and tickets are still here to be named.
+        result.activity_copied = await TransferActivityRepository(db).carry(
+            source_id=source_id,
+            target_id=target_id,
+            project_id=project_id,
+            page_ids=page_ids,
+            comment_ids=comment_ids,
+            share_link_ids=share_link_ids,
+            old_numbers={
+                str(doc["_id"]): doc["ticket_number"]
+                for doc in comments
+                if isinstance(doc.get("ticket_number"), int)
+            },
+            copy=copy_activity,
+            include_issues=keep_issue_links,
+            session=session,
+        )
 
         # Ticket numbers are unique per workspace, so moved tickets join the end of the
         # destination's sequence, in their old order.
@@ -209,6 +285,10 @@ class ProjectTransferRepository:
             )
             first = int(counter["seq"]) - len(numbered) + 1
             numbers = {doc["_id"]: first + index for index, doc in enumerate(numbered)}
+        result.renumbered = len(numbered)
+        ticket_numbers = {
+            str(doc["_id"]): numbers.get(doc["_id"], doc.get("ticket_number")) for doc in comments
+        }
 
         operations: list[UpdateOne] = []
         for comment in comments:
@@ -217,9 +297,16 @@ class ProjectTransferRepository:
             if comment["_id"] in numbers:
                 changes["ticket_number"] = numbers[comment["_id"]]
             # People who aren't in the destination can't stay on its tickets.
-            for field in ("assignee_ids", "waiting_on_ids"):
-                if comment.get(field):
-                    changes[field] = [user for user in comment[field] if user in members]
+            if comment.get("deleted_at") is None:
+                ticket = comment.get("parent_id") or str(comment["_id"])
+                for user in people_named_on(comment) - members:
+                    held = result.unassigned.setdefault(user, set())
+                    number = ticket_numbers.get(ticket)
+                    if isinstance(number, int):
+                        held.add(number)
+            for key in ("assignee_ids", "waiting_on_ids"):
+                if comment.get(key):
+                    changes[key] = [user for user in comment[key] if user in members]
             if comment.get("assignee_id") and comment["assignee_id"] not in members:
                 changes["assignee_id"] = None
             operations.append(
@@ -294,9 +381,17 @@ class ProjectTransferRepository:
         await db.integrations.delete_many(
             {"workspace_id": source_id, "project_scope": project_id}, session=session
         )
-        await db.integration_links.delete_many(
-            {"workspace_id": source_id, "comment_id": {"$in": comment_ids}}, session=session
-        )
+        links = {"workspace_id": source_id, "comment_id": {"$in": comment_ids}}
+        if keep_issue_links:
+            # A saved link shows the issue on its ticket and stops a second one being
+            # filed in the same tracker (TDR-0235). Half-sent ones are dropped below.
+            kept = await db.integration_links.update_many(
+                {**links, "status": "done"},
+                {"$set": {"workspace_id": target_id}},
+                session=session,
+            )
+            result.issue_links_kept = kept.modified_count
+        await db.integration_links.delete_many(links, session=session)
         await db.integration_dispatches.delete_many(owned, session=session)
         await db.extension_tokens.update_many(
             {**owned, "revoked_at": None}, {"$set": {"revoked_at": now}}, session=session
@@ -329,9 +424,11 @@ class ProjectTransferRepository:
             archived_at=archived_at,
             actor_user_id=actor_user_id,
             members=members,
+            client_id=client_id,
+            extra_access=extra_access,
             session=session,
         )
-        return len(numbered)
+        return result
 
     async def _move_project(
         self,
@@ -343,11 +440,22 @@ class ProjectTransferRepository:
         archived_at: datetime | None,
         actor_user_id: str,
         members: set[str],
+        client_id: str | None,
+        extra_access: list[dict[str, Any]],
         session: AsyncIOMotorClientSession,
     ) -> None:
         now = datetime.now(UTC)
         visibility, default_role, listed = access_settings(project)
         kept = [m for m in listed if m["user_id"] in members and m["user_id"] != actor_user_id]
+        named = {m["user_id"] for m in kept} | {actor_user_id}
+        creator = project.get("created_by")
+        # A project from before access lists makes its creator a manager; keep that.
+        if not project.get("access") and creator in members and creator not in named:
+            kept.append(
+                {"user_id": creator, "role": "manager", "added_by": creator, "added_at": now}
+            )
+            named.add(creator)
+        kept.extend(m for m in extra_access if m["user_id"] not in named)
         mover = {
             "user_id": actor_user_id,
             "role": "manager",
@@ -359,8 +467,8 @@ class ProjectTransferRepository:
         changes.update(
             {
                 "workspace_id": target_id,
-                # Clients are a workspace's own records.
-                "client_id": None,
+                # Clients are a workspace's own records: this is the destination's, or none.
+                "client_id": client_id,
                 "archived_at": archived_at,
                 "updated_at": now,
                 "access": {

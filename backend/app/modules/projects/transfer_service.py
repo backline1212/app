@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
@@ -25,18 +26,26 @@ from app.core.errors import (
 )
 from app.core.events import append_event
 from app.core.session import Session
+from app.modules.auth.repository import UserRepository
 from app.modules.billing.limits import require_within_plan_limit, run_plan_change
 from app.modules.billing.plans import effective_plan_id, get_plan_definition
 from app.modules.billing.repository import BillingRepository
 from app.modules.projects import events as project_events
+from app.modules.projects import transfer_choices
 from app.modules.projects.repository import ProjectRepository, is_untouched_sample
-from app.modules.projects.schemas import ProjectTransfer, ProjectTransferOut
-from app.modules.projects.transfer_repository import ProjectTransferRepository
+from app.modules.projects.schemas import (
+    ProjectTransfer,
+    ProjectTransferOut,
+    ProjectTransferPreview,
+    ProjectTransferUnassigned,
+)
+from app.modules.projects.transfer_repository import MoveResult, ProjectTransferRepository
 from app.modules.storage.gc import run_object_gc
 from app.modules.storage.quota_repository import StorageQuotaRepository
 from app.modules.storage.r2_client import copy_object, delete_object, list_object_keys
 from app.modules.storage.repository import ObjectGcRepository
 from app.modules.workspaces.repository import MembershipRepository, WorkspaceRepository
+from app.modules.workspaces.service import announce_new_members
 
 logger = logging.getLogger(__name__)
 
@@ -144,20 +153,19 @@ async def _delete_old_files(
     return True
 
 
-async def transfer_project(
+async def _load_for_move(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
     project_id: str,
     workspace_id: str,
     actor: Session,
-    request: ProjectTransfer,
-) -> ProjectTransferOut:
-    projects = ProjectRepository(db)
-    project = await projects.find_by_id(project_id)
+    target_id: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The project and the destination workspace, after checking this person may move
+    the one into the other."""
+    project = await ProjectRepository(db).find_by_id(project_id)
     if project is None or project["workspace_id"] != workspace_id:
         raise NotFoundError("Project not found.")
-
-    target_id = request.target_workspace_id
     if target_id == workspace_id:
         raise ValidationError("This project is already in that workspace.")
     membership = await MembershipRepository(db).find(workspace_id=target_id, user_id=actor.user_id)
@@ -169,12 +177,52 @@ async def transfer_project(
         raise PermissionDeniedError(
             "You need to be an owner or admin of the destination workspace."
         )
-    if request.project_name != project["name"].strip():
-        raise ValidationError("The typed name does not match this project.")
     if is_untouched_sample(project):
         raise ValidationError("The example project can't be moved.")
     if project.get("hard_delete_status") == "deleting":
         raise ConflictError("Permanent deletion is in progress for this project.")
+    return project, target
+
+
+async def preview_transfer(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    project_id: str,
+    workspace_id: str,
+    actor: Session,
+    target_id: str,
+) -> ProjectTransferPreview:
+    project, _ = await _load_for_move(
+        db, project_id=project_id, workspace_id=workspace_id, actor=actor, target_id=target_id
+    )
+    return await transfer_choices.preview(
+        db, source_id=workspace_id, target_id=target_id, project=project
+    )
+
+
+@dataclass(frozen=True)
+class _Moved:
+    graph: MoveResult
+    client_outcome: transfer_choices.ClientOutcome
+    client_name: str | None
+    added_emails: list[str]
+
+
+async def transfer_project(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    project_id: str,
+    workspace_id: str,
+    actor: Session,
+    request: ProjectTransfer,
+) -> ProjectTransferOut:
+    target_id = request.target_workspace_id
+    project, target = await _load_for_move(
+        db, project_id=project_id, workspace_id=workspace_id, actor=actor, target_id=target_id
+    )
+    if request.project_name != project["name"].strip():
+        raise ValidationError("The typed name does not match this project.")
+    projects = ProjectRepository(db)
 
     repo = ProjectTransferRepository(db)
     transfer_id = str(uuid.uuid4())
@@ -192,6 +240,13 @@ async def transfer_project(
             await require_within_plan_limit(db, target_id, "projects")
         sizes = await repo.stored_bytes(workspace_id, project_id)
         await _require_storage_room(db, target_id, sum(sizes.values()))
+        await transfer_choices.require_room_for(
+            db,
+            source_id=workspace_id,
+            target_id=target_id,
+            project=project,
+            user_ids=request.add_member_ids,
+        )
         try:
             old_keys = await list_object_keys([old for old, _ in prefixes])
         except Exception as exc:
@@ -203,7 +258,7 @@ async def transfer_project(
         await repo.forget_cleanups(target_id, new_keys)
         await _copy_files(moves)
 
-        async def commit(session: AsyncIOMotorClientSession) -> int:
+        async def commit(session: AsyncIOMotorClientSession) -> _Moved:
             current = await db.projects.find_one(
                 {"_id": project["_id"], "workspace_id": workspace_id, "transfer.id": transfer_id},
                 session=session,
@@ -235,13 +290,37 @@ async def transfer_project(
                 [key for key in ledger if key not in listed and key not in staying],
                 session=session,
             )
-            renumbered = await repo.move_graph(
+            client_id, client_outcome, client_name = await transfer_choices.bring_client(
+                db,
+                source_id=workspace_id,
+                target_id=target_id,
+                project=current,
+                choice=request.client,
+                match=request.client_match,
+                actor_user_id=actor.user_id,
+                session=session,
+            )
+            # Before the records move, so the new members keep their assignments.
+            added_emails, extra_access = await transfer_choices.add_people(
+                db,
+                source_id=workspace_id,
+                target_id=target_id,
+                project=current,
+                user_ids=request.add_member_ids,
+                actor_user_id=actor.user_id,
+                session=session,
+            )
+            graph = await repo.move_graph(
                 source_id=workspace_id,
                 target_id=target_id,
                 project=current,
                 prefixes=prefixes,
                 archived_at=archived_at,
                 actor_user_id=actor.user_id,
+                client_id=client_id,
+                extra_access=extra_access,
+                keep_issue_links=request.keep_issue_links,
+                copy_activity=request.copy_activity,
                 session=session,
             )
             await repo.forget_cleanups(workspace_id, old_keys, session=session)
@@ -269,11 +348,11 @@ async def transfer_project(
                     },
                     session=session,
                 )
-            return renumbered
+            return _Moved(graph, client_outcome, client_name, added_emails)
 
         # Runs under the destination's plan lock, so two arrivals can't both take the last
         # project slot or the last of the storage.
-        renumbered = await run_plan_change(db, target_id, commit)
+        moved = await run_plan_change(db, target_id, commit)
     except BaseException:
         stored = await projects.find_by_id(project_id)
         if stored is not None and stored["workspace_id"] == workspace_id:
@@ -284,15 +363,43 @@ async def transfer_project(
     pending = await _delete_old_files(
         db, workspace_id=workspace_id, project_id=project_id, transfer_id=transfer_id
     )
+    emails_failed = 0
+    if moved.added_emails:
+        emails_failed = await announce_new_members(
+            db,
+            workspace_id=target_id,
+            inviter_user_id=actor.user_id,
+            emails=moved.added_emails,
+        )
+    unassigned = moved.graph.unassigned
+    users = await UserRepository(db).find_many_by_ids(list(unassigned))
     return ProjectTransferOut(
         project_id=project_id,
         workspace_id=target_id,
         workspace_slug=target["slug"],
         workspace_name=target["name"],
         archived=archived_at is not None,
-        tickets_renumbered=renumbered,
+        tickets_renumbered=moved.graph.renumbered,
         files_moved=len(new_keys),
         cleanup_pending=pending,
+        client_outcome=moved.client_outcome,
+        client_name=moved.client_name,
+        members_added=len(moved.added_emails),
+        invite_emails_failed=emails_failed,
+        unassigned=sorted(
+            (
+                ProjectTransferUnassigned(
+                    name=(users.get(user) or {}).get("name")
+                    or (users.get(user) or {}).get("email")
+                    or "A former member",
+                    ticket_numbers=sorted(numbers),
+                )
+                for user, numbers in unassigned.items()
+            ),
+            key=lambda person: person.name.casefold(),
+        ),
+        issue_links_kept=moved.graph.issue_links_kept,
+        activity_copied=moved.graph.activity_copied,
     )
 
 

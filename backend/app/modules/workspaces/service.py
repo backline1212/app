@@ -463,6 +463,29 @@ async def _send_invite_email(
         return False
 
 
+async def announce_new_members(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    inviter_user_id: str,
+    emails: list[str],
+) -> int:
+    """For memberships already saved by another change (a project move, TDR-0245):
+    refreshes open dashboards and sends the invitations. Returns how many invitation
+    emails could not be sent. Never raises, since the change has already happened."""
+    try:
+        await _publish_members_changed(workspace_id)
+    except Exception:
+        logger.exception("Could not announce new members of workspace %s", workspace_id)
+    failed = 0
+    for email in emails:
+        if not await _send_invite_email(
+            db, workspace_id=workspace_id, inviter_user_id=inviter_user_id, email=email
+        ):
+            failed += 1
+    return failed
+
+
 async def resend_invite(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,

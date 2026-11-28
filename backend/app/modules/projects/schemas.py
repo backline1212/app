@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -346,6 +346,49 @@ class ProjectTransfer(BaseModel):
     target_workspace_id: str = Field(min_length=1, max_length=64)
     # Typed by the person moving it, like permanent deletion.
     project_name: Trimmed = Field(min_length=1, max_length=200)
+    # What else goes with it (TDR-0245). Left out, only the project itself moves.
+    client: Literal["contact", "name", "none"] = "none"
+    # When the destination already has a client of that name: link to it, or add another.
+    client_match: Literal["existing", "new"] = "existing"
+    # People on the project to add to the destination, so their assignments stay.
+    add_member_ids: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(
+        default_factory=list, max_length=50
+    )
+    keep_issue_links: bool = False
+    copy_activity: bool = False
+
+
+class ProjectTransferClient(BaseModel):
+    name: str
+    contact_name: str
+    email: str | None
+
+
+class ProjectTransferPerson(BaseModel):
+    user_id: str
+    name: str
+    email: str
+    ticket_count: int
+
+
+class ProjectTransferPreview(BaseModel):
+    """What a move to one destination would carry, shown before it is confirmed."""
+
+    client: ProjectTransferClient | None
+    # A client in the destination with the same name.
+    existing_client: ProjectTransferClient | None
+    # On the project, in this workspace, but not yet in the destination.
+    people: list[ProjectTransferPerson]
+    member_count: int
+    member_limit: int | None
+    issue_link_count: int
+    activity_count: int
+
+
+class ProjectTransferUnassigned(BaseModel):
+    name: str
+    # The tickets' numbers in the destination.
+    ticket_numbers: list[int]
 
 
 class ProjectTransferOut(BaseModel):
@@ -358,6 +401,14 @@ class ProjectTransferOut(BaseModel):
     files_moved: int
     # Old copies of the files are still waiting to be deleted; a background job retries.
     cleanup_pending: bool
+    client_outcome: Literal["linked", "created", "none"]
+    client_name: str | None
+    members_added: int
+    invite_emails_failed: int
+    # People taken off tickets because they aren't in the destination.
+    unassigned: list[ProjectTransferUnassigned]
+    issue_links_kept: int
+    activity_copied: int
 
 
 class ProjectHardDeleteResult(BaseModel):

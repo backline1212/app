@@ -432,6 +432,7 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
                 </>
               )}
               <p className="bl-acct-hint">Up to 5 devices stay signed in; signing in on a sixth signs out the one used least recently.</p>
+              <p className="bl-acct-hint">Signing out a device does not stop browser extension keys or MCP tokens. To stop those, revoke them on each workspace’s API keys page.</p>
               <DeleteAccountSection />
             </div>
           )}

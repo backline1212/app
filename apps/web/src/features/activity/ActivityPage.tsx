@@ -190,7 +190,7 @@ export function ActivityPage() {
                   </span>
                   <div>
                     <p style={{ margin: 0 }}>
-                      <strong>{members.data?.find((m) => m.user_id === event.actor_id)?.name ?? (event.actor_type === "system" ? "Backline" : event.actor_type === "guest" ? event.actor_name ?? "A client" : "Team member")}</strong>
+                      <strong>{members.data?.find((m) => m.user_id === event.actor_id)?.name ?? (event.actor_type === "system" ? "Backline" : event.actor_name ?? (event.actor_type === "guest" ? "A client" : "Team member"))}</strong>
                       {event.actor_type === "guest" && <span className="bl-activity-role">Client</span>}
                       {" " + eventPhrase(event)}
                       {event.name && <> <span className="bl-activity-obj">{event.name}</span></>}
@@ -205,7 +205,7 @@ export function ActivityPage() {
                       // An archived project can't be opened (its card has no link either),
                       // so point at the Archived list, where it can be restored; a deleted
                       // one has nowhere to go. Until projects load, keep the normal link.
-                      if (projects.data && !project) return <span className="bl-chip">Project deleted</span>;
+                      if (projects.data && !project) return <span className="bl-chip">{event.project_moved ? "Moved to another workspace" : "Project deleted"}</span>;
                       if (project?.archived_at) return <Link className="bl-chip" to={`/w/${workspace.slug}?archived=true`}>Project archived →</Link>;
                       return (
                         <Link className="bl-chip" to={`/w/${workspace.slug}/p/${event.project_id}/board${event.comment_id ? `?comment=${event.comment_id}` : ''}`}>

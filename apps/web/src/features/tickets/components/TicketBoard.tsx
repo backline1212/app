@@ -9,6 +9,12 @@ import * as api from "../api";
 import type { TicketUpdateMutation } from "./types";
 import { HScroll } from "../../../components/HScroll";
 
+// The design has no "Won't fix" column: those tickets sit with the resolved ones, marked.
+const BOARD_COLUMNS = WORKFLOW_STATUSES.filter((status) => status !== "wont_fix");
+function columnOf(status: api.Ticket["status"]) {
+  return status === "wont_fix" ? "resolved" : status;
+}
+
 /**
  * The design's ticket board (design/index.html's tBoard/taskCard): one column per
  * status, tinted by that status, each holding compact cards - ticket number and
@@ -35,8 +41,8 @@ export function TicketBoard({
 
   return (
     <HScroll className="bl-tboard" label="Ticket board">
-      {WORKFLOW_STATUSES.map((s) => {
-        const column = tickets.filter((t) => t.status === s);
+      {BOARD_COLUMNS.map((s) => {
+        const column = tickets.filter((t) => columnOf(t.status) === s);
         return (
           <section
             key={s}
@@ -62,7 +68,8 @@ export function TicketBoard({
               // the error banner in TicketsPage for one frame.
               if (id && !update.isPending) {
                 const ticket = tickets.find(t => t.id === id);
-                if (ticket && update.canEdit(ticket) && ticket.status !== s) {
+                // Dropped back on its own column, a "Won't fix" ticket stays one.
+                if (ticket && update.canEdit(ticket) && columnOf(ticket.status) !== s) {
                   update.mutate({ id, patch: { status: s } });
                 }
               }
@@ -102,6 +109,7 @@ export function TicketBoard({
                     <span className="bl-tc-t">{t.body}</span>
                     <span className="bl-tc-s">{t.project_name} · {t.is_standalone ? "Team ticket" : (reviewTicketPath(t.page_path) ?? t.page_title)}</span>
                     <span className="bl-tc-foot">
+                      {t.status === "wont_fix" && <span className="bl-chip">{STATUS_LABELS.wont_fix}</span>}
                       {t.tags?.slice(0, 1).map((tag) => <span className="bl-chip" key={tag}>{tag}</span>)}
                       {due && (
                         <span className={`bl-due-chip ${due.tone === "late" ? "is-late" : due.tone === "soon" ? "is-soon" : ""}`}>{due.text}</span>

@@ -966,6 +966,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/transfer-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Project Transfer
+         * @description What moving this project to that workspace would carry (TDR-0245).
+         */
+        get: operations["preview_project_transfer_api_v1_projects__project_id__transfer_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/transfer": {
         parameters: {
             query?: never;
@@ -2808,6 +2828,11 @@ export interface components {
             actor_id: string | null;
             /** Actor Name */
             actor_name?: string | null;
+            /**
+             * Project Moved
+             * @default false
+             */
+            project_moved: boolean;
             /**
              * Created At
              * Format: date-time
@@ -5390,6 +5415,39 @@ export interface components {
             target_workspace_id: string;
             /** Project Name */
             project_name: string;
+            /**
+             * Client
+             * @default none
+             * @enum {string}
+             */
+            client: "contact" | "name" | "none";
+            /**
+             * Client Match
+             * @default existing
+             * @enum {string}
+             */
+            client_match: "existing" | "new";
+            /** Add Member Ids */
+            add_member_ids?: string[];
+            /**
+             * Keep Issue Links
+             * @default false
+             */
+            keep_issue_links: boolean;
+            /**
+             * Copy Activity
+             * @default false
+             */
+            copy_activity: boolean;
+        };
+        /** ProjectTransferClient */
+        ProjectTransferClient: {
+            /** Name */
+            name: string;
+            /** Contact Name */
+            contact_name: string;
+            /** Email */
+            email: string | null;
         };
         /** ProjectTransferOut */
         ProjectTransferOut: {
@@ -5409,6 +5467,59 @@ export interface components {
             files_moved: number;
             /** Cleanup Pending */
             cleanup_pending: boolean;
+            /**
+             * Client Outcome
+             * @enum {string}
+             */
+            client_outcome: "linked" | "created" | "none";
+            /** Client Name */
+            client_name: string | null;
+            /** Members Added */
+            members_added: number;
+            /** Invite Emails Failed */
+            invite_emails_failed: number;
+            /** Unassigned */
+            unassigned: components["schemas"]["ProjectTransferUnassigned"][];
+            /** Issue Links Kept */
+            issue_links_kept: number;
+            /** Activity Copied */
+            activity_copied: number;
+        };
+        /** ProjectTransferPerson */
+        ProjectTransferPerson: {
+            /** User Id */
+            user_id: string;
+            /** Name */
+            name: string;
+            /** Email */
+            email: string;
+            /** Ticket Count */
+            ticket_count: number;
+        };
+        /**
+         * ProjectTransferPreview
+         * @description What a move to one destination would carry, shown before it is confirmed.
+         */
+        ProjectTransferPreview: {
+            client: components["schemas"]["ProjectTransferClient"] | null;
+            existing_client: components["schemas"]["ProjectTransferClient"] | null;
+            /** People */
+            people: components["schemas"]["ProjectTransferPerson"][];
+            /** Member Count */
+            member_count: number;
+            /** Member Limit */
+            member_limit: number | null;
+            /** Issue Link Count */
+            issue_link_count: number;
+            /** Activity Count */
+            activity_count: number;
+        };
+        /** ProjectTransferUnassigned */
+        ProjectTransferUnassigned: {
+            /** Name */
+            name: string;
+            /** Ticket Numbers */
+            ticket_numbers: number[];
         };
         /** ProjectUpdate */
         ProjectUpdate: {
@@ -8403,6 +8514,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectHardDeleteResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_project_transfer_api_v1_projects__project_id__transfer_preview_get: {
+        parameters: {
+            query: {
+                target_workspace_id: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectTransferPreview"];
                 };
             };
             /** @description Validation Error */
