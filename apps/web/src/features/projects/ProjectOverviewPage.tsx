@@ -767,6 +767,23 @@ export function ProjectOverviewPage() {
     });
   }
 
+  // A typed width resizes the responsive frame, or turns a device preset into a custom
+  // size that keeps the preset's current height (within the custom size's limits).
+  function setFrameWidth(width: number) {
+    if (!viewport) {
+      updateViewParams({ stageWidth: String(width) });
+      return;
+    }
+    const height = Math.min(2000, Math.max(320, visibleHeight ?? viewport.height));
+    updateViewParams({
+      viewport: "Custom",
+      viewportWidth: String(width),
+      viewportHeight: String(height),
+      orientation: null,
+      stageWidth: null,
+    });
+  }
+
   function onFrameResize(nextWidth: number | null, phase: ResizePhase) {
     if (phase === "drag") {
       setDragWidth(nextWidth);
@@ -1363,6 +1380,7 @@ export function ProjectOverviewPage() {
         currentPageId={activePage?.id ?? null}
         onSelectPage={goToPage}
         viewport={viewport}
+        onWidthChange={setFrameWidth}
         onViewportChange={setViewport}
         fitWidth={fitWidth}
         browser={browser}

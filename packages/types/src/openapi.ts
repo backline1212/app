@@ -8645,7 +8645,7 @@ export interface operations {
                 assignees?: string[];
                 view?: "all" | "mine" | "reply" | "client" | "overdue" | "new";
                 open_only?: boolean;
-                sort?: "newest" | "oldest" | "due" | "priority" | "status" | "project" | "assignee" | "tag";
+                sort?: "newest" | "oldest" | "due" | "priority" | "urgent" | "status" | "project" | "assignee" | "tag";
                 offset?: number;
                 limit?: number;
             };

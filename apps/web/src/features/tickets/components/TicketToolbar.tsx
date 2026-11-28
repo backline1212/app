@@ -74,6 +74,8 @@ export interface TicketToolbarProps {
   group: string;
   onGroup: (value: string) => void;
   showGroup: boolean;
+  /** "Show work for" belongs to All tickets only. */
+  showWho: boolean;
   members: MemberOut[];
   assignees: string[];
   onAssignees: (value: string[]) => void;
@@ -83,7 +85,7 @@ export interface TicketToolbarProps {
   totalAny: number;
 }
 
-export function TicketToolbar({ sort, onSort, group, onGroup, showGroup, members, assignees, onAssignees, counts, totalAny }: TicketToolbarProps) {
+export function TicketToolbar({ sort, onSort, group, onGroup, showGroup, showWho, members, assignees, onAssignees, counts, totalAny }: TicketToolbarProps) {
   const [open, setOpen] = useState<"sort" | "group" | "who" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const sortRef = useRef<HTMLButtonElement>(null);
@@ -157,7 +159,7 @@ export function TicketToolbar({ sort, onSort, group, onGroup, showGroup, members
         </>
       )}
 
-      <button ref={whoRef} type="button" className="bl-ghost-btn bl-who-btn" aria-haspopup="true" aria-expanded={open === "who"} onClick={() => toggle("who")}>
+      {showWho && <button ref={whoRef} type="button" className="bl-ghost-btn bl-who-btn" aria-haspopup="true" aria-expanded={open === "who"} onClick={() => toggle("who")}>
         {faces.length === 0 ? (
           <span className="bl-who-any" aria-hidden="true">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -176,8 +178,8 @@ export function TicketToolbar({ sort, onSort, group, onGroup, showGroup, members
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <path d="M6 9l6 6 6-6" />
         </svg>
-      </button>
-      {open === "who" && (
+      </button>}
+      {showWho && open === "who" && (
         <Popover anchor={whoRef} popRef={popRef} className="bl-who-pop">
           <div className="bl-pop-label">SHOW WORK FOR</div>
           <button type="button" className="bl-asg-opt" role="menuitemradio" aria-checked={assignees.length === 0} onClick={() => onAssignees([])}>

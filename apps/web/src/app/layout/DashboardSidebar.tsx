@@ -93,12 +93,13 @@ export function DashboardSidebar({ workspace, mobileOpen = false, onClose, onNav
   const endingSoon = daysLeft !== null && daysLeft <= 7;
   const { pathname } = location;
   const onTickets = pathname === `${base}/tickets`;
+  const onMyTickets = onTickets && (query.get("view") === "mine" || query.get("mine") === "1");
   const onPage = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
 
   const primaryLinks: RailItem[] = [
     { to: base, label: t('sidebar.projects' as TranslationKeys), icon: ProjectsIcon, count: data?.projects, active: pathname === base && query.get("archived") !== "true" },
-    { to: `${base}/tickets?view=mine`, label: "Assigned to me", icon: AssignedToMeIcon, count: data?.assigned_to_me, hot: true, active: onTickets && query.get("view") === "mine" },
-    { to: `${base}/tickets`, label: "All tickets", icon: TicketsIcon, count: data?.tickets, active: onTickets && query.get("view") !== "mine" && !query.get("status") },
+    { to: `${base}/tickets?view=mine`, label: "Assigned to me", icon: AssignedToMeIcon, count: data?.assigned_to_me, hot: true, active: onMyTickets },
+    { to: `${base}/tickets`, label: "All tickets", icon: TicketsIcon, count: data?.tickets, active: onTickets && !onMyTickets && !query.get("status") },
     { to: `${base}/activity`, label: t('sidebar.activity' as TranslationKeys), icon: ActivityClockIcon, active: onPage(`${base}/activity`) },
     { to: `${base}/clients`, label: t('sidebar.clients' as TranslationKeys), icon: ClientsIcon, active: onPage(`${base}/clients`) },
   ];

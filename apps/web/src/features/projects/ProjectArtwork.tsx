@@ -1,18 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import type * as api from "./api";
-
-const PREVIEW_PALETTES = [
-  { accent: "#69DEB2", accentSoft: "#CFF4E5", ink: "#17342A", paper: "#F5FAF7" },
-  { accent: "#E8B833", accentSoft: "#F7E8B8", ink: "#302A18", paper: "#FCFAF2" },
-  { accent: "#7C6BE8", accentSoft: "#DED9FF", ink: "#25233A", paper: "#F8F7FF" },
-  { accent: "#5B7FA6", accentSoft: "#DCE8F1", ink: "#162B3D", paper: "#F5F9FC" },
-] as const;
-
-function hashOf(seed: string) {
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
-  return hash;
-}
+import { projectPalette } from "./project-palette";
 
 // A comment pin as the widget draws it on a reviewed page (ui-styles.ts .bl-pin): round
 // except the bottom-left corner, which is the point that sits on the spot commented on.
@@ -143,8 +131,7 @@ function usePreviewSrc(url: string | null | undefined, version: string | null | 
  */
 export function ProjectArtwork({ project, open = 0, total = 0 }: { project: api.ProjectOut; open?: number; total?: number }) {
   const shot = usePreviewSrc(project.preview_url, project.preview_captured_at);
-  const seed = hashOf(project.id || project.name);
-  const palette = PREVIEW_PALETTES[seed % PREVIEW_PALETTES.length]!;
+  const { seed, palette } = projectPalette(project);
   const variant = (seed >>> 3) % 3;
   const type = project.project_type ?? "website";
   const initial = project.name.trim()[0]?.toUpperCase() ?? "?";

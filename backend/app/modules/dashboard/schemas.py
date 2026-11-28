@@ -27,9 +27,10 @@ class TicketFilters(BaseModel):
     view: Literal["all", "mine", "reply", "client", "overdue", "new"] = "all"
     # Leave out resolved and won't-fix tickets (the MCP server's default listing).
     open_only: bool = False
-    sort: Literal["newest", "oldest", "due", "priority", "status", "project", "assignee", "tag"] = (
-        "newest"
-    )
+    # "urgent": highest priority first, newest first within a priority.
+    sort: Literal[
+        "newest", "oldest", "due", "priority", "urgent", "status", "project", "assignee", "tag"
+    ] = "newest"
     offset: int = Field(default=0, ge=0, le=100000)
     limit: int = Field(default=50, ge=1, le=100)
 

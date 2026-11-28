@@ -11,12 +11,6 @@ export function createClient(workspaceId: string, body: Schemas["ClientCreate"])
 export function updateClient(workspaceId: string, id: string, body: Schemas["ClientUpdate"]) {
   return apiFetch<Client>(`/api/v1/workspaces/${workspaceId}/clients/${id}`, { method: "PATCH", body: JSON.stringify(body) });
 }
-export function archiveClient(workspaceId: string, id: string) {
-  return apiFetch<void>(`/api/v1/workspaces/${workspaceId}/clients/${id}`, { method: "DELETE" });
-}
-export function restoreClient(workspaceId: string, id: string) {
-  return apiFetch<Client>(`/api/v1/workspaces/${workspaceId}/clients/${id}/restore`, { method: "POST" });
-}
 export function exportClients(workspaceId: string) {
   return apiFetchBlob(`/api/v1/workspaces/${workspaceId}/clients/export`);
 }

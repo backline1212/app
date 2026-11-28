@@ -15,6 +15,12 @@ import { useDraftNavigationGuard } from "../../../lib/draft-navigation";
 
 type Shot = Schemas["AttachmentIn"] & { preview: string };
 
+// A pasted screenshot arrives as "image.png"; number each one so they can be told apart.
+function namedPaste(file: File, number: number) {
+  if (!/^image\.\w+$/i.test(file.name)) return file;
+  return new File([file], `Pasted screenshot ${number}.${file.type.split("/")[1] ?? "png"}`, { type: file.type });
+}
+
 function pageLabel(page: { title: string | null; url_normalized: string }) {
   if (/^https?:\/\//.test(page.url_normalized)) {
     return reviewPagePath(page.url_normalized);
@@ -73,7 +79,7 @@ export function NewTicket({ workspace, members, onClose, initialProjectId = "", 
     setShots([]);
   }
 
-  async function addShots(files: FileList | null) {
+  async function addShots(files: FileList | File[] | null) {
     if (!files?.length || !projectId || busy.current || uploadBusy.current || retryLocked || confirmed || !active.some(project => project.id === projectId)) return;
     const selected = Array.from(files);
     if (selected.length > 10 - shotsRef.current.length) { setUploadError(`Choose at most ${10 - shotsRef.current.length} more screenshots. No files from this selection were uploaded.`); if (fileRef.current) fileRef.current.value = ""; return; }
@@ -96,7 +102,7 @@ export function NewTicket({ workspace, members, onClose, initialProjectId = "", 
           setShots(shotsRef.current);
         } catch { failed += 1; }
       }
-      if (mounted.current && failed) setUploadError(`${failed} screenshot(s) could not be confirmed. Successful uploads are kept. Retry only failed files; PNG, JPG, WebP or GIF files must be at most 20 MiB.`);
+      if (mounted.current) setUploadError(failed ? `${failed} screenshot(s) could not be confirmed. Successful uploads are kept. Retry only failed files; PNG, JPG, WebP or GIF files must be at most 20 MiB.` : "");
     } finally {
       if (mounted.current) setUploading(false);
       uploadBusy.current = false;
@@ -104,6 +110,24 @@ export function NewTicket({ workspace, members, onClose, initialProjectId = "", 
       if (fileRef.current) fileRef.current.value = "";
     }
   }
+
+  // Ctrl+V / ⌘V anywhere in the form attaches the copied image.
+  const pasteRef = useRef<(event: ClipboardEvent) => void>(() => undefined);
+  pasteRef.current = (event) => {
+    const images = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith("image/"));
+    if (!images.length || confirmClose) return;
+    // Copying from a document puts text and a picture of it on the clipboard: in a text box, the text wins.
+    const typing = event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement;
+    if (typing && event.clipboardData?.getData("text/plain")) return;
+    event.preventDefault();
+    if (uploadBusy.current) { setUploadError("Wait for the current upload to finish, then paste again."); return; }
+    void addShots(images.map((file, index) => namedPaste(file, shotsRef.current.length + index + 1)));
+  };
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => pasteRef.current(event);
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, []);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -261,7 +285,7 @@ export function NewTicket({ workspace, members, onClose, initialProjectId = "", 
             )}
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={(e) => void addShots(e.target.files)} />
           </div>
-          <small>Whoever picks this up sees them on the ticket.</small>
+          <small>Paste a copied image (Ctrl+V or ⌘V) or attach a file. Whoever picks this up sees them on the ticket.</small>
         </div>
         </fieldset>
         {projects.error && <p role="alert" className="bl-error">{projects.error.message} <button type="button" onClick={() => void projects.refetch()}>Retry loading projects</button></p>}

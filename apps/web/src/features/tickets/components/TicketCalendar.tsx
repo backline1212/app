@@ -4,7 +4,7 @@ import { ticketRef } from "../../../lib/ticket-ref";
 import * as api from "../api";
 import type { TicketUpdateMutation } from "./types";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 // The design shows three tickets per day and counts the rest, so a busy week can't
 // stretch one row to the height of the page.
 const CHIPS_PER_DAY = 3;
@@ -26,7 +26,8 @@ export function TicketCalendar({ tickets, update, onOpen }: { tickets: api.Ticke
 
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-  const cells = Array.from({ length: Math.ceil((first.getDay() + days) / 7) * 7 }, (_, i) => i - first.getDay() + 1);
+  const lead = (first.getDay() + 6) % 7; // days of the previous month before the 1st
+  const cells = Array.from({ length: Math.ceil((lead + days) / 7) * 7 }, (_, i) => i - lead + 1);
   const weeks = Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, (w + 1) * 7));
   const today = todayKey();
 
@@ -79,7 +80,7 @@ export function TicketCalendar({ tickets, update, onOpen }: { tickets: api.Ticke
         onClick={() => onOpen(t.id)}
         aria-label={`${ticketRef(t)} ${STATUS_LABELS[t.status]}: ${t.body}`}
         title={`${ticketRef(t)} ${t.body} · ${t.project_name}`}
-        className={`bl-cal-chip${draggedId === t.id ? " bl-dragging" : ""}`}
+        className={`bl-cal-chip bl-st-${t.status}${draggedId === t.id ? " bl-dragging" : ""}`}
       >
         <i className="bl-status-dot" style={{ background: STATUS_COLORS[t.status] }} aria-hidden="true" />
         <span><b>{ticketRef(t)}</b> {t.body}</span>
@@ -98,7 +99,6 @@ export function TicketCalendar({ tickets, update, onOpen }: { tickets: api.Ticke
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
         </button>
         <button type="button" className="bl-quiet" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Today</button>
-        <span className="bl-mono bl-cal-hint">Dates from the current results page — drag a ticket onto a day to set its due date</span>
       </div>
 
       <div className="bl-cal" role="grid" aria-labelledby="calendar-heading">
@@ -109,7 +109,9 @@ export function TicketCalendar({ tickets, update, onOpen }: { tickets: api.Ticke
           <div className="bl-cal-week" role="row" key={weekIndex}>
             {week.map((day, i) => {
               const valid = day >= 1 && day <= days;
-              if (!valid) return <div key={i} className="bl-cal-day is-out" role="gridcell" aria-hidden="true" />;
+              if (!valid) return <div key={i} className="bl-cal-day is-out" role="gridcell" aria-hidden="true">
+                <span className="bl-cal-date">{new Date(month.getFullYear(), month.getMonth(), day).getDate()}</span>
+              </div>;
               const key = dayKey(month.getFullYear(), month.getMonth(), day);
               const dayTickets = byDay.get(key) ?? [];
               const expanded = expandedDay === key;
@@ -140,12 +142,13 @@ export function TicketCalendar({ tickets, update, onOpen }: { tickets: api.Ticke
         ))}
       </div>
 
-      <div className="bl-cal-unscheduled" onDragOver={dragOverDay} onDragLeave={dragLeaveDay} onDrop={dropOnDay(null)}>
+      {/* Shown when there is something undated, and while dragging so a date can be cleared. */}
+      {(undated.length > 0 || draggedId) && <div className="bl-cal-unscheduled" onDragOver={dragOverDay} onDragLeave={dragLeaveDay} onDrop={dropOnDay(null)}>
         <b>No due date ({undated.length})</b>
         {undated.length === 0
-          ? <p>Every ticket in these results has a due date. Drag one here to clear it.</p>
+          ? <p>Drop here to clear the due date.</p>
           : <div className="bl-cal-unscheduled-list">{undated.map(ticketChip)}</div>}
-      </div>
+      </div>}
     </section>
   );
 }
