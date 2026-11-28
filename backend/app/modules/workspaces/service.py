@@ -1135,11 +1135,13 @@ async def close_workspace(
     from app.modules.share_links.repository import ShareLinkRepository
 
     purge_after = datetime.now(UTC) + CLOSED_WORKSPACE_GRACE
-    await ProjectRepository(db).archive_all_for_workspace(workspace_id)
-    await ShareLinkRepository(db).revoke_all_for_workspace(workspace_id)
+    # Closed first, so a project moving in either sees it closed or arrives in time to
+    # be archived with the rest.
     await WorkspaceRepository(db).mark_closed(
         workspace_id, closed_by=actor_user_id, purge_after=purge_after
     )
+    await ProjectRepository(db).archive_all_for_workspace(workspace_id)
+    await ShareLinkRepository(db).revoke_all_for_workspace(workspace_id)
     memberships = MembershipRepository(db)
     for membership in await memberships.list_for_workspace(workspace_id):
         await memberships.delete(workspace_id=workspace_id, membership_id=str(membership["_id"]))

@@ -7,7 +7,11 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.errors import ValidationError
 from app.core.permissions import Role, role_allows
-from app.core.project_access import can_view_project, session_hidden_project_ids
+from app.core.project_access import (
+    WORKSPACE_MANAGER_ROLES,
+    can_view_project,
+    session_hidden_project_ids,
+)
 from app.core.session import Session
 from app.modules.auth.repository import UserRepository
 from app.modules.comments.idempotency import request_fingerprint, require_matching_replay
@@ -324,7 +328,14 @@ async def activity(
 ) -> ActivityListOut:
     hidden = await _hidden(db, viewer)
     repo = DashboardRepository(db)
-    docs, total = await repo.activity(workspace_id, user_id, offset, limit, event_type, hidden)
+    restricted_for = (
+        viewer.user_id
+        if viewer is not None and viewer.role not in WORKSPACE_MANAGER_ROLES
+        else None
+    )
+    docs, total = await repo.activity(
+        workspace_id, user_id, offset, limit, event_type, hidden, restricted_for
+    )
     event_projects = await resolve_event_projects(db, workspace_id, docs)
     if hidden:
         hidden_set = set(hidden)

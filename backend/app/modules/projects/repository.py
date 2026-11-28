@@ -343,11 +343,10 @@ class ProjectRepository:
         )
         return int(result.modified_count)
 
-    async def archive(self, project_id: str) -> None:
-        # workspace-scope-exempt: archive_project already verified ownership via
-        # find_by_id before calling this, same as update() above.
+    async def archive(self, workspace_id: str, project_id: str) -> None:
+        # Scoped, so it can't land on a project that has just moved elsewhere.
         await self.db.projects.update_one(
-            {"_id": to_object_id(project_id)},
+            {"_id": to_object_id(project_id), "workspace_id": workspace_id},
             {
                 "$set": {"archived_at": datetime.now(UTC), "updated_at": datetime.now(UTC)},
                 "$inc": {"metadata_version": 1},

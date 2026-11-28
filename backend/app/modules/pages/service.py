@@ -19,7 +19,7 @@ from app.modules.pages.schemas import (
     PageUpdate,
 )
 from app.modules.pages.url_normalize import normalize_url
-from app.modules.projects.repository import ProjectRepository
+from app.modules.projects.repository import ProjectRepository, transfer_in_progress
 
 
 def _is_site_page(doc: dict[str, Any]) -> bool:
@@ -189,6 +189,8 @@ async def create_page(
     project = await ProjectRepository(db).find_by_id(project_id)
     if project is None or project["workspace_id"] != workspace_id:
         raise NotFoundError("Project not found.")
+    if transfer_in_progress(project):
+        raise ConflictError("This project is being moved to another workspace.")
     if project.get("project_type", "website") != "website":
         raise ValidationError("Dashboard pages can only be added to website projects.")
     url_normalized = normalize_url(url)

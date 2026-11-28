@@ -614,6 +614,21 @@ async def _load_comment_for_workspace(
     return comment
 
 
+async def _require_not_moving(
+    db: AsyncIOMotorDatabase[dict[str, Any]], *, workspace_id: str, comment: dict[str, Any]
+) -> None:
+    """An issue filed while its project changes workspace would lose its link."""
+    from app.modules.projects.repository import ProjectRepository, transfer_in_progress
+
+    project_id = comment.get("project_id")
+    if not project_id:
+        page = await PageRepository(db).find_in_workspace(workspace_id, comment["page_id"])
+        project_id = page.get("project_id") if page else None
+    project = await ProjectRepository(db).find_by_id(project_id) if project_id else None
+    if project is not None and transfer_in_progress(project):
+        raise ConflictError("This project is being moved to another workspace.")
+
+
 async def send_to_tracker(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
@@ -633,6 +648,7 @@ async def send_to_tracker(
     raw = await CommentRepository(db).find_by_id(comment_id)
     if raw is None or raw.get("deleted_at") is not None:
         raise NotFoundError("Comment not found.")
+    await _require_not_moving(db, workspace_id=workspace_id, comment=raw)
     doc = await _load_integration(db, integration_id=integration_id, workspace_id=workspace_id)
     scope = doc.get("project_scope")
     if scope:

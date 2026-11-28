@@ -95,6 +95,31 @@ class ObjectGcRepository:
                 session=session,
             )
 
+    async def unfinished_transfers(self, limit: int = 50) -> list[dict[str, Any]]:
+        # workspace-scope-exempt: internal scheduler; each cleanup it returns is then run
+        # scoped to its own workspace and project. No tenant content is returned.
+        rows = await self.db.object_gc_tombstones.aggregate(
+            [
+                {
+                    "$match": {
+                        "reason": "transfer",
+                        "status": {"$in": ["pending", "failed", "deleting"]},
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": {
+                            "workspace_id": "$workspace_id",
+                            "project_id": "$project_id",
+                            "correlation_id": "$correlation_id",
+                        }
+                    }
+                },
+                {"$limit": limit},
+            ]
+        ).to_list(length=None)
+        return [dict(row["_id"]) for row in rows]
+
     async def claim_next(
         self,
         workspace_id: str,

@@ -5392,3 +5392,13 @@ database migration, or production deployment is claimed.
   "Open website review" opened the preview with thread #4 (and Maya's reply) open and
   `backline_comment` removed from the address.
 - ruff, mypy, types regenerated, widget build/lint/typecheck, web lint/typecheck.
+# 2026-11-28: Design review changes and project move (TDR-0241, 0243, 0244, 0245)
+
+- Web typecheck, lint and build; backend ruff and mypy; API types regenerated.
+- Browser (Edge, throwaway local workspaces): 23 and 24 checks on the screen changes,
+  34 on the project move, 51 on the move choices and follow-ups, 27 forcing failed and
+  interrupted moves and private history.
+- Backend tests: 235 pass, 39 fail; 38 also fail on `main`, one digest test also fails
+  on the previous commit.
+- Open: developer review of the move; very large projects, real R2, a real tracker
+  connection and invitation email delivery not verified (limits in TDR-0245).

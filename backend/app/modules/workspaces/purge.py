@@ -69,7 +69,7 @@ async def _purge_workspace(
     for project in projects:
         project_id = str(project["_id"])
         if project.get("archived_at") is None:
-            await ProjectRepository(db).archive(project_id)
+            await ProjectRepository(db).archive(workspace_id, project_id)
         preview = await deletion_service.preview_hard_delete(
             db, project_id=project_id, workspace_id=workspace_id, actor_user_id=actor
         )

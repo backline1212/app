@@ -179,7 +179,19 @@ async def add_people(
     new = [user for user in dict.fromkeys(user_ids) if user not in there]
     if not new:
         return [], []
-    if any(user not in here for user in new):
+    # Checked again here: someone may have been taken off the project during the copy.
+    contents = await ProjectTransferRepository(db).contents(
+        source_id, str(project["_id"]), session=session
+    )
+    addable = await _addable(
+        db,
+        source_id=source_id,
+        target_id=target_id,
+        project=project,
+        contents=contents,
+        session=session,
+    )
+    if set(new) - set(addable):
         raise ConflictError("The people on this project changed. Check the list and try again.")
     users = await UserRepository(db).find_many_by_ids(new)
     visibility, _, listed = access_settings(project)

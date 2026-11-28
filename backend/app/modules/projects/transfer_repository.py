@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
@@ -11,9 +11,12 @@ from pymongo import ReturnDocument, UpdateOne
 from app.core.config import get_settings
 from app.core.mongo_utils import to_object_id
 from app.core.project_access import access_settings
+from app.modules.integrations.repository import IntegrationLinkRepository
 from app.modules.projects.repository import TRANSFER_LOCK_TTL
-from app.modules.projects.transfer_activity import TransferActivityRepository
+from app.modules.projects.transfer_activity import TransferActivityRepository, restricted_audience
 
+# An upload link works for five minutes; a little longer allows for the upload to finish.
+_UPLOAD_WINDOW = timedelta(minutes=6)
 # Collections whose rows only need to change owner; nothing inside them names the workspace.
 _PLAIN_COLLECTIONS = ("pages", "revisions", "revision_diffs", "recovery_logs", "share_links")
 
@@ -84,9 +87,12 @@ class ProjectTransferRepository:
         Returns the archive date to put back (None for an active project), or False when
         another move or a deletion holds it."""
         now = datetime.now(UTC)
-        # A lock left behind by a crashed move remembers the state before that attempt.
+        # A lock left behind by a crashed move remembers the state before that attempt -
+        # unless someone has restored or archived the project since.
         stale = project.get("transfer")
-        original = stale["was_archived_at"] if stale else project.get("archived_at")
+        untouched = stale and project.get("archived_at") == stale.get("held_at")
+        original = stale["was_archived_at"] if stale and untouched else project.get("archived_at")
+        held_at = project.get("archived_at") or now
         result = await self.db.projects.find_one_and_update(
             {
                 "_id": project["_id"],
@@ -100,17 +106,92 @@ class ProjectTransferRepository:
             },
             {
                 "$set": {
-                    "archived_at": project.get("archived_at") or now,
+                    "archived_at": held_at,
                     "transfer": {
                         "id": transfer_id,
                         "started_at": now,
                         "was_archived_at": original,
+                        "held_at": held_at,
                     },
                 }
             },
             return_document=ReturnDocument.AFTER,
         )
         return False if result is None else original
+
+    async def renew(self, workspace_id: str, project_id: str, transfer_id: str) -> bool:
+        """Keeps the lock fresh. False once this move no longer holds the project in
+        `workspace_id`: it finished, or something else took over."""
+        result = await self.db.projects.update_one(
+            {
+                "_id": to_object_id(project_id),
+                "workspace_id": workspace_id,
+                "transfer.id": transfer_id,
+                "hard_delete_status": {"$ne": "deleting"},
+            },
+            {"$set": {"transfer.started_at": datetime.now(UTC)}},
+        )
+        return result.matched_count == 1
+
+    async def has_unfinished_cleanup(self, workspace_ids: list[str], project_id: str) -> bool:
+        """Files of this project still waiting to be deleted in either workspace. A move
+        now could reuse their paths and lose the new copies."""
+        found = await self.db.object_gc_tombstones.find_one(
+            {
+                "workspace_id": {"$in": workspace_ids},
+                "project_id": project_id,
+                "status": {"$in": ["pending", "deleting", "failed"]},
+            },
+            {"_id": 1},
+        )
+        return found is not None
+
+    async def has_open_upload(
+        self,
+        workspace_id: str,
+        project_id: str,
+        listed: set[str],
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> bool:
+        """An upload link issued moments ago whose file has not arrived could still land
+        under the old path after it was copied."""
+        cursor = self.db.storage_objects.find(
+            {
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "state": "reserved",
+                "updated_at": {"$gt": datetime.now(UTC) - _UPLOAD_WINDOW},
+            },
+            {"key": 1},
+            session=session,
+        )
+        return any([doc["key"] not in listed async for doc in cursor])
+
+    async def has_issue_being_filed(
+        self, workspace_id: str, comment_ids: list[str], *, session: AsyncIOMotorClientSession
+    ) -> bool:
+        found = await self.db.integration_links.find_one(
+            {
+                "workspace_id": workspace_id,
+                "comment_id": {"$in": comment_ids},
+                "status": "pending",
+                "created_at": {"$gt": datetime.now(UTC) - IntegrationLinkRepository.PENDING_TTL},
+            },
+            {"_id": 1},
+            session=session,
+        )
+        return found is not None
+
+    async def mark_transfer_cleanups(
+        self, workspace_id: str, correlation_id: str, *, session: AsyncIOMotorClientSession
+    ) -> None:
+        """Lets the scheduled sweep find old copies that a lost job left behind."""
+        await self.db.object_gc_tombstones.update_many(
+            {"workspace_id": workspace_id, "correlation_id": correlation_id},
+            {"$set": {"reason": "transfer"}},
+            session=session,
+        )
 
     async def release(
         self, workspace_id: str, project_id: str, transfer_id: str, archived_at: datetime | None
@@ -171,15 +252,16 @@ class ProjectTransferRepository:
         *,
         session: AsyncIOMotorClientSession | None = None,
     ) -> None:
-        """Drops earlier delete records for these paths. A project moved back reuses its old
-        paths: a leftover pending delete would remove the new copy, and a finished one would
-        stop the same path ever being queued again."""
+        """Drops finished delete records for these paths. A project moved back reuses its
+        old paths, and a finished record would stop the same path ever being queued again.
+        Unfinished ones block the move instead (has_unfinished_cleanup)."""
         if keys:
             await self.db.object_gc_tombstones.delete_many(
                 {
                     "workspace_id": workspace_id,
                     "bucket": get_settings().r2_bucket_name,
                     "key": {"$in": keys},
+                    "status": "deleted",
                 },
                 session=session,
             )
@@ -265,6 +347,7 @@ class ProjectTransferRepository:
             },
             copy=copy_activity,
             include_issues=keep_issue_links,
+            restricted_to=restricted_audience(project),
             session=session,
         )
 
@@ -308,7 +391,9 @@ class ProjectTransferRepository:
                 if comment.get(key):
                     changes[key] = [user for user in comment[key] if user in members]
             if comment.get("assignee_id") and comment["assignee_id"] not in members:
-                changes["assignee_id"] = None
+                # The primary assignee is the first of whoever is left.
+                remaining = changes.get("assignee_ids") or []
+                changes["assignee_id"] = remaining[0] if remaining else None
             operations.append(
                 UpdateOne(
                     {"_id": comment["_id"], "workspace_id": source_id},
@@ -396,6 +481,12 @@ class ProjectTransferRepository:
         await db.extension_tokens.update_many(
             {**owned, "revoked_at": None}, {"$set": {"revoked_at": now}}, session=session
         )
+        # Deploys waiting on the old workspace's hook are not the new one's to accept.
+        await db.deployments.update_many(
+            {**owned, "status": "awaiting_review"},
+            {"$set": {"status": "cancelled", "cancel_reason": "credential_changed"}},
+            session=session,
+        )
         await db.deployments.update_many(
             owned, {"$set": {"workspace_id": target_id}}, session=session
         )
@@ -480,6 +571,13 @@ class ProjectTransferRepository:
         )
         if project.get("created_by") not in members:
             changes["created_by"] = actor_user_id
+        # The old team holds the deploy hook's signing secret, so it ends here (TDR-0245).
+        if project.get("deploy_sync"):
+            changes["deploy_sync"] = {
+                "enabled": False,
+                "version": int(project["deploy_sync"].get("version", 0)) + 1,
+                "rotated_at": now,
+            }
         await self.db.projects.update_one(
             {"_id": project["_id"], "workspace_id": source_id},
             {

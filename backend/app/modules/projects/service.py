@@ -650,8 +650,10 @@ async def archive_project(
     existing = await repo.find_by_id(project_id)
     if existing is None or existing["workspace_id"] != workspace_id:
         raise NotFoundError("Project not found.")
+    if transfer_in_progress(existing):
+        raise ConflictError("This project is being moved to another workspace.")
 
-    await repo.archive(project_id)
+    await repo.archive(workspace_id, project_id)
     await append_event(
         db,
         workspace_id=workspace_id,

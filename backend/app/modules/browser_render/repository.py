@@ -76,10 +76,10 @@ class BrowserRenderRepository:
         # workspace/project-verified page_id.
         await self.db.browser_renders.update_one({"_id": doc_id}, {"$set": {"status": "rendering"}})
 
-    async def mark_ready(self, *, doc_id: Any, screenshot_key: str) -> None:
-        # workspace-scope-exempt: same reasoning as mark_rendering above.
-        await self.db.browser_renders.update_one(
-            {"_id": doc_id},
+    async def mark_ready(self, *, workspace_id: str, doc_id: Any, screenshot_key: str) -> bool:
+        """False when the record is no longer this workspace's (the project moved)."""
+        result = await self.db.browser_renders.update_one(
+            {"_id": doc_id, "workspace_id": workspace_id},
             {
                 "$set": {
                     "status": "ready",
@@ -89,6 +89,7 @@ class BrowserRenderRepository:
                 }
             },
         )
+        return result.matched_count == 1
 
     async def mark_failed(self, *, doc_id: Any, error: str) -> None:
         # workspace-scope-exempt: same reasoning as mark_rendering above.

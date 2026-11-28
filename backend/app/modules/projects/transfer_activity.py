@@ -11,10 +11,11 @@ from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo import UpdateOne
 
 from app.core.mongo_utils import to_object_id
+from app.core.project_access import VISIBILITY_PRIVATE, access_settings
 from app.modules.auth.repository import UserRepository
 
-# What happened to the project's own content. Connections, credentials and membership
-# belong to the old workspace and are never copied.
+# What happened to the project's own content. Connections, credentials and who had
+# access belong to the old workspace and are never copied.
 _COPIED = (
     "comment",
     "anchor",
@@ -30,7 +31,25 @@ _COPIED = (
 )
 _ISSUE_FILED = "integration.ticket_created"
 # The destination records the arrival itself; "moved elsewhere" would read as nonsense.
-_NEVER_COPIED = ("project.transferred_in", "project.transferred_out", "project.hard_deleted")
+_NEVER_COPIED = (
+    "project.transferred_in",
+    "project.transferred_out",
+    "project.hard_deleted",
+    "project.member_role_set",
+    "project.member_removed",
+    "project.access_updated",
+    "project.access_changed",
+    "project.duplicated",
+)
+
+
+def restricted_audience(project: dict[str, Any]) -> list[str] | None:
+    """Who may still read a leaving project's history: for a private project, the people
+    on its access list (owners and admins always can). None when it was open to all."""
+    visibility, _, listed = access_settings(project)
+    if visibility != VISIBILITY_PRIVATE:
+        return None
+    return [str(member["user_id"]) for member in listed]
 
 
 class TransferActivityRepository:
@@ -87,11 +106,19 @@ class TransferActivityRepository:
         old_numbers: dict[str, int],
         copy: bool,
         include_issues: bool,
+        restricted_to: list[str] | None,
         session: AsyncIOMotorClientSession,
     ) -> int:
-        """Keeps the old workspace's entries readable after the project leaves, and
-        copies them to the destination when `copy`. Returns how many were copied.
-        Must run before the project's records change workspace."""
+        """Keeps the old workspace's entries readable (and, for a private project, still
+        private) after the project leaves, and copies them to the destination when `copy`.
+        Returns how many were copied. Must run before the project's records change
+        workspace."""
+        # A project coming back is covered by its own access list again.
+        await self.db.events.update_many(
+            {"workspace_id": target_id, "payload_json.project_id": project_id},
+            {"$unset": {"payload_json.restricted_to": ""}},
+            session=session,
+        )
         query = self._about(source_id, project_id, page_ids, comment_ids, share_link_ids)
         events = await self.db.events.find(query, session=session).to_list(length=None)
         if not events:
@@ -134,9 +161,12 @@ class TransferActivityRepository:
             ticket = payload.get("parent_id") or payload.get("comment_id")
             if isinstance(ticket, str) and ticket in old_numbers:
                 changes["payload_json.ticket_number"] = old_numbers[ticket]
-            notes.append(
-                UpdateOne({"_id": doc["_id"], "workspace_id": source_id}, {"$set": changes})
-            )
+            update: dict[str, Any] = {"$set": changes}
+            if restricted_to is None:
+                update["$unset"] = {"payload_json.restricted_to": ""}
+            else:
+                changes["payload_json.restricted_to"] = restricted_to
+            notes.append(UpdateOne({"_id": doc["_id"], "workspace_id": source_id}, update))
         await self.db.events.bulk_write(notes, session=session)
         return copied
 
@@ -189,6 +219,7 @@ class TransferActivityRepository:
                 else (users.get(actor) or {}).get("name")
             )
             payload = {**doc["payload_json"], "project_id": project_id}
+            payload.pop("restricted_to", None)
             if name:
                 payload["actor_name"] = name
             # No correlation_id: it is unique across the whole collection.

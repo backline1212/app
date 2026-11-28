@@ -398,8 +398,19 @@ class DashboardRepository:
         limit: int,
         event_type: str,
         hidden_project_ids: list[str] | None = None,
+        restricted_for: str | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         query: dict[str, Any] = {"workspace_id": workspace_id}
+        if restricted_for:
+            # A private project that has since moved away stays private (TDR-0245).
+            query["$and"] = [
+                {
+                    "$or": [
+                        {"payload_json.restricted_to": {"$exists": False}},
+                        {"payload_json.restricted_to": restricted_for},
+                    ]
+                }
+            ]
         if hidden_project_ids:
             # Events about a project the reader can't open. Older comment events carry
             # only a comment_id; dashboard/service.py's activity() drops those.

@@ -44,6 +44,7 @@ from app.workers.snapshot_delivery import (
 from app.workers.storage_gc import (
     resume_project_hard_delete_job,
     resume_project_transfer_cleanup_job,
+    sweep_transfer_cleanups_job,
 )
 from app.workers.storage_quota import (
     reconcile_storage_reservation_job,
@@ -103,6 +104,7 @@ class WorkerSettings:
         cron(sweep_integration_dispatches_job, second=20),
         cron(sweep_notification_emails_job, second=30),
         cron(sweep_storage_reservations_job, second=45),
+        cron(sweep_transfer_cleanups_job, minute=set(range(0, 60, 5)), second=50),
         cron(purge_closed_workspaces_job, hour=3, minute=17),
         # Hourly, so a failed or missed 1-day reminder is retried before the plan ends.
         cron(send_renewal_reminders_job, minute=7),
