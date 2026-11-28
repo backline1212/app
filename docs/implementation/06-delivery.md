@@ -5398,7 +5398,7 @@ database migration, or production deployment is claimed.
 - Browser (Edge, throwaway local workspaces): 23 and 24 checks on the screen changes,
   34 on the project move, 51 on the move choices and follow-ups, 27 forcing failed and
   interrupted moves and private history.
-- Backend tests: 235 pass, 39 fail; 38 also fail on `main`, one digest test also fails
-  on the previous commit.
+- Backend tests: the 38 failures on `main`; up to one more digest test fails by time of
+  day (before 09:00 UTC) or while a local worker is running.
 - Open: developer review of the move; very large projects, real R2, a real tracker
   connection and invitation email delivery not verified (limits in TDR-0245).

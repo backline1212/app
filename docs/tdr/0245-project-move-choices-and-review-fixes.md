@@ -79,8 +79,8 @@ another workspace" instead of "Project deleted".
   original move.
 - 27 checks forcing the review's failures (failed, cancelled and overtaken moves,
   changes during the copy, stale locks, private history seen by a second user).
-- Existing backend tests: 235 pass, 39 fail. 38 fail on `main`; the other,
-  `test_first_digest_run_establishes_checkpoint_without_emailing`, also fails on the
-  commit before this work.
+- Existing backend tests: the 38 that fail on `main` fail here. One more email digest
+  test can fail for reasons outside this work: the first-run digest test before
+  09:00 UTC, the guest-resolved test while a local worker is reading the same queue.
 - Not verified: real Cloudflare R2, very large projects, a real tracker connection,
   invitation email delivery. The fixes themselves have had no second review.
