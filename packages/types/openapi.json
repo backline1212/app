@@ -16927,6 +16927,10 @@
             ],
             "title": "Client Name"
           },
+          "client_left_source": {
+            "type": "boolean",
+            "title": "Client Left Source"
+          },
           "members_added": {
             "type": "integer",
             "title": "Members Added"
@@ -16963,6 +16967,7 @@
           "cleanup_pending",
           "client_outcome",
           "client_name",
+          "client_left_source",
           "members_added",
           "invite_emails_failed",
           "unassigned",
@@ -17021,6 +17026,10 @@
               }
             ]
           },
+          "client_shared": {
+            "type": "boolean",
+            "title": "Client Shared"
+          },
           "people": {
             "items": {
               "$ref": "#/components/schemas/ProjectTransferPerson"
@@ -17056,6 +17065,7 @@
         "required": [
           "client",
           "existing_client",
+          "client_shared",
           "people",
           "member_count",
           "member_limit",

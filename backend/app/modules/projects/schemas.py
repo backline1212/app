@@ -377,6 +377,8 @@ class ProjectTransferPreview(BaseModel):
     client: ProjectTransferClient | None
     # A client in the destination with the same name.
     existing_client: ProjectTransferClient | None
+    # Other projects here use the client too, so it stays listed here after the move.
+    client_shared: bool
     # On the project, in this workspace, but not yet in the destination.
     people: list[ProjectTransferPerson]
     member_count: int
@@ -403,6 +405,8 @@ class ProjectTransferOut(BaseModel):
     cleanup_pending: bool
     client_outcome: Literal["linked", "created", "none"]
     client_name: str | None
+    # The client was archived here because this was its only project.
+    client_left_source: bool
     members_added: int
     invite_emails_failed: int
     # People taken off tickets because they aren't in the destination.

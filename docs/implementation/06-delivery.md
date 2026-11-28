@@ -5402,3 +5402,9 @@ database migration, or production deployment is claimed.
   day (before 09:00 UTC) or while a local worker is running.
 - Open: developer review of the move; very large projects, real R2, a real tracker
   connection and invitation email delivery not verified (limits in TDR-0245).
+
+# 2026-11-28: A moved client leaves with its last project (TDR-0248)
+
+- One-off client move check on a temporary database: 6 of 6. Web typecheck, lint and build;
+  backend ruff and mypy; API types regenerated.
+- Not verified: the full move in a browser after this change.

@@ -131,6 +131,11 @@ export function MoveProjectDialog({ project, onClose }: { project: api.ProjectOu
                 [data.client.contact_name, data.client.email].filter(Boolean).join(" · "))}
               {clientOption("name", data.existing_client ? "Add a second client with the name only" : "Bring the name only")}
               {clientOption("none", "Don’t bring the client")}
+              <p role="status">
+                {clientPick === "none" || data.client_shared
+                  ? `${data.client.name} stays in this workspace${data.client_shared ? ", where other projects use it" : ""}.`
+                  : `${data.client.name} leaves this workspace’s client list, because this is its only project here.`}
+              </p>
             </fieldset>}
             {people.length > 0 && <fieldset className="bl-move-set">
               <legend>People not in {target.name}</legend>

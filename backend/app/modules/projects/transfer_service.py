@@ -254,8 +254,7 @@ async def preview_transfer(
 @dataclass(frozen=True)
 class _Moved:
     graph: MoveResult
-    client_outcome: transfer_choices.ClientOutcome
-    client_name: str | None
+    client: transfer_choices.BroughtClient
     added_emails: list[str]
 
 
@@ -367,7 +366,7 @@ async def transfer_project(
                 [key for key in ledger if key not in listed and key not in staying],
                 session=session,
             )
-            client_id, client_outcome, client_name = await transfer_choices.bring_client(
+            client = await transfer_choices.bring_client(
                 db,
                 source_id=workspace_id,
                 target_id=target_id,
@@ -394,7 +393,7 @@ async def transfer_project(
                 prefixes=prefixes,
                 archived_at=archived_at,
                 actor_user_id=actor.user_id,
-                client_id=client_id,
+                client_id=client.client_id,
                 extra_access=extra_access,
                 keep_issue_links=request.keep_issue_links,
                 copy_activity=request.copy_activity,
@@ -433,7 +432,7 @@ async def transfer_project(
                     },
                     session=session,
                 )
-            return _Moved(graph, client_outcome, client_name, added_emails)
+            return _Moved(graph, client, added_emails)
 
         # Stopped first, so a renewal can't collide with the transaction's own write.
         await _stop(heartbeat)
@@ -475,8 +474,9 @@ async def transfer_project(
         tickets_renumbered=moved.graph.renumbered,
         files_moved=len(new_keys),
         cleanup_pending=pending,
-        client_outcome=moved.client_outcome,
-        client_name=moved.client_name,
+        client_outcome=moved.client.outcome,
+        client_name=moved.client.name,
+        client_left_source=moved.client.left_source,
         members_added=len(moved.added_emails),
         invite_emails_failed=emails_failed,
         unassigned=sorted(

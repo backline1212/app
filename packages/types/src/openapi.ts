@@ -5474,6 +5474,8 @@ export interface components {
             client_outcome: "linked" | "created" | "none";
             /** Client Name */
             client_name: string | null;
+            /** Client Left Source */
+            client_left_source: boolean;
             /** Members Added */
             members_added: number;
             /** Invite Emails Failed */
@@ -5503,6 +5505,8 @@ export interface components {
         ProjectTransferPreview: {
             client: components["schemas"]["ProjectTransferClient"] | null;
             existing_client: components["schemas"]["ProjectTransferClient"] | null;
+            /** Client Shared */
+            client_shared: boolean;
             /** People */
             people: components["schemas"]["ProjectTransferPerson"][];
             /** Member Count */

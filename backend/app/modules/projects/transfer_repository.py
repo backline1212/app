@@ -298,6 +298,26 @@ class ProjectTransferRepository:
         ]
         return ProjectContents(page_ids, comments, share_link_ids)
 
+    async def client_used_elsewhere(
+        self,
+        workspace_id: str,
+        client_id: str,
+        project: dict[str, Any],
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> bool:
+        """Whether any other project here, archived ones included, is this client's."""
+        found = await self.db.projects.find_one(
+            {
+                "workspace_id": workspace_id,
+                "client_id": client_id,
+                "_id": {"$ne": project["_id"]},
+            },
+            {"_id": 1},
+            session=session,
+        )
+        return found is not None
+
     async def issue_link_count(self, workspace_id: str, comment_ids: list[str]) -> int:
         return await self.db.integration_links.count_documents(
             {"workspace_id": workspace_id, "comment_id": {"$in": comment_ids}, "status": "done"}

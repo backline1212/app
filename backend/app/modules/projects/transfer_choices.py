@@ -3,6 +3,7 @@ client and the people on it. The preview and the move read the same rules."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -32,6 +33,16 @@ from app.modules.workspaces import events as workspace_events
 from app.modules.workspaces.repository import MembershipRepository
 
 ClientOutcome = Literal["linked", "created", "none"]
+
+
+@dataclass(frozen=True)
+class BroughtClient:
+    # The destination's client record for the project, if one came with it.
+    client_id: str | None = None
+    outcome: ClientOutcome = "none"
+    name: str | None = None
+    # True when the client left this workspace's list along with its last project.
+    left_source: bool = False
 
 
 async def _roles(
@@ -115,8 +126,12 @@ async def preview(
 
     workspace = await BillingRepository(db).find_workspace(target_id)
     assert workspace is not None
+    shared = client is not None and await repo.client_used_elsewhere(
+        source_id, project["client_id"], project
+    )
     return ProjectTransferPreview(
         client=_client_summary(client) if client else None,
+        client_shared=shared,
         existing_client=_client_summary(match) if match else None,
         people=sorted(people, key=lambda person: person.name.casefold()),
         member_count=await count_usage(db, target_id, "members"),
@@ -242,19 +257,43 @@ async def bring_client(
     match: Literal["existing", "new"],
     actor_user_id: str,
     session: AsyncIOMotorClientSession,
-) -> tuple[str | None, ClientOutcome, str | None]:
-    """(destination client id, what happened, its name). The client is copied, never
-    moved, and an existing destination client is never overwritten."""
+) -> BroughtClient:
+    """Gives the destination the project's client, then archives it here if no other
+    project uses it, so it is not listed in both workspaces (TDR-0248). An existing
+    destination client is never overwritten."""
     clients = ClientRepository(db)
     if choice == "none" or not project.get("client_id"):
-        return None, "none", None
-    original = await clients.find(source_id, project["client_id"], session=session)
+        return BroughtClient()
+    client_id = str(project["client_id"])
+    original = await clients.find(source_id, client_id, session=session)
     if original is None:
-        return None, "none", None
+        return BroughtClient()
+
+    async def leave_source() -> bool:
+        if await ProjectTransferRepository(db).client_used_elsewhere(
+            source_id, client_id, project, session=session
+        ):
+            return False
+        await clients.update(
+            source_id, client_id, {"archived_at": datetime.now(UTC)}, session=session
+        )
+        await append_event(
+            db,
+            workspace_id=source_id,
+            type="client.archived",
+            actor_type="member",
+            actor_id=actor_user_id,
+            payload={"client_id": client_id, "name": original["name"]},
+            session=session,
+        )
+        return True
+
     if match == "existing":
         existing = await clients.find_by_name(target_id, original["name"], session=session)
         if existing is not None:
-            return str(existing["_id"]), "linked", existing["name"]
+            return BroughtClient(
+                str(existing["_id"]), "linked", existing["name"], await leave_source()
+            )
     with_contact = choice == "contact"
     created = await clients.create(
         target_id,
@@ -275,4 +314,4 @@ async def bring_client(
         payload={"client_id": str(created["_id"]), "name": created["name"]},
         session=session,
     )
-    return str(created["_id"]), "created", created["name"]
+    return BroughtClient(str(created["_id"]), "created", created["name"], await leave_source())

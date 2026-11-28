@@ -235,8 +235,16 @@ class ClientRepository:
         doc["_id"] = result.inserted_id
         return doc
 
-    async def update(self, workspace_id: str, client_id: str, fields: dict[str, Any]) -> None:
+    async def update(
+        self,
+        workspace_id: str,
+        client_id: str,
+        fields: dict[str, Any],
+        *,
+        session: AsyncIOMotorClientSession | None = None,
+    ) -> None:
         await self.db.clients.update_one(
             {"workspace_id": workspace_id, "_id": to_object_id(client_id), "archived_at": None},
             {"$set": {**fields, "updated_at": datetime.now(UTC)}},
+            session=session,
         )
