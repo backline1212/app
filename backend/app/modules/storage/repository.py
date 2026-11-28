@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
@@ -69,6 +69,7 @@ class ObjectGcRepository:
         project_id: str,
         correlation_id: str,
         keys: list[str],
+        session: AsyncIOMotorClientSession | None = None,
     ) -> None:
         now = datetime.now(UTC)
         bucket = get_settings().r2_bucket_name
@@ -91,7 +92,33 @@ class ObjectGcRepository:
                     }
                 },
                 upsert=True,
+                session=session,
             )
+
+    async def unfinished_transfers(self, limit: int = 50) -> list[dict[str, Any]]:
+        # workspace-scope-exempt: internal scheduler; each cleanup it returns is then run
+        # scoped to its own workspace and project. No tenant content is returned.
+        rows = await self.db.object_gc_tombstones.aggregate(
+            [
+                {
+                    "$match": {
+                        "reason": "transfer",
+                        "status": {"$in": ["pending", "failed", "deleting"]},
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": {
+                            "workspace_id": "$workspace_id",
+                            "project_id": "$project_id",
+                            "correlation_id": "$correlation_id",
+                        }
+                    }
+                },
+                {"$limit": limit},
+            ]
+        ).to_list(length=None)
+        return [dict(row["_id"]) for row in rows]
 
     async def claim_next(
         self,

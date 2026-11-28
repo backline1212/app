@@ -195,7 +195,10 @@ async def run_render(
     # checkout that hasn't run `uv sync` yet.
     from playwright.async_api import async_playwright
 
+    from app.modules.projects.repository import ProjectRepository, transfer_in_progress
     from app.modules.storage.quota import store_bytes
+    from app.modules.storage.quota_repository import StorageQuotaRepository
+    from app.modules.storage.r2_client import delete_object
 
     repo = BrowserRenderRepository(db)
     doc = await repo.find(
@@ -203,6 +206,11 @@ async def run_render(
     )
     if doc is None:
         return  # the queued record was superseded/removed; nothing left to report into
+    moved = "The project moved to another workspace. Try the render again."
+    if doc["workspace_id"] != workspace_id:
+        # Queued before a move: its paths and storage belong to the old workspace.
+        await repo.mark_failed(doc_id=doc["_id"], error=moved)
+        return
     if not get_settings().server_browser_enabled:
         await repo.mark_failed(doc_id=doc["_id"], error=UNAVAILABLE_MESSAGE)
         return
@@ -256,6 +264,10 @@ async def run_render(
         f"renders/{workspace_id}/{project_id}/{page_id}/"
         f"{browser}-{render_width}x{render_height}-{orientation}-{uuid4().hex}.png"
     )
+    project = await ProjectRepository(db).find_by_id(project_id)
+    if project is None or project["workspace_id"] != workspace_id or transfer_in_progress(project):
+        await repo.mark_failed(doc_id=doc["_id"], error=moved)
+        return
     try:
         await store_bytes(
             db,
@@ -271,4 +283,7 @@ async def run_render(
             doc_id=doc["_id"], error="The screenshot couldn't be saved. Try again."
         )
         return
-    await repo.mark_ready(doc_id=doc["_id"], screenshot_key=key)
+    if not await repo.mark_ready(workspace_id=workspace_id, doc_id=doc["_id"], screenshot_key=key):
+        await delete_object(key)
+        await StorageQuotaRepository(db).release_deleted(workspace_id, key)
+        await repo.mark_failed(doc_id=doc["_id"], error=moved)

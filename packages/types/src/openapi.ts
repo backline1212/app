@@ -966,6 +966,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/transfer-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Project Transfer
+         * @description What moving this project to that workspace would carry (TDR-0245).
+         */
+        get: operations["preview_project_transfer_api_v1_projects__project_id__transfer_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer Project
+         * @description Moves a project, archived or not, to another workspace (TDR-0243).
+         */
+        post: operations["transfer_project_api_v1_projects__project_id__transfer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/export": {
         parameters: {
             query?: never;
@@ -2788,6 +2828,11 @@ export interface components {
             actor_id: string | null;
             /** Actor Name */
             actor_name?: string | null;
+            /**
+             * Project Moved
+             * @default false
+             */
+            project_moved: boolean;
             /**
              * Created At
              * Format: date-time
@@ -5363,6 +5408,122 @@ export interface components {
             status_counts?: {
                 [key: string]: number;
             };
+        };
+        /** ProjectTransfer */
+        ProjectTransfer: {
+            /** Target Workspace Id */
+            target_workspace_id: string;
+            /** Project Name */
+            project_name: string;
+            /**
+             * Client
+             * @default none
+             * @enum {string}
+             */
+            client: "contact" | "name" | "none";
+            /**
+             * Client Match
+             * @default existing
+             * @enum {string}
+             */
+            client_match: "existing" | "new";
+            /** Add Member Ids */
+            add_member_ids?: string[];
+            /**
+             * Keep Issue Links
+             * @default false
+             */
+            keep_issue_links: boolean;
+            /**
+             * Copy Activity
+             * @default false
+             */
+            copy_activity: boolean;
+        };
+        /** ProjectTransferClient */
+        ProjectTransferClient: {
+            /** Name */
+            name: string;
+            /** Contact Name */
+            contact_name: string;
+            /** Email */
+            email: string | null;
+        };
+        /** ProjectTransferOut */
+        ProjectTransferOut: {
+            /** Project Id */
+            project_id: string;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Workspace Slug */
+            workspace_slug: string;
+            /** Workspace Name */
+            workspace_name: string;
+            /** Archived */
+            archived: boolean;
+            /** Tickets Renumbered */
+            tickets_renumbered: number;
+            /** Files Moved */
+            files_moved: number;
+            /** Cleanup Pending */
+            cleanup_pending: boolean;
+            /**
+             * Client Outcome
+             * @enum {string}
+             */
+            client_outcome: "linked" | "created" | "none";
+            /** Client Name */
+            client_name: string | null;
+            /** Client Left Source */
+            client_left_source: boolean;
+            /** Members Added */
+            members_added: number;
+            /** Invite Emails Failed */
+            invite_emails_failed: number;
+            /** Unassigned */
+            unassigned: components["schemas"]["ProjectTransferUnassigned"][];
+            /** Issue Links Kept */
+            issue_links_kept: number;
+            /** Activity Copied */
+            activity_copied: number;
+        };
+        /** ProjectTransferPerson */
+        ProjectTransferPerson: {
+            /** User Id */
+            user_id: string;
+            /** Name */
+            name: string;
+            /** Email */
+            email: string;
+            /** Ticket Count */
+            ticket_count: number;
+        };
+        /**
+         * ProjectTransferPreview
+         * @description What a move to one destination would carry, shown before it is confirmed.
+         */
+        ProjectTransferPreview: {
+            client: components["schemas"]["ProjectTransferClient"] | null;
+            existing_client: components["schemas"]["ProjectTransferClient"] | null;
+            /** Client Shared */
+            client_shared: boolean;
+            /** People */
+            people: components["schemas"]["ProjectTransferPerson"][];
+            /** Member Count */
+            member_count: number;
+            /** Member Limit */
+            member_limit: number | null;
+            /** Issue Link Count */
+            issue_link_count: number;
+            /** Activity Count */
+            activity_count: number;
+        };
+        /** ProjectTransferUnassigned */
+        ProjectTransferUnassigned: {
+            /** Name */
+            name: string;
+            /** Ticket Numbers */
+            ticket_numbers: number[];
         };
         /** ProjectUpdate */
         ProjectUpdate: {
@@ -8370,6 +8531,74 @@ export interface operations {
             };
         };
     };
+    preview_project_transfer_api_v1_projects__project_id__transfer_preview_get: {
+        parameters: {
+            query: {
+                target_workspace_id: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectTransferPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfer_project_api_v1_projects__project_id__transfer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectTransfer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectTransferOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     export_project_api_v1_projects__project_id__export_get: {
         parameters: {
             query?: never;
@@ -8645,7 +8874,7 @@ export interface operations {
                 assignees?: string[];
                 view?: "all" | "mine" | "reply" | "client" | "overdue" | "new";
                 open_only?: boolean;
-                sort?: "newest" | "oldest" | "due" | "priority" | "status" | "project" | "assignee" | "tag";
+                sort?: "newest" | "oldest" | "due" | "priority" | "urgent" | "status" | "project" | "assignee" | "tag";
                 offset?: number;
                 limit?: number;
             };

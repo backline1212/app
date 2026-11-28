@@ -27,9 +27,10 @@ class TicketFilters(BaseModel):
     view: Literal["all", "mine", "reply", "client", "overdue", "new"] = "all"
     # Leave out resolved and won't-fix tickets (the MCP server's default listing).
     open_only: bool = False
-    sort: Literal["newest", "oldest", "due", "priority", "status", "project", "assignee", "tag"] = (
-        "newest"
-    )
+    # "urgent": highest priority first, newest first within a priority.
+    sort: Literal[
+        "newest", "oldest", "due", "priority", "urgent", "status", "project", "assignee", "tag"
+    ] = "newest"
     offset: int = Field(default=0, ge=0, le=100000)
     limit: int = Field(default=50, ge=1, le=100)
 
@@ -117,7 +118,10 @@ class ActivityOut(BaseModel):
     actor_type: str
     actor_id: str | None
     # The name a client gave on the review link; members are named from the member list.
+    # History that moved with a project also names people who aren't members here.
     actor_name: str | None = None
+    # The project this is about has since moved to another workspace.
+    project_moved: bool = False
     created_at: datetime
     project_id: str | None = None
     comment_id: str | None = None

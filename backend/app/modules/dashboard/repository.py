@@ -150,7 +150,13 @@ class DashboardRepository:
             {
                 "$set": {
                     "_due": {"$ifNull": ["$due_at", datetime(9999, 1, 1, tzinfo=UTC)]},
-                    "_priority": {"$indexOfArray": [["high", "medium", "low"], "$priority"]},
+                    # A comment stored without a priority counts as medium.
+                    "_priority": {
+                        "$indexOfArray": [
+                            ["high", "medium", "low"],
+                            {"$ifNull": ["$priority", "medium"]},
+                        ]
+                    },
                     # Finished work sinks below open work whatever the chosen order.
                     "_closed": {"$in": ["$status", ["resolved", "wont_fix"]]},
                     # "\uffff" sorts after every real value, so untagged tickets go last.
@@ -169,6 +175,7 @@ class DashboardRepository:
             "oldest": {"created_at": 1, "_id": 1},
             "due": {"_due": 1, "_id": 1},
             "priority": {"_priority": 1, "_id": 1},
+            "urgent": {"_priority": 1, "created_at": -1, "_id": -1},
             "status": {"_status": 1, "_id": 1},
             "project": {"_project.name": 1, "_id": 1},
             "assignee": {"_assignee_name": 1, "_id": 1},
@@ -391,8 +398,19 @@ class DashboardRepository:
         limit: int,
         event_type: str,
         hidden_project_ids: list[str] | None = None,
+        restricted_for: str | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         query: dict[str, Any] = {"workspace_id": workspace_id}
+        if restricted_for:
+            # A private project that has since moved away stays private (TDR-0245).
+            query["$and"] = [
+                {
+                    "$or": [
+                        {"payload_json.restricted_to": {"$exists": False}},
+                        {"payload_json.restricted_to": restricted_for},
+                    ]
+                }
+            ]
         if hidden_project_ids:
             # Events about a project the reader can't open. Older comment events carry
             # only a comment_id; dashboard/service.py's activity() drops those.
@@ -414,6 +432,30 @@ class DashboardRepository:
             .limit(limit)
         )
         return [doc async for doc in cursor], await self.db.events.count_documents(query)
+
+    async def moved_away(self, workspace_id: str, project_ids: list[str]) -> set[str]:
+        """Those of `project_ids` that left this workspace for another one."""
+        object_ids = [oid for oid in map(to_object_id, project_ids) if oid is not None]
+        if not object_ids:
+            return set()
+        here = {
+            str(doc["_id"])
+            async for doc in self.db.projects.find(
+                {"workspace_id": workspace_id, "_id": {"$in": object_ids}}, {"_id": 1}
+            )
+        }
+        left = {
+            str(doc["payload_json"]["project_id"])
+            async for doc in self.db.events.find(
+                {
+                    "workspace_id": workspace_id,
+                    "type": "project.transferred_out",
+                    "payload_json.project_id": {"$in": project_ids},
+                },
+                {"payload_json.project_id": 1},
+            )
+        }
+        return left - here
 
     async def guest_names(self, workspace_id: str, guest_ids: list[str]) -> dict[str, str]:
         """Display names reviewers gave when they opened a review link."""

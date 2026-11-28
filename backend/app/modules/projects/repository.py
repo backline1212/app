@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -27,6 +27,21 @@ EXCLUDE_UNTOUCHED_SAMPLE: dict[str, Any] = {
 
 def is_untouched_sample(project: dict[str, Any]) -> bool:
     return bool(project.get("is_sample")) and project_start_url(project) == SAMPLE_PROJECT_ORIGIN
+
+
+# A move to another workspace holds the project this long at most; a lock older than this
+# was left by a crashed request and no longer blocks anything (TDR-0243).
+TRANSFER_LOCK_TTL = timedelta(minutes=15)
+
+
+def transfer_in_progress(project: dict[str, Any]) -> bool:
+    transfer = project.get("transfer")
+    if not transfer:
+        return False
+    started: datetime = transfer["started_at"]
+    if started.tzinfo is None:
+        started = started.replace(tzinfo=UTC)
+    return started > datetime.now(UTC) - TRANSFER_LOCK_TTL
 
 
 class ProjectRepository:
@@ -328,11 +343,10 @@ class ProjectRepository:
         )
         return int(result.modified_count)
 
-    async def archive(self, project_id: str) -> None:
-        # workspace-scope-exempt: archive_project already verified ownership via
-        # find_by_id before calling this, same as update() above.
+    async def archive(self, workspace_id: str, project_id: str) -> None:
+        # Scoped, so it can't land on a project that has just moved elsewhere.
         await self.db.projects.update_one(
-            {"_id": to_object_id(project_id)},
+            {"_id": to_object_id(project_id), "workspace_id": workspace_id},
             {
                 "$set": {"archived_at": datetime.now(UTC), "updated_at": datetime.now(UTC)},
                 "$inc": {"metadata_version": 1},

@@ -463,6 +463,29 @@ async def _send_invite_email(
         return False
 
 
+async def announce_new_members(
+    db: AsyncIOMotorDatabase[dict[str, Any]],
+    *,
+    workspace_id: str,
+    inviter_user_id: str,
+    emails: list[str],
+) -> int:
+    """For memberships already saved by another change (a project move, TDR-0245):
+    refreshes open dashboards and sends the invitations. Returns how many invitation
+    emails could not be sent. Never raises, since the change has already happened."""
+    try:
+        await _publish_members_changed(workspace_id)
+    except Exception:
+        logger.exception("Could not announce new members of workspace %s", workspace_id)
+    failed = 0
+    for email in emails:
+        if not await _send_invite_email(
+            db, workspace_id=workspace_id, inviter_user_id=inviter_user_id, email=email
+        ):
+            failed += 1
+    return failed
+
+
 async def resend_invite(
     db: AsyncIOMotorDatabase[dict[str, Any]],
     *,
@@ -1112,11 +1135,13 @@ async def close_workspace(
     from app.modules.share_links.repository import ShareLinkRepository
 
     purge_after = datetime.now(UTC) + CLOSED_WORKSPACE_GRACE
-    await ProjectRepository(db).archive_all_for_workspace(workspace_id)
-    await ShareLinkRepository(db).revoke_all_for_workspace(workspace_id)
+    # Closed first, so a project moving in either sees it closed or arrives in time to
+    # be archived with the rest.
     await WorkspaceRepository(db).mark_closed(
         workspace_id, closed_by=actor_user_id, purge_after=purge_after
     )
+    await ProjectRepository(db).archive_all_for_workspace(workspace_id)
+    await ShareLinkRepository(db).revoke_all_for_workspace(workspace_id)
     memberships = MembershipRepository(db)
     for membership in await memberships.list_for_workspace(workspace_id):
         await memberships.delete(workspace_id=workspace_id, membership_id=str(membership["_id"]))

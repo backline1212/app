@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import PlainTextResponse
 
 from app.core.db import get_db
@@ -7,7 +7,7 @@ from app.core.permissions import require_permission, require_project_permission
 from app.core.rate_limit import check_rate_limit
 from app.core.redis_client import get_redis
 from app.core.session import Session, require_workspace_context, require_workspace_match
-from app.modules.projects import deletion_service
+from app.modules.projects import deletion_service, transfer_service
 from app.modules.projects import service as project_service
 from app.modules.projects.schemas import (
     PreviewImageIn,
@@ -23,6 +23,9 @@ from app.modules.projects.schemas import (
     ProjectResolve,
     ProjectSettingsOut,
     ProjectSettingsUpdate,
+    ProjectTransfer,
+    ProjectTransferOut,
+    ProjectTransferPreview,
     ProjectUpdate,
     UrlCheckIn,
     UrlCheckOut,
@@ -342,6 +345,50 @@ async def confirm_hard_delete_project(
         workspace_id=require_workspace_context(session),
         actor_user_id=session.user_id,
         confirmation=body,
+    )
+
+
+@router.get("/projects/{project_id}/transfer-preview", response_model=ProjectTransferPreview)
+async def preview_project_transfer(
+    project_id: str,
+    target_workspace_id: str = Query(min_length=1, max_length=64),
+    session: Session = Depends(require_permission("project:transfer")),
+) -> ProjectTransferPreview:
+    """What moving this project to that workspace would carry (TDR-0245)."""
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:project-transfer-preview:{session.user_id}",
+        limit=60,
+        window_seconds=60,
+    )
+    return await transfer_service.preview_transfer(
+        get_db(),
+        project_id=project_id,
+        workspace_id=require_workspace_context(session),
+        actor=session,
+        target_id=target_workspace_id,
+    )
+
+
+@router.post("/projects/{project_id}/transfer", response_model=ProjectTransferOut)
+async def transfer_project(
+    project_id: str,
+    body: ProjectTransfer,
+    session: Session = Depends(require_permission("project:transfer")),
+) -> ProjectTransferOut:
+    """Moves a project, archived or not, to another workspace (TDR-0243)."""
+    await check_rate_limit(
+        get_redis(),
+        key=f"rate-limit:project-transfer:{session.user_id}",
+        limit=10,
+        window_seconds=60,
+    )
+    return await transfer_service.transfer_project(
+        get_db(),
+        project_id=project_id,
+        workspace_id=require_workspace_context(session),
+        actor=session,
+        request=body,
     )
 
 

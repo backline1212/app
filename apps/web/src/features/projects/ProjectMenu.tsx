@@ -13,11 +13,12 @@ import { useAuth } from "../auth/AuthContext";
 import { listShareLinks } from "../share-links/api";
 import type { ProjectOut } from "./api";
 import * as api from "./api";
+import { MoveProjectDialog } from "./MoveProjectDialog";
 import { ManageFilesDialog } from "../assets/ManageFilesDialog";
 import { ApiError } from "../../lib/api-client";
 import { reviewLinkUrl, useReviewDomain } from "../workspaces/review-url";
 
-type MenuIconName = "archive" | "board" | "camera" | "download" | "duplicate" | "link" | "page" | "rename" | "restore" | "settings" | "share" | "trash";
+type MenuIconName = "archive" | "board" | "camera" | "download" | "duplicate" | "link" | "move" | "page" | "rename" | "restore" | "settings" | "share" | "trash";
 
 function MenuIcon({ name }: { name: MenuIconName }) {
   return <svg className="bl-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -30,6 +31,7 @@ function MenuIcon({ name }: { name: MenuIconName }) {
     {name === "duplicate" && <><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>}
     {name === "camera" && <><path d="M14.5 4h-5L7.5 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.5Z" /><circle cx="12" cy="13" r="3.5" /></>}
     {name === "download" && <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></>}
+    {name === "move" && <><path d="M13 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8M17 8l4 4-4 4M21 12H9" /></>}
     {name === "archive" && <><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9M10 13h4" /></>}
     {name === "restore" && <><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6" /></>}
     {name === "trash" && <><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></>}
@@ -58,6 +60,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [confirmExport, setConfirmExport] = useState(false);
   const [showHardDelete, setShowHardDelete] = useState(false);
+  const [showMove, setShowMove] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
   const [renameValue, setRenameValue] = useState(project.name);
@@ -178,6 +181,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
         {project.archived_at
           ? item("Restore project", "restore", () => { setConfirmRestore(true); setOpen(false); }, { disabled: !canManage, note: !canManage ? managersNote : undefined })
           : item("Archive project", "archive", () => { setConfirmArchive(true); setOpen(false); }, { disabled: !canManage, note: !canManage ? managersNote : undefined })}
+        {item("Move to another workspace", "move", () => { setShowMove(true); setOpen(false); }, { disabled: !canHardDelete, note: !canHardDelete ? "Owners and admins only" : undefined })}
         <div className="bl-dropdown-sep" role="separator" />
         {item("Delete project", "trash", () => { setShowHardDelete(true); setOpen(false); }, { danger: true, disabled: !canHardDelete || !project.archived_at, note: !canHardDelete ? "Owners and admins only" : !project.archived_at ? "Archive it first" : "Permanent" })}
       </div>}
@@ -190,6 +194,7 @@ export function ProjectMenu({ project, workspaceSlug, onManagePages, onShare, on
       {confirmArchive && <ConfirmAction title="Archive project?" icon="archive" tone="warning" message={<>Archive <strong>{project.name}</strong>?</>} detail="Review links stop working and the project leaves active views. Its comments, history, files, and settings stay intact so you can restore it later." error={archive.error} pending={archive.isPending} confirmLabel={archive.isPending ? "Archiving…" : "Archive project"} onCancel={() => setConfirmArchive(false)} onConfirm={() => archive.mutate()} />}
       {confirmRestore && <ConfirmAction title="Restore project?" icon="restore" message={<>Restore <strong>{project.name}</strong> to active projects?</>} detail="Its existing review links become available again with their original safeguards." error={restore.error} pending={restore.isPending} confirmLabel={restore.isPending ? "Restoring…" : "Restore project"} onCancel={() => setConfirmRestore(false)} onConfirm={() => restore.mutate()} />}
 
+      {showMove && <MoveProjectDialog project={project} onClose={() => setShowMove(false)} />}
       {showHardDelete && <HardDeleteDialog project={project} onClose={() => setShowHardDelete(false)} onDeleted={async () => { await refreshWorkspace(); setShowHardDelete(false); navigate(`/w/${workspaceSlug}`); }} />}
     </div>
   );

@@ -7,6 +7,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.mongo_utils import to_object_id
+from app.modules.projects.repository import TRANSFER_LOCK_TTL
 
 
 @dataclass(frozen=True)
@@ -245,6 +246,11 @@ class ProjectDeletionRepository:
                 "workspace_id": workspace_id,
                 "archived_at": {"$ne": None},
                 "hard_delete_status": {"$ne": "deleting"},
+                # Not while a move to another workspace holds it (TDR-0243).
+                "$or": [
+                    {"transfer": None},
+                    {"transfer.started_at": {"$lt": datetime.now(UTC) - TRANSFER_LOCK_TTL}},
+                ],
             },
             {
                 "$set": {

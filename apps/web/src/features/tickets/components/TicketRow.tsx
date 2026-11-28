@@ -46,9 +46,12 @@ export function TicketRow({
     // the keyboard/screen-reader control, so the row's own selects and buttons aren't
     // nested inside another button.
     <div className={`bl-tk${isClosed(ticket.status) ? " is-closed" : ""}${selected ? " is-selected" : ""}`} onClick={() => onOpen(ticket.id)}>
-      {update.canEdit(ticket) && <input type="checkbox" className="bl-tk-select" aria-label={`Select ticket ${ticketRef(ticket)}`} checked={selected}
-        onClick={(e) => e.stopPropagation()} onChange={() => onToggle(ticket.id)} />}
-      <span className="bl-tk-prio" style={{ background: priority.color }} title={`${priority.label} priority`} />
+      {/* The checkbox shares the priority bar's slot and appears on hover or focus. */}
+      <span className={`bl-tk-lead${update.canEdit(ticket) ? " is-selectable" : ""}`}>
+        <span className="bl-tk-prio" style={{ background: priority.color }} title={`${priority.label} priority`} />
+        {update.canEdit(ticket) && <input type="checkbox" className="bl-tk-select" aria-label={`Select ticket ${ticketRef(ticket)}`} checked={selected}
+          onClick={(e) => e.stopPropagation()} onChange={() => onToggle(ticket.id)} />}
+      </span>
       <span className="bl-tid">{ticketRef(ticket)}</span>
       <div className="bl-tk-main">
         <button type="button" className="bl-ticket-title bl-tk-open" onClick={(event) => { event.stopPropagation(); onOpen(ticket.id); }}>{ticket.body}</button>

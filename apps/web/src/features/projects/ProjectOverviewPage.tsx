@@ -59,6 +59,10 @@ type PageOut = Schemas["PageOut"];
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 1.5;
+// The review screen opens on this device. Narrow screens open on "Fit canvas", where a
+// desktop-sized frame would only be a sliver to scroll across.
+const OPENING_VIEWPORT = VIEWPORTS.find((option) => option.name === "Desktop") ?? null;
+const WIDE_SCREEN = "(min-width: 901px)";
 
 // Playwright needs a concrete pixel size to launch a viewport with - unlike the live
 // iframe, which can just fill whatever CSS gives it ("Fit canvas" / is-fit below), a
@@ -78,7 +82,7 @@ const ENGINE_LABEL: Record<string, string> = {
 
 function clampZoom(value: number) {
   if (!Number.isFinite(value)) return 1;
-  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 10) / 10));
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 20) / 20));
 }
 
 
@@ -176,7 +180,25 @@ export function ProjectOverviewPage() {
   const [retryCount, setRetryCount] = useState(0);
   const canvasRef = useRef<HTMLIFrameElement>(null);
   const nativeReviewTrigger = useRef<HTMLButtonElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  // The canvas's width inside its padding, which the side panel and rail change.
+  const [stageNode, setStageNode] = useState<HTMLDivElement | null>(null);
+  const [stageRoom, setStageRoom] = useState(0);
+  const attachStage = useCallback((node: HTMLDivElement | null) => {
+    stageRef.current = node;
+    setStageNode(node);
+  }, []);
+  useEffect(() => {
+    if (!stageNode) return;
+    const measure = () => {
+      const style = window.getComputedStyle(stageNode);
+      setStageRoom(Math.max(0, stageNode.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(stageNode);
+    return () => observer.disconnect();
+  }, [stageNode]);
   const frameShellRef = useRef<HTMLDivElement>(null);
   // Memoizes the canvas URL against the target it was built for - see where iframeSrc
   // is assembled below for why the mode can't be part of that rebuild.
@@ -206,10 +228,17 @@ export function ProjectOverviewPage() {
   const searchMode = searchParams.get("mode");
   const requestedMode: CanvasMode = searchMode === "browse" ? "browse" : searchMode === "draw" ? "draw" : "comment";
   const orientation = searchParams.get("orientation") === "landscape" ? "landscape" : "portrait";
-  const zoomScale = clampZoom(Number(searchParams.get("zoom") ?? 1));
+  const [wideScreen, setWideScreen] = useState(() => window.matchMedia(WIDE_SCREEN).matches);
+  useEffect(() => {
+    const query = window.matchMedia(WIDE_SCREEN);
+    const update = () => setWideScreen(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
   const viewport = useMemo<ViewportOption | null>(() => {
     const name = searchParams.get("viewport");
-    if (!name) return null;
+    // A link that only carries a dragged width means the responsive frame.
+    if (!name) return wideScreen && !searchParams.has("stageWidth") ? OPENING_VIEWPORT : null;
     if (name === "Custom") {
       const width = Number(searchParams.get("viewportWidth"));
       const height = Number(searchParams.get("viewportHeight"));
@@ -219,7 +248,7 @@ export function ProjectOverviewPage() {
       return null;
     }
     return VIEWPORTS.find((option) => option.name === name) ?? null;
-  }, [searchParams]);
+  }, [searchParams, wideScreen]);
   // Width the reviewer dragged the responsive ("Fit canvas") frame to. Only meaningful
   // without a viewport preset: a preset owns both of its dimensions, so its frame is
   // resized from ViewportMenu rather than by dragging, exactly like device mode in
@@ -308,6 +337,13 @@ export function ProjectOverviewPage() {
       ? viewport.height
       : viewport.width
     : undefined;
+  // Until the reviewer sets a zoom, a device frame wider than the canvas is scaled down
+  // to fit it (never below the smallest zoom, and never enlarged).
+  const fitZoom = visibleWidth && stageRoom > 0
+    ? Math.max(ZOOM_MIN, Math.min(1, Math.floor((stageRoom / (visibleWidth + 2)) * 20) / 20))
+    : 1;
+  const zoomParam = searchParams.get("zoom");
+  const zoomScale = zoomParam === null ? fitZoom : clampZoom(Number(zoomParam));
   // Chrome (BROWSERS[0]) stays the live, interactive proxy iframe exactly as before -
   // only a real non-Chrome pick, on a project that has opted into the real-render
   // project setting, switches the stage over to a rendered screenshot. Projects that
@@ -757,13 +793,32 @@ export function ProjectOverviewPage() {
 
   function setViewport(nextViewport: ViewportOption | null) {
     updateViewParams({
-      viewport: nextViewport?.name ?? null,
+      viewport: nextViewport?.name ?? "fit",
       viewportWidth: nextViewport?.name === "Custom" ? String(nextViewport.width) : null,
       viewportHeight: nextViewport?.name === "Custom" ? String(nextViewport.height) : null,
       orientation: nextViewport ? searchParams.get("orientation") : null,
       // Picking any viewport - including "Fit canvas" - is an explicit size choice, so
       // it clears a width left behind by an earlier drag instead of silently restoring it.
       stageWidth: null,
+      zoom: null,
+    });
+  }
+
+  // A typed width resizes the responsive frame, or turns a device preset into a custom
+  // size that keeps the preset's current height (within the custom size's limits).
+  function setFrameWidth(width: number) {
+    if (!viewport) {
+      updateViewParams({ stageWidth: String(width) });
+      return;
+    }
+    const height = Math.min(2000, Math.max(320, visibleHeight ?? viewport.height));
+    updateViewParams({
+      viewport: "Custom",
+      viewportWidth: String(width),
+      viewportHeight: String(height),
+      orientation: null,
+      stageWidth: null,
+      zoom: null,
     });
   }
 
@@ -773,12 +828,12 @@ export function ProjectOverviewPage() {
       return;
     }
     setDragWidth(undefined);
-    updateViewParams({ stageWidth: nextWidth === null ? null : String(nextWidth) });
+    updateViewParams({ viewport: "fit", stageWidth: nextWidth === null ? null : String(nextWidth) });
   }
 
   function setZoom(nextZoom: number) {
     const normalized = clampZoom(nextZoom);
-    updateViewParams({ zoom: normalized === 1 ? null : normalized.toFixed(1) });
+    updateViewParams({ zoom: normalized === fitZoom ? null : normalized.toFixed(2) });
   }
 
   function reloadPreview() {
@@ -1144,7 +1199,7 @@ export function ProjectOverviewPage() {
           </div>
         )}
         <div
-          ref={stageRef}
+          ref={attachStage}
           className={`bl-review-stage ${mode === "comment" || mode === "draw" ? "is-commenting" : "is-browsing"} ${mode === "draw" ? "is-drawing" : ""}`}
         >
           {canvasSessionQuery.isLoading ? (
@@ -1363,6 +1418,7 @@ export function ProjectOverviewPage() {
         currentPageId={activePage?.id ?? null}
         onSelectPage={goToPage}
         viewport={viewport}
+        onWidthChange={setFrameWidth}
         onViewportChange={setViewport}
         fitWidth={fitWidth}
         browser={browser}

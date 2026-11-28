@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation } fr
 
 import { LoadingScreen } from "../components/LoadingScreen";
 import { useAuth } from "../features/auth/AuthContext";
+import { MoveResultHost } from "../features/projects/MoveResultDialog";
 import { ProjectLayout } from "./layout/ProjectLayout";
 import { WorkspaceLayout } from "./layout/WorkspaceLayout";
 
@@ -16,6 +17,7 @@ function RootLayout() {
     <DraftNavigationProvider>
       <ScrollToTop />
       <Outlet />
+      <MoveResultHost />
     </DraftNavigationProvider>
   );
 }

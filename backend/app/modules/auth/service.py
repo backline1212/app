@@ -201,9 +201,11 @@ def _validate_new_password(password: str, email: str) -> None:
         raise ValidationError(f"Use at least {PASSWORD_MIN_LENGTH} characters.")
     if len(set(password)) < 4:
         raise ValidationError("That password repeats too few characters. Mix it up.")
-    local_part = email.split("@")[0].lower()
-    if len(local_part) >= 4 and local_part in password.lower():
-        raise ValidationError("Leave your email address out of your password.")
+    local_part = email.split("@")[0]
+    if len(local_part) >= 4 and local_part.lower() in password.lower():
+        raise ValidationError(
+            f'Remove "{local_part}" from your password. It comes from your email address.'
+        )
 
 
 async def request_signup(

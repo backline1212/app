@@ -8,7 +8,7 @@ import { timeAgo } from "../../lib/time";
 import { useOnClickOutside } from "../../lib/use-click-outside";
 import { STATUS_COLORS, STATUS_LABELS } from "../../lib/workflow";
 import { listClients } from "../clients/api";
-import { getDashboard, listTickets } from "../tickets/api";
+import { getDashboard } from "../tickets/api";
 import { NewTicket } from "../tickets/components/NewTicket";
 import { listMembers } from "../workspaces/api";
 import { ShareProjectModal } from "../workspaces/ShareProjectModal";
@@ -18,12 +18,13 @@ import { ProjectForm } from "./ProjectForm";
 import { DuplicateProjectDialog, ProjectMenu } from "./ProjectMenu";
 import { ProjectPagesModal } from "./ProjectPagesModal";
 import { ProjectArtwork } from "./ProjectArtwork";
-import { LockIcon, PlusIcon, SearchIcon } from "../../components/icons";
+import { LockIcon, PlusIcon } from "../../components/icons";
 import { CheckCircleIcon } from "./panel/icons";
 import { projectCan, roleLabel } from "../../lib/project-roles";
 import { redactReviewUrl } from "../../lib/review-page-path";
 import { EmptyArt } from "../../components/illustrations";
 import { GetStartedCard } from "./GetStartedCard";
+import { WaitingOnYou } from "./WaitingOnYou";
 
 const TYPE_LABELS: Record<string, string> = { website: "Website", webapp: "Web App", mobile: "Mobile App", image: "Images", pdf: "PDF" };
 type ProjectKind = "website" | "webapp" | "mobile" | "image" | "pdf";
@@ -41,6 +42,26 @@ function capturingNow(p: api.ProjectOut): boolean {
   return p.preview_status === "queued" && !p.archived_at && Boolean(p.preview_requested_at) && Date.now() - Date.parse(p.preview_requested_at!) < 3 * 60_000;
 }
 
+// design/index.html's project toolbar: which projects still need something.
+const HEALTH_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "active", label: "Active" },
+  { id: "review", label: "In review" },
+  { id: "blocked", label: "Blocked" },
+  { id: "resolved", label: "Resolved" },
+] as const;
+type ProjectStats = Awaited<ReturnType<typeof getDashboard>>["project_stats"][number];
+
+function matchesHealth(key: string, stats: ProjectStats | undefined) {
+  const count = (status: string) => stats?.status_counts?.[status] ?? 0;
+  if (key === "active") return count("todo") + count("in_progress") > 0;
+  if (key === "review") return count("in_review") > 0;
+  if (key === "blocked") return count("blocked") > 0;
+  // A project nobody has commented on yet has not been "resolved".
+  if (key === "resolved") return (stats?.total ?? 0) > 0 && stats?.open === 0;
+  return true;
+}
+
 interface PickerOption { id: string; label: string; sub: string }
 
 // "A", "A and B", "A, B and C".
@@ -52,15 +73,16 @@ function joinNames(names: string[]): string {
 // options, each with a one-line "what this means" caption and a checkmark on the
 // active one - replaces the plain native <select>s the mockup's own richer pickers
 // were modeled on.
-function Picker({ label, icon, options, value, onChange }: { label: string; icon: React.ReactNode; options: readonly PickerOption[]; value: string; onChange: (id: string) => void }) {
+function Picker({ label, icon, iconOnly = false, options, value, onChange }: { label: string; icon: React.ReactNode; iconOnly?: boolean; options: readonly PickerOption[]; value: string; onChange: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useOnClickOutside(ref, () => setOpen(false));
   const active = options.find((o) => o.id === value);
   return (
     <div className="bl-dropdown" ref={ref} onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}>
-      <button type="button" className="bl-dropdown-trigger labeled" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        {icon}{active?.label ?? label}
+      <button type="button" className="bl-dropdown-trigger labeled" aria-haspopup="menu" aria-expanded={open} aria-label={`${label}: ${active?.label ?? label}`} title={iconOnly ? `${label}: ${active?.label ?? label}` : undefined} onClick={() => setOpen((v) => !v)}>
+        {icon}{!iconOnly && (active?.label ?? label)}
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
       </button>
       {open && (
         <div role="menu" className="bl-dropdown-pop" aria-label={label}>
@@ -126,9 +148,9 @@ export function ProjectsPage() {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
-  // Typing in the filter box replaces the history entry instead of adding one per
-  // keystroke, so Back leaves the page rather than un-typing the query a letter at a time.
-  function filter(key: string, value: string) { const next = new URLSearchParams(params); if (value) next.set(key, value); else next.delete(key); setParams(next, { replace: key === "search" }); }
+  const health = HEALTH_FILTERS.find((f) => f.id === params.get("status"))?.id ?? "all";
+  function filter(key: string, value: string) { const next = new URLSearchParams(params); if (value) next.set(key, value); else next.delete(key); setParams(next); }
+  function clearFilters() { const next = new URLSearchParams(params); ["search", "client", "status"].forEach((key) => next.delete(key)); setParams(next); }
   const projects = useQuery({
     queryKey: qk.projects(workspace.id),
     queryFn: () => api.listProjects(workspace.id, true),
@@ -137,11 +159,13 @@ export function ProjectsPage() {
   const clients = useQuery({ queryKey: qk.clients(workspace.id), queryFn: () => listClients(workspace.id) });
   const members = useQuery({ queryKey: qk.members(workspace.id), queryFn: () => listMembers(workspace.id) });
   const summary = useQuery({ queryKey: qk.dashboard(workspace.id), queryFn: () => getDashboard(workspace.id) });
-  const attention = useQuery({ queryKey: qk.ticketsAttention(workspace.id), queryFn: () => listTickets(workspace.id, new URLSearchParams({ view: "reply", limit: "3" })) });
-  // Client feedback nobody has picked up yet (TDR-0208) - shown with what's waiting on you.
-  const fresh = useQuery({ queryKey: qk.ticketsNewFromClients(workspace.id), queryFn: () => listTickets(workspace.id, new URLSearchParams({ view: "new", limit: "3" })) });
   const stats = useMemo(() => new Map(summary.data?.project_stats.map((s) => [s.project_id, s]) ?? []), [summary.data]);
-  const visible = useMemo(() => (projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (type === "all" || projectKind(p) === type) && (!params.get("client") || p.client_id === params.get("client")) && `${p.name} ${p.target_origin} ${p.start_url ?? ""}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "open" ? (stats.get(b.id)?.open ?? 0) - (stats.get(a.id)?.open ?? 0) : sort === "added" ? b.created_at.localeCompare(a.created_at) : (stats.get(b.id)?.last_activity_at ?? b.updated_at).localeCompare(stats.get(a.id)?.last_activity_at ?? a.updated_at)), [projects.data, archived, type, params, search, sort, stats]);
+  // Everything on this tab; the status buttons then narrow it, and count within it.
+  const inScope = useMemo(() => (projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (type === "all" || projectKind(p) === type) && (!params.get("client") || p.client_id === params.get("client")) && `${p.name} ${p.target_origin} ${p.start_url ?? ""}`.toLowerCase().includes(search.toLowerCase())), [projects.data, archived, type, params, search]);
+  const visible = useMemo(() => inScope.filter((p) => matchesHealth(health, stats.get(p.id))).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "open" ? (stats.get(b.id)?.open ?? 0) - (stats.get(a.id)?.open ?? 0) : sort === "added" ? b.created_at.localeCompare(a.created_at) : (stats.get(b.id)?.last_activity_at ?? b.updated_at).localeCompare(stats.get(a.id)?.last_activity_at ?? a.updated_at)), [inScope, health, sort, stats]);
+  const clientFilter = params.get("client");
+  const narrowed = Boolean(search || clientFilter) || health !== "all";
+  const openThreads = Object.entries(summary.data?.statuses ?? {}).reduce((total, [status, count]) => status === "resolved" || status === "wont_fix" ? total : total + count, 0);
 
   // The landing state only (no search/type/archived filter active) gets the live
   // greeting; once someone is filtering or searching, a plain, functional heading
@@ -152,12 +176,6 @@ export function ProjectsPage() {
   const headline = archived ? "Archived projects" : search ? `Results for "${search}"` : type !== "all" ? `${TYPE_LABELS[type] ?? "Projects"} projects` : firstName ? `${timeGreeting}, ${firstName}` : timeGreeting;
   const needsReply = summary.data?.needs_reply ?? 0;
   const newFromClients = summary.data?.new_from_clients ?? 0;
-  const waitingTotal = (attention.data?.total ?? 0) + (fresh.data?.total ?? 0);
-  // Threads owed a reply first, then client feedback nobody has picked up.
-  const waitingItems = [
-    ...(attention.data?.items ?? []).map((ticket) => ({ ticket, fresh: false })),
-    ...(fresh.data?.items ?? []).map((ticket) => ({ ticket, fresh: true })),
-  ].slice(0, 4);
   const fullyResolved = (projects.data ?? []).filter((p) => !p.archived_at && (stats.get(p.id)?.total ?? 0) > 0 && stats.get(p.id)?.resolved === stats.get(p.id)?.total).map((p) => p.name);
 
   function projectCard(p: api.ProjectOut) {
@@ -218,7 +236,7 @@ export function ProjectsPage() {
   }
 
   function newProjectTile(className = "bl-new-card") {
-    if (archived || search) return null;
+    if (archived || search || health !== "all") return null;
     return <button className={className} onClick={() => setCreateType(type in TYPE_LABELS ? type as ProjectKind : "website")}><span className="bl-new-card-plus"><PlusIcon /></span><strong>{type === "image" ? "Upload images to review" : type === "pdf" ? "Upload a PDF to review" : type === "mobile" ? "Upload app screens to review" : type === "webapp" ? "Add a web app to review" : "Add a website to review"}</strong><small>{type === "image" ? "Pin feedback directly to campaign and product artwork." : type === "pdf" ? "Collect precise comments across every page of a document." : type === "mobile" ? "Screens from a TestFlight, APK or device build, grouped by build." : type === "webapp" ? "Steps to reproduce and console errors come with every comment." : "Paste a URL and send your client a review link."}</small></button>;
   }
 
@@ -267,41 +285,38 @@ export function ProjectsPage() {
         />
       )}
 
-      {/* Same footprint whether it's holding real threads or the empty state, so
-          clearing your last reply-owed comment doesn't shift the tabs/grid below it. */}
       {!archived && (
-        <section className="bl-attention">
-          <header>
-            <h2>Waiting on you{waitingTotal > 0 && <span className="bl-count">{waitingTotal}</span>}</h2>
-            {waitingTotal > 0 && <Link to={`/w/${workspace.slug}/tickets?view=${(attention.data?.total ?? 0) > 0 ? "reply" : "new"}`}>View all →</Link>}
-          </header>
-          {attention.isLoading || fresh.isLoading ? (
-            <div className="bl-attention-empty" aria-hidden="true"><div className="bl-skeleton" style={{ height: 12, width: 240, borderRadius: 3 }} /></div>
-          ) : attention.isError || fresh.isError ? (<p role="alert">Could not load items waiting on you. <button onClick={() => { void attention.refetch(); void fresh.refetch(); }}>Retry</button></p>) : waitingItems.length > 0 ? (
-            <div>{waitingItems.map(({ ticket: t, fresh: isNew }) => <Link key={t.id} to={`/w/${workspace.slug}/tickets?comment=${t.id}&project_id=${t.project_id}`}><small>{isNew && <span className="bl-new-client">New from client</span>}{t.project_name} · {t.page_title}</small><strong>{t.body}</strong><span>{t.author_name} · {timeAgo(t.created_at)}</span></Link>)}</div>
-          ) : (
-            <div className="bl-attention-empty">
-              <p>Client feedback that needs an owner, and threads waiting on your reply, show up here.</p>
-              {/* With no live project there's nowhere to file a ticket yet, so offer the step that comes first. */}
-              {(projects.data ?? []).some((p) => !p.archived_at && !p.is_sample)
-                ? <button type="button" className="bl-quiet" onClick={() => setShowNewTicket(true)}><PlusIcon /> New ticket</button>
-                : canCreateProject && <button type="button" className="bl-quiet" onClick={() => setCreateType("website")}><PlusIcon /> Add your first project</button>}
-            </div>
-          )}
-        </section>
+        <WaitingOnYou
+          workspaceId={workspace.id}
+          workspaceSlug={workspace.slug}
+          openCount={openThreads}
+          // With no live project there's nowhere to file a ticket yet, so offer the step that comes first.
+          emptyAction={(projects.data ?? []).some((p) => !p.archived_at && !p.is_sample)
+            ? <button type="button" className="bl-quiet" onClick={() => setShowNewTicket(true)}><PlusIcon /> New ticket</button>
+            : canCreateProject && <button type="button" className="bl-quiet" onClick={() => setCreateType("website")}><PlusIcon /> Add your first project</button>}
+        />
       )}
 
       <div className="bl-tabs" aria-label="Project types">{[['all', 'All projects'], ['website', 'Website'], ['webapp', 'Web App'], ['mobile', 'Mobile App'], ['image', 'Images'], ['pdf', 'PDF']].map(([key, label]) => <button key={key} aria-pressed={type === key} onClick={() => filter("type", key)}>{label}<span className="bl-count">{(projects.data ?? []).filter((p) => Boolean(p.archived_at) === archived && (key === "all" || projectKind(p) === key)).length}</span></button>)}</div>
 
       <>
 
-      {/* One search-styled control on this screen, not two: this is the "filter the
-          visible grid" input; the omnisearch in the persistent topbar (⌘K) is the
-          different, more powerful "find anything in this workspace" one. */}
-      <div className="bl-toolbar wrap">
-        <span className="bl-mono">{visible.length} {visible.length === 1 ? "PROJECT" : "PROJECTS"}</span>{(search || params.get("client")) && <button className="bl-quiet" onClick={() => { const next = new URLSearchParams(params); ["search", "type", "client"].forEach((key) => next.delete(key)); setParams(next); }}>Clear filters</button>}
-        <label className="bl-search"><span className="bl-search-icon" aria-hidden="true"><SearchIcon /></span><input aria-label="Filter projects" placeholder="Filter by name or URL…" value={search} onChange={(e) => filter("search", e.target.value)} /></label>
-        <select aria-label="Filter by client" className="bl-select" value={params.get("client") ?? ""} onChange={(e) => filter("client", e.target.value)}><option value="">All clients</option>{clients.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+      {/* A client or search that arrives in a link still applies, and says so. */}
+      {(search || clientFilter) && (
+        <div className="bl-tfil-chips">
+          {clientFilter && <span className="bl-tfil-chip">Client: {clients.data?.find((c) => c.id === clientFilter)?.name ?? "…"}<button type="button" aria-label="Stop filtering by client" onClick={() => filter("client", "")}>×</button></span>}
+          {search && <span className="bl-tfil-chip">Search: {search}<button type="button" aria-label="Stop filtering by search" onClick={() => filter("search", "")}>×</button></span>}
+        </div>
+      )}
+
+      <div className="bl-filter-bar">
+        <div className="bl-segment" role="group" aria-label="Filter projects">
+          {HEALTH_FILTERS.map((f) => (
+            <button key={f.id} type="button" aria-pressed={health === f.id} onClick={() => filter("status", f.id === "all" ? "" : f.id)}>
+              {f.label}<span className="bl-count">{inScope.filter((p) => matchesHealth(f.id, stats.get(p.id))).length}</span>
+            </button>
+          ))}
+        </div>
         <div className="bl-tool-right">
           <Picker label="Sort by" icon={SORT_ICON} value={sort} onChange={(v) => filter("sort", v)} options={[
             { id: "activity", label: "Last activity", sub: "Most recently commented first" },
@@ -309,7 +324,7 @@ export function ProjectsPage() {
             { id: "open", label: "Most open comments", sub: "Busiest projects first" },
             { id: "name", label: "Name A–Z", sub: "Alphabetical" },
           ]} />
-          <Picker label="Layout" icon={VIEW_ICONS[view]} value={view} onChange={(v) => filter("display", v)} options={[
+          <Picker label="Layout" iconOnly icon={VIEW_ICONS[view] ?? VIEW_ICONS.cards} value={view} onChange={(v) => filter("display", v)} options={[
             { id: "cards", label: "Cards", sub: "Big previews, quick glance" },
             { id: "compact", label: "Compact", sub: "Smaller previews, more per row" },
             { id: "list", label: "List", sub: "One row per project" },
@@ -334,7 +349,7 @@ export function ProjectsPage() {
             (UX-AUD-005: motion is decorative only - prefers-reduced-motion already
             flattens every animation/transition duration to ~0 globally, see backline.css). */}
         {view === "table" ? (
-          <div key={`${type}-${archived}-${sort}-${search}-${params.get("client") ?? ""}`}>
+          <div key={`${type}-${archived}-${health}-${sort}-${search}-${clientFilter ?? ""}`}>
             <div className="bl-table-wrap bl-projects-table">
               <table className="bl-table">
                 <thead><tr>
@@ -355,14 +370,14 @@ export function ProjectsPage() {
             {newProjectTile("bl-new-card bl-new-row")}
           </div>
         ) : (
-          <div className={`bl-projects ${view}`} key={`${type}-${archived}-${sort}-${search}-${params.get("client") ?? ""}`}>
+          <div className={`bl-projects ${view}`} key={`${type}-${archived}-${health}-${sort}-${search}-${clientFilter ?? ""}`}>
             {visible.map(projectCard)}
             {newProjectTile()}
           </div>
         )}
         {/* A project-type tab with nothing in it already shows its "add" tile; only a
-            search/client filter or the archive gets a separate empty state. */}
-        {!projects.error && visible.length === 0 && (archived || search || params.get("client")) && <div className="bl-empty"><EmptyArt kind={search || params.get("client") ? "search" : "projects"} /><h2>{archived && !search ? "No archived projects" : "No matching projects"}</h2><p>{search || params.get("client") ? "Try a different search or client." : "Archived projects appear here. Restore one to review it again."}</p></div>}
+            filter or the archive gets a separate empty state. */}
+        {!projects.error && visible.length === 0 && (archived || narrowed) && <div className="bl-empty"><EmptyArt kind={narrowed ? "search" : "projects"} /><h2>{narrowed ? "No matching projects" : "No archived projects"}</h2><p>{narrowed ? "Nothing here matches this filter." : "Archived projects appear here. Restore one to review it again."}</p>{narrowed && <button type="button" className="bl-quiet" onClick={clearFilters}>Show all projects</button>}</div>}
       </>}
       </>
     </main>
